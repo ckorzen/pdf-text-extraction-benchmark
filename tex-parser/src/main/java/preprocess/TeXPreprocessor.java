@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import de.freiburg.iif.map.ConstantLookupList;
+import de.freiburg.iif.collection.ConstantLookupList;
 import model.Command;
 import model.Document;
 import model.Element;

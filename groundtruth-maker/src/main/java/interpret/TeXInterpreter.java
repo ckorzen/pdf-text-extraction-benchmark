@@ -10,8 +10,8 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
-import de.freiburg.iif.paths.LineReader;
-import de.freiburg.iif.text.StringUtil;
+import de.freiburg.iif.path.LineReader;
+import de.freiburg.iif.text.StringUtils;
 import model.Command;
 import model.Document;
 import model.Element;
@@ -29,7 +29,7 @@ import model.Whitespace;
  */
 public class TeXInterpreter {
   /** 
-   * The name of default context. 
+   * The name of default context.
    */
   static final String DEFAULT_CONTEXT_NAME = "text";
   
@@ -128,14 +128,14 @@ public class TeXInterpreter {
       TeXHierarchy context) {    
     
     // Check, if the command is a cross reference.
-    if (StringUtil.equals(cmd.getName(), "\\ref", "\\cite", "\\label")) {
+    if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite", "\\label")) {
       processCrossReferenceCommand(cmd, itr, context);
     }
     
     CommandReference cmdRef = getCommandReference(cmd);
     
     // Skip the command, if there is no reference for the command.
-    if (cmdRef == null) {      
+    if (cmdRef == null) {
       itr.skipTo(guessEndCommand(cmd));
       return;
     }
@@ -178,7 +178,7 @@ public class TeXInterpreter {
         }
       }
     }
-    
+        
     // Process all commands within this context.
     processElements(getChildElements(cmd, itr), context);
   }

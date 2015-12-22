@@ -7,7 +7,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.freiburg.iif.map.ConstantLookupList;
+import de.freiburg.iif.collection.ConstantLookupList;
 
 /**
  * A group in a tex file, that is a bunch of elements wrapped in "{...}".

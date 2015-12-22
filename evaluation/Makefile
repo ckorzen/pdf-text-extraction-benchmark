@@ -147,8 +147,9 @@ compile-icecite-parser:
 	cp $(PDF_PARSER_SRC)/target/*-with-dependencies.jar $(PDF_PARSER_JAR) 
 
 compare-words:
-	paste <(fold -w 80 -s $(GROUNDTRUTH_TARGET)/*/$(PREFIX)*.full.txt | sed -e 's/^$$/ /g') \
-	<(fold -w 80 -s $(TOOL_TARGET)/*/$(PREFIX)*.txt | sed -e 's/^$$/ /g') | column -t -s"	" | less
+	wdiff $(GROUNDTRUTH_TARGET)/*/$(PREFIX)*.full.txt $(TOOL_TARGET)/*/$(PREFIX)*.txt -w $$'\033[30;41m' -x $$'\033[0m' -y $$'\033[30;42m' -z $$'\033[0m' -in | less -R
+	#paste <(fold -w 80 -s $(GROUNDTRUTH_TARGET)/*/$(PREFIX)*.full.txt | sed -e 's/^$$/ /g') \
+	#<(fold -w 80 -s $(TOOL_TARGET)/*/$(PREFIX)*.txt | sed -e 's/^$$/ /g') | column -t -s"	" | less
 	
 compare-body:
 	paste <(fold -w 80 -s $(GROUNDTRUTH_TARGET)/*/$(PREFIX)*.body.txt | sed -e 's/^$$/ /g') \

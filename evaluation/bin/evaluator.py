@@ -3,8 +3,13 @@ import re
 import sys
 import operator
 import argparse
+import difflib
 from cfuzzyset import cFuzzySet as FuzzySet
 from collections import Counter
+import diff_match_patch
+import subprocess
+import re
+import math
 
 class Evaluator:
     def __init__(self, args):
@@ -14,6 +19,11 @@ class Evaluator:
         (2) the root directory of the groundtruth to use on evaluation.
         '''
         self.args = args
+        # The patterns to parse the output of wdiff.
+        self.replace_pattern = re.compile("\[\-(.*)\-\] \{\+(.*)\+\}")
+        self.insert_pattern = re.compile("\{\+(.*)\+\}")
+        self.delete_pattern = re.compile("\[\-(.*)\-\]")
+        self.equal_pattern = re.compile("(.+)")
 
     def process(self):
         '''
@@ -126,6 +136,19 @@ class Evaluator:
         else:
             return ""
 
+    def is_junk(self, word):
+        if "[formula]" in word:
+            return True
+        if "[table]" in word:
+            return True
+        elif "[\ref=" in word:
+            return True
+        elif "[\cite=" in word:
+            return True
+        elif "[\label=" in word:
+            return True
+        return False
+            
     def evaluate_words_extraction(self):
         '''
         Computes the precision and recall for the results of words extraction.
@@ -133,12 +156,12 @@ class Evaluator:
         can set max_distance > 0 to allow fuzzy matches as well.
         '''  
         # Pattern to split the text into words, without any punctuation marks.        
-        pattern = re.compile("[-\s.,!?;:\(\){}\[\]<>\"%&/=\@*\+~#|]")
-        max_dist = self.args.max_distance        
+        pattern = re.compile("[\s.,!?;:]")
+              
         results = []
         prefix = self.args.prefix
         suffix = self.args.word_suffix
-        
+                
         # Iterate the groundtruth files.
         for current_dir, dirs, files in os.walk(self.args.gt_path):
             # Only consider the files that matches the prefix and the suffix.
@@ -147,7 +170,7 @@ class Evaluator:
             
             for file in files:
                 gt_file_path = os.path.join(current_dir, file)
-                                
+                             
                 # Format the gt file.
                 gt = self.format_groundtruth_file(gt_file_path).lower()
                 
@@ -156,17 +179,55 @@ class Evaluator:
                     actual_path = self.get_actual_file_path(gt_file_path)
 
                     if actual_path:
-                        actual = self.format_actual_file(actual_path).lower()  
-                    
-                        # Obtain the words.
-                        words = list(filter(None, pattern.split(actual)))
-                        gt_words = list(filter(None, pattern.split(gt)))
-                               
+                        diff = self.diff(gt_file_path, actual_path)
+                        
                         # Compute precision recall values.
-                        results.append(self.precision_recall(
-                                        words, gt_words, max_dist))
-                                        
+                        (precision, recall) = self.evaluate_words_diff(diff)
+                        
+                        print("%s: %f %f" % (gt_file_path, precision, recall))
+
+                        results.append((precision, recall))                                    
         return results
+
+    def evaluate_words_diff(self, diff):
+        # tp = the number of items that occur in actual and gt
+        # fn = the number of items that occur only in gt
+        # fp = the number of items that occur only in actual
+        tp = fn = fp = 0
+        max_dist = self.args.max_distance  
+
+        for (tag, data) in diff:
+            #print ("%s %s" % (tag, data))
+            if tag == "equal":
+                tp += len(data)
+                #print ("TP += %d" % (len(data)))
+            if tag == "insert":
+                fp += len(data)
+                #print ("FP += %d" % (len(data)))
+            elif tag == "delete":
+                fn += len(data)
+                #print ("FN += %d" % (len(data)))
+            elif tag == "replace":
+                norm = "".join(data[0])
+                for word in data[0]:
+                    # Don't consider any placeholders.                    
+                    if "[formula]" in word:
+                        continue
+                    if "[table]" in word:
+                        continue
+                    if "[\\cite=" in word:
+                        continue
+                    if "[\\label=" in word:
+                        continue
+                    if "[\\ref=" in word:
+                        continue
+                    if not (max_dist > 0 and Evaluator.fuzzy_contains(word, norm, max_dist)):
+                        fn += 1
+                        #print ("FN += 1 (%s)" % (word))
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        return (round(precision, 2), round(recall, 2))
 
     def evaluate_para_extraction(self):
         '''
@@ -247,43 +308,123 @@ class Evaluator:
     def precision_recall(self, actuals, gt, max_dist=None, min_similarity=None):        
         if len(actuals) == 0 and len(gt) == 0:
             return (1.0, 1.0)
-                            
-        # tp = the number of items that occur in actual and gt
-        # fn = the number of items that occur only in gt
-        # tp = the number of items that occur only in actual
-        tp = fn = fp = 0
+
+        text1 = " ".join(gt)
+        text2 = " ".join(actuals)
         
-        fuzzy_gt = FuzzySet(gt)
-        counter_gt = Counter(gt)
-                
-        # Iterate the actual items.
-        for actual in actuals:
-            # Obtain the "best" matches in the groundtruth. 
-            fuzzy_matches = fuzzy_gt.get(actual)
-                
-            if fuzzy_matches:
-                fuzzy_match = fuzzy_matches[0]
-                fuzzy_match_similarity = fuzzy_match[0]
-                fuzzy_match_text = fuzzy_match[1]
-                
-                if max_dist is not None:
-                    max_length = max(len(actual), len(fuzzy_match_text))
-                    min_similarity = (max_length - max_dist) / max_length  
-                        
-                if fuzzy_match_text in counter_gt \
-                        and fuzzy_match_similarity >= min_similarity:
-                    tp += 1
-                    counter_gt += Counter({fuzzy_match_text: -1})
-                else:
-                    fp += 1
+        dmp = diff_match_patch.diff_match_patch()
+        a = dmp.diff_linesToChars(text1, text2)
+        lineText1 = a[0]
+        lineText2 = a[1]
+        lineArray = a[2]
+        
+        diffs = dmp.diff_main(lineText1, lineText2, False)
 
-        # Iterate the remaining groundtruth item to obtain the fn value.
-        for actual in counter_gt:
-            fn += counter_gt[actual]
+        dmp.diff_charsToLines(diffs, lineArray)
+        
+        #for diff in diffs:
+        #    print(diff)
+        
+        return (round(0.0), round(0.0))
+        
+    def diff(self, file1, file2):
+        result = []        
+           
+        cmd = subprocess.Popen(["wdiff", "-w \n[WDIFF-DELETE] ", "-x \n", "-y \n[WDIFF-INSERT] ", "-z \n", "-in", file1, file2], stdout=subprocess.PIPE)
+        for line in cmd.stdout: 
+            line = line.decode("utf-8").strip()
+            
+            if not line:
+                continue
 
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        return (round(precision,2), round(recall, 2))
+            last_tag = ""
+
+            if result:        
+                (last_tag, last_data) = result[-1]
+
+            if line.startswith("[WDIFF-INSERT]"):
+                data = line[14:].strip()
+                if data:
+                    if not last_tag:
+                        result.append(("insert", data.split()))
+                        continue
+                    if last_tag == "delete":
+                        result[-1] = ("replace", (result[-1][1], data.split()))
+                    elif last_tag == "insert":
+                        result[-1][1].extend(data.split())
+                    elif last_tag == "replace":
+                        result[-1][1][1].extend(data.split())
+                    else:
+                        result.append(("insert", data.split()))
+                                    
+            elif line.startswith("[WDIFF-DELETE]"):
+                data = line[14:].strip()
+                if data:
+                    if not last_tag:
+                        result.append(("delete", data.split()))
+                        continue
+                    if last_tag == "delete":
+                        result[-1][1].extend(data.split())
+                    else: 
+                        result.append(("delete", data.split()))
+            else:
+                data = line
+                if data:
+                    if not last_tag:
+                        result.append(("equal", data.split()))
+                        continue
+                    if last_tag == "equal":
+                        result[-1][1].extend(data.split())
+                    else:
+                        result.append(("equal", data.split()))
+                
+            
+        return result
+
+    @staticmethod
+    def fuzzy_contains(needle, haystack, max_distance):
+        '''
+        Checks, if there is a substring in haystack for the given needle with an 
+        edit-distance <= max_distance.
+
+        >>> Evaluator.fuzzy_contains("tree", "tree", 0)
+        True
+        >>> Evaluator.fuzzy_contains("tree", "tr-ee", 0)
+        False
+        >>> Evaluator.fuzzy_contains("tree", "tr-ee", 1)
+        True
+        >>> Evaluator.fuzzy_contains("tree", "xtr-eex", 0)
+        False
+        >>> Evaluator.fuzzy_contains("tree", "xtr-eex", 1)
+        True
+        >>> Evaluator.fuzzy_contains("beautiful", "bea uti ful", 1)
+        False
+        >>> Evaluator.fuzzy_contains("beautiful", "bea uti ful", 2)
+        True
+        '''
+        
+        s1 = needle
+        s2 = haystack
+
+        previous_column = [0] * (len(s2) + 1)
+        column_min = float("inf")
+
+        for i, c1 in enumerate(s1):
+           current_column = [i + 1]
+           column_min = i + 1
+           for j, c2 in enumerate(s2):
+               insert = previous_column[j + 1] + 1 
+               delete = current_column[j] + 1
+               replace = previous_column[j] + (c1 != c2)
+               value = min(insert, delete, replace)
+               current_column.append(value)
+               column_min = min(column_min, value)
+           if column_min > max_distance:
+               return False
+           previous_column = current_column
+
+        return column_min <= max_distance
+
 
     def get_argument_parser():
         parser = argparse.ArgumentParser()

@@ -21,8 +21,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-import de.freiburg.iif.paths.PathsUtil;
-import de.freiburg.iif.text.StringUtil;
+import de.freiburg.iif.path.PathUtils;
+import de.freiburg.iif.text.StringUtils;
 import interpret.TeXHierarchy;
 import interpret.TeXInterpreter;
 import model.Document;
@@ -463,7 +463,7 @@ public class GroundtruthMakerMain {
     }
 
     // Obtain the basename of the parent directory.
-    String basename = PathsUtil.getBasename(texFile.getParent());
+    String basename = PathUtils.getBasename(texFile.getParent());
 
     Path targetDir = getTargetDir(texFile);
     if (targetDir != null) {
@@ -495,7 +495,7 @@ public class GroundtruthMakerMain {
    */
   protected Path getPreprocessTargetFile(Path texFile) {
     // Obtain the basename of the file.
-    String basename = PathsUtil.getBasename(texFile);
+    String basename = PathUtils.getBasename(texFile);
     // Obtain the filename for the target file.
     String filename = basename + PREPROCESS_FILE_EXTENSIONS.get(0);
     Path targetDir = getPreprocessTargetDir(texFile);
@@ -603,12 +603,12 @@ public class GroundtruthMakerMain {
 
     // Process only those files, which are located in a directory, which
     // contains the given prefix.
-    if (StringUtil.startsWith(dirName, inputPrefix)) {
+    if (StringUtils.startsWith(dirName, inputPrefix)) {
       // Furthermore, process only those files, which end with one of the
       // predefined extension, but don't end with a file extension of a
       // preprocessing file.
-      if (StringUtil.endsWith(fileName, PROCESS_FILE_EXTENSIONS)
-          && !StringUtil.endsWith(fileName, PREPROCESS_FILE_EXTENSIONS)) {
+      if (StringUtils.endsWith(fileName, PROCESS_FILE_EXTENSIONS)
+          && !StringUtils.endsWith(fileName, PREPROCESS_FILE_EXTENSIONS)) {
         return true;
       }
     }

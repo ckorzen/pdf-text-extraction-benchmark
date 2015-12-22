@@ -50,7 +50,8 @@ class Extractor:
         # Run the command.
         dev_null = open(os.devnull, 'w')
         std_out = subprocess.STDOUT
-        return subprocess.call(cmd, shell=True, stdout=dev_null, stderr=std_out)
+
+        subprocess.call(cmd, shell=True)
         
     def get_output_file_path(self, dir, pdf_name):
         '''
