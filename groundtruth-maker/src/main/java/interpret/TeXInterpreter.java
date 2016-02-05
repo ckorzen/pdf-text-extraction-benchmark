@@ -203,15 +203,14 @@ public class TeXInterpreter {
       if (text != null) {
         // Add placeholder for each key in \cite{}.
         String[] keys = text.split(",");
+        context.writeText(DEFAULT_CONTEXT_NAME, " ");
         for (int i = 0; i < keys.length; i++) {
           context.writeText(DEFAULT_CONTEXT_NAME, "[");
           context.writeText(DEFAULT_CONTEXT_NAME, cmd.getName());
-          context.writeText(DEFAULT_CONTEXT_NAME, "=");
+          context.writeText(DEFAULT_CONTEXT_NAME, "x=");
           context.writeText(DEFAULT_CONTEXT_NAME, keys[i].trim());
           context.writeText(DEFAULT_CONTEXT_NAME, "]");
-          if (i < keys.length - 1) {
-            context.writeText(DEFAULT_CONTEXT_NAME, " ");
-          }
+          context.writeText(DEFAULT_CONTEXT_NAME, " ");
         }
       }
     }
