@@ -116,6 +116,10 @@ public class TeXInterpreter {
       text = text.replaceAll("''", "\"");
       text = text.replaceAll("`", "'");
       text = text.replaceAll("&", ""); // Remove the separators in tabular
+      // Replace all variant of a dash by the simple one.
+      text = text.replaceAll("--", "-"); 
+      // Replace all variant of a dash by the simple one.
+      text = text.replaceAll("---", "-"); 
       if (!text.trim().isEmpty()) {
         context.writeText(DEFAULT_CONTEXT_NAME, text);
       }
