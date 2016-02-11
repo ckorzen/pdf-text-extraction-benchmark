@@ -30,7 +30,7 @@ all: extract evaluate
 
 # Compile the groundtruth maker.
 compile-arxiv-benchmark:
-	mvn -f $(ARXIV_BENCHMARK_SRC)/pom.xml install
+	mvn -f $(ARXIV_BENCHMARK_SRC)/pom.xml -DskipTests install
 	@cp $(ARXIV_BENCHMARK_SRC)/target/*-with-dependencies.jar $(ARXIV_BENCHMARK_JAR) 
 
 # Make the groundtruth files (a file containing the whole content and a file 
@@ -103,7 +103,7 @@ evaluate:
 # Evaluate the accuracy of words extraction.
 evaluate-words: validate
 	@echo "Evaluating the words extraction of the tool \"$(TOOL)\"".
-	@python3 $(EVALUATOR_SRC) \
+	python3 $(EVALUATOR_SRC) \
 		--type word \
 		--max_distance "$(MAX_DISTANCE)" \
 		--prefix "$(PREFIX)" \

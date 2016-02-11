@@ -1,5 +1,12 @@
-import os
+import logging
+
 from evaluator import Evaluator
+
+logging.basicConfig(
+    format='%(asctime)s : %(levelname)s : %(module)s : %(message)s',
+    level=logging.DEBUG,
+)
+logger = logging.getLogger(__name__)
 
 class PdfToTextEvaluator(Evaluator):
     pass
