@@ -101,7 +101,7 @@ public class TeXInterpreter {
    */
   protected void processText(Text element, Iterator<Element> itr, 
       TeXHierarchy context) {
-   
+       
     if (element instanceof NewParagraph) {
       context.writeNewParagraph(DEFAULT_CONTEXT_NAME);
     } else if (element instanceof NewLine) {
@@ -115,6 +115,7 @@ public class TeXInterpreter {
       text = text.replaceAll("``", "\"");
       text = text.replaceAll("''", "\"");
       text = text.replaceAll("`", "'");
+      text = text.replaceAll("&", ""); // Remove the separators in tabular
       if (!text.trim().isEmpty()) {
         context.writeText(DEFAULT_CONTEXT_NAME, text);
       }
@@ -133,7 +134,7 @@ public class TeXInterpreter {
     }
     
     CommandReference cmdRef = getCommandReference(cmd);
-    
+        
     // Skip the command, if there is no reference for the command.
     if (cmdRef == null) {
       itr.skipTo(guessEndCommand(cmd));
@@ -155,7 +156,7 @@ public class TeXInterpreter {
       // Update the context.
       context = newContext;
     }
-       
+           
     // The commands itself may contain groups to parse, that may indeed 
     // introduce contexts.
     // For example, the first group of the command "\section{Introduction}"
