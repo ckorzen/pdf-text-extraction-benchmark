@@ -207,7 +207,7 @@ public class TeXInterpreter {
         for (int i = 0; i < keys.length; i++) {
           context.writeText(DEFAULT_CONTEXT_NAME, "[");
           context.writeText(DEFAULT_CONTEXT_NAME, cmd.getName());
-          context.writeText(DEFAULT_CONTEXT_NAME, "x=");
+          context.writeText(DEFAULT_CONTEXT_NAME, "=");
           context.writeText(DEFAULT_CONTEXT_NAME, keys[i].trim());
           context.writeText(DEFAULT_CONTEXT_NAME, "]");
           context.writeText(DEFAULT_CONTEXT_NAME, " ");
