@@ -11,6 +11,7 @@ from queue import PriorityQueue
 from os.path import isfile
 from recordclass import recordclass
 from lis import longest_increasing_subsequence
+from lis import longest_increasing_continuous_subsequence
 from get_close_matches import get_matches
 
 # Define some record classes for more human-readable tuples.
@@ -128,6 +129,8 @@ def rearrange_and_wdiff(in1, in2, normalize=True, ignore_cases=True,
     # position of the word in the inner list.
     commons, inserts, deletions = plain_wdiff(in1, in2, normalize, ignore_cases)
 
+    visualize_wdiff_result("visualization-raw.txt", commons, inserts, deletions)
+
     # Create a list of all groundtruth words, that are all common and all 
     # deleted words. 
     groundtruth  = [word for common in commons for word in common]
@@ -170,7 +173,7 @@ def rearrange_and_wdiff(in1, in2, normalize=True, ignore_cases=True,
             
             word = word_item.word
             positions = get_positions(word, groundtruth_index, max_distance)
-                                    
+                                                                     
             last_mapping_item = MappingItem(positions, word_item)
             mapping[j] = last_mapping_item                   
         insertions_word_mappings[i] = mapping  
@@ -180,7 +183,7 @@ def rearrange_and_wdiff(in1, in2, normalize=True, ignore_cases=True,
     runs_queue = PriorityQueue()
     for i, mapping in enumerate(insertions_word_mappings):             
         run = find_run(mapping)         
-                
+                        
         if run:
             run_length = len(run)
             run_spread = run[-1].deletion.pos - run[0].deletion.pos
@@ -194,13 +197,10 @@ def rearrange_and_wdiff(in1, in2, normalize=True, ignore_cases=True,
                                                                     
         for run_element in longest_run:
             deletion, insertion = run_element
-             
-            if insertion.word.endswith("sica"):
-                txt = format_string(insertion.word)
-                print([c for c in txt])
-                print([ord(c) for c in txt])
-                print(deletion, insertion)
-                                                           
+            
+            if insertion.word.startswith("single"):
+                print(insertion.word, deletion, len(longest_run))
+                                                                        
             # Allocate the word to the related position in the missing string
             # if there is no such word yet.
             if not groundtruth_replacements[deletion.pos]:
@@ -237,7 +237,7 @@ def rearrange_and_wdiff(in1, in2, normalize=True, ignore_cases=True,
     # Run a simple wdiff with the rearranged string. 
     c, i, d = plain_wdiff(in1, in2, normalize, ignore_cases, junk=junk)
     
-    visualize_wdiff_result("visualization.txt", c, i, d)
+    visualize_wdiff_result("visualization-rearranged.txt", c, i, d, groundtruth_index)
     
     return (c, i, d)
     
@@ -276,7 +276,8 @@ def find_run(elements):
                         if pos.x: # Needed to avoid that a MissingItem isn't chosen twice.
                             x.append(RunItem(pos, item)) 
     
-    lis, indexes = longest_increasing_subsequence(x)
+    #lis, indexes = longest_increasing_subsequence(x)
+    lis = longest_increasing_continuous_subsequence(x)
     
     for run_item in lis:
         run_item.deletion.x = 0
@@ -285,7 +286,6 @@ def find_run(elements):
 
 # ______________________________________________________________________________
 # 
-
 def cmd_wdiff(in1, in2, normalize=True, ignore_cases=True):
     ''' Calls the tool wdiff on the two given inputs. The input may be either 
     strings or paths to text files to compare.'''
@@ -348,13 +348,13 @@ def format_string(txt, normalize=True, ignore_cases=True):
                         
     if normalize:
         # Remove all punctuations marks.
-        txt = txt.translate({ord(c): " " for c in "!,.:;?"})                
+        txt = txt.translate({ord(c): " " for c in "!,.:;?“”\"'"})                
     if ignore_cases:
         # transform the string to lowercase letters.
         txt = txt.lower()
     return " ".join(txt.split())
      
-def visualize_wdiff_result(path, commons, inserts, deletions):
+def visualize_wdiff_result(path, commons, inserts, deletions, index=None):
     # ********
     complete = [(word_item.pos, word_item.inner_pos, 'c', word_item.word) 
                     for common in commons for word_item in common]
@@ -363,19 +363,23 @@ def visualize_wdiff_result(path, commons, inserts, deletions):
     complete += [(word_item.pos, word_item.inner_pos, 'd', word_item.word) 
                     for delete in deletions for word_item in delete]
     complete.sort()
-             
+                   
     visualization = open(path, "w")
     visualization_delete_start = "\033[30;41m"
     visualization_delete_end = "\033[0m"
     visualization_insert_start = "\033[30;42m"
     visualization_insert_end = "\033[0m"
-    
+        
     for item in complete:
         if item[2] == 'i':
             visualization.write(visualization_insert_start)
         elif item[2] == 'd':
             visualization.write(visualization_delete_start)
-        visualization.write("%s(%d)" % (item[3], item[0]))
+        len_pos = 0
+        if index:
+            positions = get_positions(item[3], index, 1)
+            len_pos = len(positions)
+        visualization.write("%s(%d, %d)" % (item[3], item[0], len_pos))
         if item[2] == 'i':
             visualization.write(visualization_insert_end)
         elif item[2] == 'd':
