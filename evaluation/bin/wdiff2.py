@@ -5,19 +5,27 @@ import sys
 import difflib
 import unicodedata
 import re
-import os
 import util
 import tempfile
+import os
 
 from collections import defaultdict
 from queue import PriorityQueue
 from os.path import isfile
 from recordclass import recordclass
-from lis import longest_increasing_subsequence
-from lis import longest_increasing_continuous_subsequence
-from lis import increasing_continuous_subsequences
-from lis import increasing_continuous_subsequences_with_placeholders
+from lis2 import longest_increasing_subsequence
+from lis2 import longest_increasing_continuous_subsequence
+from lis2 import increasing_continuous_subsequences
+from lis2 import longest_increasing_continuous_subsequences_with_placeholders
 from get_close_matches import get_matches
+
+# Define some record classes for more human-readable tuples.
+CommonWordItem  = recordclass('CommonWordItem', 'pos inner_pos word')
+DeleteWordItem  = recordclass('DeleteWordItem', 'pos inner_pos word')
+InsertWordItem  = recordclass('InsertWordItem', 'pos inner_pos word')
+GroundtruthItem = recordclass('GroundtruthItem', 'pos word_item x')
+MappingItem     = recordclass('MappingItem','positions insertion')
+RunItem         = recordclass('RunItem', 'deletion insertion')
 
 # the default tag to mark the start of an insertion in wdiff result
 start_insert = "[WDIFF-INSERT]"
@@ -28,31 +36,27 @@ start_delete = "[WDIFF-DELETE]"
 # the default tag to mark the end of a deletion in wdiff result
 end_delete = ""
 
-# Define some record classes for more human-readable tuples.
-CommonWordItem  = recordclass('CommonWordItem', 'pos inner_pos word')
-DeleteWordItem  = recordclass('DeleteWordItem', 'pos inner_pos word')
-InsertWordItem  = recordclass('InsertWordItem', 'pos inner_pos word')
-GroundtruthItem = recordclass('GroundtruthItem', 'pos word_item x')
-MappingItem     = recordclass('MappingItem','positions insertion')
-RunItem         = recordclass('RunItem', 'deletion insertion')
-
 # ______________________________________________________________________________
 # Wdiff.
 
 def wdiff(in1, in2, normalize=True, ignore_cases=True, rearrange=False, 
-        max_dist=0, junk=[]):
-    ''' Does a wdiff on the given two input strings. Normalizes the inputs 
-    (=removes punctuation marks) if the normalize flag is True. Transforms all 
-    letters to lowercase letters if the ignore_cases flag is True. Tries to 
-    rearrange words in in2 to establish the same order as in in1, if the 
-    rearrange flag is True. Considers words with distance 1 as equal, if the 
-    max_distance is set to 1. Ignores the given junk (given as list of regular
-    expressions). '''
-    
+          max_dist=0, junk=[]):
+    ''' Does a wdiff (diff based on words) on the given two input strings. 
+    Normalizes the inputs (=removes punctuation marks) if the normalize flag is 
+    True. Transforms all letters to lowercase letters if the ignore_cases flag 
+    is True. Tries to rearrange words in in2 to establish the same order as in 
+    in1, if the rearrange flag is True. Considers words with distance 1 as 
+    equal, if the max_distance is set to 1. Ignores the given junk (given as 
+    list of regular expressions). '''
+        
     if rearrange:
         in2 = rearrange_words(in1, in2, normalize, ignore_cases, max_dist, junk)
-            
-    return _wdiff(in1, in2, normalize, ignore_cases, junk)
+        
+    c, i, d = _wdiff(in1, in2, normalize, ignore_cases, junk)
+    
+    util.visualize_wdiff_result("visualization.txt", c, i,
+    
+    return (c, i, d)
 
 def _wdiff(in1, in2, normalize=True, ignore_cases=True, junk=[]):
     ''' Does a plain wdiff on the given two input strings. Calls the tool 
@@ -174,117 +178,109 @@ def bash_wdiff(in1, in2, normalize=True, ignore_cases=True):
     # TODO: Delete the files!
     
     return result.stdout
-
+   
+        
 # ______________________________________________________________________________
-# Rearrange and wdiff.
+# Rearrange.
 
-def rearrange_words(in1, in2, normalize=True, ignore_cases=True, max_dist=0, 
+def rearrange_words(in1, in2, normalize=True, ignore_cases=True, max_dist=0,
                     junk=[]):
-    ''' Does a permutation tolerant wdiff, such that the order of the words in 
-    both string doesn't matter. Transforms all letters to 
-    lowercase letters if the ignore_cases flag is True. Normalizes the inputs 
-    (=removes punctuation marks) if the normalize flag is True. Considers words 
-    with distance 1 as equal, if the max_distance is set to 1. Ignores the given
-    junk (given as list of regular expressions) '''
-
+    ''' Rearranges words in in2 such that the order of the words in in2 is equal  
+    to the order of words in in1. Transforms all letters to lowercase letters if
+    the ignore_cases flag is True. Normalizes the inputs (=removes punctuation 
+    marks) if the normalize flag is True. Considers words with distance 1 as 
+    equal, if the max_distance is set to 1. Ignores the given junk (given as 
+    list of regular expressions). 
+    
+    >>> s1 = "The red fox jumps over the hedge"
+    >>> s2 = "The hedge jumps over the red fox"
+    >>> rearrange_words(s1, s2)
+    'the red fox jumps over the hedge'
+    '''
+                
     # Do a plain wdiff (diff based on words). Will return a list of common 
-    # words, a list of additional words and a list of missing words. 
-    # Each list is a list of lists of consecutive WordItems: 
+    # words (word which occur in in1 and in2), a list of inserted words (words 
+    # that occur only in in2) and a list of deleted words (words that only occur
+    # in in1). Each list is a list of lists of consecutive WordItems: 
     # [[(pos1, inner_pos1, word1), (pos2, inner_pos2, word2)], [..]].
     # "pos" relates to the position in in1. "inner_pos" describes the 
     # position of the word in the inner list.
-    commons, inserts, deletions = _wdiff(in1, in2, normalize, ignore_cases)
-
-    # Create a list of all groundtruth words, that are all common and all 
-    # deleted words. 
-    groundtruth  = [word for common in commons for word in common]
-    groundtruth += [word for delete in deletions for word in delete] 
-    groundtruth.sort()
+    commons, inserts, deletes = _wdiff(in1, in2, normalize, ignore_cases)
     
-    # Create an index of all groundtruth words, where each word is mapped to 
-    # its position in the groundtruth:
-    # { word1: [(pos1, word_item1), (pos2, word_item2)], ... }
+    # Create flattened versions of the word lists.
+    flattened_commons = [word for common in commons for word in common]
+    flattened_inserts = [word for insert in inserts for word in insert]
+    flattened_deletes = [word for delete in deletes for word in delete]
+                        
+    # Create an index of all missing words, where each word is mapped to its 
+    # position in in1: { word1: [(pos1, word_item1), (pos2, word_item2)], ... }
     groundtruth_index = defaultdict(lambda: [])  
-    for i, item in enumerate(groundtruth):
+    for i, item in enumerate(flattened_deletes):
         groundtruth_index[item.word].append(GroundtruthItem(i, item, 1))
-        
+               
     # Map each inserted word to its positions in the groundtruth:
-    # [[(positions1, word1, index1), (positions2, word2, index2), ...], ...]
+    # [[(positions1, word1, index1), (positions2, word2, index2), ...], ...]       
     actual_mappings = []
     for insert in inserts:
         mapping = []
         for item in insert:
-            # ***
-            # EXPERIMENTAL: If tolerance == 1, also take whitespaces into 
-            # account. For example, for the words "foobar" and "foo bar" the 
-            # distance is 1.
-            # if tolerance == 1:
-            #    # "If there is a previous word which has no positions..."
-            #    if last_resolution_item and not last_resolution_item.positions_in_str:
-            #        # "... check if there are positions for the concatenation of the 
-            #        # previous word and the current word."
-            #        merged = last_resolution_item.insertion_word.word + word_item.word
-            #        positions = get_positions(merged, missings_str_index, 0)
-            #        if positions:
-            #            last_resolution_item.positions_in_str = positions
-            #            last_resolution_item.insertion_word.word = merged
-            #            # Erase the current word such that it has no effect anymore.
-            #            word_item.word = ""
-            #            continue
-            # ***
-            
-            positions = get_positions(item.word, groundtruth_index, max_dist)                                           
-            mapping.append(MappingItem(positions, item))              
-        actual_mappings.append(mapping)  
-                   
-    # For each mapping, compute the longest "run", that is a sequence of words 
+            positions = get_positions(item.word, groundtruth_index, max_dist)
+            mapping.append(MappingItem(positions, item))        
+        actual_mappings.append(mapping)
+        
+    # For each mapping, compute the "runs" in it. A run is a sequence of words 
     # which occurs in the insertion in the same order as in the groundtruth.
+    # Each run item contains the actual item and the index of the item in the 
+    # mapping.
     runs_queue = PriorityQueue()
     for i, mapping in enumerate(actual_mappings):             
-        run = find_run(mapping)         
+        run = find_most_suitable_run(mapping)         
                         
         if run:
             runs_queue.put((-len(run), run, i))
-                                   
-    # Process the runs ordered by their priority.
-    groundtruth_replacements = [0] * len(groundtruth)
+
     while not runs_queue.empty():
         # Get the run with highest priority.
-        priority, longest_run, mapping_index = runs_queue.get() 
-                                                                    
-        for run_element in longest_run:
-            deletion, insertion = run_element
-                                                                        
-            # Allocate the word to the related position in the missing string
-            # if there is no such word yet.
-            if not groundtruth_replacements[deletion.pos]:
-                groundtruth_replacements[deletion.pos] = insertion
-                            
+        priority, run, mapping_index = runs_queue.get() 
+        
+        for run_element in run:
+            groundtruth_item, actual_item = run_element[0]
+            
+            # Substitute the groundtruth item by the actual item. 
+            if groundtruth_item.word_item:        
+                actual_item.pos       = groundtruth_item.word_item.pos
+                actual_item.inner_pos = groundtruth_item.word_item.inner_pos
+            
+        for run_item in run:
+            # Unwrap the item and its index in the mapping.
+            item, index = run_item
+            # Unwrap the groundtruth item and the actual item.
+            groundtruth_item, actual_item = item
+            
             # Disable the word, such that it can't be a member of a run anymore.
             mapping = actual_mappings[mapping_index]
-            mapping[insertion.inner_pos] = False 
+            if (actual_item.inner_pos < len(mapping)): # TODO: Why we need this condition?
+                mapping[actual_item.inner_pos] = False
             
+            # Substitute the groundtruth item by the actual item. 
+            if groundtruth_item.word_item and groundtruth_item.x == 1:        
+                actual_item.pos       = groundtruth_item.word_item.pos
+                actual_item.inner_pos = groundtruth_item.word_item.inner_pos
+                groundtruth_item.x    = 0
+                              
         # Find run in the remaining words and insert it into queue, if there is 
         # any other run.
-        run = find_run(mapping)             
+        run = find_most_suitable_run(mapping)             
         if run:
             runs_queue.put((-len(run), run, mapping_index))
     
-    rearranged = []            
-    for i, word_item in enumerate(groundtruth):
-        if groundtruth_replacements[i]:
-            groundtruth_replacements[i].pos = groundtruth[i].pos
-            groundtruth_replacements[i].inner_pos = groundtruth[i].inner_pos
-            groundtruth_replacements[i].word = groundtruth[i].word
-        elif type(groundtruth[i]) == CommonWordItem: 
-            rearranged.append(groundtruth[i])
-                                          
-    rearranged += [item for insert in inserts for item in insert]
-    rearranged.sort()
-                
-    # Join the words.
-    return " ".join([item.word for item in rearranged])                                                             
-    
+    # Combine the common and inserted word items and sort them by positions.
+    result = flattened_commons + flattened_inserts
+    result.sort()
+          
+    # Join the result words.
+    return " ".join([item.word for item in result])
+   
 def get_positions(word, positions, max_distance=0):
     ''' Given a words, finds all occurences of this word in the given positions
     index, with respect to the given max. distance. '''
@@ -301,18 +297,9 @@ def get_positions(word, positions, max_distance=0):
     if not result:
         result = [GroundtruthItem(-1, None, 1)]
         
-    return result    
-
-def find_run(elements):
-    """ 
-    Given a list of tuples of form ([positions], word). Returns a longest run,
-    i.e. a sequence of increasing positions, where the order of words are kept. 
+    return result  
     
-    Example: 
-    Given the tuples [([1, 3, 7], "foo"), ([2, 4, 5], "bar"), ([3, 4], "baz")]. 
-    A longest run would be [(1, "foo"), (2, "bar"), (3, "baz")].
-    """  
-        
+def find_most_suitable_run(elements):    
     if not elements:
         return
               
@@ -334,57 +321,37 @@ def find_run(elements):
     
     if not template:
         return
+       
+    run = longest_increasing_continuous_subsequences_with_placeholders(template)
     
-    runs = increasing_continuous_subsequences_with_placeholders(template)
-                
-    # sort the runs by number of deletions
-    runs_by_num_overlapping_deletions = []
-    for run in runs:
-        num_deletions = 0
-        for item in run:
-            if isinstance(item.deletion.word_item, DeleteWordItem):
-                num_deletions += 1
-        runs_by_num_overlapping_deletions.append((num_deletions, run))
-    runs_by_num_overlapping_deletions.sort(reverse=True)
+    revised_run = []
+    word_queue = []
     
-    if runs_by_num_overlapping_deletions:
-        num_deletions, best_run = runs_by_num_overlapping_deletions[0]
-    
-        for run_item in best_run:
-            run_item.deletion.x = 0            
-    
-    
-    
-        # *****
-        revised_run = []
-        word_queue = []
+    for item in run:
+        word_queue.append(item)
+        if item[0].deletion.pos != -1:
+            words = []
+            for word in word_queue:
+                words.append(word[0].insertion.word)
+                word[0].insertion.word = ""
+            item[0].insertion.word = " ".join(words)
+            revised_run.append(item)
+            word_queue = []
+                           
+    if word_queue:
+        if revised_run:
+            words = []
+            words.append(revised_run[-1][0].insertion.word)
+            for word in word_queue:
+                words.append(word[0].insertion.word)
+                word[0].insertion.word = ""
+            revised_run[-1][0].insertion.word = " ".join(words)
+        else:
+            revised_run = word_queue
         
-        for item in best_run:
-            word_queue.append(item)
-            if item.deletion.pos != -1:
-                words = []
-                for word in word_queue:
-                    words.append(word.insertion.word)
-                    word.insertion.word = ""
-                item.insertion.word = " ".join(words)
-                revised_run.append(item)
-                word_queue = []
-                               
-        if word_queue:
-            if revised_run:
-                words = []
-                words.append(revised_run[-1].insertion.word)
-                for word in word_queue:
-                    words.append(word.insertion.word)
-                    word.insertion.word = ""
-                revised_run[-1].insertion.word = " ".join(words)
-            else:
-                revised_run = word_queue
-        # ****       
-                
-        return revised_run
+    return revised_run
 
-# ______________________________________________________________________________
-  
+
+      
 if __name__ == "__main__":
-    rearrange_and_wdiff("The fast fox jumps over the fox", "The jumps over fast fox the fox")
+    wdiff("The red [\cite] fox jumps over the green dog and laughs", "the green dog and laughs The red [3] fox jumps over", rearrange=True)

@@ -54,7 +54,7 @@ def longest_increasing_subsequence(x):
         k = p[k]
     return s, indexes
 
-def increasing_continuous_subsequences_with_placeholders(x):
+def longest_increasing_continuous_subsequences_with_placeholders(x):
     """ 
     Returns all increasing continuous subsequences in the given list.
     
@@ -72,8 +72,11 @@ def increasing_continuous_subsequences_with_placeholders(x):
        
     n = len(x)
     active_lists = []
+    longest_list = []
     lists_to_end_elements = defaultdict(lambda: set())
     end_elements_to_lists = defaultdict(lambda: set())
+    
+    preceding_placeholders = None
     
     for i in range(n):
         # Obtain an representing integer value for the current item.
@@ -84,7 +87,10 @@ def increasing_continuous_subsequences_with_placeholders(x):
             if repr_value - 1 in end_elements_to_lists:
                 list_indices = end_elements_to_lists[repr_value - 1].copy()
                 for list_index in list_indices:
-                    active_lists[list_index].append(x[i])
+                    active_lists[list_index].append((x[i], i))
+                    
+                    if len(active_lists[list_index]) > len(longest_list):
+                        longest_list = active_lists[list_index]
                     
                     previous_end_elements = lists_to_end_elements[list_index]
                     for end_element in previous_end_elements:
@@ -93,20 +99,45 @@ def increasing_continuous_subsequences_with_placeholders(x):
                     lists_to_end_elements[list_index] = set([repr_value])
                     end_elements_to_lists[repr_value].add(list_index)
             else:
-                active_lists.append([x[i]])
+                if not preceding_placeholders:
+                    new_list = [(x[i], i)]
+                
+                    active_lists.append(new_list)
+                    
+                    if len(new_list) > len(longest_list):
+                        longest_list = new_list
+                else:
+                    preceding_placeholders.append((x[i], i))
+                    
+                    if len(preceding_placeholders) > len(longest_list):
+                        longest_list = preceding_placeholders
+                    
+                    preceding_placeholders = None
                 
                 list_index = len(active_lists) - 1
                 lists_to_end_elements[list_index] = set([repr_value])
                 end_elements_to_lists[repr_value].add(list_index)
         else:
-            for j, active_list in enumerate(active_lists):
-                repr_value = get_repr_value(active_list[-1]) + 1
-                active_list.append(x[i])
+            if not active_lists:
+                if not preceding_placeholders:
+                    preceding_placeholders = []
+                    active_lists.append(preceding_placeholders)    
+                preceding_placeholders.append((x[i], i))
                 
-                lists_to_end_elements[j].add(repr_value)
-                end_elements_to_lists[repr_value].add(j) 
+                if len(preceding_placeholders) > len(longest_list):
+                        longest_list = preceding_placeholders
+            else:
+                for j, active_list in enumerate(active_lists):
+                    repr_value = get_repr_value(active_list[-1]) + 1
+                    active_list.append((x[i], i))
+                    
+                    if len(active_list) > len(longest_list):
+                        longest_list = active_list
+                    
+                    lists_to_end_elements[j].add(repr_value)
+                    end_elements_to_lists[repr_value].add(j) 
                           
-    return active_lists
+    return longest_list
 
 def increasing_continuous_subsequences(x, debug=False):
     """ 

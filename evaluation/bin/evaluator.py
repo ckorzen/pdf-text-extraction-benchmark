@@ -65,7 +65,7 @@ class Evaluator:
                     actual = self.format_actual_file(actual_file_path)
                 
                     # Compute precision/recall values.
-                    (p, r) = evaluation_method(gt, actual, rearrange=True)
+                    (p, r) = evaluation_method(gt, actual, rearrange=False)
                     
                     logger.debug("Precision: %.2f, Recall: %.2f" % (p, r))                                   
                     results.append((p, r))

@@ -33,7 +33,7 @@ def evaluate_words_extraction(gt, actual, normalize=True, ignore_cases=True,
         
     # Do a wdiff (rearrange if necessary).
     commons, insertions, deletions = wdiff(gt, actual, normalize=normalize, 
-        ignore_cases=ignore_cases, rearrange=rearrange, max_distance=max_dist, junk=junk)
+        ignore_cases=ignore_cases, rearrange=rearrange, max_dist=max_dist, junk=junk)
  
     # Compute the precision/recall values. 
     tp = sum(len(common) for common in commons)
