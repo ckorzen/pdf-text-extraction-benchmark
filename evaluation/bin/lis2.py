@@ -1,4 +1,5 @@
 from collections import defaultdict
+import numbers
 
 def longest_increasing_subsequence(x):
     """ 
@@ -54,91 +55,6 @@ def longest_increasing_subsequence(x):
         k = p[k]
     return s, indexes
 
-def longest_increasing_continuous_subsequences_with_placeholders(x):
-    """ 
-    Returns all increasing continuous subsequences in the given list.
-    
-    >>> increasing_continuous_subsequences_with_placeholders([1, 2, 3])
-    [1, 2, 3]
-    >>> increasing_continuous_subsequences_with_placeholders([1, 2, -1, 3])
-    [1, 2, -1, 3]
-    >>> increasing_continuous_subsequences_with_placeholders([1, 2, -1, 4])
-    [1, 2, -1, 4]
-    >>> increasing_continuous_subsequences_with_placeholders([1, 2, -1, 5])
-    [1, 2, -1]
-    >>> increasing_continuous_subsequences_with_placeholders([5, -1, 2, -1, 3, 6, 10, -1, 8, 9])
-    [5, -1, -1, 6, -1, 8, 9]
-    """ 
-       
-    n = len(x)
-    active_lists = []
-    longest_list = []
-    lists_to_end_elements = defaultdict(lambda: set())
-    end_elements_to_lists = defaultdict(lambda: set())
-    
-    preceding_placeholders = None
-    
-    for i in range(n):
-        # Obtain an representing integer value for the current item.
-        repr_value = get_repr_value(x[i])
-                  
-        if repr_value != -1:
-            # The item isn't a "special" item.
-            if repr_value - 1 in end_elements_to_lists:
-                list_indices = end_elements_to_lists[repr_value - 1].copy()
-                for list_index in list_indices:
-                    active_lists[list_index].append((x[i], i))
-                    
-                    if len(active_lists[list_index]) > len(longest_list):
-                        longest_list = active_lists[list_index]
-                    
-                    previous_end_elements = lists_to_end_elements[list_index]
-                    for end_element in previous_end_elements:
-                        end_elements_to_lists[end_element].discard(list_index)    
-                    
-                    lists_to_end_elements[list_index] = set([repr_value])
-                    end_elements_to_lists[repr_value].add(list_index)
-            else:
-                if not preceding_placeholders:
-                    new_list = [(x[i], i)]
-                
-                    active_lists.append(new_list)
-                    
-                    if len(new_list) > len(longest_list):
-                        longest_list = new_list
-                else:
-                    preceding_placeholders.append((x[i], i))
-                    
-                    if len(preceding_placeholders) > len(longest_list):
-                        longest_list = preceding_placeholders
-                    
-                    preceding_placeholders = None
-                
-                list_index = len(active_lists) - 1
-                lists_to_end_elements[list_index] = set([repr_value])
-                end_elements_to_lists[repr_value].add(list_index)
-        else:
-            if not active_lists:
-                if not preceding_placeholders:
-                    preceding_placeholders = []
-                    active_lists.append(preceding_placeholders)    
-                preceding_placeholders.append((x[i], i))
-                
-                if len(preceding_placeholders) > len(longest_list):
-                        longest_list = preceding_placeholders
-            else:
-                for j, active_list in enumerate(active_lists):
-                    repr_value = get_repr_value(active_list[-1]) + 1
-                    active_list.append((x[i], i))
-                    
-                    if len(active_list) > len(longest_list):
-                        longest_list = active_list
-                    
-                    lists_to_end_elements[j].add(repr_value)
-                    end_elements_to_lists[repr_value].add(j) 
-                          
-    return longest_list
-
 def increasing_continuous_subsequences(x, debug=False):
     """ 
     Returns all increasing continuous subsequences in the given list.
@@ -182,7 +98,10 @@ def longest_increasing_continuous_subsequence(x, debug=False):
     
     for i in range(n):
         repr_value = get_repr_value(x[i])
-        
+           
+        if repr_value is None:
+            continue
+            
         if repr_value - 1 in end_elements:
             list_index = end_elements[repr_value - 1]
             del end_elements[repr_value - 1]
@@ -198,7 +117,190 @@ def longest_increasing_continuous_subsequence(x, debug=False):
                 longest_list = new_list
                      
     return longest_list
-  
+
+def longest_run_in_lists(lists):  
+    most_longest_run = []
+    
+    for l in lists:
+        longest_run = longest_run_in_list(l)
+        if len(longest_run) > len(most_longest_run):
+            most_longest_run = longest_run
+            
+    return most_longest_run
+
+def longest_run_in_list(lis):    
+    active_lists = []
+    longest_list = []
+    only_unmatches_so_far = True
+    only_unmatches_index = -1
+    
+    # The lists by their end elements. For example, if the lists at indices
+    # 1, 2, 3 end with '5' and the lists at indices 4 and 5 ends with '7' the 
+    # map looks like: { 5: {1, 2, 3}, 7: {4, 5} }
+    lists_by_end_elements = defaultdict(lambda: set())
+    
+    # The end elements by lists. For the example above, this map looks like:
+    # { 1: 5, 2: 5, 3: 5, 4: 7, 5: 7 }
+    end_elements_by_lists = defaultdict(lambda: set())
+    
+    def append_to_list(element, list_index):
+        pos = element.deletion.pos1 if element is not None else None
+        
+        # Append the element to the current list.
+        active_lists[list_index].append(element)
+                    
+        # Update the maps
+        end_elements = end_elements_by_lists[list_index]
+        for end_element in end_elements:
+            lists_by_end_elements[end_element].discard(list_index)
+        lists_by_end_elements[pos].add(list_index)
+        end_elements_by_lists[list_index] = set([pos])
+                                        
+        # Check, if the current list is now the longest list. 
+        if len(current_list) > len(longest_list):
+            longest_list = current_list
+    
+    def introduce_new_list(element):
+        pos = element.deletion.pos1 if element is not None else None
+            
+        new_list = [element]
+        active_lists.append(new_list)
+        list_index = len(active_lists) - 1
+                    
+        # Update the maps.
+        lists_by_end_elements[pos].add(list_index)
+        end_elements_by_lists[list_index] = set([pos])
+                    
+        # Check, if the new list is the longest list.     
+        if len(new_list) > len(longest_list):
+            longest_list = new_list
+        return new_list, list_index
+    
+        
+    for element in lis:
+        # Obtain the position in the groundtruth.
+        pos = element.deletion.pos1 if element is not None else None
+        
+        if pos is not None: # There is a position in groundtruth
+            # Check, if there are lists with end element "pos - 1"
+            if pos - 1 in lists_by_end_elements:
+                # There are lists that end with 'pos - 1'. 
+                list_indices = lists_by_end_elements[pos - 1].copy()
+                
+                # Append the element to all of them.
+                for list_index in list_indices:
+                    append_to_list(element, list_index)
+            else:
+                if only_unmatches_so_far and only_unmatches_index > -1:
+                    append_to_list(element, only_unmatches_index)
+                else:
+                    # There is no list that ends with 'pos - 1'. Create a new one.
+                    introduce_new_list(element)
+            only_unmatches_so_far = False
+        else: # There is no position in groundtruth
+            if only_unmatches_so_far and only_unmatches_index == -1:
+                only_unmatches_index = introduce_new_list(element)                    
+            else:
+                for j, active_list in enumerate(active_lists):
+                    # Append the element to list.
+                    active_list.append(element)
+                    
+                    pos = active_list[-1].deletion.pos1 + 1 if active_list[-1] is not None else None
+                    lists_to_end_elements[j].add(pos)
+                    end_elements_to_lists[pos].add(j)
+                                        
+                    if len(active_list) > len(longest_list):
+                        longest_list = active_list
+                
+
+def longest_increasing_continuous_subsequences_with_gaps(x):
+    """ 
+    Returns all increasing continuous subsequences in the given list.
+    
+    >>> increasing_continuous_subsequences_with_placeholders([1, 2, 3])
+    [1, 2, 3]
+    >>> increasing_continuous_subsequences_with_placeholders([1, 2, -1, 3])
+    [1, 2, -1, 3]
+    >>> increasing_continuous_subsequences_with_placeholders([1, 2, -1, 4])
+    [1, 2, -1, 4]
+    >>> increasing_continuous_subsequences_with_placeholders([1, 2, -1, 5])
+    [1, 2, -1]
+    >>> increasing_continuous_subsequences_with_placeholders([5, -1, 2, -1, 3, 6, 10, -1, 8, 9])
+    [5, -1, -1, 6, -1, 8, 9]
+    """ 
+           
+    n = len(x)
+    active_lists = []
+    longest_list = []
+    lists_to_end_elements = defaultdict(lambda: set())
+    end_elements_to_lists = defaultdict(lambda: set())
+    
+    preceding_placeholders = None
+    
+    for i in range(n):
+        # Obtain an representing integer value for the current item.
+        repr_value = get_repr_value(x[i])
+                  
+        if repr_value is not None:
+            # The item isn't a "special" item.
+            if repr_value - 1 in end_elements_to_lists:
+                list_indices = end_elements_to_lists[repr_value - 1].copy()
+                for list_index in list_indices:
+                    active_lists[list_index].append(x[i])
+                    
+                    if len(active_lists[list_index]) > len(longest_list):
+                        longest_list = active_lists[list_index]
+                    
+                    previous_end_elements = lists_to_end_elements[list_index]
+                    for end_element in previous_end_elements:
+                        end_elements_to_lists[end_element].discard(list_index)    
+                    
+                    lists_to_end_elements[list_index] = set([repr_value])
+                    end_elements_to_lists[repr_value].add(list_index)
+            else:
+                if not preceding_placeholders:
+                    new_list = [x[i]]
+                
+                    active_lists.append(new_list)
+                    
+                    if len(new_list) > len(longest_list):
+                        longest_list = new_list
+                else:
+                    preceding_placeholders.append(x[i])
+                    
+                    if len(preceding_placeholders) > len(longest_list):
+                        longest_list = preceding_placeholders
+                    
+                    preceding_placeholders = None
+                
+                list_index = len(active_lists) - 1
+                lists_to_end_elements[list_index] = set([repr_value])
+                end_elements_to_lists[repr_value].add(list_index)
+        else:
+            if not active_lists:
+                if not preceding_placeholders:
+                    preceding_placeholders = []
+                    active_lists.append(preceding_placeholders)    
+                preceding_placeholders.append(x[i])
+                
+                if len(preceding_placeholders) > len(longest_list):
+                        longest_list = preceding_placeholders
+            else:
+                for j, active_list in enumerate(active_lists):
+                    repr_value = 0
+                    prev_repr_value = get_repr_value(active_list[-1])
+                    if prev_repr_value is not None:
+                        repr_value = prev_repr_value + 1
+                    active_list.append(x[i])
+                    
+                    if len(active_list) > len(longest_list):
+                        longest_list = active_list
+                    
+                    lists_to_end_elements[j].add(repr_value)
+                    end_elements_to_lists[repr_value].add(j) 
+                          
+    return longest_list
+
 def get_repr_value(element):
     """Returns the first value in the flattened given element.
     
@@ -219,8 +321,3 @@ def get_repr_value(element):
     for item in element:
         return get_repr_value(item)
     
-def classlookup(cls):
-    c = list(cls.__bases__)
-    for base in c:
-        c.extend(classlookup(base))
-    return c

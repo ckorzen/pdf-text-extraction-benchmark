@@ -110,23 +110,23 @@ evaluate-words: validate
 		--word_suffix ".full.txt" \
 		--output "$(EVALUATION_TARGET)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-	@echo "*************"
-	@column -t -s"	" /home/korzen/Downloads/result.txt
-	@echo "*************"
+#@echo "*************"
+#@column -t -s"	" /home/korzen/Downloads/result.txt
+#@echo "*************"
 
 # Evaluate the accuracy of paragraph extraction.
-evaluate-paras: validate
+evaluate-paragraphs: validate
 	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
 	@python3 $(EVALUATOR_SRC) \
-		--type para \
+		--type paragraph \
 		--min_similarity "$(MIN_SIMILARITY)" \
 		--prefix "$(PREFIX)" \
-		--para_suffix ".full.txt" \
+		--paragraph_suffix ".full.txt" \
 		--output "$(EVALUATION_TARGET)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-	@echo "*************"
-	@column -t -s"	" /home/korzen/Downloads/result.txt
-	@echo "*************"
+#@echo "*************"
+#@column -t -s"	" /home/korzen/Downloads/result.txt
+#@echo "*************"
     
 # Evaluate the accuracy of body extraction.
 evaluate-body: validate
@@ -138,9 +138,9 @@ evaluate-body: validate
 		--body_suffix ".body.txt" \
 		--output "$(EVALUATION_TARGET)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-	@echo "*************"
-	@column -t -s"	" /home/korzen/Downloads/result.txt
-	@echo "*************"
+#@echo "*************"
+#@column -t -s"	" /home/korzen/Downloads/result.txt
+#@echo "*************"
 
 compile-icecite-parser:
 	mvn -f $(PDF_PARSER_SRC)/pom.xml install

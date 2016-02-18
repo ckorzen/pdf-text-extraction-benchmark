@@ -3,6 +3,8 @@ import logging
 import os
 
 from evaluate_words import evaluate_words_extraction
+from evaluate_paragraphs import evaluate_paragraphs_extraction
+from evaluate_body import evaluate_body_extraction
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -24,9 +26,20 @@ class Evaluator:
         # Evaluate the extraction of words, if either no type is defined or
         # the type "word" is given explicitly.
         if not self.args.type or self.args.type == "word":
-            (precision, recall) = self.evaluate(evaluate_words_extraction)
+            suffix = self.args.word_suffix
+            (p, r) = self.evaluate(suffix, evaluate_words_extraction)
+        # Evaluate the extraction of paragraphs, if either no type is defined or
+        # the type "paragraph" is given explicitly.
+        if not self.args.type or self.args.type == "paragraph":
+            suffix = self.args.paragraph_suffix
+            (p, r) = self.evaluate(suffix, evaluate_paragraphs_extraction)
+        # Evaluate the extraction of body, if either no type is defined or
+        # the type "body" is given explicitly.
+        if not self.args.type or self.args.type == "body":
+            suffix = self.args.body_suffix
+            (p, r) = self.evaluate(suffix, evaluate_body_extraction)
                                 
-    def evaluate(self, evaluation_method):
+    def evaluate(self, suffix, evaluation_method):
         '''
         Scans the given root of groundtruth files for groundtruth files that 
         matches the given prefix and suffix. Tries to find the actual file 
@@ -37,7 +50,6 @@ class Evaluator:
         logger.info("Evaluating using method %s." % evaluation_method.__name__)
         
         prefix = self.args.prefix
-        suffix = self.args.word_suffix
         groundtruth_root = self.args.gt_path
         
         results = []
@@ -65,7 +77,7 @@ class Evaluator:
                     actual = self.format_actual_file(actual_file_path)
                 
                     # Compute precision/recall values.
-                    (p, r) = evaluation_method(gt, actual, rearrange=False)
+                    (p, r) = evaluation_method(gt, actual)
                     
                     logger.debug("Precision: %.2f, Recall: %.2f" % (p, r))                                   
                     results.append((p, r))
@@ -150,7 +162,7 @@ class Evaluator:
             help="the prefix of the files to evaluate")
         parser.add_argument("--word_suffix", default="", \
             help="the suffix of gt files to consider on word evaluation")
-        parser.add_argument("--para_suffix", default="", \
+        parser.add_argument("--paragraph_suffix", default="", \
             help="the suffix of gt files to consider on para evaluation")
         parser.add_argument("--body_suffix", default="", \
             help="the suffix of gt files to consider on body evaluation")
