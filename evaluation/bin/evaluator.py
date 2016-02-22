@@ -86,7 +86,7 @@ class Evaluator:
         avg_precision = sum(r[0] for r in results) / n if n > 0 else 0.0
         avg_recall = sum(r[1] for r in results) / n if n > 0 else 0.0
                     
-        logger.info("Avg. precision: %.2f, Avg. recall: %.2f" 
+        logger.info("Avg. precision: %.4f, Avg. recall: %.4f" 
                         % (avg_precision, avg_recall))
         return (avg_precision, avg_recall)
         

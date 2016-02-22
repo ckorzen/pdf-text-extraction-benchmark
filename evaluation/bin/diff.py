@@ -5,9 +5,10 @@ from queue import PriorityQueue
 
 import unicodedata
 import logging
+import re
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s : %(levelname)s : %(module)s : %(message)s',
 )
 logger = logging.getLogger(__name__)
@@ -19,11 +20,8 @@ DiffInsertItem  = recordclass('DiffInsertItem', 'pos1 pos2 element matched')
 MappingItem     = recordclass('MappingItem','deletions insertion')
 RunItem         = recordclass('RunItem', 'deletion insertion')
 
-# ______________________________________________________________________________
-#
-
 def diff(old, new, rearrange=False, ignore_cases=False, 
-    ignore_whitespaces=False, translates={}, max_dist=0, min_sim=1.0):
+    ignore_whitespaces=False, translates={}, junk=[], max_dist=0, min_sim=1.0):
     '''
     Finds the differences between the two given lists of strings. If the 
     rearrange flag is set to true, tries to rearrange the elements in 'new' as 
@@ -41,37 +39,36 @@ def diff(old, new, rearrange=False, ignore_cases=False,
     in 'new' but not in 'old') and deleted elements (elements that occur in
     'old' but not in 'new'). Each common, insertion and deletion is given by
     a tuple (pos1, pos2, element) where 'pos1' denotes the position in 'old', 
-    'pos2' denotes the position in 'new' and 'element' denotes the new 
-    element.
+    'pos2' denotes the position in 'new' and 'element' denotes the new element.
        
     * Inspired by the simplediff lib by Paul Butler 
     (see https://github.com/paulgb/simplediff/) *  
     '''
-    
     logger.debug("Diff. rearrange: %r, ignore_cases: %r, ignore_whitespaces: %r"
         "translates: %r, max_distance: %r, min_similarity: %r" % (rearrange, 
         ignore_cases, ignore_whitespaces, translates, max_dist, min_sim))
     logger.debug(" old: %r" % " ".join(old))
     logger.debug(" new: %r" % " ".join(new))
-        
+    
     if rearrange:
         # Try to rearrange the elements in 'new'
         new = rearrange_elements(old, new, ignore_cases=ignore_cases, 
             ignore_whitespaces=ignore_whitespaces, translates=translates, 
-            max_dist=max_dist, min_sim=min_sim)
-     
-    # Do the diff.   
+            junk=junk, max_dist=max_dist, min_sim=min_sim)
+
+    # Do the diff.
     commons, inserts, deletes = [], [], []
     _diff(old, new, 0, 0, commons, inserts, deletes, ignore_cases=ignore_cases, 
-        ignore_whitespaces=ignore_whitespaces, translates=translates, 
+        ignore_whitespaces=ignore_whitespaces, translates=translates, junk=junk,
         max_dist=max_dist, min_sim=min_sim)
-       
-    logger.debug(visualize_diff_result(commons, inserts, deletes)) 
+                
+    logger.debug(visualize_diff_result(commons, inserts, deletes, "visualization.txt")) 
                 
     return commons, inserts, deletes
    
 def _diff(old, new, pos1, pos2, commons, inserts, deletes, ignore_cases=False, 
-        ignore_whitespaces=False, translates={}, max_dist=0, min_sim=1.0):
+        ignore_whitespaces=False, translates={}, junk=[], max_dist=0, 
+        min_sim=1.0):
     '''
     Finds the differences between the two given lists of strings recursively. 
     pos1 and pos2 are the current positions in 'old' and 'new'. 
@@ -92,12 +89,12 @@ def _diff(old, new, pos1, pos2, commons, inserts, deletes, ignore_cases=False,
     # position in 'old':
     # { element1: [1, 5, 7], element2: [4, 6, ], ... } 
     old_index = fuzzy_dict()  
-    for i, item in enumerate(old):
-        string = format_str(item, ignore_cases, ignore_whitespaces, translates)
-        if string in old_index:
-            old_index[string].append(i)
+    old = format_list(old, ignore_cases, ignore_whitespaces, translates)
+    for i, element in enumerate(old):
+        if element in old_index:
+            old_index[element].append(i)
         else:
-            old_index[string] = [i]
+            old_index[element] = [i]
 
     # Find the largest substring common to 'old' and 'new'.
     # 
@@ -122,11 +119,11 @@ def _diff(old, new, pos1, pos2, commons, inserts, deletes, ignore_cases=False,
     start_new = 0
     length = 0
 
-    for index2, item in enumerate(new):
-        string = format_str(item, ignore_cases, ignore_whitespaces, translates)
+    new = format_list(new, ignore_cases, ignore_whitespaces, translates)
+    for index2, element in enumerate(new):    
         _overlap = defaultdict(lambda: 0)
         # Get the 'closest' match to the string.
-        for index1 in old_index.get(string, max_dist, min_sim, []):
+        for index1 in old_index.get(element, max_dist, min_sim, []):
             # now we are considering all values of index1 such that
             # old[index1] == new[index2].
             _overlap[index1] = (index1 and overlap[index1 - 1]) + 1
@@ -137,14 +134,18 @@ def _diff(old, new, pos1, pos2, commons, inserts, deletes, ignore_cases=False,
                 start_new = index2 - length + 1
         overlap = _overlap
 
+    ignore = False
     if length == 0:
         # No common substring was found. Return an insert and delete...
-        for item in old:
-            deletes.append(DiffDeleteItem(pos1, pos2, item, False))
-            pos1 += 1
-        for item in new:
-            inserts.append(DiffInsertItem(pos1, pos2, item, False))
-            pos2 += 1
+        for element in old:
+            ignore = any(re.search(regex, element) for regex in junk)
+            if not ignore:
+                deletes.append(DiffDeleteItem(pos1, pos2, element, False))
+                pos1 += 1
+        for element in new:
+            if not ignore:
+                inserts.append(DiffInsertItem(pos1, pos2, element, False))
+                pos2 += 1
     else:
         # A common substring was found. Call diff recursively for the substrings
         # to the left and to the right
@@ -152,7 +153,7 @@ def _diff(old, new, pos1, pos2, commons, inserts, deletes, ignore_cases=False,
         left2 = new[ : start_new]
         pos1, pos2 = _diff(left1, left2, pos1, pos2, commons, inserts, deletes,
             ignore_cases=ignore_cases, ignore_whitespaces=ignore_whitespaces, 
-            translates=translates, max_dist=max_dist, min_sim=min_sim)
+            translates=translates, junk=junk, max_dist=max_dist, min_sim=min_sim)
         
         for item in new[start_new : start_new + length]:
             commons.append(DiffCommonItem(pos1, pos2, item))
@@ -163,7 +164,7 @@ def _diff(old, new, pos1, pos2, commons, inserts, deletes, ignore_cases=False,
         right2 = new[start_new + length : ]
         pos1, pos2 = _diff(right1, right2, pos1, pos2, commons, inserts, deletes,
             ignore_cases=ignore_cases, ignore_whitespaces=ignore_whitespaces, 
-            translates=translates, max_dist=max_dist, min_sim=min_sim)
+            translates=translates, junk=junk, max_dist=max_dist, min_sim=min_sim)
         
     return (pos1, pos2)
 
@@ -171,7 +172,7 @@ def _diff(old, new, pos1, pos2, commons, inserts, deletes, ignore_cases=False,
 # Rearrange
 
 def rearrange_elements(old, new, ignore_cases=False, ignore_whitespaces=False,
-        translates={}, max_dist=0, min_sim=1.0):
+        translates={}, junk=[], max_dist=0, min_sim=1.0):
     ''' Tries to rearrange the elements in 'new' as much as possible to 
     reproduce the same order of the elements in 'old'. If the ignore_cases flag 
     is set to True, the diff is done case-insensitive. If the ignore_whitespace 
@@ -181,33 +182,63 @@ def rearrange_elements(old, new, ignore_cases=False, ignore_whitespaces=False,
     all occurrences of '.', ',', '!' and '?' to the whitespace ' '. If max_dist 
     or min_sim is given, the algorithms considers two elements as equal if the 
     distance between them is at most max_dist (if the similarity of both 
-    elements is at least min_sim).'''
-    
+    elements is at least min_sim).
+    Let's define a running example to clarify the function of the method:
+    old = ["The", "fox", "and", "the", "cow"]
+    new = ["The", "cow", "and", "the", "red", "fox"]  
+    '''
+              
     logger.debug("Rearrange. ignore_cases: %r, ignore_whitespaces: %r, "
         "translates: %r, max_dist: %r, min_sim: %r" % 
         (ignore_cases, ignore_whitespaces, translates, max_dist, min_sim))
         
-    # First, do a normal diff without rearranging.
+    # First, do a normal diff without rearranging:
+    # commons = [
+    #    (pos1=0, pos2=0, element='The'), 
+    #    (pos1=2, pos2=2, element='and'), 
+    #    (pos1=3, pos2=3, element='the')
+    # ]
+    # inserts = [
+    #    (pos1=2, pos2=1, element='cow', matched=False), 
+    #    (pos1=5, pos2=4, element='red', matched=False),
+    #    (pos1=5, pos2=5, element='fox', matched=False)
+    # ]
+    # deletes = [
+    #    (pos1=1, pos2=1, element='fox', matched=False), 
+    #    (pos1=4, pos2=4, element='cow', matched=False)
+    # ]
     commons, inserts, deletes = diff(old, new, rearrange=False, 
         ignore_cases=ignore_cases, ignore_whitespaces=ignore_whitespaces, 
         translates=translates, max_dist=max_dist, min_sim=min_sim)
-    
+             
     logger.debug("#commons: %d, #inserts: %d, #deletes: %d"
         % (len(commons), len(inserts), len(deletes)))
              
-    # Map each deleted element to all deleted items that holds the element.
-    # { element1: [item1, item2], element2: [...], ... }
+    # Map each deleted element to its deleted items:
+    # { 
+    #   'cow': [(pos1=4, pos2=4, element='cow', matched=False)], 
+    #   'fox': [(pos1=1, pos2=1, element='fox', matched=False)],
+    # }
     deletes_index = fuzzy_dict()
     for item in deletes:
         if item.element in deletes_index:
             deletes_index[item.element].append(item)
         else:
             deletes_index[item.element] = [item]
-                  
+                                            
     # Separate the insertions and associate each element of each insertion to 
     # its positions in the deletes_index:
-    # [ [(deletions, insertion1a), (deletions, insertion1b), ...],
-    #   [(deletions, insertion2a), (deletions, insertion2b), ...] ... ]
+    # [
+    #   # Insertion 1
+    #   [
+    #     ([(pos1=4, pos2=4, element='cow', matched=False)], (pos1=2, pos2=1, element='cow', matched=False))
+    #   ], 
+    #   # Insertion 2
+    #   [
+    #     ([None], (pos1=5, pos2=4, element='fox', matched=False)),
+    #     ([(pos1=1, pos2=1, element='fox', matched=False)], (pos1=5, pos2=5, element='fox', matched=False))
+    #   ]
+    # ]
     inserts_mappings = []
     insert_mapping = []
     for insert in inserts:
@@ -218,11 +249,17 @@ def rearrange_elements(old, new, ignore_cases=False, ignore_whitespaces=False,
         deletions = deletes_index.get(insert.element, max_dist, min_sim, [None])
         insert_mapping.append(MappingItem(deletions, insert))
     inserts_mappings.append(insert_mapping)
-         
-    # For each mapping, compute the longest "run", that is a sequence of words 
-    # which occurs in the insertion in the same order as in the groundtruth.
-    run = find_longest_run_in_mappings(inserts_mappings)
      
+                         
+    # For each mapping, compute the longest "run", that is a sequence of words 
+    # in an insertion that occurs in the same order as in the groundtruth. Try
+    # to keep unmatched insertions at the original position.
+    # [
+    #   (None, (pos1=5, pos2=4, element='red', matched=False)), 
+    #   ((pos1=1, pos2=1, element='fox', matched=False), (pos1=5, pos2=5, element='fox', matched=False))
+    # ]
+    run = find_longest_run_in_mappings(inserts_mappings)
+             
     while run:
         logger.debug("run: %s", visualize_run(run))
     
@@ -272,7 +309,7 @@ def rearrange_elements(old, new, ignore_cases=False, ignore_whitespaces=False,
 
         # Find another run.
         run = find_longest_run_in_mappings(inserts_mappings)
-     
+ 
     # The rearranged list follows from the commons and the (updated) inserts.       
     rearranged = commons + inserts
     rearranged.sort()
@@ -281,7 +318,7 @@ def rearrange_elements(old, new, ignore_cases=False, ignore_whitespaces=False,
     rearranged = [item.element for item in rearranged]
         
     logger.debug("rearranged to: %s", " ".join(rearranged))
-                  
+          
     return rearranged
 
 def find_longest_run_in_mappings(mappings):
@@ -293,6 +330,11 @@ def find_longest_run_in_mappings(mappings):
     return longest_run
 
 def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.        
+    ''' Finds the longest possible run in the given mapping. The mapping is of 
+    the form: [([deletions1], insert1), ([deletions2], insert2), ...] where each
+    list of deletions is of form [(pos1, pos2, element), ...]. Note that 
+    deletions could be [None] if there is no matched deletion for the insert.
+    '''
     logger.debug("Find run. ")
     for m in mapping:
         logger.debug(" * %r" % m)
@@ -312,7 +354,6 @@ def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.
     # The end elements by runs. For the example above, this map looks like:
     # { 1: 5, 2: 5, 3: 5, 4: 7, 5: 7 }
     end_elements_by_runs = defaultdict(lambda: set())
-     
     # The queue of unmatched inserts (inserts with no associated deletion).
     unmatched_queue = []
                       
@@ -340,7 +381,7 @@ def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.
             if deletion is not None and deletion.matched:
                 continue
             
-            # Obtain the psoition of the deletion.
+            # Obtain the position of the deletion (could be None).
             pos = deletion.pos1 if deletion is not None else None
               
             logger.debug("%r -> pos: %r" % (deletion, pos))
@@ -409,7 +450,7 @@ def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.
                 logger.debug(" %d: %r" % (i, debug_run))
             debug_queue = [item.insertion.element for item in unmatched_queue]
             logger.debug("Queue: %r" % (debug_queue))
-                   
+             
     if longest_run:
         logger.debug("Returning run of length %d" % len(longest_run))
         return longest_run
@@ -419,6 +460,17 @@ def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.
                       
 # ______________________________________________________________________________
 # Util methods.
+
+def format_list(elements, ignore_cases=False, ignore_whitespaces=False,
+        translates={}):
+    result = []
+    for i, element in enumerate(elements):
+        formatted = format_str(element, ignore_cases=ignore_cases, 
+            ignore_whitespaces=ignore_whitespaces, translates=translates)
+        if formatted:
+            result.append(formatted) 
+    return result
+        
   
 def format_str(element, ignore_cases=False, ignore_whitespaces=False,
         translates={}):
@@ -459,13 +511,14 @@ def format_str(element, ignore_cases=False, ignore_whitespaces=False,
     if ignore_cases:
         # Transform the string to lowercase letters.
         txt = txt.lower()
-        
-    if ignore_whitespaces:
-        # Remove all whitespaces.
-        return "".join(txt.split())
-    else:    
-        # Replace all runs of whitespaces by a single whitespace.
-        return " ".join(txt.split())
+    
+    if txt:          
+        if ignore_whitespaces:
+            # Remove all whitespaces.
+            return "".join(txt.split())
+        else:    
+            # Replace all runs of whitespaces by a single whitespace.
+            return " ".join(txt.split())
 
 # ______________________________________________________________________________
 #
@@ -511,7 +564,7 @@ def visualize_diff_result(commons, inserts, deletes, path=None):
      
     snippets = []
         
-    for item in full:
+    for i, item in enumerate(full):
         if isinstance(item, DiffInsertItem):
             snippets.append(visualization_insert_start)
         elif isinstance(item, DiffDeleteItem):
@@ -533,6 +586,6 @@ def visualize_diff_result(commons, inserts, deletes, path=None):
 
   
 if __name__ == "__main__":
-    s1 = "The red fox jumps over the blue sea"
-    s2 = "The red [3] fox [4] jumps over the ble sea"
-    diff(s1.split(), s2.split(), rearrange=True, max_dist=1)
+    s1 = ["The", "fox", "and", "the", "cow"]
+    s2 = ["The", "cow", "and", "the", "red", "fox"]
+    diff(s1, s2, rearrange=True, max_dist=1)
