@@ -20,6 +20,9 @@ TOOL_TARGET = $(OUTPUT)/$(TOOL)
 
 MAX_DISTANCE = 0
 MIN_SIMILARITY = 0.5
+REARRANGE = True 
+IGNORE_CASES = True
+JUNK = \[formula\] \[table\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
 
 # The command of tools.
 pdftotext_CMD = pdftotext %IN %OUT
@@ -88,12 +91,9 @@ extract-excerpt:
 evaluate: 
 	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
 	@python3 $(EVALUATOR_SRC) \
-		--max_distance "$(MAX_DISTANCE)" \
+		--max_dist "$(MAX_DISTANCE)" \
 		--min_similarity "$(MIN_SIMILARITY)" \
 		--prefix "$(PREFIX)" \
-		--word_suffix ".full.txt" \
-		--para_suffix ".full.txt" \
-		--body_suffix ".body.txt" \
 		--output "$(EVALUATION_TARGET)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
 	@echo "*************"
@@ -102,12 +102,13 @@ evaluate:
 	
 # Evaluate the accuracy of words extraction.
 evaluate-words: validate
-	@echo "Evaluating the words extraction of the tool \"$(TOOL)\"".
-	python3 $(EVALUATOR_SRC) \
-		--type word \
-		--max_distance "$(MAX_DISTANCE)" \
+	@python3 $(EVALUATOR_SRC) \
+		--feature word \
 		--prefix "$(PREFIX)" \
-		--word_suffix ".full.txt" \
+		--rearrange "$(REARRANGE)" \
+		--ignore_cases "$(IGNORE_CASES)" \
+		--junk "$(JUNK)" \
+		--max_dist "$(MAX_DISTANCE)" \
 		--output "$(EVALUATION_TARGET)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
 #@echo "*************"
@@ -118,10 +119,12 @@ evaluate-words: validate
 evaluate-paragraphs: validate
 	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
 	@python3 $(EVALUATOR_SRC) \
-		--type paragraph \
-		--min_similarity "$(MIN_SIMILARITY)" \
+		--feature paragraph \
 		--prefix "$(PREFIX)" \
-		--paragraph_suffix ".full.txt" \
+		--rearrange "$(REARRANGE)" \
+		--ignore_cases "$(IGNORE_CASES)" \
+		--junk "$(JUNK)" \
+		--min_sim "$(MIN_SIMILARITY)" \
 		--output "$(EVALUATION_TARGET)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
 #@echo "*************"
@@ -132,10 +135,11 @@ evaluate-paragraphs: validate
 evaluate-body: validate
 	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
 	@python3 $(EVALUATOR_SRC) \
-		--type body \
-		--min_similarity "$(MIN_SIMILARITY)" \
+		--feature body \
 		--prefix "$(PREFIX)" \
-		--body_suffix ".body.txt" \
+		--ignore_cases "$(IGNORE_CASES)" \
+		--junk "$(JUNK)" \
+		--max_dist "$(MAX_DISTANCE)" \
 		--output "$(EVALUATION_TARGET)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
 #@echo "*************"

@@ -1,31 +1,53 @@
-import logging
-import sys
-import re
-
 from diff import diff
+import util
 
-logger = logging.getLogger(__name__)
+default_ignore_cases       = True
+default_max_dist           = 0
+default_junk               = []
 
-def evaluate_body_extraction(gt, actual):
+def evaluate_body_extraction(gt, actual, args):
     """
-    Computes the accuracy (i.e. the precision and recall) of body 
-    extraction.
+    Evaluates body extraction. For that, run diff on the set of groundtruth 
+    words (gt) and the words of the actual extraction result (actual), without
+    rearranging (because the order of words should matter). Based on the diff 
+    result, computes the edit distance based on the words).   
     """
     
-    # Do a wdiff (rearrange if necessary).
-    gt = re.split("\n\s*\n", gt)
-    actual = re.split("\n\s*\n", actual)
-        
-    # Do a wdiff (rearrange if necessary).
-    commons, insertions, deletions = diff(gt, actual, 
-        normalize=True, ignore_cases=True, min_similarity=1.0)
- 
-    # Compute the precision/recall values. 
-    tp = sum(len(common) for common in commons)
-    fp = sum(len(insertion) for insertion in insertions)
-    fn = sum(len(deletion) for deletion in deletions)
-        
-    precision = tp / (tp + fp) if tp + fp > 0 else 0.0
-    recall    = tp / (tp + fn) if tp + fn > 0 else 0.0
-               
-    return (precision, recall)   
+    ignore_cases = util.to_bool(args.ignore_cases, default_ignore_cases)
+    junk         = util.to_list(args.junk, default_junk)
+    max_dist     = util.to_int(args.max_dist, default_max_dist)
+    visual_path  = args.visual_path
+    
+    return _evaluate_body_extraction(gt, actual, ignore_cases, junk, max_dist,
+        visual_path)
+
+def _evaluate_body_extraction(gt, actual, ignore_cases=default_ignore_cases, 
+        junk=default_junk, max_dist=default_max_dist, visual_path=None):
+    """
+    Computes distance and similarity of body extraction. For that, run diff on 
+    the set of words (gt) and the actual extraction result 
+    (actual). 
+    
+    >>> _evaluate_body_extraction("foo bar", "")
+    (2, 0.0)
+    >>> _evaluate_body_extraction("", "foo bar")
+    (2, 0.0)
+    >>> _evaluate_body_extraction("foo bar", "foo bar")
+    (0, 1.0)
+    >>> _evaluate_body_extraction("foo bar", "foo")
+    (1, 0.5)
+    >>> _evaluate_body_extraction("foo bar", "foo bar baz xxx")
+    (2, 0.5)
+    >>> _evaluate_body_extraction("foo bar", "bar foo")
+    (2, 0.0)
+    """
+    gt_words     = util.to_formatted_words(gt, ignore_cases)
+    actual_words = util.to_formatted_words(actual, ignore_cases)
+    
+    diff_result = diff(gt_words, actual_words, 
+        rearrange=False,
+        max_dist=max_dist,
+        junk=junk,
+        visual_path=visual_path)
+                
+    return util.compute_distance_similarity(diff_result)
