@@ -163,7 +163,11 @@ public class TeXInterpreter {
       // Update the context.
       context = newContext;
     }
-           
+       
+    if (cmd.toString().startsWith("\\twocolumn")) {
+      System.out.println(cmd);
+    }
+    
     // The commands itself may contain groups to parse, that may indeed 
     // introduce contexts.
     // For example, the first group of the command "\section{Introduction}"
@@ -218,7 +222,9 @@ public class TeXInterpreter {
           context.writeText(DEFAULT_CONTEXT_NAME, "=");
           context.writeText(DEFAULT_CONTEXT_NAME, keys[i].trim());
           context.writeText(DEFAULT_CONTEXT_NAME, "]");
-          if (i < keys.length - 1) context.writeText(DEFAULT_CONTEXT_NAME, " ");
+          if (i < keys.length - 1) {
+            context.writeText(DEFAULT_CONTEXT_NAME, " ");
+          }
         }
       }
     }

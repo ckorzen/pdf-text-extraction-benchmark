@@ -23,6 +23,11 @@ public class Command extends Element {
   protected String name;
   
   /**
+   * The options of this command.
+   */
+  protected List<Option> options;
+  
+  /**
    * The groups of this command.
    */
   protected List<Group> groups;
@@ -39,10 +44,18 @@ public class Command extends Element {
    */
   public Command(String name) {
     this.groups = new ArrayList<>();
+    this.options = new ArrayList<>();
     this.name = name;
   }
   
   // ___________________________________________________________________________
+  
+  /**
+   * Adds the given option to this command.
+   */
+  public void addOption(Option option) {
+    this.options.add(option);
+  }
   
   /**
    * Adds the given group to this command.
@@ -51,6 +64,13 @@ public class Command extends Element {
     this.groups.add(group);
   }
  
+  /**
+   * Returns the options of this command.
+   */
+  public List<Option> getOptions() {
+    return this.options;
+  }
+  
   /**
    * Returns the groups of this command.
    */
