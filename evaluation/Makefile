@@ -22,7 +22,7 @@ MAX_DISTANCE = 0
 MIN_SIMILARITY = 0.5
 REARRANGE = True 
 IGNORE_CASES = True
-JUNK = \[formula\] \[table\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
+JUNK = \[formula\] \[table\] \[figure\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
 
 # The command of tools.
 pdftotext_CMD = pdftotext %IN %OUT

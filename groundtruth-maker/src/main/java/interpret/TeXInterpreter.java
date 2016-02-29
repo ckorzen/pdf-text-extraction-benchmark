@@ -132,6 +132,8 @@ public class TeXInterpreter {
   protected void processCommand(Command cmd, Iterator<Element> itr, 
       TeXHierarchy context) {    
     
+    System.out.println(cmd);
+    
     // Check, if the command is a cross reference.
     // if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite", "\\label")) {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
