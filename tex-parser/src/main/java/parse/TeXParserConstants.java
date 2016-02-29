@@ -28,43 +28,45 @@ public interface TeXParserConstants {
   /** RegularExpression Id. */
   int EQUALS = 10;
   /** RegularExpression Id. */
-  int GROUP_START = 11;
+  int DOT = 11;
   /** RegularExpression Id. */
-  int GROUP_END = 12;
+  int GROUP_START = 12;
   /** RegularExpression Id. */
-  int OPTION_START = 13;
+  int GROUP_END = 13;
   /** RegularExpression Id. */
-  int OPTION_END = 14;
+  int OPTION_START = 14;
   /** RegularExpression Id. */
-  int COMMAND_PREFIX = 15;
+  int OPTION_END = 15;
   /** RegularExpression Id. */
-  int DEF_COMMAND_PREFIX = 16;
+  int COMMAND_PREFIX = 16;
   /** RegularExpression Id. */
-  int NEW_COMMAND_PREFIX = 17;
+  int DEF_COMMAND_PREFIX = 17;
   /** RegularExpression Id. */
-  int WELL_DEFINED_DEFAULT_COMMAND = 18;
+  int NEW_COMMAND_PREFIX = 18;
   /** RegularExpression Id. */
-  int WELL_DEFINED_TABBING_COMMAND = 19;
+  int WELL_DEFINED_DEFAULT_COMMAND = 19;
   /** RegularExpression Id. */
-  int WELL_DEFINED_COMMON_COMMAND = 20;
+  int WELL_DEFINED_TABBING_COMMAND = 20;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_DEFAULT_NAME = 21;
+  int WELL_DEFINED_COMMON_COMMAND = 21;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_TABBING_NAME = 22;
+  int ESCAPE_COMMAND_DEFAULT_NAME = 22;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_COMMON_NAME = 23;
+  int ESCAPE_COMMAND_TABBING_NAME = 23;
   /** RegularExpression Id. */
-  int MARKER = 24;
+  int ESCAPE_COMMAND_COMMON_NAME = 24;
   /** RegularExpression Id. */
-  int UPPERCASE_CHAR = 25;
+  int MARKER = 25;
   /** RegularExpression Id. */
-  int LOWERCASE_CHAR = 26;
+  int UPPERCASE_CHAR = 26;
   /** RegularExpression Id. */
-  int DIGIT = 27;
+  int LOWERCASE_CHAR = 27;
   /** RegularExpression Id. */
-  int CHAR = 28;
+  int DIGIT = 28;
   /** RegularExpression Id. */
-  int OTHER_SYMBOL = 29;
+  int CHAR = 29;
+  /** RegularExpression Id. */
+  int OTHER_SYMBOL = 30;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -86,6 +88,7 @@ public interface TeXParserConstants {
     "<NEW_PARAGRAPH>",
     "\"*\"",
     "\"=\"",
+    "\".\"",
     "\"{\"",
     "\"}\"",
     "\"[\"",
