@@ -179,6 +179,9 @@ public class Command extends Element {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append(getName());
+    for (Option option : getOptions()) {
+      sb.append(option.toString());
+    }
     for (Group group : getGroups()) {
       sb.append(group.toString());
     }

@@ -13,4 +13,13 @@ public class Option extends Group {
    * Creates a new option.
    */
   public Option() { }
+  
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("[");
+    sb.append(getText());
+    sb.append("]");
+    return sb.toString();
+  }
 }

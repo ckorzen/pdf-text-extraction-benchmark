@@ -19,6 +19,7 @@ import model.Group;
 import model.Iterator;
 import model.NewLine;
 import model.NewParagraph;
+import model.Option;
 import model.Text;
 import model.Whitespace;
 
@@ -86,7 +87,7 @@ public class TeXInterpreter {
    * Processes the given element.
    */
   protected void processElement(Element element, Iterator<Element> itr, 
-      TeXHierarchy context) {    
+      TeXHierarchy context) {        
     if (element instanceof Group) {
       processElements(((Group) element).elements, context);
     } else if (element instanceof Text) {
@@ -101,7 +102,7 @@ public class TeXInterpreter {
    */
   protected void processText(Text element, Iterator<Element> itr, 
       TeXHierarchy context) {
-       
+    
     if (element instanceof NewParagraph) {
       context.writeNewParagraph(DEFAULT_CONTEXT_NAME);
     } else if (element instanceof NewLine) {
@@ -110,6 +111,18 @@ public class TeXInterpreter {
       context.writeWhiteSpace(DEFAULT_CONTEXT_NAME);
     } else {
       String text = element.getText();
+      
+      if (text == null) {
+        return;
+      }
+      
+      // Don't allow text that starts with '@' to ignore commands like 
+      // "\twocolumn[\csname @twocolumnfalse\endcsname]"
+      // FIXME: Check, if this is doesn't ignore regular words.
+      if (text.startsWith("@")) {
+        return;
+      }
+      
       // TODO: Move the normalization to an extra method.
       text = text.replaceAll("~", " ");
       text = text.replaceAll("``", "\"");
@@ -131,9 +144,6 @@ public class TeXInterpreter {
    */
   protected void processCommand(Command cmd, Iterator<Element> itr, 
       TeXHierarchy context) {    
-    
-    System.out.println(cmd);
-    
     // Check, if the command is a cross reference.
     // if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite", "\\label")) {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
@@ -163,9 +173,12 @@ public class TeXInterpreter {
       // Update the context.
       context = newContext;
     }
-       
-    if (cmd.toString().startsWith("\\twocolumn")) {
-      System.out.println(cmd);
+    
+    if (cmdRef.definesOptionsToParse()) {
+      List<Option> options = cmd.getOptions();
+      for (Option option : options) {
+        processElements(option.elements, context);
+      }
     }
     
     // The commands itself may contain groups to parse, that may indeed 
@@ -479,6 +492,13 @@ class CommandReference {
 
   // ___________________________________________________________________________
 
+  /**
+   * Returns true, if this reference defines the parsing of options.
+   */
+  public boolean definesOptionsToParse() {
+    return getInteger(8) > 0;
+  }
+  
   /**
    * Returns true, if this reference defines the groups to parse.
    */
