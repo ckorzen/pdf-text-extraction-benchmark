@@ -28,7 +28,7 @@ public interface TeXParserConstants {
   /** RegularExpression Id. */
   int EQUALS = 10;
   /** RegularExpression Id. */
-  int DOT = 11;
+  int EQUALS_DOT = 11;
   /** RegularExpression Id. */
   int GROUP_START = 12;
   /** RegularExpression Id. */
@@ -88,7 +88,7 @@ public interface TeXParserConstants {
     "<NEW_PARAGRAPH>",
     "\"*\"",
     "\"=\"",
-    "\".\"",
+    "\"=.\"",
     "\"{\"",
     "\"}\"",
     "\"[\"",

@@ -706,8 +706,8 @@ public class TeXParser implements TeXParserConstants {
     case EQUALS:
       token = jj_consume_token(EQUALS);
       break;
-    case DOT:
-      token = jj_consume_token(DOT);
+    case EQUALS_DOT:
+      token = jj_consume_token(EQUALS_DOT);
       break;
     default:
       jj_la1[18] = jj_gen;
@@ -860,8 +860,8 @@ public class TeXParser implements TeXParserConstants {
     case EQUALS:
       token = jj_consume_token(EQUALS);
       break;
-    case DOT:
-      token = jj_consume_token(DOT);
+    case EQUALS_DOT:
+      token = jj_consume_token(EQUALS_DOT);
       break;
     case OTHER_SYMBOL:
       token = jj_consume_token(OTHER_SYMBOL);
