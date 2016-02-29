@@ -12,57 +12,57 @@ public interface TeXParserConstants {
   /** End of File. */
   int EOF = 0;
   /** RegularExpression Id. */
-  int COMMENT_NEW_LINE = 2;
+  int COMMENT_NEW_LINE = 3;
   /** RegularExpression Id. */
-  int BEGIN_TABBING = 4;
+  int BEGIN_TABBING = 5;
   /** RegularExpression Id. */
-  int END_TABBING = 5;
+  int END_TABBING = 6;
   /** RegularExpression Id. */
-  int WHITESPACE = 6;
+  int WHITESPACE = 7;
   /** RegularExpression Id. */
-  int NEW_LINE = 7;
+  int NEW_LINE = 8;
   /** RegularExpression Id. */
-  int NEW_PARAGRAPH = 8;
+  int NEW_PARAGRAPH = 9;
   /** RegularExpression Id. */
-  int STAR = 9;
+  int STAR = 10;
   /** RegularExpression Id. */
-  int GROUP_START = 10;
+  int GROUP_START = 11;
   /** RegularExpression Id. */
-  int GROUP_END = 11;
+  int GROUP_END = 12;
   /** RegularExpression Id. */
-  int OPTION_START = 12;
+  int OPTION_START = 13;
   /** RegularExpression Id. */
-  int OPTION_END = 13;
+  int OPTION_END = 14;
   /** RegularExpression Id. */
-  int COMMAND_PREFIX = 14;
+  int COMMAND_PREFIX = 15;
   /** RegularExpression Id. */
-  int DEF_COMMAND_PREFIX = 15;
+  int DEF_COMMAND_PREFIX = 16;
   /** RegularExpression Id. */
-  int NEW_COMMAND_PREFIX = 16;
+  int NEW_COMMAND_PREFIX = 17;
   /** RegularExpression Id. */
-  int WELL_DEFINED_DEFAULT_COMMAND = 17;
+  int WELL_DEFINED_DEFAULT_COMMAND = 18;
   /** RegularExpression Id. */
-  int WELL_DEFINED_TABBING_COMMAND = 18;
+  int WELL_DEFINED_TABBING_COMMAND = 19;
   /** RegularExpression Id. */
-  int WELL_DEFINED_COMMON_COMMAND = 19;
+  int WELL_DEFINED_COMMON_COMMAND = 20;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_DEFAULT_NAME = 20;
+  int ESCAPE_COMMAND_DEFAULT_NAME = 21;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_TABBING_NAME = 21;
+  int ESCAPE_COMMAND_TABBING_NAME = 22;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_COMMON_NAME = 22;
+  int ESCAPE_COMMAND_COMMON_NAME = 23;
   /** RegularExpression Id. */
-  int MARKER = 23;
+  int MARKER = 24;
   /** RegularExpression Id. */
-  int UPPERCASE_CHAR = 24;
+  int UPPERCASE_CHAR = 25;
   /** RegularExpression Id. */
-  int LOWERCASE_CHAR = 25;
+  int LOWERCASE_CHAR = 26;
   /** RegularExpression Id. */
-  int DIGIT = 26;
+  int DIGIT = 27;
   /** RegularExpression Id. */
-  int CHAR = 27;
+  int CHAR = 28;
   /** RegularExpression Id. */
-  int OTHER_SYMBOL = 28;
+  int OTHER_SYMBOL = 29;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -74,9 +74,10 @@ public interface TeXParserConstants {
   /** Literal token values. */
   String[] tokenImage = {
     "<EOF>",
+    "\"=\"",
     "\"%\"",
     "<COMMENT_NEW_LINE>",
-    "<token of kind 3>",
+    "<token of kind 4>",
     "<BEGIN_TABBING>",
     "<END_TABBING>",
     "<WHITESPACE>",
