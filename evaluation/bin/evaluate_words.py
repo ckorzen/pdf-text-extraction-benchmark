@@ -70,8 +70,8 @@ def _evaluate_words_extraction(gt, actual, ignore_cases=default_ignore_cases,
     (0.5, 0.5)
     """
 
-    gt_words     = util.to_formatted_words(gt, ignore_cases)
-    actual_words = util.to_formatted_words(actual, ignore_cases)
+    gt_words     = util.to_formatted_words(gt, ignore_cases, to_protect=junk)
+    actual_words = util.to_formatted_words(actual, ignore_cases, to_protect=junk)
 
     diff_result  = diff(gt_words, actual_words,
         rearrange = rearrange,

@@ -48,15 +48,17 @@ def to_list(arg, default, separator=" "):
         return default
 
 def to_formatted_words(string, to_lowercases=True, 
-        ignores=["!", ",", ".", ":", ";", "?", "“", "”", "\"", "'", "’"]):
+        ignores=["!", ",", ".", ":", ";", "?", "“", "”", "\"", "'", "’"],
+        to_protect=[]):
     ''' 
     Formats the given string to list of words. Transforms all letters to 
     lowercases if the to_lowercases flag is set to True. Removes all occurrences
     of the characters given by ignores.
     '''
-    
+       
     # Make sure, that the given element is indeed a string.
     string = str(string)
+    ignores = "".join(ignores)
                        
     # Unicode can hold "decomposed" characters, i.e. characters with accents 
     # where the accents are characters on its own (for example, the character 
@@ -77,16 +79,21 @@ def to_formatted_words(string, to_lowercases=True,
             
     # Normalize (compose the characters). NFC = Normal form C(omposition)                
     string = unicodedata.normalize("NFC", "".join([chr(i) for i in codepoints])) 
-                        
-    if ignores:
-        ignores = "".join(ignores)
-        string = string.translate({ord(c): " " for c in ignores})                
-                    
-    if to_lowercases:
-        # Transform the string to lowercase letters.
-        string = string.lower()
+     
+    # Split the string into words.                                
+    words = string.split()
+    # Compose a regular expression to find the words to protect.
+    regexp = "|".join(to_protect)
     
-    return string.split()
+    for i, word in enumerate(words):
+        protect = re.search(regexp, word)
+        
+        # Don't translate anything if we have to protect the word.
+        if protect:
+            continue
+            
+        words[i] = word.translate({ord(c): " " for c in ignores})                
+    return words                    
 
 def to_formatted_paragraphs(string, to_lowercases=True, remove_whitespaces=True,
         ignores=["!", ",", ".", ":", ";", "?", "“", "”", "\"", "'", "’"]):
