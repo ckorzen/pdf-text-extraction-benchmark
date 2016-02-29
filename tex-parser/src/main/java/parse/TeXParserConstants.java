@@ -12,19 +12,21 @@ public interface TeXParserConstants {
   /** End of File. */
   int EOF = 0;
   /** RegularExpression Id. */
-  int COMMENT_NEW_LINE = 3;
+  int COMMENT_NEW_LINE = 2;
   /** RegularExpression Id. */
-  int BEGIN_TABBING = 5;
+  int BEGIN_TABBING = 4;
   /** RegularExpression Id. */
-  int END_TABBING = 6;
+  int END_TABBING = 5;
   /** RegularExpression Id. */
-  int WHITESPACE = 7;
+  int WHITESPACE = 6;
   /** RegularExpression Id. */
-  int NEW_LINE = 8;
+  int NEW_LINE = 7;
   /** RegularExpression Id. */
-  int NEW_PARAGRAPH = 9;
+  int NEW_PARAGRAPH = 8;
   /** RegularExpression Id. */
-  int STAR = 10;
+  int STAR = 9;
+  /** RegularExpression Id. */
+  int EQUALS = 10;
   /** RegularExpression Id. */
   int GROUP_START = 11;
   /** RegularExpression Id. */
@@ -74,16 +76,16 @@ public interface TeXParserConstants {
   /** Literal token values. */
   String[] tokenImage = {
     "<EOF>",
-    "\"=\"",
     "\"%\"",
     "<COMMENT_NEW_LINE>",
-    "<token of kind 4>",
+    "<token of kind 3>",
     "<BEGIN_TABBING>",
     "<END_TABBING>",
     "<WHITESPACE>",
     "<NEW_LINE>",
     "<NEW_PARAGRAPH>",
     "\"*\"",
+    "\"=\"",
     "\"{\"",
     "\"}\"",
     "\"[\"",
