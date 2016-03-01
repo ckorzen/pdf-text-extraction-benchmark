@@ -68,6 +68,7 @@ public class TeXInterpreter {
     // Create a new global context.
     TeXHierarchy hierarchy = new TeXHierarchy();
     // Process all elements of the document under the created context.
+    
     processElements(document.elements, hierarchy);
             
     return hierarchy;
@@ -87,7 +88,8 @@ public class TeXInterpreter {
    * Processes the given element.
    */
   protected void processElement(Element element, Iterator<Element> itr, 
-      TeXHierarchy context) {        
+      TeXHierarchy context) {
+    
     if (element instanceof Group) {
       processElements(((Group) element).elements, context);
     } else if (element instanceof Text) {
@@ -149,7 +151,7 @@ public class TeXInterpreter {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, context);
     }
-    
+        
     CommandReference cmdRef = getCommandReference(cmd);
         
     // Skip the command, if there is no reference for the command.
