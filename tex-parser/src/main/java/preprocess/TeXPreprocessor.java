@@ -21,8 +21,7 @@ import parse.ParseException;
 import parse.TeXParser;
 
 /**
- * Class that resolves all macros and to standardizes commands, i.e. transforms
- * commands like "\vskip 2cm" to "\vskip{2cm}.
+ * Class that resolves all macros.
  *
  * @author Claudius Korzen
  */
@@ -53,19 +52,12 @@ public class TeXPreprocessor extends TeXParser {
    * The field separator on command references file.
    */
   static final String COMMAND_REFERENCES_SEPARATOR = ",";
-  
-  /**
-   * The parsed command references.
-   */
-  protected CommandReferences commandReferences;
-  
+    
   /**
    * Creates a new preprocessor for the given tex file.
    */
   public TeXPreprocessor(InputStream stream) {
     super(stream);
-    this.commandReferences = new CommandReferences(COMMAND_REFERENCES_PATH, 
-        COMMAND_REFERENCES_SEPARATOR);
   }
   
   /**
@@ -86,29 +78,28 @@ public class TeXPreprocessor extends TeXParser {
       ParseException {
     Document document = parse();
     while (document.hasNext()) {
-      handleElement(document.next(), document, writer);
+      handleElement(document.next(), writer);
     }
   }
   
   /**
    * Handles the given element from parsed tex document.
    */
-  protected void handleElement(Element element, Group context, 
-      BufferedWriter writer) {    
+  protected void handleElement(Element element, BufferedWriter writer) {    
     if (element instanceof MacroDefinition) {
       handleMacroDefinition((MacroDefinition) element, writer);
     } else if (element instanceof NewLine) {
-      handleNewline((NewLine) element, context, writer);
+      handleNewline((NewLine) element, writer);
     } else if (element instanceof Whitespace) {
-      handleWhitespace((Whitespace) element, context, writer);
+      handleWhitespace((Whitespace) element, writer);
     } else if (element instanceof Command) {
-      handleCommand((Command) element, context, writer);
+      handleCommand((Command) element, writer);
     } else if (element instanceof Group) {
-      handleGroup((Group) element, context, writer);
+      handleGroup((Group) element, writer);
     } else if (element instanceof Text) {
-      handleText((Text) element, context, writer);
+      handleText((Text) element, writer);
     } else if (element instanceof Marker) {
-      handleMarker((Marker) element, context, writer);
+      handleMarker((Marker) element, writer);
     }
   }
     
@@ -122,9 +113,8 @@ public class TeXPreprocessor extends TeXParser {
   /**
    * Handles the given command.
    */
-  public void handleCommand(Command command, Group context,
-      BufferedWriter writer) {
-    outputElements(resolve(command, context), writer);
+  public void handleCommand(Command command, BufferedWriter writer) {
+    outputElements(resolve(command), writer);
     if ("\\end{document}".equals(command.toString())) {
       isEndDocument = true;
     }
@@ -133,38 +123,35 @@ public class TeXPreprocessor extends TeXParser {
   /**
    * Handles the given group.
    */
-  public void handleGroup(Group group, Group context, BufferedWriter writer) {
-    outputElements(resolve(group, context), writer);
+  public void handleGroup(Group group, BufferedWriter writer) {
+    outputElements(resolve(group), writer);
   }
 
   /**
    * Handles the given text.
    */
-  public void handleText(Text text, Group context, BufferedWriter writer) {
-    outputElements(resolve(text, context), writer);
+  public void handleText(Text text, BufferedWriter writer) {
+    outputElements(resolve(text), writer);
   }
   
   /**
    * Handles the given newline.
    */
-  public void handleNewline(NewLine command, Group context, 
-      BufferedWriter writer) {
-    outputElements(resolve(command, context), writer);
+  public void handleNewline(NewLine command, BufferedWriter writer) {
+    outputElements(resolve(command), writer);
   }
 
   /**
    * Handles the given whitespace.
    */
-  public void handleWhitespace(Whitespace command, Group context, 
-      BufferedWriter writer) {
-    outputElements(resolve(command, context), writer);
+  public void handleWhitespace(Whitespace command, BufferedWriter writer) {
+    outputElements(resolve(command), writer);
   }
   
   /**
    * Handles the given marker.
    */
-  public void handleMarker(Marker marker, Group context, 
-      BufferedWriter writer) {
+  public void handleMarker(Marker marker, BufferedWriter writer) {
     // Nothing to do.
   }
    
@@ -174,21 +161,20 @@ public class TeXPreprocessor extends TeXParser {
    * Resolves the given element.
    * @throws IOException 
    */
-  protected ConstantLookupList<Element> resolve(Element element, 
-      Group context) {
+  protected ConstantLookupList<Element> resolve(Element element) {
     Group group = new Group();
-    resolveElement(element, context, group);
+    resolveElement(element, group);
     return group.elements;
   }
   
   /**
    * Resolves the given command recursively.
    */
-  protected void resolveElement(Element element, Group context, Group result) {
+  protected void resolveElement(Element element, Group result) {
     if (element instanceof Group) {
-      resolveGroup((Group) element, context, result);
+      resolveGroup((Group) element, result);
     } else if (element instanceof Command) {
-      resolveCommand((Command) element, context, result);
+      resolveCommand((Command) element, result);
     } else {
       // Nothing to resolve here.
       result.addElement(element);
@@ -199,11 +185,11 @@ public class TeXPreprocessor extends TeXParser {
    * Resolves the given group.
    * @throws IOException 
    */
-  protected void resolveGroup(Group group, Group context, Group result) {
+  protected void resolveGroup(Group group, Group result) {
     if (group != null && group.elements != null) {
       // Resolve the elements of the group in own context.
       Group resolvedGroup = new Group();
-      for (Element element : group.elements) {        resolveElement(element, group, resolvedGroup);
+      for (Element element : group.elements) {        resolveElement(element, resolvedGroup);
       }
       // Update the elements of the group to the resolved ones.
       group.elements = resolvedGroup.elements;
@@ -214,7 +200,7 @@ public class TeXPreprocessor extends TeXParser {
   /**
    * Resolves the given command.
    */
-  protected void resolveCommand(Command command, Group context, Group result) {
+  protected void resolveCommand(Command command, Group result) {
     if (command == null) {
       return;
     }
@@ -237,55 +223,15 @@ public class TeXPreprocessor extends TeXParser {
       
       // Resolve the elements of the macro.
       for (Element element : macro.elements) {
-        resolveElement(element, context, result);  
+        resolveElement(element, result);  
       }
       // Append a whitespace after a macro.
       result.addElement(new Whitespace());
     } else {
       // Command is not a macro, resolve its groups.
       for (Group group : command.getGroups()) {
-        resolve(group, context);
+        resolve(group);
       }
-      
-      // Check, if the command holds the expected number of groups.
-      CommandReference cmdRef = commandReferences.get(command);
-              
-      if (cmdRef != null && cmdRef.definesNumberOfGroups()) {
-        int expectedNumGroups = cmdRef.getNumberOfGroups();
-        int actualNumGroups = command.getGroups().size();
-        
-        // Because the context may be a new object after resolving, adjust
-        // the current position in the context.
-        context.reposition(command);
-               
-        if (expectedNumGroups > actualNumGroups) {
-          // The actual number of groups is smaller than the expected number.
-          // Add the appropriate number of following elements as groups to the
-          // command.
-          for (int i = 0; i < expectedNumGroups - actualNumGroups; i++) {
-            Element nextElement = context.nextNonWhitespace();
-            
-            if (nextElement instanceof Group) {
-              Group nextGroup = (Group) nextElement;
-              context.elements.set(context.curIndex - 1, null);
-              resolve(nextGroup, context);
-              // Simply add the group to the command.
-              command.addGroup(nextGroup);
-            } else if (nextElement instanceof Text) {
-              Text textElement = (Text) nextElement;
-              context.elements.set(context.curIndex - 1, null);
-              resolve(textElement, context);
-              String text = textElement.toString();
-              if (!text.trim().isEmpty()) {
-                // Create new Group and add it to the command.
-                command.addGroup(new Group(textElement));
-              }
-            }
-          }
-        }
-      }
-      
-      
       result.addElement(command);
     }
   }

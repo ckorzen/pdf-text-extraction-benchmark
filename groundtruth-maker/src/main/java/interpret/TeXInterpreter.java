@@ -1,8 +1,16 @@
 package interpret;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
+import de.freiburg.iif.path.LineReader;
 import de.freiburg.iif.text.StringUtils;
 import model.Command;
 import model.Document;
@@ -14,8 +22,6 @@ import model.NewParagraph;
 import model.Option;
 import model.Text;
 import model.Whitespace;
-import preprocess.CommandReference;
-import preprocess.CommandReferences;
 
 /**
  * Interprets tex files.
@@ -41,12 +47,7 @@ public class TeXInterpreter {
   /**
    * The parsed command references.
    */
-  protected CommandReferences commandReferences;
-  
-  public TeXInterpreter() {
-    this.commandReferences = new CommandReferences(COMMAND_REFERENCES_PATH, 
-        COMMAND_REFERENCES_SEPARATOR);
-  }
+  Map<String, CommandReference> commandReferences;
   
   // ___________________________________________________________________________
   // Public methods.
@@ -67,7 +68,6 @@ public class TeXInterpreter {
     // Create a new global context.
     TeXHierarchy hierarchy = new TeXHierarchy();
     // Process all elements of the document under the created context.
-    
     processElements(document.elements, hierarchy);
             
     return hierarchy;
@@ -87,8 +87,7 @@ public class TeXInterpreter {
    * Processes the given element.
    */
   protected void processElement(Element element, Iterator<Element> itr, 
-      TeXHierarchy context) {
-        
+      TeXHierarchy context) {        
     if (element instanceof Group) {
       processElements(((Group) element).elements, context);
     } else if (element instanceof Text) {
@@ -150,8 +149,8 @@ public class TeXInterpreter {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, context);
     }
-        
-    CommandReference cmdRef = commandReferences.get(cmd);
+    
+    CommandReference cmdRef = getCommandReference(cmd);
         
     // Skip the command, if there is no reference for the command.
     if (cmdRef == null) {
@@ -159,6 +158,42 @@ public class TeXInterpreter {
       return;
     }
     
+    
+    // Check, if the command holds the expected number of groups.            
+    if (cmdRef != null && cmdRef.definesNumberOfGroups()) {
+      int expectedNumGroups = cmdRef.getNumberOfGroups();
+      int actualNumGroups = cmd.getGroups().size();
+      
+      // Because the context may be a new object after resolving, adjust
+      // the current position in the context.
+      // context.reposition(cmd);
+             
+      if (expectedNumGroups > actualNumGroups) {
+        // The actual number of groups is smaller than the expected number.
+        // Add the appropriate number of following elements as groups to the
+        // command.
+        for (int i = 0; i < expectedNumGroups - actualNumGroups; i++) {
+          Element nextElement = itr.nextNonWhitespace();
+          
+          if (nextElement instanceof Group) {
+            Group nextGroup = (Group) nextElement;
+            // context.elements.set(context.curIndex - 1, null);
+            // Simply add the group to the command.
+            cmd.addGroup(nextGroup);
+          } else if (nextElement instanceof Text) {
+            Text textElement = (Text) nextElement;
+            // context.elements.set(context.curIndex - 1, null);
+            String text = textElement.toString();
+            if (!text.trim().isEmpty()) {
+              // Create new Group and add it to the command.
+              cmd.addGroup(new Group(textElement));
+            }
+          }
+        }
+      }
+    }
+    
+
     // Write placeholder, if the command introduces a placeholder.
     if (cmdRef.introducesPlaceholder()) {
       context.writeText(DEFAULT_CONTEXT_NAME, cmdRef.getPlaceholder());
@@ -254,7 +289,7 @@ public class TeXInterpreter {
   protected List<Element> getChildElements(Command cmd, Iterator<Element> i) {
     List<Element> elements = new ArrayList<>();
     
-    CommandReference startCmdRef = commandReferences.get(cmd);
+    CommandReference startCmdRef = getCommandReference(cmd);
     int outline = startCmdRef != null ? startCmdRef.getOutlineLevel() : -1; 
     String endCommand = guessEndCommand(cmd);
     
@@ -272,7 +307,7 @@ public class TeXInterpreter {
         if (i.hasNext()) {
           Element el = i.peek();
           if (el instanceof Command) {
-            CommandReference cmdRef = commandReferences.get((Command) el);
+            CommandReference cmdRef = getCommandReference((Command) el);
             if (cmdRef != null && cmdRef.definesOutlineLevel()) {
               if (cmdRef.getOutlineLevel() == outline) {
                 break;
@@ -301,7 +336,323 @@ public class TeXInterpreter {
     }
    
     // Check, if the references defines a end command for the command.
-    CommandReference cmdRef = commandReferences.get(command);
+    CommandReference cmdRef = getCommandReference(command);
     return cmdRef != null ? cmdRef.getEndCommand() : null;
+  }
+
+  // ___________________________________________________________________________
+  
+  /**
+   * Reads the commands to consider.
+   * 
+   * @throws URISyntaxException
+   */
+  protected Map<String, CommandReference> readCommandReferences() {
+    final Map<String, CommandReference> references = new HashMap<>();
+    
+    // Read the command references file line by line.
+    LineReader reader = new LineReader() {
+      public void handleLine(String line) {
+        // Ignore comment lines.
+        if (line.startsWith("#")) {
+          return;
+        }
+
+        // Ignore empty lines.
+        if (line.trim().isEmpty()) {
+          return;
+        }
+
+        String[] fields = line.split(COMMAND_REFERENCES_SEPARATOR, -1);
+        CommandReference reference = new CommandReference(fields);
+        references.put(reference.getCommandName(), reference);
+      }
+    };
+    
+    InputStream is = getClass().getResourceAsStream(COMMAND_REFERENCES_PATH);
+    reader.read(is);
+    
+    try {
+      is.close();
+    } catch (IOException e) {
+      return references;
+    }
+    
+    return references;
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if the given command has a command reference.
+   */
+  protected boolean hasCommandReference(Command command) {
+    return getCommandReference(command) != null;
+  }
+
+  /**
+   * Returns the command reference for the given command.
+   */
+  protected CommandReference getCommandReference(Command command) {
+    if (command == null) {
+      return null;
+    }
+    
+    if (commandReferences == null) {
+      commandReferences = readCommandReferences();
+    }
+    
+    if (commandReferences == null) {
+      return null;
+    }
+    
+    if (commandReferences.containsKey(command.toShortString())) {
+      return commandReferences.get(command.toShortString());
+    }
+    return commandReferences.get(command.getName());
+  }
+}
+
+/**
+ * The reference of a single command.
+ *
+ * @author Claudius Korzen
+ *
+ */
+class CommandReference {
+  /** The reference fields. */
+  protected String[] fields;
+
+  /**
+   * The default constructor.
+   */
+  public CommandReference(String[] fields) {
+    this.fields = fields;
+  }
+
+  /**
+   * Returns the command name.
+   */
+  public String getCommandName() {
+    return getString(0);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference introduces an environment.
+   */
+  public boolean introducesEnvironment() {
+    return definesEndCommand() || definesOutlineLevel();
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines an end command.
+   */
+  public boolean definesEndCommand() {
+    return getEndCommand() != null;
+  }
+
+  /**
+   * Returns the defined end command.
+   */
+  public String getEndCommand() {
+    return getString(1);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines an placeholder.
+   */
+  public boolean introducesPlaceholder() {
+    return getPlaceholder() != null;
+  }
+
+  /**
+   * Returns the defined placeholder.
+   */
+  public String getPlaceholder() {
+    return getString(2);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines an outline level.
+   */
+  public boolean definesOutlineLevel() {
+    return getOutlineLevel() > -1;
+  }
+
+  /**
+   * Returns the defined outline level.
+   */
+  public int getOutlineLevel() {
+    return getInteger(3);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines a context.
+   */
+  public boolean definesContextName() {
+    return getContextName() != null;
+  }
+
+  /**
+   * Returns the defined context name.
+   */
+  public String getContextName() {
+    return getString(4);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines the number of groups.
+   */
+  public boolean definesNumberOfGroups() {
+    return getNumberOfGroups() > -1;
+  }
+
+  /**
+   * Returns the defined number of groups.
+   */
+  public int getNumberOfGroups() {
+    return getInteger(5);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines the parsing of options.
+   */
+  public boolean definesOptionsToParse() {
+    return getInteger(8) > 0;
+  }
+  
+  /**
+   * Returns true, if this reference defines the groups to parse.
+   */
+  public boolean definesGroupsToParse() {
+    return getGroupsToParse() != null && !getGroupsToParse().isEmpty();
+  }
+
+  /**
+   * Returns the defined groups to parse.
+   */
+  public List<Integer> getGroupsToParse() {
+    return getIntegerList(6, ";");
+  }
+
+  /**
+   * Returns the index of the given group id in the list of groups to parse.
+   */
+  protected int getIndexOfGroupIdInGroupsToParse(int groupId) {
+    List<Integer> groupsToParse = getIntegerList(6, ";");
+    if (groupsToParse != null) {
+      for (int i = 0; i < groupsToParse.size(); i++) {
+        if (groupsToParse.get(i) == groupId) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines fieldnames of the groups to parse.
+   */
+  public boolean definesGroupFieldNames() {
+    return getGroupFieldNames() != null && !getGroupFieldNames().isEmpty();
+  }
+
+  /**
+   * Returns the defined groups to parse.
+   */
+  public List<String> getGroupFieldNames() {
+    return getStringList(7, ";");
+  }
+
+  /**
+   * Returns the defined fieldname of the i-th groups to parse.
+   */
+  public String getGroupFieldName(int groupId) {
+    List<String> groupFieldNames = getGroupFieldNames();
+    if (groupFieldNames != null) {
+      int index = getIndexOfGroupIdInGroupsToParse(groupId);
+      if (index > -1 && index < groupFieldNames.size()) {
+        return groupFieldNames.get(index);
+      }
+    }
+    return null;
+  }
+
+  // ___________________________________________________________________________
+
+  @Override
+  public String toString() {
+    return Arrays.toString(fields);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns the value of the i-th field in the reference.
+   */
+  protected String getString(int index) {
+    if (index >= 0 && index < fields.length) {
+      String value = "".equals(fields[index]) ? null : fields[index];
+      if (value != null) {
+        return StringEscapeUtils.unescapeCsv(value);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Splits the value of the i-th field at the given delimiter and returns the
+   * resulting fields as an list of strings.
+   */
+  protected List<String> getStringList(int index, String delimiter) {
+    List<String> result = new ArrayList<>();
+    String string = getString(index);
+    if (string != null) {
+      String[] values = string.split(delimiter, -1);
+      for (String value : values) {
+        result.add(value);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Returns the value of the i-th field as an integer.
+   */
+  protected int getInteger(int index) {
+    String value = getString(index);
+    return value != null ? Integer.parseInt(value) : -1;
+  }
+
+  /**
+   * Splits the value of the i-th field at the given delimiter and returns the
+   * resulting fields as an list of integers.
+   */
+  protected List<Integer> getIntegerList(int index, String delimiter) {
+    List<Integer> result = new ArrayList<>();
+    String string = getString(index);
+    if (string != null) {
+      String[] values = string.split(delimiter, -1);
+      for (String value : values) {
+        result.add(Integer.parseInt(value));
+      }
+    }
+    return result;
   }
 }
