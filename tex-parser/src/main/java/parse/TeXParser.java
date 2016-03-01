@@ -255,7 +255,6 @@ public class TeXParser implements TeXParserConstants {
         throw new ParseException();
       }
     }
-    System.out.println("***" + element);
     context.addElement(element);
   }
 
@@ -1469,18 +1468,23 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_90() {
-    if (jj_3R_78()) return true;
-    return false;
-  }
-
   private boolean jj_3_9() {
     if (jj_3R_26()) return true;
     return false;
   }
 
+  private boolean jj_3R_90() {
+    if (jj_3R_78()) return true;
+    return false;
+  }
+
   private boolean jj_3R_56() {
     if (jj_scan_token(OPTION_START)) return true;
+    return false;
+  }
+
+  private boolean jj_3_8() {
+    if (jj_3R_25()) return true;
     return false;
   }
 
@@ -1500,13 +1504,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_8() {
-    if (jj_3R_25()) return true;
+  private boolean jj_3_7() {
+    if (jj_3R_24()) return true;
     return false;
   }
 
-  private boolean jj_3_7() {
-    if (jj_3R_24()) return true;
+  private boolean jj_3R_47() {
+    if (jj_3R_72()) return true;
     return false;
   }
 
@@ -1522,11 +1526,6 @@ public class TeXParser implements TeXParserConstants {
 
   private boolean jj_3R_55() {
     if (jj_3R_32()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_47() {
-    if (jj_3R_72()) return true;
     return false;
   }
 
@@ -1555,6 +1554,11 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
+  private boolean jj_3R_44() {
+    if (jj_3R_24()) return true;
+    return false;
+  }
+
   private boolean jj_3_26() {
     if (jj_3R_19()) return true;
     return false;
@@ -1565,13 +1569,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_44() {
-    if (jj_3R_24()) return true;
+  private boolean jj_3_3() {
+    if (jj_3R_20()) return true;
     return false;
   }
 
-  private boolean jj_3_3() {
-    if (jj_3R_20()) return true;
+  private boolean jj_3R_43() {
+    if (jj_3R_23()) return true;
     return false;
   }
 
@@ -1588,11 +1592,6 @@ public class TeXParser implements TeXParserConstants {
     }
     }
     }
-    return false;
-  }
-
-  private boolean jj_3R_43() {
-    if (jj_3R_23()) return true;
     return false;
   }
 
