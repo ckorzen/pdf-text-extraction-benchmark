@@ -26,7 +26,7 @@ public class Group extends Element implements Iterable<Element> {
   /**
    * The current element on iteration.
    */
-  public int curIndex = -1;
+  public int curIndex = 0;
     
   /**
    * Creates a new group.
@@ -62,10 +62,47 @@ public class Group extends Element implements Iterable<Element> {
   }
   
   /**
-   * Returns the next element of the given type.
+   * Sets the internal pointer to the given element.
+   */
+  public void reposition(Element element) {
+    int index = elements.indexOf(element);
+    if (index >= 0) {
+      curIndex = index  + 1;
+    }
+  }
+  
+  /**
+   * Returns the next element.
+   */
+  public Element next() {
+    return elements.get(curIndex++);
+  }
+  
+  /**
+   * Returns the next non whitespace element.
+   */
+  public Element nextNonWhitespace() {
+    while (hasNext()) {
+      Element element = next();
+      if (!(element instanceof Whitespace) && !(element instanceof NewLine)) {
+        return element;
+      }
+    }
+    return null;
+  }
+  
+  /**
+   * Peeks the next element.
+   */
+  public Element peek() {
+    return elements.get(curIndex);
+  }
+  
+  /**
+   * Returns the next element of the given types.
    */
   public <T extends Element> T next(Class<T> clazz) {
-    for (curIndex = curIndex + 1; curIndex < elements.size(); curIndex++) {
+    for ( ; curIndex < elements.size(); curIndex++) {
       if (clazz.isInstance(elements.get(curIndex))) {
         return clazz.cast(elements.get(curIndex));
       }
@@ -167,7 +204,9 @@ public class Group extends Element implements Iterable<Element> {
     StringBuilder sb = new StringBuilder();
     if (elements != null) {
       for (Element element : elements) {
-        sb.append(element.toString());
+        if (element != null) {
+          sb.append(element.toString());
+        }
       }
     }
     return sb.toString();

@@ -21,7 +21,8 @@ import parse.ParseException;
 import parse.TeXParser;
 
 /**
- * Class to preprocess tex files. Resolves all macro definitions.
+ * Class that resolves all macros and to standardizes commands, i.e. transforms
+ * commands like "\vskip 2cm" to "\vskip{2cm}.
  *
  * @author Claudius Korzen
  */
@@ -44,10 +45,27 @@ public class TeXPreprocessor extends TeXParser {
   protected boolean isEndDocument;
   
   /**
+   * The path to the command references file.
+   */
+  static final String COMMAND_REFERENCES_PATH = "/command-references.csv";
+  
+  /**
+   * The field separator on command references file.
+   */
+  static final String COMMAND_REFERENCES_SEPARATOR = ",";
+  
+  /**
+   * The parsed command references.
+   */
+  protected CommandReferences commandReferences;
+  
+  /**
    * Creates a new preprocessor for the given tex file.
    */
   public TeXPreprocessor(InputStream stream) {
     super(stream);
+    this.commandReferences = new CommandReferences(COMMAND_REFERENCES_PATH, 
+        COMMAND_REFERENCES_SEPARATOR);
   }
   
   /**
@@ -67,29 +85,30 @@ public class TeXPreprocessor extends TeXParser {
   public void preprocess(BufferedWriter writer) throws IOException, 
       ParseException {
     Document document = parse();
-    for (Element element : document.elements) {
-      handleElement(element, writer);
+    while (document.hasNext()) {
+      handleElement(document.next(), document, writer);
     }
   }
   
   /**
    * Handles the given element from parsed tex document.
    */
-  protected void handleElement(Element element, BufferedWriter writer) {
+  protected void handleElement(Element element, Group context, 
+      BufferedWriter writer) {    
     if (element instanceof MacroDefinition) {
       handleMacroDefinition((MacroDefinition) element, writer);
     } else if (element instanceof NewLine) {
-      handleNewline((NewLine) element, writer);
+      handleNewline((NewLine) element, context, writer);
     } else if (element instanceof Whitespace) {
-      handleWhitespace((Whitespace) element, writer);
+      handleWhitespace((Whitespace) element, context, writer);
     } else if (element instanceof Command) {
-      handleCommand((Command) element, writer);
+      handleCommand((Command) element, context, writer);
     } else if (element instanceof Group) {
-      handleGroup((Group) element, writer);
+      handleGroup((Group) element, context, writer);
     } else if (element instanceof Text) {
-      handleText((Text) element, writer);
+      handleText((Text) element, context, writer);
     } else if (element instanceof Marker) {
-      handleMarker((Marker) element, writer);
+      handleMarker((Marker) element, context, writer);
     }
   }
     
@@ -103,8 +122,9 @@ public class TeXPreprocessor extends TeXParser {
   /**
    * Handles the given command.
    */
-  public void handleCommand(Command command, BufferedWriter writer) {
-    outputElements(resolve(command), writer);
+  public void handleCommand(Command command, Group context,
+      BufferedWriter writer) {
+    outputElements(resolve(command, context), writer);
     if ("\\end{document}".equals(command.toString())) {
       isEndDocument = true;
     }
@@ -113,35 +133,38 @@ public class TeXPreprocessor extends TeXParser {
   /**
    * Handles the given group.
    */
-  public void handleGroup(Group group, BufferedWriter writer) {
-    outputElements(resolve(group), writer);
+  public void handleGroup(Group group, Group context, BufferedWriter writer) {
+    outputElements(resolve(group, context), writer);
   }
 
   /**
    * Handles the given text.
    */
-  public void handleText(Text text, BufferedWriter writer) {
-    outputElements(resolve(text), writer);
+  public void handleText(Text text, Group context, BufferedWriter writer) {
+    outputElements(resolve(text, context), writer);
   }
   
   /**
    * Handles the given newline.
    */
-  public void handleNewline(NewLine command, BufferedWriter writer) {
-    outputElements(resolve(command), writer);
+  public void handleNewline(NewLine command, Group context, 
+      BufferedWriter writer) {
+    outputElements(resolve(command, context), writer);
   }
 
   /**
    * Handles the given whitespace.
    */
-  public void handleWhitespace(Whitespace command, BufferedWriter writer) {
-    outputElements(resolve(command), writer);
+  public void handleWhitespace(Whitespace command, Group context, 
+      BufferedWriter writer) {
+    outputElements(resolve(command, context), writer);
   }
   
   /**
    * Handles the given marker.
    */
-  public void handleMarker(Marker marker, BufferedWriter writer) {
+  public void handleMarker(Marker marker, Group context, 
+      BufferedWriter writer) {
     // Nothing to do.
   }
    
@@ -151,20 +174,21 @@ public class TeXPreprocessor extends TeXParser {
    * Resolves the given element.
    * @throws IOException 
    */
-  protected ConstantLookupList<Element> resolve(Element element) {
+  protected ConstantLookupList<Element> resolve(Element element, 
+      Group context) {
     Group group = new Group();
-    resolveElement(element, group);
+    resolveElement(element, context, group);
     return group.elements;
   }
   
   /**
    * Resolves the given command recursively.
    */
-  protected void resolveElement(Element element, Group result) {
+  protected void resolveElement(Element element, Group context, Group result) {
     if (element instanceof Group) {
-      resolveGroup((Group) element, result);
+      resolveGroup((Group) element, context, result);
     } else if (element instanceof Command) {
-      resolveCommand((Command) element, result);
+      resolveCommand((Command) element, context, result);
     } else {
       // Nothing to resolve here.
       result.addElement(element);
@@ -175,11 +199,11 @@ public class TeXPreprocessor extends TeXParser {
    * Resolves the given group.
    * @throws IOException 
    */
-  protected void resolveGroup(Group group, Group result) {
+  protected void resolveGroup(Group group, Group context, Group result) {
     if (group != null && group.elements != null) {
       // Resolve the elements of the group in own context.
       Group resolvedGroup = new Group();
-      for (Element element : group.elements) {        resolveElement(element, resolvedGroup);
+      for (Element element : group.elements) {        resolveElement(element, group, resolvedGroup);
       }
       // Update the elements of the group to the resolved ones.
       group.elements = resolvedGroup.elements;
@@ -190,7 +214,11 @@ public class TeXPreprocessor extends TeXParser {
   /**
    * Resolves the given command.
    */
-  protected void resolveCommand(Command command, Group result) {    
+  protected void resolveCommand(Command command, Group context, Group result) {
+    if (command == null) {
+      return;
+    }
+
     // Check, if the command was defined via a macro.
     if (isDefinedByMacro(command)) {      
       // Resolve the macro.
@@ -209,15 +237,55 @@ public class TeXPreprocessor extends TeXParser {
       
       // Resolve the elements of the macro.
       for (Element element : macro.elements) {
-        resolveElement(element, result);  
+        resolveElement(element, context, result);  
       }
       // Append a whitespace after a macro.
       result.addElement(new Whitespace());
     } else {
       // Command is not a macro, resolve its groups.
       for (Group group : command.getGroups()) {
-        resolve(group);
+        resolve(group, context);
       }
+      
+      // Check, if the command holds the expected number of groups.
+      CommandReference cmdRef = commandReferences.get(command);
+              
+      if (cmdRef != null && cmdRef.definesNumberOfGroups()) {
+        int expectedNumGroups = cmdRef.getNumberOfGroups();
+        int actualNumGroups = command.getGroups().size();
+        
+        // Because the context may be a new object after resolving, adjust
+        // the current position in the context.
+        context.reposition(command);
+               
+        if (expectedNumGroups > actualNumGroups) {
+          // The actual number of groups is smaller than the expected number.
+          // Add the appropriate number of following elements as groups to the
+          // command.
+          for (int i = 0; i < expectedNumGroups - actualNumGroups; i++) {
+            Element nextElement = context.nextNonWhitespace();
+            
+            if (nextElement instanceof Group) {
+              Group nextGroup = (Group) nextElement;
+              context.elements.set(context.curIndex - 1, null);
+              resolve(nextGroup, context);
+              // Simply add the group to the command.
+              command.addGroup(nextGroup);
+            } else if (nextElement instanceof Text) {
+              Text textElement = (Text) nextElement;
+              context.elements.set(context.curIndex - 1, null);
+              resolve(textElement, context);
+              String text = textElement.toString();
+              if (!text.trim().isEmpty()) {
+                // Create new Group and add it to the command.
+                command.addGroup(new Group(textElement));
+              }
+            }
+          }
+        }
+      }
+      
+      
       result.addElement(command);
     }
   }
@@ -237,6 +305,10 @@ public class TeXPreprocessor extends TeXParser {
    * Outputs the given element to the given writer.
    */
   protected void outputElement(Element element, BufferedWriter writer) {
+    if (element == null) {
+      return;
+    }
+    
     // Don't output any elements, if the end of documents was reached.
     if (isEndDocument) {
       return;
@@ -302,182 +374,4 @@ public class TeXPreprocessor extends TeXParser {
   protected Group getMacro(Command command) {
     return macros.get(command.getName());
   }
-  
-  // ___________________________________________________________________________
-  // Some old stuff.
-  
-// 
-// /**
-//  * Compiles the given tex file using the runtime environment and returns the
-//  * exit code of the compile process.
-//  */
-// protected void compileTexFile(Path tex) throws Exception {
-//   if (tex == null) {
-//     return;
-//   }
-//   
-//   // Get the working directory.
-//   Path dir = tex.getParent();
-//
-//   // Build the pdflatex command. Set the -interaction flag to "nonstopmode"
-//   // to avoid the interaction prompt of pdflatex on error.
-//   String cmd = 
-// String.format("/usr/bin/pdflatex -interaction=nonstopmode %s", tex);
-//   // Export "TEXINPUTS" variable to provide all files in the repository.
-//   String texInputs = String.format(".:%s:", STY_REPOSITORY);
-//   String[] environment = { String.format("TEXINPUTS=%s", texInputs) };
-//
-//   // Run the command.
-//   int exit = CommandLineUtils.runCommand(cmd, environment, dir, 30000);
-//   if (exit != 0) {
-//     throw new IllegalStateException("Couldn't compile the tex file.");
-//   }
-// }  
-//   
-// ___________________________________________________________________________
-// Util methods.
-// 
-// /**
-//  * Returns the aux file related to the given tex file.
-//  */
-// protected Path getAuxFile(Document texDocument) {
-//   if (texDocument != null && texDocument.getFile() != null) {
-//     String basename = PathsUtil.getBasename(texDocument.getFile());
-//     if (basename != null) {
-//       Path texFile = texDocument.getFile();
-//       if (texFile != null) {
-//         return texFile.getParent().resolve(basename + ".aux");  
-//       }
-//     }
-//   }
-//   return null;
-// }
-// 
-// /**
-//  * The directory containing some standard sty/cls files.
-//  */
-// protected static final String STY_REPOSITORY = "/nfs/raid1/arxiv/sty/";
-// 
-  
-///**
-//* Resolves all cross references and macros in the given tex document.
-//*/
-//protected void resolve(Document texDocument, Map<String, Group> crossRefs, 
-//   Map<String, Group> macros) {
-// List<Command> commands = texDocument.get(Command.class, true);
-// for (int i = 0; i < commands.size(); i++) {
-//   Command command = commands.get(i);
-//   String commandName = command.getName();
-//
-//   if (commandName != null) {
-//     // Read all "\cite" commands.
-//     if (commandName.equals("\\cite")) {
-//       // Resolve all keys in cite command. TODO: Shorten it?
-//       Group argsGroup = command.getGroup(1);
-//       if (argsGroup != null) {
-//         String argsStr = argsGroup.next(Text.class).getText();
-//         if (argsStr != null) {
-//           String[] keys = argsStr.split(",");
-//
-//           StringBuilder citeSb = new StringBuilder();
-//           for (int j = 0; j < keys.length; j++) {
-//             String arg = keys[j].trim();
-//             if (crossRefs.containsKey(arg)) {
-//               // Append additional group to the command, containing the
-//               // resolved cite.
-//               Group g = crossRefs.get(arg);
-//               if (citeSb.length() > 0) {
-//                 citeSb.append(",");
-//               }
-//               Text text = g.first(Text.class);
-//               citeSb.append(text.getText());
-//             }
-//           }
-//           Group g = new Group();
-//           Text text = new Text(citeSb.toString());
-//           g.addElement(text);
-//           command.addGroup(g);
-//         }
-//       }
-//     }
-//
-//     // Read all "\ref" commands.
-//     if (commandName.equals("\\ref")) {
-//       Group argsGroup = command.getGroup(1);
-//       if (argsGroup != null) {
-//         String argsStr = argsGroup.next(Text.class).getText();
-//         if (argsStr != null) {
-//           String[] args = argsStr.split(",");
-//
-//           for (int j = 0; j < args.length; j++) {
-//             String arg = args[j].trim();
-//             if (crossRefs.containsKey(arg)) {
-//               // Append additional group to the command, containing the
-//               // resolved cite.
-//               command.addGroup(crossRefs.get(arg));
-//             }
-//           }
-//         }
-//       }
-//     }
-//
-//     // Read all other commands and check, if they represent a macro.
-//     if (macros.containsKey(commandName)) {
-//       Group template = macros.get(command.getName()).clone();
-//       
-//       for (Marker marker : template.get(Marker.class, true)) {
-//         if (command.hasGroups(marker.getId())) {
-//           template.replace(marker, command.getGroup(marker.getId()));
-//         }
-//       }
-//       command.addGroup(template);
-//       command.setIsMacro(true);
-//     }
-//   }
-// }
-//}
-  
-  // ___________________________________________________________________________
-  // Parse methods.
-  
-//  /**
-//   * Compiles the given tex file to get the related aux file and to parse
-//   * the cross references from them.
-//   */
-//  protected void parseCrossReferences(Document texDocument) throws Exception {
-//    if (texDocument == null) {
-//      return;
-//    }
-    
-    // Compile the tex file twice.
-//    compileTexFile(texDocument.getFile());
-//    compileTexFile(texDocument.getFile());
-    
-//    Document auxDocument = parser.parse(getAuxFile(texDocument));
-//    
-//    if (auxDocument != null) {
-//      List<Command> commands = auxDocument.get(Command.class, true);
-//      if (commands != null) {
-//        // Parse all commands in the aux document.
-//        for (Command command : commands) {
-//          if (command != null) {
-//            String commandName = command.getName();
-//            if (commandName != null) { 
-//              if (commandName.equals("\\bibcite")
-//                  || commandName.equals("\\newlabel")) {
-//                Group firstGroup = command.getGroup(1);
-//                Group secondGroup = command.getGroup(2);
-//                if (firstGroup != null) {
-//                  Text label = firstGroup.next(Text.class);
-//                  if (label != null) {
-//                  texDocument.addCrossReference(label.getText(), secondGroup);
-//                  }
-//                }
-//              }
-//            }
-//          }
-//        }
-//      }
-//    }
-//  }
 }
