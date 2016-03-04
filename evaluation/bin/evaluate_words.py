@@ -1,4 +1,6 @@
+from recordclass import recordclass
 from diff import diff
+
 import util
 
 default_ignore_cases = True
@@ -29,14 +31,13 @@ def evaluate_words_extraction(gt, actual, args):
     rearrange    = util.to_bool(args.rearrange, default_rearrange)
     junk         = util.to_list(args.junk, default_junk)
     max_dist     = util.to_int(args.max_dist, default_max_dist)
-    visual_path  = args.visual_path
     
-    return _evaluate_words_extraction(gt, actual, 
-        ignore_cases, rearrange, junk, max_dist, visual_path)
+    return _evaluate_words_extraction(gt, actual, ignore_cases, rearrange, junk,
+        max_dist)
     
 def _evaluate_words_extraction(gt, actual, ignore_cases=default_ignore_cases,
         rearrange=default_rearrange, junk=default_junk, 
-        max_dist=default_max_dist, visual_path=None):
+        max_dist=default_max_dist):
     """
     Computes precision and recall of words extraction. For that, run diff on 
     the set of words of groundtruth (gt) and the actual extraction result 
@@ -70,14 +71,13 @@ def _evaluate_words_extraction(gt, actual, ignore_cases=default_ignore_cases,
     (0.5, 0.5)
     """
 
-    gt_words     = util.to_formatted_words(gt, ignore_cases, to_protect=junk)
-    actual_words = util.to_formatted_words(actual, ignore_cases, to_protect=junk)
+    gt_words     = util.to_formatted_words(gt, ignore_cases, junk)
+    actual_words = util.to_formatted_words(actual, ignore_cases, junk)
 
-    diff_result  = diff(gt_words, actual_words,
+    diff_result = diff(gt_words, actual_words,
         rearrange = rearrange,
         junk = junk,
-        max_dist = max_dist,
-        visual_path = visual_path)
-   
-    return util.compute_precision_recall(diff_result)
+        max_dist = max_dist)
+
+    return util.compute_precision_recall(diff_result), diff_result
     
