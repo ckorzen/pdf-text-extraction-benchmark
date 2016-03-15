@@ -21,8 +21,7 @@ DiffInsertItem  = recordclass('DiffInsertItem', 'pos1 pos2 element matched')
 MappingItem     = recordclass('MappingItem','deletions insertion')
 RunItem         = recordclass('RunItem', 'deletion insertion')
 
-def diff(old, new, rearrange=False, junk=[], max_dist=0, min_sim=1, 
-        visual_path=None):
+def diff(old, new, rearrange=False, junk=[], max_dist=0, min_sim=1):
     '''
     Finds the differences between the two given lists of strings. If the 
     rearrange flag is set to true, tries to rearrange the elements in 'new' as 
@@ -52,10 +51,7 @@ def diff(old, new, rearrange=False, junk=[], max_dist=0, min_sim=1,
         min_sim=min_sim)
      
     result = DiffResult(commons, replaces)
-    
-    if visual_path:
-        visualize_diff_result(result, visual_path)
-        
+            
     return result
    
 def _diff(old, new, pos1, pos2, commons, replaces, junk=[], max_dist=0, min_sim=1):
@@ -454,50 +450,5 @@ def visualize_run(run):
     
     return "".join(snippets)
    
-def visualize_diff_result(diff_result, path=None):
-    ''' Visualizes the given diff result. '''
-        
-    full = []
-    full += diff_result.commons
-    
-    for replace in diff_result.replaces:
-        full += replace.inserts
-        full += replace.deletes
-    full.sort()
-                   
-    visualization_delete_start = "\033[30;41m"
-    visualization_delete_end = "\033[0m"
-    visualization_insert_start = "\033[30;42m"
-    visualization_insert_end = "\033[0m"
-     
-    snippets = []
-        
-    x = 0
-    y = 0
-    z = 0
-        
-    for i, item in enumerate(full):
-        if isinstance(item, DiffInsertItem):
-            x += 1
-            snippets.append(visualization_insert_start)
-        elif isinstance(item, DiffDeleteItem):
-            y += 1
-            snippets.append(visualization_delete_start)
-        else:
-            z += 1
-        snippets.append("%s" % item.element)
-        if isinstance(item, DiffInsertItem):
-            snippets.append(visualization_insert_end)
-        elif isinstance(item, DiffDeleteItem):
-            snippets.append(visualization_delete_end)
-        snippets.append(" ")   
-    visualization_string = "".join(snippets)
-    if path:
-        visualization = open(path, "w")
-        visualization.write(visualization_string)
-        visualization.close()
-    
-    return visualization_string
-
 if __name__ == '__main__':
     print(diff(["Hello", "World"], ["World", "Hello"], rearrange=True))

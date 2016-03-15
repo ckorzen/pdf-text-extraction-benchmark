@@ -31,15 +31,13 @@ def evaluate_paragraphs_extraction(gt, actual, args):
     rearrange     = util.to_bool(args.rearrange, default_rearrange)
     junk          = util.to_list(args.junk, default_junk)
     min_sim       = util.to_float(args.min_sim, default_min_sim)
-    visual_path   = args.visual_path
                            
     return _evaluate_paragraphs_extraction(gt, actual, ignore_cases, 
-        remove_spaces, rearrange, junk, min_sim, visual_path)
+        remove_spaces, rearrange, junk, min_sim)
     
 def _evaluate_paragraphs_extraction(gt, actual, 
         ignore_cases=default_ignore_cases, remove_spaces=default_remove_spaces, 
-        rearrange=default_rearrange, junk=default_junk, min_sim=default_min_sim,
-        visual_path=None):
+        rearrange=default_rearrange, junk=default_junk, min_sim=default_min_sim):
     """
     Computes precision and recall of paragraph extraction. For that, run diff on 
     the set of paragraphs (gt) and the actual extraction result 
@@ -78,7 +76,6 @@ def _evaluate_paragraphs_extraction(gt, actual,
     diff_result = diff(gt_paras, actual_paras,
         rearrange = rearrange,
         junk = junk,
-        min_sim = min_sim,
-        visual_path = visual_path)
+        min_sim = min_sim)
                     
-    return util.compute_precision_recall(diff_result)
+    return util.compute_precision_recall(diff_result), diff_result

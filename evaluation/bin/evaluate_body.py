@@ -16,10 +16,8 @@ def evaluate_body_extraction(gt, actual, args):
     ignore_cases = util.to_bool(args.ignore_cases, default_ignore_cases)
     junk         = util.to_list(args.junk, default_junk)
     max_dist     = util.to_int(args.max_dist, default_max_dist)
-    visual_path  = args.visual_path
     
-    return _evaluate_body_extraction(gt, actual, ignore_cases, junk, max_dist,
-        visual_path)
+    return _evaluate_body_extraction(gt, actual, ignore_cases, junk, max_dist)
 
 def _evaluate_body_extraction(gt, actual, ignore_cases=default_ignore_cases, 
         junk=default_junk, max_dist=default_max_dist, visual_path=None):
@@ -47,7 +45,6 @@ def _evaluate_body_extraction(gt, actual, ignore_cases=default_ignore_cases,
     diff_result = diff(gt_words, actual_words, 
         rearrange=False,
         max_dist=max_dist,
-        junk=junk,
-        visual_path=visual_path)
+        junk=junk)
                 
-    return util.compute_distance_similarity(diff_result)
+    return util.compute_distance_similarity(diff_result), diff_result

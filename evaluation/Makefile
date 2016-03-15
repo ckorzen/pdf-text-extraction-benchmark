@@ -2,8 +2,9 @@ SHELL := /bin/bash
 
 ARXIV_BENCHMARK_SRC = ../arxiv-benchmark
 ARXIV_BENCHMARK_JAR = ./bin/arxiv-benchmark.jar
-PDF_PARSER_SRC = ../StructuredPdfParser
-PDF_PARSER_JAR = ./bin/icecite-pdf-parser.jar
+PDF_PARSER_SRC = ../../pdf-engine
+PDF_PARSER_JAR_SRC = ../../pdf-cli/target/*-with-dependencies.jar
+PDF_PARSER_JAR_TARGET = ./bin/icecite-pdf-parser.jar
 
 EXTRACTOR_SRC = ./bin/extractor.py
 EVALUATOR_SRC = ./bin/evaluator-$(TOOL).py
@@ -27,7 +28,7 @@ JUNK = \[formula\] \[table\] \[figure\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
 # The command of tools.
 pdftotext_CMD = pdftotext %IN %OUT
 pdftohtml_CMD = pdftohtml -xml -zoom 1 -nomerge -stdout -q -enc "UTF-8" %IN > %OUT 
-icecite_CMD = java -jar $(PDF_PARSER_JAR) -i %IN -o %OUT
+icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature words --format txt %IN  %OUT
 
 all: extract evaluate
 
@@ -147,8 +148,8 @@ evaluate-body: validate
 #@echo "*************"
 
 compile-icecite-parser:
-	mvn -f $(PDF_PARSER_SRC)/pom.xml install
-	cp $(PDF_PARSER_SRC)/target/*-with-dependencies.jar $(PDF_PARSER_JAR) 
+	mvn -f $(PDF_PARSER_SRC)/pom.xml -DskipTests install
+	cp $(PDF_PARSER_JAR_SRC) $(PDF_PARSER_JAR_TARGET) 
 
 compare-words:
 	wdiff $(GROUNDTRUTH_TARGET)/*/$(PREFIX)*.full.txt $(TOOL_TARGET)/*/$(PREFIX)*.txt -w $$'\033[30;41m' -x $$'\033[0m' -y $$'\033[30;42m' -z $$'\033[0m' -in | less -R

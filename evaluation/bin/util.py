@@ -1,5 +1,20 @@
 import unicodedata
 import re
+import string
+
+def update_file_extension(path, new_file_extension):
+    ''' Returns the given path where the actual file extension is replaced by 
+    the given new file extension.''' 
+    
+    # Find the last dot in the path.
+    index_last_dot = path.rfind('.')
+    
+    if index_last_dot < 0:
+        basename = path
+    else:
+        basename = path[ : index_last_dot]
+    
+    return basename + new_file_extension    
 
 def to_str(arg, default):
     ''' Parses the given arg as string. If parsing fails, returns the given 
@@ -47,24 +62,26 @@ def to_list(arg, default, separator=" "):
     else:
         return default
 
-def to_formatted_words(string, to_lowercases=True, 
-        ignores=["!", ",", ".", ":", ";", "?", "“", "”", "\"", "'", "’"],
-        to_protect=[]):
+def to_formatted_words(text, to_lowercases=True, to_protect=[]):
     ''' 
-    Formats the given string to list of words. Transforms all letters to 
-    lowercases if the to_lowercases flag is set to True. Removes all occurrences
-    of the characters given by ignores.
+    Transforms the given string to list of (formatted) words. Removes all 
+    punctuation marks. Transforms all letters to lowercases if the to_lowercases
+    flag is set to True. 
+    Single phrases can be protected by defining regular expressions in the 
+    'to_protect' list. All phrases which match at least one of the regular 
+    expressions won't be formatted.
     '''
-       
+   
     # Make sure, that the given element is indeed a string.
-    string = str(string)
-    ignores = "".join(ignores)
+    text = str(text)
+    # Extend the standard punctuations of string class.
+    punctuation = string.punctuation + "“”‘’′–‘∗"
                        
     # Unicode can hold "decomposed" characters, i.e. characters with accents 
     # where the accents are characters on its own (for example, the character 
     # "ä" could be actually two characters: "a" and the two dots.
     # Try to compose these characters to a single one using unicodedata.  
-    codepoints = [ord(i) for i in string]
+    codepoints = [ord(i) for i in text]
              
     # Unicodedata has issues to compose 
     # "LATIN SMALL LETTER DOTLESS I" (that is an 'i' without the dot) / 
@@ -78,21 +95,38 @@ def to_formatted_words(string, to_lowercases=True,
             codepoints[i] = mappings[codepoint]
             
     # Normalize (compose the characters). NFC = Normal form C(omposition)                
-    string = unicodedata.normalize("NFC", "".join([chr(i) for i in codepoints])) 
+    text = unicodedata.normalize("NFC", "".join([chr(i) for i in codepoints])) 
      
-    # Split the string into words.                                
-    words = string.split()
-    # Compose a regular expression to find the words to protect.
-    regexp = "|".join(to_protect)
+    # Split the string on whitespaces.                                
+    fragments = text.split()
     
-    for i, word in enumerate(words):
-        protect = re.search(regexp, word)
+    # Compose a single regular expression from the given expression.
+    to_protect_regex = "|".join(to_protect)
+    
+    words = []
+    for fragment in fragments:
+        # Check, if we have to protect the fragment from formatting.
+        match = re.search(to_protect_regex, fragment)
         
-        # Don't translate anything if we have to protect the word.
-        if protect:
-            continue
+        if to_protect_regex and match:
+            # Protect the word (don't format it)
+            start = match.start()
+            end   = match.end()
+            if start > 0:
+                # There is some preceding string. Format it.
+                words += to_formatted_words(fragment[:start], False, to_protect)
+            # Append the fragment to protect as it is.
+            words.append(fragment[start : end])
+            if end < len(fragment) - 1:
+                # There is some succeeding string. Format it.
+                words += to_formatted_words(fragment[end:], False, to_protect)
+        else:
+            # Format the whole fragment.
+            fragment = fragment.translate({ord(c): " " for c in punctuation})
+            if to_lowercases:
+                fragment = fragment.lower()
             
-        words[i] = word.translate({ord(c): " " for c in ignores})                
+            words += fragment.split()              
     return words                    
 
 def to_formatted_paragraphs(string, to_lowercases=True, remove_whitespaces=True,
@@ -125,7 +159,7 @@ def compute_precision_recall(diff_result, junk=[]):
     precision = tp / (tp + fp) if tp + fp > 0 else 0.0
     recall    = tp / (tp + fn) if tp + fn > 0 else 0.0
                      
-    return (precision, recall)
+    return (round(precision, 4), round(recall, 4))
 
 def compute_distance_similarity(diff_result, junk=[]): 
     ''' Computes distance and similarity from the given diff result. '''
@@ -144,4 +178,4 @@ def compute_distance_similarity(diff_result, junk=[]):
     
     similarity = 1 - (distance / max(length_gt, length_actual))
     
-    return (distance, similarity)
+    return (distance, round(similarity, 4))
