@@ -39,8 +39,8 @@ def _evaluate_body_extraction(gt, actual, ignore_cases=default_ignore_cases,
     >>> _evaluate_body_extraction("foo bar", "bar foo")
     (2, 0.0)
     """
-    gt_words     = util.to_formatted_words(gt, ignore_cases)
-    actual_words = util.to_formatted_words(actual, ignore_cases)
+    gt_words     = util.to_formatted_words(gt, ignore_cases, junk)
+    actual_words = util.to_formatted_words(actual, ignore_cases, junk)
     
     diff_result = diff(gt_words, actual_words, 
         rearrange=False,

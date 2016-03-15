@@ -28,7 +28,7 @@ JUNK = \[formula\] \[table\] \[figure\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
 # The command of tools.
 pdftotext_CMD = pdftotext %IN %OUT
 pdftohtml_CMD = pdftohtml -xml -zoom 1 -nomerge -stdout -q -enc "UTF-8" %IN > %OUT 
-icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature words --format txt %IN  %OUT
+icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature paragraphs --format txt %IN  %OUT
 
 all: extract evaluate
 
