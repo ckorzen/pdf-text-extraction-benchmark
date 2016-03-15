@@ -70,8 +70,9 @@ def _evaluate_paragraphs_extraction(gt, actual,
     (0.5, 0.5)
     """
        
-    gt_paras = to_formatted_paragraphs(gt, ignore_cases, remove_spaces)
-    actual_paras = to_formatted_paragraphs(actual, ignore_cases, remove_spaces)
+    gt_paras = to_formatted_paragraphs(gt, ignore_cases, remove_spaces, junk)
+    actual_paras = to_formatted_paragraphs(actual, ignore_cases, remove_spaces, 
+	junk)
                             
     diff_result = diff(gt_paras, actual_paras,
         rearrange = rearrange,

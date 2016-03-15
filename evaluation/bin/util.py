@@ -114,12 +114,12 @@ def to_formatted_words(text, to_lowercases=True, to_protect=[]):
             end   = match.end()
             if start > 0:
                 # There is some preceding string. Format it.
-                words += to_formatted_words(fragment[:start], False, to_protect)
+                words += to_formatted_words(fragment[:start], to_lowercases, to_protect)
             # Append the fragment to protect as it is.
             words.append(fragment[start : end])
             if end < len(fragment) - 1:
                 # There is some succeeding string. Format it.
-                words += to_formatted_words(fragment[end:], False, to_protect)
+                words += to_formatted_words(fragment[end:], to_lowercases, to_protect)
         else:
             # Format the whole fragment.
             fragment = fragment.translate({ord(c): " " for c in punctuation})
@@ -130,11 +130,11 @@ def to_formatted_words(text, to_lowercases=True, to_protect=[]):
     return words                    
 
 def to_formatted_paragraphs(string, to_lowercases=True, remove_whitespaces=True,
-        ignores=["!", ",", ".", ":", ";", "?", "“", "”", "\"", "'", "’"]):
+        to_protect=[]):
     ''' Formats the given string to paragraphs for paragraph evaluation. ''' 
     
     paragraphs = re.split("\n\s*\n", string)
-    words = [to_formatted_words(paragraph) for paragraph in paragraphs]
+    words = [to_formatted_words(paragraph, to_lowercases, to_protect) for paragraph in paragraphs]
     
     if remove_whitespaces:
         return ["".join(x) for x in words]
