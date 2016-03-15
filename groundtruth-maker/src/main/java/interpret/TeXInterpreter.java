@@ -196,8 +196,14 @@ public class TeXInterpreter {
 
     // Write placeholder, if the command introduces a placeholder.
     if (cmdRef.introducesPlaceholder()) {
+      if (cmdRef.definesPlaceholderAsParagraph()) {
+        context.writeNewParagraph(DEFAULT_CONTEXT_NAME);
+      }
       context.writeText(DEFAULT_CONTEXT_NAME, cmdRef.getPlaceholder());
       itr.skipTo(guessEndCommand(cmd));
+      if (cmdRef.definesPlaceholderAsParagraph()) {
+        context.writeNewParagraph(DEFAULT_CONTEXT_NAME);
+      }
       return;
     }
         
@@ -527,13 +533,6 @@ class CommandReference {
   }
 
   // ___________________________________________________________________________
-
-  /**
-   * Returns true, if this reference defines the parsing of options.
-   */
-  public boolean definesOptionsToParse() {
-    return getInteger(8) > 0;
-  }
   
   /**
    * Returns true, if this reference defines the groups to parse.
@@ -596,6 +595,24 @@ class CommandReference {
 
   // ___________________________________________________________________________
 
+  /**
+   * Returns true, if this reference defines the parsing of options.
+   */
+  public boolean definesOptionsToParse() {
+    return getInteger(8) > 0;
+  }
+  
+  // ___________________________________________________________________________
+  
+  /**
+   * Returns true, if this reference defines a placeholder in as a paragraph.
+   */
+  public boolean definesPlaceholderAsParagraph() {
+    return getInteger(9) > 0;
+  }
+  
+  // ___________________________________________________________________________
+  
   @Override
   public String toString() {
     return Arrays.toString(fields);

@@ -6,21 +6,23 @@ from evaluate_words import evaluate_words_extraction
 from evaluate_paragraphs import evaluate_paragraphs_extraction
 from evaluate_body import evaluate_body_extraction
 
-features = { 
-    'word':      (evaluate_words_extraction, ".full.txt"), 
-    'paragraph': (evaluate_paragraphs_extraction, ".full.txt"),
-    'body':      (evaluate_body_extraction, ".body.txt")
-}
-
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s : %(levelname)s : %(module)s : %(message)s',
 )
 logger = logging.getLogger(__name__)
 
+# The valid features for evaluation. Each feature is mapped to the corresponding
+# evaluation method and the suffix of files to use on evaluation.
+features = { 
+    'word':      (evaluate_words_extraction, ".full.txt"), 
+    'paragraph': (evaluate_paragraphs_extraction, ".full.txt"),
+    'body':      (evaluate_body_extraction, ".body.txt")
+}
+
 class Evaluator:
     ''' The base class of our evaluation that can be used to evaluate the 
-    accuracy of various features. '''
+    accuracy of the features above. '''
     
     def __init__(self, args):
         ''' Creates a new evaluator with the given args. '''
@@ -29,18 +31,40 @@ class Evaluator:
     def process(self):
         ''' Starts the evaluation. '''
                 
-        # Process each selected feature.
+        # Process each given feature.
         for feature in self.args.feature:
-            (p, r) = self.evaluate(feature)
+            logger.info("Evaluating feature %s." % feature)
+                    
+            results = self.evaluate(feature)
+        
+            # Deserialize the results of the latest evaluation to be able to 
+            # compare the results with the results of this evaluation.
+            latest_results = deserialize_latest_results(results)
+            
+            # Serialize the results to be able to compare the results in 
+            # upcoming evaluations.
+            serialize_evaluation_results(results)
+        
+            # p_delta = p - pp;
+            #r_delta = r - rr;
+            
+            #logger.info("Result: precision: %.4f, recall: %.4f" % (p, r))
+            
+            # Compute average precision and recall.
+            #n = len(results)           
+            #avg_precision = sum(r[0] for r in results) / n if n > 0 else 0.0
+            #avg_recall = sum(r[1] for r in results) / n if n > 0 else 0.0
                                         
     def evaluate(self, feature):
         '''
         Scans the given root of groundtruth files for groundtruth files that 
         matches the given prefix and suffix. Tries to find the actual file 
-        related to the groundtruth. Evaluates the accuracy of a certain feature 
-        from both files using the given evaluation method, i.e. computes the 
-        precision and recall values for the feature.
+        related to the groundtruth. Evaluates the accuracy of the given feature 
+        from both files, i.e. computes the precision and recall values for the 
+        feature.
         '''    
+
+        results = []
         
         args = self.args        
         prefix = args.prefix
@@ -48,12 +72,7 @@ class Evaluator:
         evaluation_method = features[feature][0]
         groundtruth_root = args.gt_path
         
-        logger.info("Evaluating using method %s." % evaluation_method.__name__)
-        logger.info("Args: %r." % args)
-        
-        results = []
-        
-        # Scan the groundtruth root for groundtruth files.
+        # Scan the groundtruth root for groundtruth files to evaluate.
         for current_dir, dirs, files in os.walk(groundtruth_root):
             # Only consider the files that matches the given prefix and suffix.
             files = [fi for fi in files if fi.startswith(prefix) \
@@ -65,7 +84,8 @@ class Evaluator:
                 logger.debug("Groundtruth file: %s" % gt_path)
                             
                 # Try to find the related actual file.
-                actual_path = self.get_actual_path(gt_path)                
+                actual_path = self.get_actual_path(gt_path)
+                # Compose the path to the visualization file.               
                 args.visual_path = self.get_visual_path(feature, actual_path)
                                            
                 logger.debug("Detected actual file: %s" % actual_path)
@@ -76,20 +96,10 @@ class Evaluator:
                     # Read and format the actual file.
                     actual = self.format_actual_file(actual_path)
                     
-                    # Compute precision/recall values.
-                    (p, r) = evaluation_method(gt, actual, args)
+                    # Evaluate.                                                    
+                    results.append(evaluation_method(gt, actual, args))
                     
-                    logger.info("File: %s, p: %.4f, r: %.4f" % (gt_path, p, r))                                 
-                    results.append((p, r))
-        
-        # Compute average precision and recall.
-        n = len(results)           
-        avg_precision = sum(r[0] for r in results) / n if n > 0 else 0.0
-        avg_recall = sum(r[1] for r in results) / n if n > 0 else 0.0
-                    
-        logger.info("Avg. precision: %.4f, Avg. recall: %.4f" 
-                        % (avg_precision, avg_recall))
-        return (avg_precision, avg_recall)
+        return results
         
     def get_actual_path(self, gt_file_path):
         '''
@@ -158,6 +168,9 @@ class Evaluator:
             return str
         else:
             return ""
+   
+    def deserialize_latest_results(self, results):
+        print(results)
             
     def get_argument_parser():
         parser = argparse.ArgumentParser()

@@ -79,5 +79,5 @@ def _evaluate_words_extraction(gt, actual, ignore_cases=default_ignore_cases,
         max_dist = max_dist,
         visual_path = visual_path)
    
-    return util.compute_precision_recall(diff_result)
+    return util.compute_precision_recall(diff_result), diff_result
     
