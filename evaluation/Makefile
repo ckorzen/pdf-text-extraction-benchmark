@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 ARXIV_BENCHMARK_SRC = ../arxiv-benchmark
 ARXIV_BENCHMARK_JAR = ./bin/arxiv-benchmark.jar
-PDF_PARSER_SRC = ../../pdf-engine
+PDF_PARSER_SRC = ../../pdf-parent
 PDF_PARSER_JAR_SRC = ../../pdf-cli/target/*-with-dependencies.jar
 PDF_PARSER_JAR_TARGET = ./bin/icecite-pdf-parser.jar
 
@@ -29,6 +29,7 @@ JUNK = \[formula\] \[table\] \[figure\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
 pdftotext_CMD = pdftotext %IN %OUT
 pdftohtml_CMD = pdftohtml -xml -zoom 1 -nomerge -stdout -q -enc "UTF-8" %IN > %OUT 
 icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature paragraphs --format txt %IN  %OUT
+# icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature paragraphs --role body-text --format txt %IN  %OUT
 
 all: extract evaluate
 
@@ -111,10 +112,8 @@ evaluate-words: validate
 		--junk "$(JUNK)" \
 		--max_dist "$(MAX_DISTANCE)" \
 		--output "$(EVALUATION_TARGET)" \
+		--recap "$(RECAP)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-#@echo "*************"
-#@column -t -s"	" /home/korzen/Downloads/result.txt
-#@echo "*************"
 
 # Evaluate the accuracy of paragraph extraction.
 evaluate-paragraphs: validate
@@ -127,6 +126,7 @@ evaluate-paragraphs: validate
 		--junk "$(JUNK)" \
 		--min_sim "$(MIN_SIMILARITY)" \
 		--output "$(EVALUATION_TARGET)" \
+		--recap "$(RECAP)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
 #@echo "*************"
 #@column -t -s"	" /home/korzen/Downloads/result.txt
@@ -142,6 +142,7 @@ evaluate-body: validate
 		--junk "$(JUNK)" \
 		--max_dist "$(MAX_DISTANCE)" \
 		--output "$(EVALUATION_TARGET)" \
+		--recap "$(RECAP)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
 #@echo "*************"
 #@column -t -s"	" /home/korzen/Downloads/result.txt

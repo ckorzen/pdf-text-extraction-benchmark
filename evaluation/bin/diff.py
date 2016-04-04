@@ -14,53 +14,76 @@ logger = logging.getLogger(__name__)
 
 DiffResult      = recordclass('DiffResult', 'commons replaces')
 DiffReplaceItem = recordclass('DiffReplaceItem', 'deletes inserts')
-DiffCommonItem  = recordclass('DiffCommonItem', 'pos1 pos2 element')
+
+DiffCommonItem  = recordclass('DiffCommonItem', 'pos1 pos2 element, old_element')
 DiffDeleteItem  = recordclass('DiffDeleteItem', 'pos1 pos2 element matched')
 DiffInsertItem  = recordclass('DiffInsertItem', 'pos1 pos2 element matched')
 
 MappingItem     = recordclass('MappingItem','deletions insertion')
 RunItem         = recordclass('RunItem', 'deletion insertion')
 
-def diff(old, new, rearrange=False, junk=[], max_dist=0, min_sim=1):
+def diff(old_list, new_list, rearrange=False, junk=[], max_dist=0, min_sim=1):
     '''
-    Finds the differences between the two given lists of strings. If the 
-    rearrange flag is set to true, tries to rearrange the elements in 'new' as 
-    much as possible to reproduce the same order of the elements in 'old'. 
-    If max_dist or min_sim is given, the algorithms considers two elements as 
-    equal if the distance between them is at most max_dist (if the similarity) 
-    of both elements is at least min_sim).
-    Returns a list of common elements and a list of replaced elements. A 
-    replaced element consists of a list of deleted elements (elements that occur
-    in 'old' but not in 'new') and a list of inserted elements (elements that 
-    occur in 'new' but not in 'old') and deleted elements. Each common, 
-    insertion and deletion is given by a tuple (pos1, pos2, element) where 
-    'pos1' denotes the position in 'old', 'pos2' denotes the position in 'new' 
-    and 'element' denotes the new element.
-       
+    This method finds the differences between the two given lists of strings.
+    The lists may be arbitrarily nested to keep any special divisions into
+    paragraphs, pages, etc (like '[["foo", "bar"], ["baz", "blub"]]' for 
+    example). 
+    
+    If the rearrange flag is set to True, the algorithm applies a kind of a 
+    greedy heuristic to rearrange the strings in 'new' to reproduce the order 
+    of the strings in 'old' as much as possible.
+    
+    If max_dist or min_sim is given, the algorithm considers two strings as 
+    equal if the distance between them is at most max_dist 
+    (if the similarity of both elements is at least min_sim).
+    
+    Returns an object of type DiffResult containing a list of common strings (C) 
+    and a list of replacements (R). A replacement is defined by a list of 
+    consecutive deleted strings (D) and a list of consecutive inserted strings 
+    (I).
+    The elements of C are tuples of form (pos1, pos2, element, old_element').
+    The fields pos1 and pos2 represents the position in the rearranged string
+    and can be used on sorting the diff elements. The fields 'element' and 
+    'old_element' are tuples of form (pos_1, ... , pos_i, global_pos, string).
+    pos_1, ..., pos_i represent the position of the element in the i-times
+    nested input list, global_pos represents the position of the element in the
+    flattened input list and string represents the actual string to compare.
+    The elements of D and I are tuples of form (pos1, pos2, element); the
+    meanings of fields are equivalent to above. 
+    
     * Inspired by the simplediff lib by Paul Butler 
     (see https://github.com/paulgb/simplediff/) *  
     '''
-        
+
+    # Flatten the old list.
+    old_list = flatten(old_list)
+    # Flatten the new list.
+    new_list = flatten(new_list)
+
+    return diff_flattened_lists(old_list, new_list, rearrange, junk, max_dist, 
+        min_sim)
+
+def diff_flattened_lists(old_list, new_list, rearrange=False, junk=[], 
+        max_dist=0, min_sim=1):
+    """ Finds the differences between the two already flattened lists of 
+    strings."""
     if rearrange:
         # Try to rearrange the elements in 'new'
-        new = rearrange_elements(old, new, max_dist=max_dist, min_sim=min_sim)
-
+        new_list = rearrange_elements(old_list, new_list, max_dist, min_sim)
+    
     # Do the diff.
     commons, replaces = [], []
-    _diff(old, new, 0, 0, commons, replaces, junk=junk, max_dist=max_dist, 
-        min_sim=min_sim)
-     
-    result = DiffResult(commons, replaces)
-            
-    return result
-   
+    _diff(old_list, new_list, 0, 0, commons, replaces, junk, max_dist, min_sim)
+
+    return DiffResult(commons, replaces)
+
 def _diff(old, new, pos1, pos2, commons, replaces, junk=[], max_dist=0, min_sim=1):
     '''
     Finds the differences between the two given lists of strings recursively. 
     pos1 and pos2 are the current positions in 'old' and 'new'. 
     If max_dist or min_sim is given, the algorithms considers two elements 
-    as equal if the distance between them is at most max_dist (if the similarity
-    of both elements is at least min_sim).
+    as equal if the distance between them is at most max_dist (if the 
+    similarity of both elements is at least min_sim).
     Fills the common elements and replaced elements into the given lists 
     'commons' and 'replaces'.
     '''
@@ -68,18 +91,19 @@ def _diff(old, new, pos1, pos2, commons, replaces, junk=[], max_dist=0, min_sim=
     # Create an index from values in 'old', where each value is mapped to its 
     # position in 'old':
     # { element1: [1, 5, 7], element2: [4, 6, ], ... } 
-    old_index = fuzzy_dict()  
-    for i, element in enumerate(old):
-        if element in old_index:
-            old_index[element].append(i)
+    index_old = fuzzy_dict()  
+    for i_old, element_old in enumerate(old):
+        string_old = element_old[-1]
+        if string_old in index_old:
+            index_old[string_old].append(i_old)
         else:
-            old_index[element] = [i]
+            index_old[string_old] = [i_old]
 
     # Find the largest substring common to 'old' and 'new'.
     # 
     # We iterate over each value in 'new'. At each iteration, overlap[i] is the
     # length of the largest suffix of old[:i] equal to a suffix of 
-    # new[:index2] (or unset when old[i] != new[index2]).
+    # new[:i_new] (or unset when old[i] != new[i_new]).
     #
     # At each stage of iteration, the new overlap (called _overlap until 
     # the original overlap is no longer needed) is built from 'old'.
@@ -98,18 +122,19 @@ def _diff(old, new, pos1, pos2, commons, replaces, junk=[], max_dist=0, min_sim=
     start_new = 0
     length = 0
 
-    for index2, element in enumerate(new):    
+    for i_new, element_new in enumerate(new):
         _overlap = defaultdict(lambda: 0)
+        string_new = element_new[-1]
         # Get the 'closest' match to the string.
-        for index1 in old_index.get(element, max_dist, min_sim, []):
+        for i_old in index_old.get(string_new, max_dist, min_sim, []):
             # now we are considering all values of index1 such that
-            # old[index1] == new[index2].
-            _overlap[index1] = (index1 and overlap[index1 - 1]) + 1
+            # old[index1] == new[i_new].
+            _overlap[i_old] = (i_old and overlap[i_old - 1]) + 1
             # Check if this is the largest substring seen so far.
-            if _overlap[index1] > length:
-                length = _overlap[index1]
-                start_old = index1 - length + 1
-                start_new = index2 - length + 1
+            if _overlap[i_old] > length:
+                length = _overlap[i_old]
+                start_old = i_old - length + 1
+                start_new = i_new - length + 1
         overlap = _overlap
         
     ignore = False
@@ -118,7 +143,8 @@ def _diff(old, new, pos1, pos2, commons, replaces, junk=[], max_dist=0, min_sim=
         deletes, inserts = [], []
         ignore = False
         for element in old:
-            ignore = ignore or any(re.search(regex, element) for regex in junk)
+            string = element[-1]
+            ignore = ignore or any(re.search(regex, string) for regex in junk)
         
         if not ignore:
             for element in old:
@@ -131,17 +157,19 @@ def _diff(old, new, pos1, pos2, commons, replaces, junk=[], max_dist=0, min_sim=
                 replaces.append(DiffReplaceItem(deletes, inserts))
         
     else:
-        # A common substring was found. Call diff recursively for the substrings
-        # to the left and to the right
+        # A common substring was found. Call diff recursively for the 
+        # substrings to the left and to the right
         left1 = old[ : start_old]
         left2 = new[ : start_new]
         pos1, pos2 = _diff(left1, left2, pos1, pos2, commons, replaces, 
             junk=junk, max_dist=max_dist, min_sim=min_sim)
         
+        i = 0
         for item in new[start_new : start_new + length]:
-            commons.append(DiffCommonItem(pos1, pos2, item))
+            commons.append(DiffCommonItem(pos1, pos2, item, old[start_old + i]))
             pos1 += 1
             pos2 += 1
+            i += 1
         
         right1 = old[start_old + length : ]
         right2 = new[start_new + length : ]
@@ -184,9 +212,9 @@ def rearrange_elements(old, new, max_dist=0, min_sim=1.0):
     #    (pos1=1, pos2=1, element='fox', matched=False), 
     #    (pos1=4, pos2=4, element='cow', matched=False)
     # ]
-    diff_result = diff(old, new, rearrange=False, max_dist=max_dist, 
-        min_sim=min_sim)
-                          
+    diff_result = diff_flattened_lists(old, new, rearrange=False, 
+        max_dist=max_dist, min_sim=min_sim)
+
     # Map each deleted element to its deleted items:
     # { 
     #   'cow': [(pos1=4, pos2=4, element='cow', matched=False)], 
@@ -195,10 +223,10 @@ def rearrange_elements(old, new, max_dist=0, min_sim=1.0):
     deletes_index = fuzzy_dict()
     for replace in diff_result.replaces:
         for item in replace.deletes:
-            if item.element in deletes_index:
-                deletes_index[item.element].append(item)
+            if item.element[-1] in deletes_index:
+                deletes_index[item.element[-1]].append(item)
             else:
-                deletes_index[item.element] = [item]
+                deletes_index[item.element[-1]] = [item]
                                             
     # Separate the insertions and associate each element of each insertion to 
     # its positions in the deletes_index:
@@ -218,7 +246,7 @@ def rearrange_elements(old, new, max_dist=0, min_sim=1.0):
     for replace in diff_result.replaces:
         insert_mapping = []
         for insert in replace.inserts:
-            deletions = deletes_index.get(insert.element, max_dist, min_sim, [None])
+            deletions = deletes_index.get(insert.element[-1], max_dist, min_sim, [None])
             insert_mapping.append(MappingItem(deletions, insert))    
         inserts_mappings.append(insert_mapping) 
      
@@ -288,10 +316,10 @@ def rearrange_elements(old, new, max_dist=0, min_sim=1.0):
         rearranged.extend(replace.inserts)
 
     rearranged.sort()
-        
+
     # Remove all the meta stuff.
     rearranged = [item.element for item in rearranged]
-              
+
     return rearranged
 
 def find_longest_run_in_mappings(mappings):
@@ -302,7 +330,7 @@ def find_longest_run_in_mappings(mappings):
             longest_run = run
     return longest_run
 
-def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.        
+def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.
     ''' Finds the longest possible run in the given mapping. The mapping is of 
     the form: [([deletions1], insert1), ([deletions2], insert2), ...] where each
     list of deletions is of form [(pos1, pos2, element), ...]. Note that 
@@ -411,9 +439,7 @@ def find_longest_run_in_mapping(mapping): # Find run in a single(!) element.
                                             
                     if len(active_run) > len(longest_run):
                         longest_run = active_run
-            
-            debug_queue = [item.insertion.element for item in unmatched_queue]
-                 
+
     if longest_run:
         return longest_run
     else:
@@ -428,13 +454,12 @@ def visualize_run(run):
     snippets = []
     run_insertion_start = "\033[30;42m"
     run_insertion_end = "\033[0m"
-    run_deletion_start = "\033[30;41m"
     run_deletion_end = "\033[0m"
     
     for item in run:
         if item.insertion:
             snippets.append(run_insertion_start)
-            snippets.append(item.insertion.element)
+            snippets.append(item.insertion.element[-1])
             snippets.append(run_insertion_end)
             snippets.append(" ")
     
@@ -443,12 +468,49 @@ def visualize_run(run):
     for item in run:
         if item.deletion:
             snippets.append(run_deletion_start)
-            snippets.append(item.deletion.element)
+            snippets.append(item.deletion.element[-1])
             snippets.append(run_deletion_end)
             snippets.append(" ")
         
     
     return "".join(snippets)
-   
+  
+def flatten(elements):
+    """ Flattens the given list of elements to list of tuples. For each element,
+    a tuple is created that tracks its depth in elements:
+    Each tuple is of length 'depth of element in list + 2' and is of form:
+    
+    (pos of list of depth 0 that contains the element,
+     pos of list of depth 1 that contains the element,
+     ...,
+     pos of list of depth i that contains the element,
+     pos of element in flattened list,
+     the element)
+
+    >>> flatten(['A', 'B', 'C'])
+    [(0, 0, 'A'), (1, 1, 'B'), (2, 2, 'C')]
+    >>> flatten(['A', ['B', 'C']])
+    [(0, 0, 'A'), (1, 0, 1, 'B'), (1, 1, 2, 'C')]
+    >>> flatten([['A', 'B'], 'C'])
+    [(0, 0, 0, 'A'), (0, 1, 1, 'B'), (1, 3, 'C')]
+    """
+    
+    result = []
+    flatten_recursive(elements, [], 0, result)
+    return result
+
+def flatten_recursive(elements, stack, total_num, result):
+    for i, element in enumerate(elements):
+        new_stack = stack + [i]
+        
+        if isinstance(element, list):
+            total_num = flatten_recursive(element, new_stack, total_num, result)
+        else:
+            new_stack.append(total_num)
+            new_stack.append(element)
+            result.append(tuple(new_stack))
+            total_num += 1
+    return total_num
+             
 if __name__ == '__main__':
     print(diff(["Hello", "World"], ["World", "Hello"], rearrange=True))

@@ -38,8 +38,11 @@ class Evaluator:
             # Evaluate the feature.
             results, latests, bests = self.evaluate_feature(feature)
             
-            comparison = self.get_comparison_string(results, latests, bests)
-            logger.info("Total: %s" % comparison) 
+            if self.args.recap:
+                logger.info("Total: %s" % self.get_recap_string(latests))
+            else:
+                comparison = self.get_comparison_string(results, latests, bests)
+                logger.info("Total: %s" % comparison)
                                         
     def evaluate_feature(self, feature):
         '''
@@ -80,13 +83,14 @@ class Evaluator:
                 # Compose the absolute path of the actual file.
                 actual_path = self.get_actual_path(gt_path)
                 
-                # Evaluate the file.
-                # 'current' includes the tuple (precision, recall)
-                # 'items' includes the diff between groundtruth and actual.
-                current, items = self.evaluate(gt_path, actual_path, method)
+                if not args.recap:
+                    # Evaluate the file.
+                    # 'current' includes the tuple (precision, recall)
+                    # 'items' includes the diff between groundtruth and actual.
+                    current, items = self.evaluate(gt_path, actual_path, method)
                 
-                if current:
-                    current_p_r.append(current)
+                    if current:
+                        current_p_r.append(current)
                                                           
                 # Obtain the latest and the best result for the file.
                 # 'latest' and 'best' are tuples of form (precision, recall).
@@ -96,14 +100,18 @@ class Evaluator:
                     latest_p_r.append(latest)
                     best_p_r.append(best)
                 
-                comparison = self.get_comparison_string(current, latest, best)
-                logger.info("Result for %s: %s" % (actual_path, comparison))
+                if args.recap:
+                    recap = self.get_recap_string(latest)
+                    logger.info("Result for %s: %s" % (actual_path, recap))
+                else:
+                    comparison = self.get_comparison_string(current, latest, best)
+                    logger.info("Result for %s: %s" % (actual_path, comparison))
+
+                    # Visualize result.
+                    self.visualize_result(items, actual_path, feature)
                 
-                # Visualize the result.
-                self.visualize_result(items, actual_path, feature)
-                
-                # Serialize the result (to compare it in upcoming evaluations).
-                self.serialize_result(current, actual_path, feature)
+                    # Serialize result (to compare it in upcoming evaluations).
+                    self.serialize_result(current, actual_path, feature)
                     
         return current_p_r, latest_p_r, best_p_r
     
@@ -289,6 +297,19 @@ class Evaluator:
         parts.append("r: %s (%s)" % (r_str, r_delta_str))                  
         
         return ", ".join(parts)
+
+    def get_recap_string(self, latest):
+        ''' Returns a string where the current precision/recall values are 
+        compared to the latest and the best values. '''
+            
+        if latest and isinstance(latest, list):
+            # If 'latest' is a list, compute p/r by average values.
+            latest_p = sum(x[0] for x in latest) / len(latest)
+            latest_r = sum(x[1] for x in latest) / len(latest)
+        else:
+            latest_p = latest[0] if latest else 0.0
+            latest_r = latest[1] if latest else 0.0
+        return "p: %s, r: %s" % (latest_p, latest_r)
     
     def visualize_result(self, items, actual_path, feature):
         ''' Visualizes the given evaluation result. This will print the content
@@ -317,7 +338,7 @@ class Evaluator:
                 snippets.append(visualization_insert_start)
             elif item[1] == "-":
                 snippets.append(visualization_delete_start)
-            snippets.append("%s" % item[0].element)
+            snippets.append("%s" % item[0].element[-1])
             if item[1] == "+":
                 snippets.append(visualization_insert_end)
             elif item[1] == "-":
@@ -350,6 +371,7 @@ class Evaluator:
         add_arg("--junk", help="The junk to ignore.")
         add_arg("--prefix", help="The prefix of evaluation files", default="")
         add_arg("--output", help="The path to the result file", default="")
+        add_arg("--recap", help="Recap latest evaluation results", default="")
         return parser
 
 if __name__ == "__main__": 
