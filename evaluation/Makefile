@@ -80,7 +80,7 @@ extract: validate
 	@echo $($(TOOL)_CMD)
 	@echo "Extracting from \"$(PDF_SRC)\" using the tool \"$(TOOL)\"".
 	@python3 $(EXTRACTOR_SRC) --prefix "$(PREFIX)" "$($(TOOL)_CMD)" "$(PDF_SRC)" "$(TOOL_TARGET)" 
-  
+
 extract-excerpt:
 	@for FILE in $(TOOL_TARGET)/*/$(PREFIX)* ; do \
 		if [ -f "$$FILE" ]; then \
@@ -91,17 +91,16 @@ extract-excerpt:
 
 # Evaluate the stuff extracted from the given extraction tool. 
 evaluate: 
-	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
 	@python3 $(EVALUATOR_SRC) \
-		--max_dist "$(MAX_DISTANCE)" \
-		--min_similarity "$(MIN_SIMILARITY)" \
 		--prefix "$(PREFIX)" \
+		--rearrange "$(REARRANGE)" \
+		--ignore_cases "$(IGNORE_CASES)" \
+		--junk "$(JUNK)" \
+		--max_dist "$(MAX_DISTANCE)" \
 		--output "$(EVALUATION_TARGET)" \
+		--recap "$(RECAP)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-	@echo "*************"
-	@column -t -s"	" /home/korzen/Downloads/result.txt
-	@echo "*************"
-	
+
 # Evaluate the accuracy of words extraction.
 evaluate-words: validate
 	@python3 $(EVALUATOR_SRC) \
@@ -128,10 +127,7 @@ evaluate-paragraphs: validate
 		--output "$(EVALUATION_TARGET)" \
 		--recap "$(RECAP)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-#@echo "*************"
-#@column -t -s"	" /home/korzen/Downloads/result.txt
-#@echo "*************"
-    
+
 # Evaluate the accuracy of body extraction.
 evaluate-body: validate
 	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
@@ -144,9 +140,6 @@ evaluate-body: validate
 		--output "$(EVALUATION_TARGET)" \
 		--recap "$(RECAP)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-#@echo "*************"
-#@column -t -s"	" /home/korzen/Downloads/result.txt
-#@echo "*************"
 
 compile-icecite-parser:
 	mvn -f $(PDF_PARSER_SRC)/pom.xml -DskipTests install

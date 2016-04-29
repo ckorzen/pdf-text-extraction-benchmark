@@ -1,4 +1,3 @@
-import sys
 import argparse
 import logging
 import os
@@ -6,10 +5,7 @@ import os.path
 import util
 
 from datetime import datetime
-#from restore_document_structure import DocumentStructureRestorer
-from align_documents import align_strings 
-from align_documents import count_ops
-from align_documents import visualize_ops  
+from restore_document_structure import DocumentStructureRestorer
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -35,6 +31,7 @@ class Evaluator:
         Computes the precision/recall values that result from both files and 
         compares them to previous results.
         '''
+        
         # The root directory to scan for groundtruth files. 
         groundtruth_root = self.args.gt_path
         
@@ -47,11 +44,8 @@ class Evaluator:
         best_values = []
         current_values = []
 
-        print("{:<23}{:>14}{:>14}{:>14}{:>14}{:>14}{:>14}{:>14}{:>14}"
-            .format("filename", "#p. splits", "#p. merges", "#p. rearranges", 
-            "#p. inserts", "#p. deletes", "#w. inserts", "#w. deletes", 
-            "#w. rearranges"))
-        print("-" * 137)
+        print("%-25s %-10s %-10s %-10s %-10s %-10s" % ("filename", "#splits", "#merges", "#reorders", "#missing", "#spurious"))
+        print("-" * 85)
 
         # Scan the given root directory for groundtruth files to evaluate.
         for current_dir, dirs, files in os.walk(groundtruth_root):
@@ -74,30 +68,27 @@ class Evaluator:
                     self.recap(actual_path, latest)
                 else:
                     # Evaluate.
-                    result = self.evaluate_by_paths(actual_path, gt_path)
-                    
-                    num_ops = count_ops(result)
-
-                    current_values.append(num_ops)
+                    current = self.evaluate_by_paths(gt_path, actual_path)
+                    current_values.append(current)
 
                     comparison_string = self.create_comparison_string(
-                        num_ops, latest, best)
+                        current, latest, best)
 
                     # logger.info("Result for %s: %s" % (actual_path, comparison_string))
-                    print("%-22s %s" % (os.path.basename(actual_path), comparison_string))
+                    print("%-25s %s" % (os.path.basename(actual_path), comparison_string))
 
                     # print("Result for %s: %s" % (actual_path, comparison_string))
-                    self.visualize(result, self.get_visualization_path(actual_path))
-                    self.serialize(num_ops, serialization_path)
+                    # self.visualize(self.get_visualization_path(actual_path))
+                    self.serialize(current, serialization_path)
 
         if self.args.recap:
             logger.info("Total: %s" % self.create_recap_string(
                 latest_values))
         else:
-            print("-" * 137)
-            print("%-22s %s" % ("Total: ", self.create_comparison_string(
+            print("-" * 85)
+            print("%-25s %s" % ("Total: ", self.create_comparison_string(
                    current_values, latest_values, best_values)))
-            print("-" * 137)
+            print("-" * 85)
             # logger.info("Total: %s" % self.create_comparison_string(
             #    current_values, latest_values, best_values))
 
@@ -136,10 +127,8 @@ class Evaluator:
         match words with a defined distance as well, adjust max_dist.
         """
 
-        # restorer = DocumentStructureRestorer(gt, actual, self.args.junk)
-        # return restorer.restore()
-
-        return align_strings(gt, actual, self.args.junk)
+        restorer = DocumentStructureRestorer(gt, actual, self.args.junk)
+        return restorer.restore()
 
     def format_actual_file(self, file_path):
         ''' Reads the given actual file. Override it if you have to do more 
@@ -149,7 +138,7 @@ class Evaluator:
         if os.path.isfile(file_path):
             file = open(file_path)
             str = file.read()
-            file.close()
+            file.close()                        
             return str
         else:
             return ""
@@ -173,22 +162,16 @@ class Evaluator:
         precision and best recall achieved so far for the actual path and 
         feature.'''
         
-        best_para_splits     = sys.maxsize
-        best_para_merges     = sys.maxsize
-        best_para_rearranges   = sys.maxsize
-        best_para_inserts    = sys.maxsize
-        best_para_deletes    = sys.maxsize
-        best_word_rearranges   = sys.maxsize
-        best_word_inserts    = sys.maxsize
-        best_word_deletes    = sys.maxsize
-        latest_para_splits   = sys.maxsize
-        latest_para_merges   = sys.maxsize
-        latest_para_rearranges = sys.maxsize
-        latest_para_inserts  = sys.maxsize
-        latest_para_deletes  = sys.maxsize
-        latest_word_rearranges = sys.maxsize
-        latest_word_inserts  = sys.maxsize
-        latest_word_deletes  = sys.maxsize
+        best_para_splits     = float('inf')
+        best_para_merges     = float('inf')
+        best_para_reorders   = float('inf')
+        best_para_missings   = float('inf')
+        best_para_spurious   = float('inf')
+        latest_para_splits   = float('inf')
+        latest_para_merges   = float('inf')
+        latest_para_reorders = float('inf')
+        latest_para_missings = float('inf')
+        latest_para_spurious = float('inf')
 
         if os.path.isfile(path):
             with open(path, "r") as f:
@@ -198,60 +181,35 @@ class Evaluator:
                       
                     para_splits   = int(fields[1])
                     para_merges   = int(fields[2])
-                    para_rearranges = int(fields[3])
-                    para_inserts  = int(fields[4])
-                    para_deletes  = int(fields[5])
-                    word_inserts  = int(fields[6])
-                    word_deletes  = int(fields[7])
-                    word_rearranges = int(fields[8])
+                    para_reorders = int(fields[3])
+                    para_missings = int(fields[4])
+                    para_spurious = int(fields[5])
 
                     # Update the values.
                     best_para_splits   = max(para_splits, best_para_splits)
                     best_para_merges   = max(para_merges, best_para_merges)
-                    best_para_rearranges = max(para_rearranges, best_para_rearranges)
-                    best_para_inserts  = max(para_inserts, best_para_inserts)
-                    best_para_deletes  = max(para_deletes, best_para_deletes)
-                    best_word_inserts  = max(word_inserts, best_word_inserts)
-                    best_word_deletes  = max(word_deletes, best_word_deletes)
-                    best_word_rearranges = max(word_rearranges, best_word_rearranges)
+                    best_para_reorders = max(para_reorders, best_para_reorders)
+                    best_para_missings = max(para_missings, best_para_missings)
+                    best_para_spurious = max(para_spurious, best_para_spurious)
 
                     latest_para_splits   = para_splits
                     latest_para_merges   = para_merges
-                    latest_para_rearranges = para_rearranges
-                    latest_para_inserts  = para_inserts
-                    latest_para_deletes  = para_deletes
-                    latest_word_inserts  = word_inserts
-                    latest_word_deletes  = word_deletes
-                    latest_word_rearranges = word_rearranges
+                    latest_para_reorders = para_reorders
+                    latest_para_missings = para_missings
+                    latest_para_spurious = para_spurious
             
-        best   = (best_para_splits, best_para_merges, best_para_rearranges, 
-                  best_para_inserts, best_para_deletes, best_word_inserts, 
-                  best_word_deletes, best_word_rearranges)
-        latest = (latest_para_splits, latest_para_merges, latest_para_rearranges, 
-                  latest_para_inserts, latest_para_deletes, latest_word_inserts,
-                  latest_word_deletes, latest_word_rearranges)
+        best   = (best_para_splits, best_para_merges, best_para_reorders, 
+                  best_para_missings, best_para_spurious)
+        latest = (latest_para_splits, latest_para_merges, latest_para_reorders, 
+                  latest_para_missings, latest_para_spurious)
         return (latest, best)
-
-    def visualize(self, result, path):
-        ''' Serializes the given result to the related results file. '''
-        print("visualize to %s" % path)
-        with open(path, "w") as f:
-            f.write(visualize_ops(result)) 
 
     def serialize(self, values, path):
         ''' Serializes the given result to the related results file. '''
         with open(path, "a") as f:
-            values_str = []
-            values_str.append(str(values.get('num_para_splits', 0)))
-            values_str.append(str(values.get('num_para_merges', 0)))
-            values_str.append(str(values.get('num_para_rearranges', 0)))
-            values_str.append(str(values.get('num_para_inserts', 0)))
-            values_str.append(str(values.get('num_para_deletes', 0)))
-            values_str.append(str(values.get('num_word_inserts', 0)))
-            values_str.append(str(values.get('num_word_deletes', 0)))
-            values_str.append(str(values.get('num_word_rearranges', 0)))
-
-            f.write("%s\t%s\n" % (datetime.now(), "\t".join(values_str))) 
+            # Append the result to file.
+            values_str = "\t".join(str(x) for x in values)
+            f.write("%s\t%s\n" % (datetime.now(), values_str)) 
 
     def create_comparison_string(self, current, latest, best):
         ''' Returns a string where the current precision/recall values are 
@@ -259,102 +217,76 @@ class Evaluator:
     
         if current and isinstance(current, list):
             # If 'current' is a list, compute p/r by average values.
-            para_splits   = round(sum(x['num_para_splits'] for x in current) / len(current), 1)
-            para_merges   = round(sum(x['num_para_merges'] for x in current) / len(current), 1)
-            para_rearranges = round(sum(x['num_para_rearranges'] for x in current) / len(current), 1)
-            para_inserts  = round(sum(x['num_para_inserts'] for x in current) / len(current), 1)
-            para_deletes  = round(sum(x['num_para_deletes'] for x in current) / len(current), 1)
-            word_inserts  = round(sum(x['num_word_inserts'] for x in current) / len(current), 1)
-            word_deletes  = round(sum(x['num_word_deletes'] for x in current) / len(current), 1)
-            word_rearranges = round(sum(x['num_word_rearranges'] for x in current) / len(current), 1)
+            para_splits   = sum(x[0] for x in current) / len(current)
+            para_merges   = sum(x[1] for x in current) / len(current)
+            para_reorders = sum(x[2] for x in current) / len(current)
+            para_missings = sum(x[3] for x in current) / len(current)
+            para_spurious = sum(x[4] for x in current) / len(current)
         else:
-            para_splits   = current['num_para_splits'] if current else 0
-            para_merges   = current['num_para_merges'] if current else 0
-            para_rearranges = current['num_para_rearranges'] if current else 0
-            para_inserts  = current['num_para_inserts'] if current else 0
-            para_deletes  = current['num_para_deletes'] if current else 0
-            word_inserts  = current['num_word_inserts'] if current else 0
-            word_deletes  = current['num_word_deletes'] if current else 0
-            word_rearranges = current['num_word_rearranges'] if current else 0
+            para_splits   = current[0] if current else 0
+            para_merges   = current[1] if current else 0
+            para_reorders = current[2] if current else 0
+            para_missings = current[3] if current else 0
+            para_spurious = current[4] if current else 0
         
         if latest and isinstance(latest, list):
-            latest_para_splits   = round(sum(x[0] for x in latest) / len(latest), 1)
-            latest_para_merges   = round(sum(x[1] for x in latest) / len(latest), 1)
-            latest_para_rearranges = round(sum(x[2] for x in latest) / len(latest), 1)
-            latest_para_inserts  = round(sum(x[3] for x in latest) / len(latest), 1)
-            latest_para_deletes  = round(sum(x[4] for x in latest) / len(latest), 1)
-            latest_word_inserts  = round(sum(x[5] for x in latest) / len(latest), 1)
-            latest_word_deletes  = round(sum(x[6] for x in latest) / len(latest), 1)
-            latest_word_rearranges = round(sum(x[7] for x in latest) / len(latest), 1)
+            latest_para_splits   = sum(x[0] for x in latest) / len(latest)
+            latest_para_merges   = sum(x[1] for x in latest) / len(latest)
+            latest_para_reorders = sum(x[2] for x in latest) / len(latest)
+            latest_para_missings = sum(x[3] for x in latest) / len(latest)
+            latest_para_spurious = sum(x[4] for x in latest) / len(latest)
         else:
             latest_para_splits   = latest[0] if latest else 0
             latest_para_merges   = latest[1] if latest else 0
-            latest_para_rearranges = latest[2] if latest else 0
-            latest_para_inserts  = latest[3] if latest else 0
-            latest_para_deletes  = latest[4] if latest else 0
-            latest_word_inserts  = latest[5] if latest else 0
-            latest_word_deletes  = latest[6] if latest else 0
-            latest_word_rearranges = latest[7] if latest else 0
+            latest_para_reorders = latest[2] if latest else 0
+            latest_para_missings = latest[3] if latest else 0
+            latest_para_spurious = latest[4] if latest else 0
             
         if best and isinstance(best, list):
-            best_para_splits   = round(sum(x[0] for x in best) / len(best), 1)
-            best_para_merges   = round(sum(x[1] for x in best) / len(best), 1)
-            best_para_rearranges = round(sum(x[2] for x in best) / len(best), 1)
-            best_para_inserts  = round(sum(x[3] for x in best) / len(best), 1)
-            best_para_deletes  = round(sum(x[4] for x in best) / len(best), 1)
-            best_word_deletes  = round(sum(x[5] for x in best) / len(best), 1)
-            best_word_deletes  = round(sum(x[6] for x in best) / len(best), 1)
-            best_word_rearranges = round(sum(x[7] for x in best) / len(best), 1)
+            best_para_splits   = sum(x[0] for x in best) / len(best)
+            best_para_merges   = sum(x[1] for x in best) / len(best)
+            best_para_reorders = sum(x[2] for x in best) / len(best)
+            best_para_missings = sum(x[3] for x in best) / len(best)
+            best_para_spurious = sum(x[4] for x in best) / len(best)
         else:
             best_para_splits   = best[0] if best else 0
             best_para_merges   = best[1] if best else 0
-            best_para_rearranges = best[2] if best else 0
-            best_para_inserts  = best[3] if best else 0
-            best_para_deletes  = best[4] if best else 0
-            best_word_inserts  = best[5] if best else 0
-            best_word_deletes  = best[6] if best else 0
-            best_word_rearranges = best[7] if best else 0
+            best_para_reorders = best[2] if best else 0
+            best_para_missings = best[3] if best else 0
+            best_para_spurious = best[4] if best else 0
         
         # Compute the difference to the latest values.
         para_splits_delta   = para_splits   - latest_para_splits
         para_merges_delta   = para_merges   - latest_para_merges
-        para_rearranges_delta = para_rearranges - latest_para_rearranges
-        para_inserts_delta  = para_inserts  - latest_para_inserts
-        para_deletes_delta  = para_deletes  - latest_para_deletes
-        word_inserts_delta  = word_inserts  - latest_word_inserts
-        word_deletes_delta  = word_deletes  - latest_word_deletes
-        word_rearranges_delta = word_rearranges - latest_word_rearranges
+        para_reorders_delta = para_reorders - latest_para_reorders
+        para_missings_delta = para_missings - latest_para_missings
+        para_spurious_delta = para_spurious - latest_para_spurious
                 
         # Format the delta parts.
         para_splits_delta_str   = "±0" if para_splits_delta == 0 else "%+d" % para_splits_delta
         para_merges_delta_str   = "±0" if para_merges_delta == 0 else "%+d" % para_merges_delta
-        para_rearranges_delta_str = "±0" if para_rearranges_delta == 0 else "%+d" % para_rearranges_delta
-        para_inserts_delta_str  = "±0" if para_inserts_delta == 0 else "%+d" % para_inserts_delta
-        para_deletes_delta_str  = "±0" if para_deletes_delta == 0 else "%+d" % para_deletes_delta
-        word_inserts_delta_str  = "±0" if word_inserts_delta == 0 else "%+d" % word_inserts_delta
-        word_deletes_delta_str  = "±0" if word_deletes_delta == 0 else "%+d" % word_deletes_delta
-        word_rearranges_delta_str = "±0" if word_rearranges_delta == 0 else "%+d" % word_rearranges_delta
+        para_reorders_delta_str = "±0" if para_reorders_delta == 0 else "%+d" % para_reorders_delta
+        para_missings_delta_str = "±0" if para_missings_delta == 0 else "%+d" % para_missings_delta
+        para_spurious_delta_str = "±0" if para_spurious_delta == 0 else "%+d" % para_spurious_delta
         
         # Compose the string.   
         parts = []
-        parts.append(("%s" % para_splits).rjust(8))
-        parts.append((" (%s)" % para_splits_delta_str).rjust(6))
-        parts.append(("%s" % para_merges).rjust(8))
-        parts.append((" (%s)" % para_merges_delta_str).rjust(6))
-        parts.append(("%s" % para_rearranges).rjust(8))
-        parts.append((" (%s)" % para_rearranges_delta_str).rjust(6))
-        parts.append(("%s" % para_inserts).rjust(8))
-        parts.append((" (%s)" % para_inserts_delta_str).rjust(6))
-        parts.append(("%s" % para_deletes).rjust(8))
-        parts.append((" (%s)" % para_deletes_delta_str).rjust(6))
-        parts.append(("%s" % word_inserts).rjust(8))
-        parts.append((" (%s)" % word_inserts_delta_str).rjust(6))
-        parts.append(("%s" % word_deletes).rjust(8))
-        parts.append((" (%s)" % word_deletes_delta_str).rjust(6))
-        parts.append(("%s" % word_rearranges).rjust(8))
-        parts.append((" (%s)" % word_rearranges_delta_str).rjust(6))
+        parts.append(("%s" % para_splits).rjust(3))
+        parts.append(("(%s)" % para_splits_delta_str).ljust(3))
+        parts.append(("%s" % para_merges).rjust(5))
+        parts.append(("(%s)" % para_merges_delta_str).ljust(3))
+        parts.append(("%s" % para_reorders).rjust(5))
+        parts.append(("(%s)" % para_reorders_delta_str).ljust(3))
+        parts.append(("%s" % para_missings).rjust(5))
+        parts.append(("(%s)" % para_missings_delta_str).ljust(3))
+        parts.append(("%s" % para_spurious).rjust(5))
+        parts.append(("(%s)" % para_spurious_delta_str).ljust(3))
+        #parts.append("%s (%s)" % (para_merges_str, para_merges_delta_str))
+        #parts.append("%s (%s)" % (para_reorders_str, para_reorders_delta_str))
+        #parts.append("%s (%s)" % (para_missings_str, para_missings_delta_str))
+        #parts.append("%s (%s)" % (para_spurious_str, para_spurious_delta_str))
         
-        return "".join(parts)
+        return " ".join(parts)
 
     def create_recap_string(self, latest):
         ''' Returns a string where the current precision/recall values are 
@@ -364,32 +296,23 @@ class Evaluator:
             # If 'latest' is a list, compute p/r by average values.
             latest_para_splits   = sum(x[0] for x in latest) / len(latest)
             latest_para_merges   = sum(x[1] for x in latest) / len(latest)
-            latest_para_rearranges = sum(x[2] for x in latest) / len(latest)
-            latest_para_inserts  = sum(x[3] for x in latest) / len(latest)
-            latest_para_deletes  = sum(x[4] for x in latest) / len(latest)
-            latest_word_inserts  = sum(x[5] for x in latest) / len(latest)
-            latest_word_deletes  = sum(x[6] for x in latest) / len(latest)
-            latest_word_rearranges = sum(x[7] for x in latest) / len(latest)
+            latest_para_reorders = sum(x[2] for x in latest) / len(latest)
+            latest_para_missings = sum(x[3] for x in latest) / len(latest)
+            latest_para_spurious = sum(x[4] for x in latest) / len(latest)
         else:
             latest_para_splits   = latest[0] if latest else 0
             latest_para_merges   = latest[1] if latest else 0
-            latest_para_rearranges = latest[2] if latest else 0
-            latest_para_inserts  = latest[3] if latest else 0
-            latest_para_deletes  = latest[4] if latest else 0
-            latest_word_inserts  = latest[5] if latest else 0
-            latest_word_deletes  = latest[6] if latest else 0
-            latest_word_rearranges = latest[7] if latest else 0
+            latest_para_reorders = latest[2] if latest else 0
+            latest_para_missings = latest[3] if latest else 0
+            latest_para_spurious = latest[4] if latest else 0
 
         # Compose the string.   
         parts = []
-        parts.append("#para_splits: %s"   % (latest_para_splits))
-        parts.append("#para_merges: %s"   % (latest_para_merges))
-        parts.append("#para_rearranges: %s" % (latest_para_rearranges))
-        parts.append("#para_inserts: %s"  % (latest_para_inserts))
-        parts.append("#para_deletes: %s"  % (latest_para_deletes))
-        parts.append("#word_inserts: %s"  % (latest_word_inserts))
-        parts.append("#word_deletes: %s"  % (latest_word_deletes))
-        parts.append("#word_rearranges: %s" % (latest_word_rearranges))
+        parts.append("#para_splits: %s"    % (latest_para_splits))
+        parts.append("#para_merges: %s"    % (latest_para_merges))
+        parts.append("#para_reorders: %s"  % (latest_para_reorders))
+        parts.append("#missing_paras: %s"  % (latest_para_missings))
+        parts.append("#spurious_paras: %s" % (latest_para_spurious))
         
         return ", ".join(parts)
 
@@ -428,7 +351,7 @@ class Evaluator:
     def get_groundtruth_files_suffix(self):
         """ Returns the suffix of groundtruth files to consider on parsing the 
         input directory. """
-        return ".body.txt"
+        return ".full.txt"
         
     def get_visualization_path(self, actual_path):
         ''' Returns the path to the file, where the visualization of the 
