@@ -41,7 +41,7 @@ public class GroundtruthMakerMainTest {
     
     String groundtruthStr = new String(Files.readAllBytes(groundtruth));
     String outputStr = new String(Files.readAllBytes(output));
-        
+    
     Assert.assertEquals(groundtruthStr, outputStr);
   }
 }
