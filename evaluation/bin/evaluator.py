@@ -234,7 +234,6 @@ class Evaluator:
 
     def visualize(self, result, path):
         ''' Serializes the given result to the related results file. '''
-        print("visualize to %s" % path)
         with open(path, "w") as f:
             f.write(visualize_ops(result)) 
 
