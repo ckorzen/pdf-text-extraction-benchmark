@@ -127,9 +127,9 @@ public class GroundtruthMakerMain {
 
     main.process();
   }
-  
+
   // ___________________________________________________________________________
-  
+
   /**
    * The list of file extensions to consider on scanning input directories.
    */
@@ -207,7 +207,8 @@ public class GroundtruthMakerMain {
     this.defaultFeatures = Arrays.asList("document", "text");
     this.featureProfiles = new HashMap<>();
     this.featureProfiles
-      .put("body", Arrays.asList("sections", "subsections", "subsubsections"));
+        .put("body",
+            Arrays.asList("sections", "subsections", "subsubsections"));
   }
 
   /**
@@ -215,9 +216,9 @@ public class GroundtruthMakerMain {
    */
   public void process() {
     validateInput();
-    
+
     System.out.println("Selected features: " + getFeatures());
-    
+
     processTexFiles();
   }
 
@@ -230,8 +231,9 @@ public class GroundtruthMakerMain {
       throw new IllegalArgumentException("No input given.");
     }
 
-    Path input = Paths.get(inputPath);
-    Path output = outputPath != null ? Paths.get(outputPath) : null;
+    Path input = Paths.get(inputPath).toAbsolutePath();
+    Path output =
+        outputPath != null ? Paths.get(outputPath).toAbsolutePath() : null;
 
     // Check, if the input path exists.
     if (!Files.exists(input)) {
@@ -250,7 +252,7 @@ public class GroundtruthMakerMain {
       this.inputDirectory = input.getParent();
       // Add the file to the files to process.
       this.inputFiles.add(input);
-      
+
       // Check, if there is an output given.
       if (output != null) {
         if (Files.isDirectory(output)) {
@@ -258,7 +260,7 @@ public class GroundtruthMakerMain {
           this.outputDirectory = output;
         } else {
           // The output is an existing file OR the output doesn't exist.
-          // If the output doesn't exist, interpret the output as a file 
+          // If the output doesn't exist, interpret the output as a file
           // (because the input is a file).
           this.outputFile = output;
           this.outputDirectory = output.getParent();
@@ -269,7 +271,7 @@ public class GroundtruthMakerMain {
       this.inputDirectory = input;
       // Read the directory recursively to get all files to process.
       readDirectory(input, this.inputFiles);
-      
+
       // Check, if there is an output given.
       if (output != null) {
         if (Files.isRegularFile(output)) {
@@ -278,7 +280,7 @@ public class GroundtruthMakerMain {
               "An input directory can't be serialized to a file.");
         } else {
           // The output is an existing directory OR doesn't exist.
-          // If the output doesn't exist, interpret the output as a directory, 
+          // If the output doesn't exist, interpret the output as a directory,
           // (because the input is a directory).
           this.outputDirectory = output;
         }
@@ -313,7 +315,7 @@ public class GroundtruthMakerMain {
 
     System.out.print("Processing \"" + file.getFileName().toString() + "\"");
     System.out.println(" -> " + target);
-    
+
     try {
       // Preprocess the tex file (resolve the cross references).
       Path resolvedFile = preprocessTexFile(file);
@@ -414,7 +416,7 @@ public class GroundtruthMakerMain {
 
     for (String key : hierarchy.keys()) {
       // Serialize the associated value, if the related feature is selected or
-      // there are no special features are defined. 
+      // there are no special features are defined.
       if (features == null || features.contains(key)) {
         serializeObject(hierarchy.get(key), features, w);
       }
@@ -530,7 +532,7 @@ public class GroundtruthMakerMain {
     if (features.isEmpty()) {
       return null;
     }
-    
+
     // Prepopulate the features with the default ones.
     List<String> allFeatures = new ArrayList<>(defaultFeatures);
     for (String feature : features) {
@@ -544,10 +546,10 @@ public class GroundtruthMakerMain {
     }
     return allFeatures;
   }
-  
+
   /**
-   * Reads the given directory recursively and fills the given list with
-   * found tex files.
+   * Reads the given directory recursively and fills the given list with found
+   * tex files.
    */
   protected void readDirectory(Path directory, List<Path> res) {
     DirectoryStream<Path> ds = null;
