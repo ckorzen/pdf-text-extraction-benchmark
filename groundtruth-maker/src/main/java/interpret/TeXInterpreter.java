@@ -87,7 +87,7 @@ public class TeXInterpreter {
    * Processes the given element.
    */
   protected void processElement(Element element, Iterator<Element> itr, 
-      TeXHierarchy context) {        
+      TeXHierarchy context) {
     if (element instanceof Group) {
       processElements(((Group) element).elements, context);
     } else if (element instanceof Text) {
@@ -149,9 +149,9 @@ public class TeXInterpreter {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, context);
     }
-    
-    CommandReference cmdRef = getCommandReference(cmd);
         
+    CommandReference cmdRef = getCommandReference(cmd);
+            
     // Skip the command, if there is no reference for the command.
     if (cmdRef == null) {
       itr.skipTo(guessEndCommand(cmd));
@@ -173,14 +173,15 @@ public class TeXInterpreter {
         // Add the appropriate number of following elements as groups to the
         // command.
         for (int i = 0; i < expectedNumGroups - actualNumGroups; i++) {
-          Element nextElement = itr.nextNonWhitespace();
-          
+          Element nextElement = itr.peekNonWhitespace();
           if (nextElement instanceof Group) {
+            itr.nextNonWhitespace();
             Group nextGroup = (Group) nextElement;
             // context.elements.set(context.curIndex - 1, null);
             // Simply add the group to the command.
             cmd.addGroup(nextGroup);
           } else if (nextElement instanceof Text) {
+            itr.nextNonWhitespace();
             Text textElement = (Text) nextElement;
             // context.elements.set(context.curIndex - 1, null);
             String text = textElement.toString();
@@ -245,7 +246,7 @@ public class TeXInterpreter {
         }
       }
     }
-        
+      
     // Process all commands within this context.
     processElements(getChildElements(cmd, itr), context);
   }

@@ -357,7 +357,7 @@ public class GroundtruthMakerMain {
     InputStream input = Files.newInputStream(texFile);
 
     TeXParser parser = new TeXParser(input);
-    Document document = parser.parse();
+    Document document = parser.parse();    
     input.close();
 
     return document;

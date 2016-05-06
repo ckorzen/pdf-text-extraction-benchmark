@@ -64,6 +64,21 @@ public class Iterator<T> implements java.util.Iterator<T> {
   }
   
   /**
+   * Peeks the next non whitespace element.
+   */
+  public T peekNonWhitespace() {
+    int index = currentIndex;
+    while (index < elements.size()) {
+      T element = elements.get(index);
+      if (!(element instanceof Whitespace) && !(element instanceof NewLine)) {
+        return element;
+      }
+      index++;
+    }
+    return null;
+  }
+  
+  /**
    * Returns the next element without incrementing the position cursor.
    */
   public T peek() {
