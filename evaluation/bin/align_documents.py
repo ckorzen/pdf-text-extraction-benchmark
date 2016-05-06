@@ -12,8 +12,8 @@ COST_FACTOR_WORD_OPS = 1
 def align_strings(actual, target, junk=[]):
     """ Aligns the given string 'actual' against the given string 'target'.
     Both strings are seen as sequences of paragraphs. Returns a sequence of 
-    operations to apply to transform 'actual' into 'target'. The operations
-    under consideration are:
+    operations that are necessary to transform 'actual' into 'target'. The 
+    operations under consideration are:
 
     * Split paragraph.
     * Merge paragraph.
@@ -24,7 +24,7 @@ def align_strings(actual, target, junk=[]):
     * Rearrange word. 
     """
 
-    # Split both string into paragraphs.
+    # Format both strings and split them into paragraphs.
     actual_paras = to_formatted_paragraphs(actual, to_protect=junk)
     target_paras = to_formatted_paragraphs(target, to_protect=junk)
 
@@ -35,72 +35,90 @@ def align_paragraphs(actual_paras, target_paras, junk=[]):
     """ Aligns the given lists of paragraphs. """
 
     # Run diff to identify the phrases to insert, to delete and to rearrange.
-    diff_result = diff_align.diff(actual_paras, target_paras, junk)
+    actual_phrases, insert_phrases = diff(actual_paras, target_paras, junk)
 
-    # Diff doesn't consider paragraph boundaries. So we need to group the diff 
-    # items by actual paragraphs.
-    diff_actual = split_into_actual_paras(diff_result)
+    # Apply inserts, deletes and rearranges.
+    actual_phrases = insert_delete_rearrange(actual_phrases, insert_phrases)
 
-    # 'diff_actual' doesn't contain the phrases to insert (the phrases of 
-    # 'target' that don't occur in 'actual'). Create index of such phrases. 
-    ins_idx = create_to_insert_index(diff_result)
+    # Merge the actual phrases.
+    return merge(actual_phrases)
 
-    # Process the diff result: insert, delete, split and rearrange phrases.
-    ops = apply_inserts_deletes_splits_rearranges(diff_actual, ins_idx)
+def diff(actual_paras, target_paras, junk=[]):
+    """ Returns (1) a list of 'actual' paragraphs, each of them containing a 
+    list of phrases representing a common, delete or rearrange and (2) an index 
+    of phrases to insert (phrases that occur in 'target' but not in 'actual'). 
+    """
 
-    return merge(ops)
+    # Get list of phrases identifying commons, inserts, deletes and rearranges.
+    phrases = diff_align.diff(actual_paras, target_paras, junk)
+
+    # Diff doesn't consider paragraph boundaries (it may contain phrases across
+    # paragraph boundaries). So split the phrases into actual paragraphs.
+    # The actual phrases only contains commons, deletes and rearranges.
+    actual_phrases = split_into_actual_paras(phrases)
+
+    # Because the actual paragraphs doesn't contain the phrases to insert, 
+    # create an index of the phrases to insert (phrases that occur in 'target' 
+    # but not in 'actual'). Create index of such phrases. 
+    insert_phrases = create_to_insert_index(phrases)
+
+    return actual_phrases, insert_phrases
 
 # ______________________________________________________________________________
 
-def apply_inserts_deletes_splits_rearranges(diff_actual, ins_idx):
-    """ Iterates through 'diff_actual' and decides which operations to apply.
-    'diff_actual' is a list of list of diff items (per actual paragraph). 
-    'ins_idx' is a dictionary of dictionary of diff insert items. The outer 
-    dictionary maps to the paragraph number, the inner dictionary maps to the 
-    position within the paragraph.""" 
+def insert_delete_rearrange(actual_phrases, insert_phrases):
+    """ Iterates through 'actual_phrases' and decides which operations to apply 
+    to transform 'actual' into 'target'. 'actual_phrases' is a list of list of 
+    phrases per paragraph, 'insert_phrases' is a dictionary of dictionary of 
+    phrases to insert. The outer dictionary maps to the paragraph number, the 
+    inner dictionary maps to the position within the paragraph.""" 
 
     # The performed operations per paragraph.
     ops_per_para = []
     
     # Iterate through each actual paragraph.
-    for actual_para in diff_actual:
+    for para in actual_phrases:
         para_ops = []
         prev_op = None
-
-        # Iterate through the diff items of the paragraph.
-        for i, diff_item in enumerate(actual_para):
-            # Obtain the next diff item of the paragraph.
-            next_item = actual_para[i+1] if i < len(actual_para) - 1 else None
+        # Iterate through the phrases of the paragraph.
+        for i, phrase in enumerate(para):
+            # Obtain the next phrases of the paragraph.
+            next_phrase = para[i+1] if i < len(para) - 1 else None
 
             ops = []
-            if isinstance(diff_item, CommonWrapper):
-                ops = common(diff_item, prev_op, next_item)
-            elif isinstance(diff_item, RearrangeWrapper):
-                ops = rearrange(diff_item, prev_op, next_item)
-            elif isinstance(diff_item, DeleteWrapper):
-                ops = delete(diff_item, prev_op, next_item)
+            # Handle commons, rearranges, deletes individually.
+            if isinstance(phrase, CommonWrapper):
+                ops = common(phrase, prev_op, next_phrase)
+            elif isinstance(phrase, RearrangeWrapper):
+                ops = rearrange(phrase, prev_op, next_phrase)
+            elif isinstance(phrase, DeleteWrapper):
+                ops = delete(phrase, prev_op, next_phrase)
 
             for op in ops: 
-                # Ignore deletions (but append it to operations).
+                # Check, if the op is a deletion.
                 if type(op) in [DeleteWords, DeleteParagraph]:
                     para_ops.append(op)
                     continue
 
                 # Check, if there is an operation to insert between the 
                 # previous op and the current op.
-                ins_item = pop_insert(ins_idx, prev_op, op)
+                ins_item = pop_insert(insert_phrases, prev_op, op)
                 ins_ops = insert(ins_item, prev_op, op)
-                
                 for ins_op in ins_ops:
-                    if ins_op.is_splitted_ahead or (prev_op and prev_op.is_splitted_behind):
+                    # Introduce new paragraph if there is a split.
+                    is_splitted_ahead = ins_op.is_splitted_ahead
+                    is_splitted_behind = prev_op and prev_op.is_splitted_behind
+                    if is_splitted_ahead or is_splitted_behind:
                         if para_ops:
                             ops_per_para.append(para_ops)
                         para_ops = []
                     para_ops.append(ins_op)
                     prev_op = ins_op
 
-                # Introduce new paragraph if the item was splitted ahead.
-                if op.is_splitted_ahead or (prev_op and prev_op.is_splitted_behind):
+                # Introduce new paragraph if there is a split.
+                is_splitted_ahead = op.is_splitted_ahead
+                is_splitted_behind = prev_op and prev_op.is_splitted_behind
+                if is_splitted_ahead or is_splitted_behind:
                     if para_ops:
                         ops_per_para.append(para_ops)
                     para_ops = []
@@ -108,25 +126,27 @@ def apply_inserts_deletes_splits_rearranges(diff_actual, ins_idx):
                 prev_op = op
 
         # Check if there is a phrase to insert at the end of the paragraph.
-        ins_item = pop_insert(ins_idx, prev_op, None)
+        ins_item = pop_insert(insert_phrases, prev_op, None)
         ins_ops = insert(ins_item, prev_op, None)
-        
         for ins_op in ins_ops:
-            if ins_op.is_splitted_ahead or (prev_op and prev_op.is_splitted_behind):
+            # Introduce new paragraph if there is a split.
+            is_splitted_ahead = ins_op.is_splitted_ahead
+            is_splitted_behind = prev_op and prev_op.is_splitted_behind
+            if is_splitted_ahead or is_splitted_behind:
                 if para_ops:
                     ops_per_para.append(para_ops)
                 para_ops = []
             para_ops.append(ins_op)
             prev_op = ins_op
 
-        # Append all pending diff items.
+        # Append all pending ops.
         if para_ops:
             ops_per_para.append(para_ops)
 
     # Append all phrases that remained in the insert index.
-    for para_num in ins_idx:
-        for key in ins_idx[para_num]:
-            ins_ops = insert(ins_idx[para_num][key], None, None)
+    for para_num in insert_phrases:
+        for key in insert_phrases[para_num]:
+            ins_ops = insert(insert_phrases[para_num][key], None, None)
             ops_per_para.append(ins_ops)
 
     return ops_per_para
@@ -134,7 +154,7 @@ def apply_inserts_deletes_splits_rearranges(diff_actual, ins_idx):
 # ______________________________________________________________________________
 
 def merge(ops_per_para):
-    """ Iterates through the phrases and merge them where necessary . """ 
+    """ Iterates through the operations and merge them where necessary . """ 
 
     merged_paragraphs = []
     merged_paragraph  = []
@@ -143,54 +163,49 @@ def merge(ops_per_para):
     for para_ops in ops_per_para:
         # Sort the phrases by their positions in target.
         para_ops.sort(key=lambda x: x.pos_target_start)
-
+    # Sort the paragraphs by the position of the first phrase.
     ops_per_para.sort(key=lambda x: x[0].pos_target_start)
 
     for para_ops in ops_per_para:
         is_first_op_in_para = True
         for op in para_ops:
             # Ignore deletions from merging.
-            if isinstance(op, DeleteWords) or isinstance(op, DeleteParagraph):
+            if type(op) in [DeleteWords, DeleteParagraph]:
                 merged_paragraph.append(op)
                 continue
 
             # Continue if there is no previous op so far.
-            if not prev_op:
-                merged_paragraph.append(op)
-                prev_op = op
-                is_first_op_in_para = False
-                continue
+            if prev_op:
+                # Obtain the paragraph number of previous op and current op.
+                para_num = op.pos_target_start[0]
+                prev_para_num = prev_op.pos_target_start[0]
 
-            # Obtain the paragraph number of previous op and current op.
-            para_num = op.pos_target_start[0]
-            prev_para_num = prev_op.pos_target_start[0]
+                # Introduce new paragraph, if paragraph numbers differ.
+                if para_num != prev_para_num:
+                    if merged_paragraph:
+                        merged_paragraphs.append(merged_paragraph)
+                    merged_paragraph = []
 
-            # Introduce new paragraph, if paragraph numbers differ.
-            if para_num != prev_para_num:
-                if merged_paragraph:
-                    merged_paragraphs.append(merged_paragraph)
-                merged_paragraph = []
+                # On rearranging a phrase, it could happen that the phrase at 
+                # target position must be split to include the phrase. Check, 
+                # if this scenario apply here.
+                if isinstance(op, RearrangeParagraph):
+                    if para_num == prev_para_num and \
+                            prev_op.pos_target_end > op.pos_target_start:
+                        # Remove last element.
+                        merged_paragraph.pop()
+                        # Split prev op and insert
+                        left, right = prev_op.split(op.pos_target_start)
+                        right.num_para_splits += 1
+                        right.num_para_merges += 2
+                        merged_paragraph.extend([left, op, right])
+                        continue
 
-            # On rearranging a phrase, it could happen that the phrase at 
-            # target position must be split to include the phrase. Check, 
-            # if this scenario apply here.
-            if isinstance(op, RearrangeParagraph):
-                if para_num == prev_para_num and \
-                        prev_op.pos_target_end > op.pos_target_start:
-                    # Remove last element.
-                    merged_paragraph.pop()
-                    # Split prev op and insert
-                    left, right = prev_op.split(op.pos_target_start)
-                    right.num_para_splits += 1
-                    right.num_para_merges += 2
-                    merged_paragraph.extend([left, op, right])
-                    continue
-
-            # Merge if paragraph numbers are equal and items are split.
-            if para_num == prev_para_num and is_first_op_in_para:
-                prev_op.is_merged_behind = True
-                op.is_merged_ahead = True
-                op.num_para_merges += 1
+                # Merge if paragraph numbers are equal and items are split.
+                if para_num == prev_para_num and is_first_op_in_para:
+                    prev_op.is_merged_behind = True
+                    op.is_merged_ahead = True
+                    op.num_para_merges += 1
             
             merged_paragraph.append(op)
 
@@ -204,17 +219,17 @@ def merge(ops_per_para):
 
 # ______________________________________________________________________________
 
-def common(item, prev_phrase, next_item):
-    """ Processes the given diff common item. """
+def common(phrase, prev_op, next_phrase):
+    """ Processes the given common phrase. """
 
     ops = []
 
-    # Split the item by target paragraphs.
-    sub_items = item.split_by_target_paras()
+    # Split the phrase by target paragraphs.
+    sub_phrases = phrase.split_by_target_paras()
     
     prev_op = None
-    for item in sub_items:
-        op = Common(item)
+    for sub_phrase in sub_phrases:
+        op = Common(sub_phrase)
 
         if prev_op:
             prev_op.is_splitted_behind = True
@@ -746,7 +761,7 @@ def visualize_ops(ops_per_para):
             prev_op = op
         visualized_paras.append(" ".join(visualized_para))
 
-    return "\n\n".join(visualized_paras)
+    return "\n\n".join(visualized_paras) + "\n"
 
 def count_ops(ops_per_para):
     counter = Counter()
