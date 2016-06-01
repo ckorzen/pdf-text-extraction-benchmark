@@ -4,7 +4,7 @@ ARXIV_BENCHMARK_SRC = ../arxiv-benchmark
 ARXIV_BENCHMARK_JAR = ./bin/arxiv-benchmark.jar
 PDF_PARSER_SRC = ../../pdf-parent
 PDF_PARSER_JAR_SRC = ../../pdf-cli/target/*-with-dependencies.jar
-PDF_PARSER_JAR_TARGET = ./bin/icecite-pdf-parser.jar
+PDF_PARSER_JAR_TARGET = ./bin/icecite/icecite-pdf-parser.jar
 
 EXTRACTOR_SRC = ./bin/extractor.py
 EVALUATOR_SRC = ./bin/evaluator-$(TOOL).py
@@ -14,13 +14,10 @@ OUTPUT = ./output
 
 TEX_SRC = $(INPUT)/src
 GROUNDTRUTH_TARGET = $(OUTPUT)/groundtruth
-EVALUATION_TARGET = /home/korzen/Downloads/result.txt
 
 PDF_SRC = $(INPUT)/pdf
 TOOL_TARGET = $(OUTPUT)/$(TOOL)
 
-MAX_DISTANCE = 0
-MIN_SIMILARITY = 0.5
 REARRANGE = True 
 IGNORE_CASES = True
 JUNK = \[formula\] \[table\] \[figure\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
@@ -28,7 +25,7 @@ JUNK = \[formula\] \[table\] \[figure\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
 # The command of tools.
 pdftotext_CMD = pdftotext %IN %OUT
 pdftohtml_CMD = pdftohtml -xml -zoom 1 -nomerge -stdout -q -enc "UTF-8" %IN > %OUT 
-# icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature paragraphs --format txt %IN  %OUT
+PDFExtract_CMD = java -jar bin/PDFExtract/PDFExtract/pdfextract-cli/target/pdfextract-cli-M3-SNAPSHOT-jar-with-dependencies.jar %IN  %OUT
 icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature paragraphs --role body-text --format txt %IN  %OUT
 
 all: extract evaluate
@@ -40,18 +37,7 @@ compile-arxiv-benchmark:
 
 # Make the groundtruth files (a file containing the whole content and a file 
 # containing only the body text)
-arxiv-benchmark: arxiv-benchmark-full arxiv-benchmark-body
-
-# Make groundtruth files containing the whole content from tex files.
-arxiv-benchmark-full:
-	@echo "*************************"
-	@echo "Making groundtruth files."
-	@echo "*************************"
-	@java -jar $(ARXIV_BENCHMARK_JAR) \
-		-input $(TEX_SRC) \
-		-output $(GROUNDTRUTH_TARGET) \
-		-prefix $(PREFIX) \
-		-suffix ".full.txt"
+arxiv-benchmark: arxiv-benchmark-body
 
 # Make groundtruth files containing only the body texts from tex files.
 arxiv-benchmark-body:
@@ -66,28 +52,11 @@ arxiv-benchmark-body:
 		-suffix ".body.txt" \
 		-feature "body"
 
-# Show an excerpt of the groundtruth files.
-groundtruth-excerpt:
-	@for FILE in $(GROUNDTRUTH_TARGET)/*/$(PREFIX)* ; do \
-		if [ -f "$$FILE" ]; then \
-			cat $$FILE | head -c 500 ; \
-		fi ; \
-		echo "*************" ; \
-	done
-
 # Extract stuff from the pdf source using the extraction tool defined by $TOOL.
 extract: validate   
 	@echo $($(TOOL)_CMD)
 	@echo "Extracting from \"$(PDF_SRC)\" using the tool \"$(TOOL)\"".
 	@python3 $(EXTRACTOR_SRC) --prefix "$(PREFIX)" "$($(TOOL)_CMD)" "$(PDF_SRC)" "$(TOOL_TARGET)" 
-
-extract-excerpt:
-	@for FILE in $(TOOL_TARGET)/*/$(PREFIX)* ; do \
-		if [ -f "$$FILE" ]; then \
-			cat $$FILE | head -c 500 ; \
-		fi ; \
-		echo "*************" ; \
-	done
 
 # Evaluate the stuff extracted from the given extraction tool. 
 evaluate: 
@@ -101,45 +70,9 @@ evaluate:
 		--recap "$(RECAP)" \
 		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
 
-# Evaluate the accuracy of words extraction.
-evaluate-words: validate
-	@python3 $(EVALUATOR_SRC) \
-		--feature word \
-		--prefix "$(PREFIX)" \
-		--rearrange "$(REARRANGE)" \
-		--ignore_cases "$(IGNORE_CASES)" \
-		--junk "$(JUNK)" \
-		--max_dist "$(MAX_DISTANCE)" \
-		--output "$(EVALUATION_TARGET)" \
-		--recap "$(RECAP)" \
-		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-
-# Evaluate the accuracy of paragraph extraction.
-evaluate-paragraphs: validate
-	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
-	@python3 $(EVALUATOR_SRC) \
-		--feature paragraph \
-		--prefix "$(PREFIX)" \
-		--rearrange "$(REARRANGE)" \
-		--ignore_cases "$(IGNORE_CASES)" \
-		--junk "$(JUNK)" \
-		--min_sim "$(MIN_SIMILARITY)" \
-		--output "$(EVALUATION_TARGET)" \
-		--recap "$(RECAP)" \
-		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
-
-# Evaluate the accuracy of body extraction.
-evaluate-body: validate
-	@echo "Evaluating the para extraction of the tool \"$(TOOL)\"".
-	@python3 $(EVALUATOR_SRC) \
-		--feature body \
-		--prefix "$(PREFIX)" \
-		--ignore_cases "$(IGNORE_CASES)" \
-		--junk "$(JUNK)" \
-		--max_dist "$(MAX_DISTANCE)" \
-		--output "$(EVALUATION_TARGET)" \
-		--recap "$(RECAP)" \
-		"$(TOOL_TARGET)" $(GROUNDTRUTH_TARGET)
+# Evaluate the stuff extracted from the given extraction tool. 
+inspect: 
+	@less -R $(TOOL_TARGET)/*/$(PREFIX)*.visualization.txt
 
 compile-icecite-parser:
 	mvn -f $(PDF_PARSER_SRC)/pom.xml -DskipTests install
