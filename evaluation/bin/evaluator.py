@@ -6,10 +6,10 @@ import os.path
 import util
 
 from datetime import datetime
-#from restore_document_structure import DocumentStructureRestorer
-from align_documents import align_strings 
-from align_documents import count_ops
-from align_documents import visualize_ops  
+
+from doc_diff import doc_diff
+from doc_diff import count_diff_items
+from doc_diff import visualize_diff_result
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -74,9 +74,9 @@ class Evaluator:
                     self.recap(actual_path, latest)
                 else:
                     # Evaluate.
-                    result = self.evaluate_by_paths(actual_path, gt_path)
+                    result = self.evaluate_by_paths(gt_path, actual_path)
                     
-                    num_ops = count_ops(result)
+                    num_ops = count_diff_items(result)
 
                     current_values.append(num_ops)
 
@@ -88,7 +88,7 @@ class Evaluator:
 
                     # print("Result for %s: %s" % (actual_path, comparison_string))
                     self.visualize(result, self.get_visualization_path(actual_path))
-                    self.serialize(num_ops, serialization_path)
+                    #self.serialize(num_ops, serialization_path)
 
         if self.args.recap:
             logger.info("Total: %s" % self.create_recap_string(
@@ -107,8 +107,7 @@ class Evaluator:
         logger.info("Result for %s: %s" % (actual_path, recap))
 
     def evaluate_by_paths(self, gt_path, actual_path):
-        ''' Evaluates the files given by the paths.'''
-                        
+        ''' Evaluates the files given by the paths.'''              
         # Read and format the groundtruth file.
         gt = self.format_groundtruth_file(gt_path)
         # Read and format the actual file.
@@ -136,10 +135,7 @@ class Evaluator:
         match words with a defined distance as well, adjust max_dist.
         """
 
-        # restorer = DocumentStructureRestorer(gt, actual, self.args.junk)
-        # return restorer.restore()
-
-        return align_strings(gt, actual, self.args.junk)
+        return doc_diff(actual, gt, self.args.junk)
 
     def format_actual_file(self, file_path):
         ''' Reads the given actual file. Override it if you have to do more 
@@ -235,7 +231,7 @@ class Evaluator:
     def visualize(self, result, path):
         ''' Serializes the given result to the related results file. '''
         with open(path, "w") as f:
-            f.write(visualize_ops(result)) 
+            f.write(visualize_diff_result(result)) 
 
     def serialize(self, values, path):
         ''' Serializes the given result to the related results file. '''

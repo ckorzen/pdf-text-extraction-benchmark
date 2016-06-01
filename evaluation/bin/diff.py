@@ -1,40 +1,27 @@
+from collections import Iterable
+from itertools import zip_longest
+
 def diff(actual, target):
-    """ Finds the differences between the two given lists of strings. The lists
-    may be nested arbitrarily to image any textual structures. 
-
-    >>> diff([["foo", "bar"], "baz"], ["foo", "bar", "baz"]).all_items
-    [(=, foo, [0, 0]), (=, bar, [1, 1]), (=, baz, [2, 2])]
-
-    >>> diff(["foo", "bar", "baz"], ["foo", ["bar"]]).all_items
-    [(=, foo, [0, 0]), (=, bar, [1, 1]), (-, baz, [2, 2])]
-
-    >>> diff([["foo", "baz"]], ["foo", "bar", "baz"]).all_items
-    [(=, foo, [0, 0]), (+, bar, [1, 1]), (=, baz, [1, 2])]
-    """
-
-    return diff_flat(flatten(actual), flatten(target))
-
-def diff_flat(actual, target):
-    """ Runs diff on the two given (flat!) lists. To flatten a list use the 
-    flatten() method below. """
-
-    result = DiffResult()
+    """ Compares the given lists of elements (strings or any iterables where 
+    the first element is a string) and outputs a sequence of operations to 
+    perform to transform 'actual' into 'target'. An operation is either a 
+    'Common'-object, that identifies common phrases (sequence of strings) 
+    between the two lists and 'Replace'-objects that identifies phrases to
+    replace, to insert or to delete."""
+    result = []
     _diff(actual, target, result)
     return result
 
-def _diff(actual, target, result, positions = [0, 0]):
-    """ Runs diff on the two given lists recursively. Appends the diff 
-    items to the given result object. position[0] represents the current 
-    position in 'actual' and positions[1] represents the current position in 
-    'target'."""
+def _diff(actual, target, result, pos1=0, pos2=0):
+    """ Compares the given lists of elements recursively and puts the computed
+    operation of this run into the result list. 'pos1' denotes the position in
+    'actual' and 'pos2' denotes the position in 'target'. Both values have no
+    special meaning but can be used for sorting purposes for example."""
 
-    # Make copy of positions.
-    positions = positions[:]
-
-    # Map the strings from actual to their positions in actual.
+    # Create an index of all positions of an string in 'actual'.
     actual_dict = dict()  
     for i, actual_item in enumerate(actual):
-        actual_dict.setdefault(actual_item.string, []).append(i)
+        actual_dict.setdefault(get_string(actual_item), []).append(i)
 
     # Find the largest substring common to 'actual' and 'target'.
     # 
@@ -61,7 +48,7 @@ def _diff(actual, target, result, positions = [0, 0]):
 
     for i, target_item in enumerate(target):
         _overlap = {}
-        for j in actual_dict.get(target_item.string, []):
+        for j in actual_dict.get(get_string(target_item), []):
             # now we are considering all values of i such that
             # actual[i] == target[j].
             _overlap[j] = (j and overlap.get(j - 1, 0)) + 1
@@ -75,153 +62,108 @@ def _diff(actual, target, result, positions = [0, 0]):
     if length == 0:
         # No common substring found. Create a diff replace.
         if actual or target:
-            result.append(DiffReplace(positions, actual, target))
-            positions[0] += len(actual)
-            positions[1] += len(target)
+            result.append(Replace(actual, target, pos1, pos2))
+            pos1 += len(actual)
+            pos2 += len(target)
     else:
         # A common substring was found. Call diff recursively for the 
         # substrings to the left and to the right
         actual_left = actual[ : actual_start]
         target_left = target[ : target_start]
-        positions = _diff(actual_left, target_left, result, positions)
+        pos1, pos2 = _diff(actual_left, target_left, result, pos1, pos2)
         
         actual_middle = actual[actual_start : actual_start + length]
         target_middle = target[target_start : target_start + length]
-        result.append(DiffCommon(positions, actual_middle, target_middle))
-        positions[0] += length
-        positions[1] += length
+        result.append(Common(actual_middle, target_middle, pos1, pos2))
+        pos1 += length
+        pos2 += length
         
         actual_right = actual[actual_start + length : ]
         target_right = target[target_start + length : ]
-        positions = _diff(actual_right, target_right, result, positions)
-    return positions
-
-# ______________________________________________________________________________
-
-def flatten(hierarchy):
-    """ Flattens the given hierarchy of strings to a flat list. Keeps track of 
-    the position in the hierarchy of each string."""
-    flattened = []
-    flatten_recursive(hierarchy, flattened)
-    return flattened
-
-def flatten_recursive(hierarchy, result, pos_stack=[]):
-    """ Flattens given (sub-)hierarchy and stores the result to given list."""
-
-    for i, element in enumerate(hierarchy):
-        new_pos_stack = pos_stack + [i]
-        
-        if isinstance(element, list):
-            flatten_recursive(element, result, new_pos_stack)
-        else:
-            result.append(DiffInputItem(element, len(result), new_pos_stack))
+        pos1, pos2 = _diff(actual_right, target_right, result, pos1, pos2)
+    return pos1, pos2
 
 # ==============================================================================
 
-class DiffInputItem:
-    def __init__(self, string, pos_flat, pos_stack): 
-        self.string = string
-        self.pos_flat = pos_flat
-        self.pos_stack = pos_stack
+def get_string(element):
+    """ Returns the string of the given element. This may be the element itself
+    (if it is of type 'str') or the first item within the element if the element
+    is an iterable and non-empty. Returns 'None' if the element is neither a 
+    string nor an iterbable and non-empty."""
+    string = None
+    if isinstance(element, str):
+        return element
+    elif isinstance(element, Iterable) and len(element) > 0:
+        return element[0]
 
-# ______________________________________________________________________________
+# ==============================================================================
 
-class DiffCommon:
-    def __init__(self, positions, actual, target):
-        self.items = []
-        self.positions = positions
-        for i, (a, b) in enumerate(zip(actual, target)):
-            item_positions = [x + i for x in positions]
-            self.items.append(DiffCommonItem(item_positions, a, b))
+class Diff:
+    """ The super class for a diff phrase (sequence of diff items). """
 
-class DiffCommonItem:
-    def __init__(self, positions, source_actual, source_target):
-        self.positions = positions
-        self.source_actual = source_actual
-        self.source_target = source_target
+    def __init__(self, sign, items_actual=[], items_target=[], pos_actual=[], 
+            pos_target=[]):
+        """ Creates a new diff phrase. """
+        self.sign = sign
+
+        self.items_actual = []
+        for i, item in enumerate(items_actual):
+            if not isinstance(item, DiffItem):
+                item = DiffItem(self, item, pos_actual + i, pos_target)
+            if self.items_actual:
+                prev_item = self.items_actual[-1]
+                prev_item.next = item 
+                item.prev = prev_item
+            self.items_actual.append(item) 
+
+        self.items_target = []
+        for i, item in enumerate(items_target):
+            if not isinstance(item, DiffItem):
+                item = DiffItem(self, item, pos_actual, pos_target + i)
+            if self.items_target:
+                prev_item = self.items_target[-1]
+                prev_item.next = item 
+                item.prev = prev_item
+            self.items_target.append(item)
 
     def __str__(self):
-        return "(=, %s, %s)" % (self.source_target.string, self.positions)
+        return "(%s %s, %s)" % (self.sign, self.items_actual, self.items_target)
+
+    def __repr__(self):
+        return self.__str__()
+
+class DiffItem:
+    """ The super class for a diff item. """
+
+    def __init__(self, parent, item, pos_actual, pos_target):
+        """ Creates a new diff item. """
+        self.pos = [pos_actual, pos_target]
+        self.item = item
+        self.parent = parent
+        self.prev = None
+        self.next = None
+
+    @property
+    def string(self):
+        """ Returns the string of this diff item. """
+        return get_string(self.item)
+
+    def __str__(self):
+        return str(self.item)
 
     def __repr__(self):
         return self.__str__()
 
 # ______________________________________________________________________________
 
-class DiffReplace:
-    def __init__(self, positions, actual, target):
-        self.positions = positions
-        self.delete = DiffDelete(positions, actual) if actual else None
-        self.insert = DiffInsert(positions, target) if target else None
+class Common(Diff):
+    """ A phrase of diff common items. """ 
+    def __init__(self, items_actual, items_target, pos_actual, pos_target):
+        super(Common, self).__init__("=", items_actual, items_target, 
+            pos_actual, pos_target)
 
-# ______________________________________________________________________________
-
-class DiffInsert:
-    def __init__(self, positions, target):
-        self.items = []
-        self.positions = positions
-        for i, item in enumerate(target):
-            item_positions = [positions[0], positions[1] + i]
-            self.items.append(DiffInsertItem(item_positions, item))
-
-class DiffInsertItem:
-    def __init__(self, positions, source):
-        self.positions = positions
-        self.source = source
-   
-    def __str__(self):
-        return "(+, %s, %s)" % (self.source.string, self.positions)
-
-    def __repr__(self):
-        return self.__str__()
-
-# ______________________________________________________________________________
-
-class DiffDelete:
-    def __init__(self, positions, actual):
-        self.items = []
-        self.positions = positions
-        for i, item in enumerate(actual):
-            item_positions = [positions[0] + i, positions[1]]
-            self.items.append(DiffDeleteItem(item_positions, item))
-
-class DiffDeleteItem:
-    def __init__(self, positions, source):
-        self.positions = positions
-        self.source = source
-
-    def __str__(self):
-        return "(-, %s, %s)" % (self.source.string, self.positions)
-
-    def __repr__(self):
-        return self.__str__()
-
-# ______________________________________________________________________________
-
-class DiffResult:
-    def __init__(self):
-        self.inserts, self.insert_items = [], []
-        self.deletes, self.delete_items = [], []
-        self.commons, self.common_items = [], []
-        self.all, self.all_items = [], []
-        self.commons_and_replaces = []
-
-    def append(self, item):
-        if isinstance(item, DiffCommon):
-            self.commons_and_replaces.append(item)
-            self.commons.append(item)
-            self.common_items.extend(item.items)
-            self.all.append(item)
-            self.all_items.extend(item.items)
-        elif isinstance(item, DiffReplace):
-            self.commons_and_replaces.append(item)
-            if item.delete:
-                self.deletes.append(item.delete)
-                self.delete_items.extend(item.delete.items)
-                self.all.append(item.delete)
-                self.all_items.extend(item.delete.items)
-            if item.insert:
-                self.inserts.append(item.insert)
-                self.insert_items.extend(item.insert.items)
-                self.all.append(item.insert)
-                self.all_items.extend(item.insert.items)
+class Replace(Diff):
+    """ A phrase of diff replace items. """ 
+    def __init__(self, items_actual, items_target, pos_actual, pos_target):
+        super(Replace, self).__init__("/", items_actual, items_target, 
+            pos_actual, pos_target)

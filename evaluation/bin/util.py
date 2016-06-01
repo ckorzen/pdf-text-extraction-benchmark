@@ -195,16 +195,25 @@ def compute_distance_similarity(diff_result, junk=[]):
     
     return (distance, round(similarity, 4))
     
-def ignore(replace_item, junk=[]):
-    ignore = False
-    if replace_item:
-        if replace_item.delete:
-            for delete_item in replace_item.delete.items:
-                string = delete_item.source.string
-                ignore = ignore or any(re.search(regex, string) for regex in junk)
-        if replace_item.insert:
-            for insert_item in replace_item.insert.items:
-                string = insert_item.source.string
-                ignore = ignore or any(re.search(regex, string) for regex in junk)
+def ignore(item, junk=[]):
+    if item:
+        for phrase in item.phrases:
+            if ignore_phrase(phrase, junk):
+                return True
 
-    return ignore
+    return False
+
+def ignore_phrase(phrase, junk=[]):
+    if phrase:
+        for target_item in phrase.items_target:
+            if ignore_item(target_item, junk):
+                return True
+
+    return False
+
+def ignore_item(item, junk=[]):
+    if item:
+        if any(re.search(regex, item.string) for regex in junk):
+            return True
+
+    return False
