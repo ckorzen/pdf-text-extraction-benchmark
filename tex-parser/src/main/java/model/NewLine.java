@@ -1,5 +1,7 @@
 package model;
 
+import parse.Token;
+
 /**
  * Represents a newline ("\n").
  *
@@ -9,12 +11,12 @@ package model;
 public class NewLine extends Text {
   /** The serial id. */
   protected static final long serialVersionUID = -3868607654772993394L;
-
+  
   /**
    * Creates a new object of NewLine.
    */
-  public NewLine() {
-    super("[newline]");
+  public NewLine(Token token) {
+    super("[newline]", token);
   }
   
   @Override

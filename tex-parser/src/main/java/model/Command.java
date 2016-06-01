@@ -3,6 +3,8 @@ package model;
 import java.util.ArrayList;
 import java.util.List;
 
+import parse.Token;
+
 /**
  * The class representing a latex command like "\foobar{foo}". A command 
  * consists of a command name ("\foobar") and an arbitrary number of groups
@@ -42,7 +44,8 @@ public class Command extends Element {
   /**
    * Creates a new command with the given name.
    */
-  public Command(String name) {
+  public Command(String name, Token token) {
+    super(token);
     this.groups = new ArrayList<>();
     this.options = new ArrayList<>();
     this.name = name;
@@ -55,6 +58,10 @@ public class Command extends Element {
    */
   public void addOption(Option option) {
     this.options.add(option);
+    this.beginLine = Math.min(this.beginLine, option.beginLine);
+    this.endLine = Math.max(this.endLine, option.endLine);
+    this.beginColumn = Math.min(this.beginColumn, option.beginColumn);
+    this.endColumn = Math.max(this.endColumn, option.endColumn);
   }
   
   /**
@@ -62,6 +69,10 @@ public class Command extends Element {
    */
   public void addGroup(Group group) {
     this.groups.add(group);
+    this.beginLine = Math.min(this.beginLine, group.beginLine);
+    this.endLine = Math.max(this.endLine, group.endLine);
+    this.beginColumn = Math.min(this.beginColumn, group.beginColumn);
+    this.endColumn = Math.max(this.endColumn, group.endColumn);
   }
  
   /**
@@ -69,6 +80,20 @@ public class Command extends Element {
    */
   public List<Option> getOptions() {
     return this.options;
+  }
+  
+  /**
+   * Returns true, if this command contains at least one option.
+   */
+  public boolean hasOptions() {
+    return hasOptions(1);
+  }
+  
+  /**
+   * Returns true, if this command contains at least i options.
+   */
+  public boolean hasOptions(int i) {
+    return this.groups.size() >= i;
   }
   
   /**

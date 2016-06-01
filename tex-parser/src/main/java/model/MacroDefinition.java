@@ -1,5 +1,7 @@
 package model;
 
+import parse.Token;
+
 /**
  * A command that represnets a macro definition.
  *
@@ -13,8 +15,8 @@ public class MacroDefinition extends Command {
   /**
    * Creates a new macro definition.
    */
-  public MacroDefinition(String name) {
-    super(name);
+  public MacroDefinition(String name, Token token) {
+    super(name, token);
   }
   
   /**

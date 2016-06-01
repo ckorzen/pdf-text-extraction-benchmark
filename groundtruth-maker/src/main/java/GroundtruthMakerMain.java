@@ -21,11 +21,17 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
+import de.freiburg.iif.collection.CollectionUtils;
+import de.freiburg.iif.model.Rectangle;
 import de.freiburg.iif.path.PathUtils;
 import de.freiburg.iif.text.StringUtils;
 import interpret.TeXHierarchy;
 import interpret.TeXInterpreter;
 import model.Document;
+import model.PdfParagraph;
+import model.TeXFile;
+import model.TexParagraph;
+import paraboxes.ParagraphsIdentifier;
 import parse.TeXParser;
 import preprocess.TeXPreprocessor;
 
@@ -79,6 +85,12 @@ public class GroundtruthMakerMain {
         .desc("The feature to output.")
         .build());
 
+    // Define an option for the features to output.
+    options.addOption(Option.builder()
+        .longOpt("boundingboxes")
+        .desc("Outputs the bounding boxes of paragraphs.")
+        .build());
+
     // Define an option to display the help.
     options.addOption(Option.builder("h")
         .longOpt("help")
@@ -124,6 +136,8 @@ public class GroundtruthMakerMain {
     if (cmd.hasOption("s")) {
       main.outputSuffix = cmd.getOptionValue("s");
     }
+
+    main.isParaBoxesMode = cmd.hasOption("boundingboxes");
 
     main.process();
   }
@@ -191,6 +205,11 @@ public class GroundtruthMakerMain {
    * The default features to extract.
    */
   protected List<String> defaultFeatures;
+
+  /**
+   * Flag that indicates if we have to output the bounding boxes of paragraphs.
+   */
+  protected boolean isParaBoxesMode;
 
   /**
    * Some predefined feature profiles.
@@ -296,8 +315,30 @@ public class GroundtruthMakerMain {
    */
   protected void processTexFiles() {
     for (Path file : this.inputFiles) {
-      processTexFile(file);
+      if (isParaBoxesMode) {
+        processTexFileParaBoxes(file);
+      } else {
+        processTexFile(file);
+      }
     }
+  }
+
+  /**
+   * Obtains the bounding boxes of paragraphes in given tex file.
+   */
+  protected void processTexFileParaBoxes(Path file) {
+    // Obtain the target file.
+    Path target = getTargetFile(file);
+
+    // Parse the resolved file.
+    try {
+      ParagraphsIdentifier identifier = new ParagraphsIdentifier(file);
+      serializeBoundingBoxes(identifier.identify(), target);
+    } catch (Exception e) {
+      System.out.println("Error on processing: " + e.getMessage());
+      e.printStackTrace();
+    }
+
   }
 
   /**
@@ -357,7 +398,7 @@ public class GroundtruthMakerMain {
     InputStream input = Files.newInputStream(texFile);
 
     TeXParser parser = new TeXParser(input);
-    Document document = parser.parse();    
+    Document document = parser.parse();
     input.close();
 
     return document;
@@ -446,6 +487,33 @@ public class GroundtruthMakerMain {
     }
     w.write(text);
     w.write("\n\n");
+  }
+
+  /**
+   * (4) Serializes the selected features to file.
+   */
+  protected void serializeBoundingBoxes(TeXFile texFile, Path target)
+    throws IOException {
+    // Create the file, if it doesn't exist yet.
+    if (!Files.exists(target)) {
+      Files.createDirectories(target.getParent());
+      Files.createFile(target);
+    }
+
+    BufferedWriter w = Files.newBufferedWriter(target, StandardCharsets.UTF_8);
+    w.write(String.format("%s\t%s\t%s\t%s\t%s", "page", "minX", "minY", "maxX",
+        "maxY"));
+    w.newLine();
+    for (TexParagraph paragraph : texFile.getTeXParagraphs()) {
+      for (PdfParagraph p : paragraph.getPdfParagraphs()) {
+        Rectangle boundingBox = p.getRectangle();
+        w.write(String.format("%d\t%f\t%f\t%f\t%f", p.getPdfPageNumber(),
+            boundingBox.getMinX(), boundingBox.getMinY(),
+            boundingBox.getMaxX(), boundingBox.getMaxY()));
+        w.newLine();
+      }
+    }
+    w.close();
   }
 
   // ___________________________________________________________________________

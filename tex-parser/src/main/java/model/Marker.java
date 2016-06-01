@@ -1,5 +1,7 @@
 package model;
 
+import parse.Token;
+
 /**
  * A marker in a tex document (e.g. "#1" in a macro).
  *
@@ -19,7 +21,8 @@ public class Marker extends Element {
   /**
    * Creates a new Marker with the given id. 
    */
-  public Marker(int id) {
+  public Marker(int id, Token token) {
+    super(token);
     this.id = id;
   }
   

@@ -32,6 +32,7 @@ public class Group extends Element implements Iterable<Element> {
    * Creates a new group.
    */
   public Group() {
+    super(null);
     this.elements = new ConstantLookupList<>();
   }
   
@@ -39,7 +40,7 @@ public class Group extends Element implements Iterable<Element> {
    * Creates a new group containing the given elements.
    */
   public Group(Element... elements) {
-    this.elements = new ConstantLookupList<>();
+    this();
     for (Element element : elements) {
       addElement(element);
     }
@@ -51,6 +52,8 @@ public class Group extends Element implements Iterable<Element> {
   public void addElement(Element element) {
     if (element != null) {
       this.elements.add(element);
+      this.beginLine = Math.min(this.beginLine, element.beginLine);
+      this.endLine = Math.max(this.endLine, element.endLine);
     }
   }
     

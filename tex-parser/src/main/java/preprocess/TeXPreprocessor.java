@@ -226,7 +226,11 @@ public class TeXPreprocessor extends TeXParser {
         resolveElement(element, result);  
       }
       // Append a whitespace after a macro.
-      result.addElement(new Whitespace());
+      result.addElement(new Whitespace(
+          command.getBeginLineNumber(), 
+          command.getEndLineNumber(),
+          command.getBeginColumnNumber(),
+          command.getEndColumnNumber()));
     } else {
       // Command is not a macro, resolve its groups.
       for (Group group : command.getGroups()) {
@@ -275,7 +279,11 @@ public class TeXPreprocessor extends TeXParser {
     try {
       // Check, if we have to introduce a whitespace.
       if (numConsecutiveWhitespaces > 0) {
-        writer.write(new Whitespace().toString());
+        writer.write(new Whitespace(
+            element.getBeginLineNumber(), 
+            element.getEndLineNumber(),
+            element.getBeginColumnNumber(),
+            element.getEndColumnNumber()).toString());
       }
       // Check, if we have to introduce a paragraph.
       if (numConsecutiveNewlines == 1) {

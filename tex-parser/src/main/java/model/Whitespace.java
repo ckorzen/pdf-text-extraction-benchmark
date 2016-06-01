@@ -1,5 +1,7 @@
 package model;
 
+import parse.Token;
+
 /**
  * Represents a whitespace (" ").
  *
@@ -13,7 +15,15 @@ public class Whitespace extends Text {
   /**
    * Creates a new object of Whitespace.
    */
-  public Whitespace() {
-    super(" ");
+  public Whitespace(Token token) {
+    super(" ", token);
+  }
+
+  /**
+   * Creates a new object of Whitespace.
+   */
+  public Whitespace(int beginLine, int endLine, int beginColumn,
+      int endColumn) {
+    super(" ", beginLine, endLine, beginColumn, endColumn);
   }
 }

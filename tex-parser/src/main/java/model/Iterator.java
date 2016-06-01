@@ -47,7 +47,10 @@ public class Iterator<T> implements java.util.Iterator<T> {
 
   @Override
   public T next() {
-    return elements.get(currentIndex++);
+    if (currentIndex < elements.size()) {
+      return elements.get(currentIndex++);
+    }
+    return null;
   }
 
   /**
@@ -82,7 +85,20 @@ public class Iterator<T> implements java.util.Iterator<T> {
    * Returns the next element without incrementing the position cursor.
    */
   public T peek() {
-    return elements.get(currentIndex);
+    if (currentIndex < elements.size()) {
+      return elements.get(currentIndex);
+    }
+    return null;
+  }
+  
+  /**
+   * Returns the next element without incrementing the position cursor.
+   */
+  public T previous() {
+    if (currentIndex > 1) {
+      return elements.get(currentIndex - 2);
+    }
+    return null;
   }
 
   @Override

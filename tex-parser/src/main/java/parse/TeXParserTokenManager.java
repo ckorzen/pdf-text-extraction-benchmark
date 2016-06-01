@@ -1789,6 +1789,9 @@ static final long[] jjtoToken = {
 static final long[] jjtoSkip = {
    0xeL, 
 };
+static final long[] jjtoSpecial = {
+   0x4L, 
+};
 protected SimpleCharStream input_stream;
 private final int[] jjrounds = new int[104];
 private final int[] jjstateSet = new int[208];
@@ -1876,6 +1879,7 @@ int jjmatchedKind;
 /** Get the next Token. */
 public Token getNextToken() 
 {
+  Token specialToken = null;
   Token matchedToken;
   int curPos = 0;
 
@@ -1890,6 +1894,7 @@ public Token getNextToken()
    {
       jjmatchedKind = 0;
       matchedToken = jjFillToken();
+      matchedToken.specialToken = specialToken;
       return matchedToken;
    }
    image = jjimage;
@@ -1933,6 +1938,7 @@ public Token getNextToken()
         if ((jjtoToken[jjmatchedKind >> 6] & (1L << (jjmatchedKind & 077))) != 0L)
         {
            matchedToken = jjFillToken();
+           matchedToken.specialToken = specialToken;
            TokenLexicalActions(matchedToken);
        if (jjnewLexState[jjmatchedKind] != -1)
          curLexState = jjnewLexState[jjmatchedKind];
@@ -1940,7 +1946,20 @@ public Token getNextToken()
         }
         else
         {
-           SkipLexicalActions(null);
+           if ((jjtoSpecial[jjmatchedKind >> 6] & (1L << (jjmatchedKind & 077))) != 0L)
+           {
+              matchedToken = jjFillToken();
+              if (specialToken == null)
+                 specialToken = matchedToken;
+              else
+              {
+                 matchedToken.specialToken = specialToken;
+                 specialToken = (specialToken.next = matchedToken);
+              }
+              SkipLexicalActions(matchedToken);
+           }
+           else
+              SkipLexicalActions(null);
          if (jjnewLexState[jjmatchedKind] != -1)
            curLexState = jjnewLexState[jjmatchedKind];
            continue EOFLoop;
