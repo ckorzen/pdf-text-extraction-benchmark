@@ -14,6 +14,7 @@ import model.Group;
 import model.NewLine;
 import model.Option;
 import model.TexParagraph;
+import model.Whitespace;
 import model.TeXFile;
 import parse.TeXParser;
 
@@ -68,8 +69,117 @@ public class TeXParagraphsIdentifier {
   protected List<TexParagraph> processDocument(Document document) {
     affirm(document != null, "No document given.");
     
+//    List<TexParagraph> paragraphs = new ArrayList<>();
+//    processElements(document.elements, paragraphs);
+//    return paragraphs;
+    return processElements(document.elements);
+  }
+  
+  /**
+   * Identifies paragraphs in the given list of elements.
+   */
+  protected List<TexParagraph> processElements(List<Element> elements) {
+    affirm(elements != null, "No elements given.");
+    
     List<TexParagraph> paragraphs = new ArrayList<>();
-    processElements(document.elements, paragraphs);
+    TexParagraph paragraph = new TexParagraph();
+    
+    Element prevElement = null;
+    for (Element element : elements) {
+      if (ignoreElement(element)) {
+        continue;
+      }
+      
+      if (element instanceof Group) {
+        List<Element> groupElements = ((Group) element).elements;
+        List<TexParagraph> groupParagraphs = processElements(groupElements);
+        if (groupParagraphs.size() == 0) {
+          continue;
+        } else if (groupParagraphs.size() == 1) {
+          paragraph.extend(groupParagraphs.get(0));
+        } else {
+          if (paragraph.getNumTexElements() > 0) {
+            paragraphs.add(paragraph);
+          }
+          paragraphs.addAll(groupParagraphs);
+          paragraph = new TexParagraph();
+        }
+      } else if (element instanceof Option) {
+        List<Element> optionElements = ((Option) element).elements;
+        List<TexParagraph> optionParagraphs = processElements(optionElements);
+        if (optionParagraphs.size() == 0) {
+          continue;
+        } else if (optionParagraphs.size() == 1) {
+          paragraph.extend(optionParagraphs.get(0));
+        } else {
+          if (paragraph.getNumTexElements() > 0) {
+            paragraphs.add(paragraph);
+          }
+          paragraphs.addAll(optionParagraphs);
+          paragraph = new TexParagraph();
+        }
+      } else {
+        ParagraphSplitType type = computeParaSplitType(prevElement, element);
+        
+        if (type != null) {
+          // 'type' is not null, i.e. there is a paragraph split.
+          // Add the previous paragraph to result, if it is not empty and 
+          // create a new one.
+          if (paragraph.getNumTexElements() > 0) {
+            paragraphs.add(paragraph);
+          }
+          paragraph = new TexParagraph();
+        }
+
+        // Add the element to the paragraph, if the type allows it.
+        if (type != ParagraphSplitType.EXCLUSIVE_NEXT_ELEMENT) {
+          paragraph.addTexElement(element);
+          
+          // Also process all options and groups of a command.
+          if (element instanceof Command) {
+            Command command = (Command) element;
+            if (command.hasOptions()) {
+              for (Option option : command.getOptions()) {
+                List<TexParagraph> optionParas = processElements(option.elements);
+                if (optionParas.size() == 0) {
+                  continue;
+                } else if (optionParas.size() == 1) {
+                  paragraph.extend(optionParas.get(0));
+                } else {
+                  if (paragraph.getNumTexElements() > 0) {
+                    paragraphs.add(paragraph);
+                  }
+                  paragraphs.addAll(optionParas);
+                  paragraph = new TexParagraph();
+                }
+              }
+            }
+            if (command.hasGroups()) {
+              for (Group group : command.getGroups()) {
+                List<TexParagraph> groupParas = processElements(group.elements);
+                if (groupParas.size() == 0) {
+                  continue;
+                } else if (groupParas.size() == 1) {
+                  paragraph.extend(groupParas.get(0));
+                } else {
+                  if (paragraph.getNumTexElements() > 0) {
+                    paragraphs.add(paragraph);
+                  }
+                  paragraphs.addAll(groupParas);
+                  paragraph = new TexParagraph();
+                }
+              }
+            }
+          }
+        }
+      }
+      prevElement = element; 
+    }
+    
+    if (paragraph.getNumTexElements() > 0) {
+      paragraphs.add(paragraph);
+    }
+    
     return paragraphs;
   }
 
@@ -84,7 +194,8 @@ public class TeXParagraphsIdentifier {
 
     Element prevElement = null;
         
-    for (Element element : elements) {      
+    for (Element element : elements) { 
+      System.out.println(element);
       if (ignoreElement(element)) {
         continue;
       }
@@ -161,7 +272,7 @@ public class TeXParagraphsIdentifier {
       result.add(paragraph);
     }
   }
-
+  
   /**
    * Computes the type of paragraph split between the two given elements.
    * Returns null if there is no paragraph split.
@@ -223,7 +334,19 @@ public class TeXParagraphsIdentifier {
    * Returns true if the given element should be ignored.
    */
   protected boolean ignoreElement(Element element) {
-    return element instanceof NewLine;
+    if (element == null) {
+      return true;
+    }
+    
+    if (element instanceof NewLine || element instanceof Whitespace) {
+      return true;
+    }
+    
+    if (element.toString().startsWith("\\label")) {
+      return true;
+    }
+    
+    return false;
   }
   
   /**

@@ -1,7 +1,11 @@
 package model;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+
+import javax.print.attribute.HashAttributeSet;
 
 /**
  * A paragraph in a tex file.
@@ -11,10 +15,13 @@ import java.util.List;
 public class TexParagraph {
   protected List<Element> texElements;
   protected List<PdfParagraph> pdfParagraphs;
-  protected int texStartLine;
-  protected int texEndLine;
-  protected int texStartColumn;
-  protected int texEndColumn;
+  protected HashSet<Integer> texLineNumsSet;
+  protected List<Integer> texLineNums;
+  protected boolean needTexLineNumbersUpdate;
+//  protected int texStartLine;
+//  protected int texEndLine;
+//  protected int texStartColumn;
+//  protected int texEndColumn;
   
   /**
    * Creates a new TexParagraph.
@@ -22,10 +29,20 @@ public class TexParagraph {
   public TexParagraph() {
     this.texElements = new ArrayList<>();
     this.pdfParagraphs = new ArrayList<>();
-    this.texStartLine = Integer.MAX_VALUE;
-    this.texEndLine = Integer.MIN_VALUE;
-    this.texStartColumn = Integer.MAX_VALUE;
-    this.texEndColumn = Integer.MIN_VALUE;
+    this.texLineNumsSet = new HashSet<>();
+    this.texLineNums = new ArrayList<>();
+//    this.texStartLine = Integer.MAX_VALUE;
+//    this.texEndLine = Integer.MIN_VALUE;
+//    this.texStartColumn = Integer.MAX_VALUE;
+//    this.texEndColumn = Integer.MIN_VALUE;
+  }
+  
+  public void extend(TexParagraph paragraph) {
+    if (paragraph != null && paragraph.getTexElements() != null) {
+      for (Element element : paragraph.getTexElements()) {
+        addTexElement(element);
+      }
+    }
   }
   
   /**
@@ -33,12 +50,29 @@ public class TexParagraph {
    */
   public void addTexElement(Element element) {
     texElements.add(element);
-    texStartLine = Math.min(texStartLine, element.getBeginLineNumber());
-    texStartColumn = Math.min(texStartColumn, element.getBeginColumnNumber());
-    texEndLine = Math.max(texEndLine, element.getEndLineNumber());
-    texEndColumn = Math.max(texEndColumn, element.getEndColumnNumber());
+    texLineNumsSet.add(element.getBeginLineNumber());
+    texLineNumsSet.add(element.getEndLineNumber());
+    needTexLineNumbersUpdate = true;
+//    texStartLine = Math.min(texStartLine, element.getBeginLineNumber());
+//    texStartColumn = Math.min(texStartColumn, element.getBeginColumnNumber());
+//    texEndLine = Math.max(texEndLine, element.getEndLineNumber());
+//    texEndColumn = Math.max(texEndColumn, element.getEndColumnNumber());
   }
 
+  public List<Integer> getTexLineNumbers() {
+    if (this.needTexLineNumbersUpdate) {
+      this.texLineNums = computeTexLineNumbers();
+      this.needTexLineNumbersUpdate = false;
+    }
+    return this.texLineNums;
+  }
+  
+  public List<Integer> computeTexLineNumbers() {
+    List<Integer> texLineNums = new ArrayList<>(texLineNumsSet);
+    Collections.sort(texLineNums);
+    return texLineNums;
+  }
+  
   // ---------------------------------------------------------------------------
   
   /**
@@ -75,29 +109,37 @@ public class TexParagraph {
    * Returns the start line of this paragraph in tex file.
    */
   public int getTexStartLine() {
-    return texStartLine;
+    List<Integer> lineNums = getTexLineNumbers();
+    if (!lineNums.isEmpty()) {
+      return lineNums.get(0);
+    }
+    return -1;
   }
 
   /**
    * Returns the end line of this paragraph in tex file.
    */
   public int getTexEndLine() {
-    return texEndLine;
+    List<Integer> lineNums = getTexLineNumbers();
+    if (!lineNums.isEmpty()) {
+      return lineNums.get(lineNums.size() - 1);
+    }
+    return -1;
   }
-
-  /**
-   * Returns the start column of this paragraph in tex file.
-   */
-  public int getTexStartColumn() {
-    return texStartColumn;
-  }
-
-  /**
-   * Returns the end column of this paragraph in tex file.
-   */
-  public int getTexEndColumn() {
-    return texEndColumn;
-  }
+//
+//  /**
+//   * Returns the start column of this paragraph in tex file.
+//   */
+//  public int getTexStartColumn() {
+//    return texStartColumn;
+//  }
+//
+//  /**
+//   * Returns the end column of this paragraph in tex file.
+//   */
+//  public int getTexEndColumn() {
+//    return texEndColumn;
+//  }
 
   /**
    * Returns the elements of this paragraph in tex file.
@@ -108,6 +150,6 @@ public class TexParagraph {
   
   @Override
   public String toString() {
-    return "[" + texStartLine + ", " + texEndLine + "]";
+    return getTexLineNumbers().toString();
   }
 }

@@ -52,89 +52,15 @@ public class PdfParagraphsIdentifier {
   public void identify() throws IOException, TimeoutException {    
     identifyPdfParagraphs();
   }
-  
-//  /**
-//   * Identifies the lines in the pdf related to the given tex file.
-//   */
-//  public void identifyPdfLines() throws IOException, TimeoutException {    
-//    LinkedList<PdfLine> lines = new LinkedList<>();
-//    HashSet<PdfLine> alreadySeenLines = new HashSet<>();
-//    
-//    // Iterate through the lines of tex file and obtain their bounding boxes in
-//    // pdf file.
-//    for (int i = 1; i <= this.texFile.getNumLines(); i++) {
-//      // Get the bounding boxes of line.
-//      List<PdfLine> pdfLines = this.lbi.getBoundingBoxesOfLine(i, 0);
-//                  
-//      for (PdfLine line : pdfLines) {
-//        // Add the line to list if it is still unknown.
-//        if (!alreadySeenLines.contains(line)) {
-//          ListIterator<PdfLine> linesItr = lines.listIterator(lines.size());
-//          
-//          while (linesItr.hasPrevious()) {
-//            int order = obtainReadingOrder(linesItr.previous(), line);
-//            // Check, if the lines are in correct order.
-//            if (order < 1) {
-//              linesItr.next();
-//              break;
-//            }
-//          }
-//          linesItr.add(line);
-//          alreadySeenLines.add(line);
-//        }
-//      }
-//    }
-//    
-//    this.texFile.setPdfLines(lines);
-//  }
-  
+    
   protected void identifyPdfParagraphs() throws IOException, TimeoutException {
     LineBoundingBoxesIdentifier lbi = new LineBoundingBoxesIdentifier(texFile);
-    HashMap<PdfLine, PdfLine> alreadySeenLines = new HashMap<>();
-        //      
-//    LinkedList<PdfLine> paraLines2 = new LinkedList<>();
-//    for (TexParagraph paragraph : this.texFile.getTeXParagraphs()) {
-//      int startLine = paragraph.getTexStartLine();
-//      int endLine = paragraph.getTexEndLine();
-//      
-//      for (int i = startLine; i <= endLine; i++) {
-//        List<PdfLine> pdfLines = lbi.getBoundingBoxesOfLine(i, 0);
-//        for (PdfLine line : pdfLines) {
-//          if (!alreadySeenLines.containsKey(line)) {
-//            paraLines2.add(line);
-//            alreadySeenLines.put(line, line);
-//          } else {
-//            if (paragraphStarts.contains(line.getTexLineNumber())) {
-//              alreadySeenLines.get(line).setTexLineNumber(line.getTexLineNumber());
-//            }
-//          }
-//        }
-//      }
-//    }
-//      
-//    LinkedList<PdfLine> paraLines = new LinkedList<>();
-//    
-//    for (PdfLine line : paraLines2) {
-//      ListIterator<PdfLine> linesItr = paraLines.listIterator(paraLines.size());
-//      while (linesItr.hasPrevious()) {
-//        int order = obtainReadingOrder(linesItr.previous(), line);
-//        // Check, if the lines are in correct order.
-//        if (order < 1) {
-//          linesItr.next();
-//          break;
-//        }
-//      }
-//      linesItr.add(line);
-//    }
-    
+    HashMap<PdfLine, PdfLine> alreadySeenLines = new HashMap<>();    
       
-    for (TexParagraph paragraph : this.texFile.getTeXParagraphs()) {
-      int startLine = paragraph.getTexStartLine();
-      int endLine = paragraph.getTexEndLine();
-      
+    for (TexParagraph paragraph : this.texFile.getTeXParagraphs()) {      
       LinkedList<PdfLine> paraLines = new LinkedList<>();
       
-      for (int i = startLine; i <= endLine; i++) {
+      for (int i : paragraph.getTexLineNumbers()) {
         List<PdfLine> pdfLines = lbi.getBoundingBoxesOfLine(i, 0);
                        
         for (PdfLine line : pdfLines) {
