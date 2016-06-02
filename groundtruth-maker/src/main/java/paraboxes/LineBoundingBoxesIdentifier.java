@@ -192,6 +192,7 @@ public class LineBoundingBoxesIdentifier {
 
         pageBoundingBoxes.add(boundingBox);
       }
+      pdDocument.close();
     } catch (IOException e) {
       throw new IllegalStateException("Couldn't load the pdf file.", e);
     }
