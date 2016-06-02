@@ -7,6 +7,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,9 +24,9 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle;
 
 import de.freiburg.iif.model.Rectangle;
 import de.freiburg.iif.model.simple.SimpleRectangle;
-import model.TexParagraph;
 import model.PdfLine;
 import model.TeXFile;
+import model.TexParagraph;
 import util.PdfLaTeX;
 import util.SyncTeX;
 
@@ -43,7 +44,7 @@ public class LineBoundingBoxesIdentifier {
 
   protected Map<Integer, List<PdfLine>> pdfLines = new HashMap<>();
   protected Map<PdfLine, PdfLine> pdfLinesSet = new HashMap<>();
-  
+
   protected static final String ADDENDUM = "\\nolinebreak\\hspace{-5pt}i";
   // protected static final String ADDENDUM = " x";
 
@@ -63,7 +64,7 @@ public class LineBoundingBoxesIdentifier {
     this.pageBoundingBoxes = loadPageBoundingBoxes(texFile);
     affirm(this.pageBoundingBoxes != null, "No page bounding boxes given.");
     affirm(this.pageBoundingBoxes.size() > 1, "No page bounding boxes given.");
-    
+
     this.texFile = texFile;
   }
 
@@ -99,10 +100,10 @@ public class LineBoundingBoxesIdentifier {
         }
       }
     }
-    
+
     for (int i = 0; i < texLines.size(); i++) {
       String line = texLines.get(i);
-      
+
       if (line != null && line.startsWith("\\label")) {
         texLines.set(i, "%" + line);
       }
@@ -111,7 +112,8 @@ public class LineBoundingBoxesIdentifier {
     // Write the enriched tex file.
     Path enriched = getEnrichedTexFile(texFile);
     try {
-      BufferedWriter writer = Files.newBufferedWriter(enriched);
+      BufferedWriter writer =
+          Files.newBufferedWriter(enriched, StandardCharsets.UTF_8);
       try {
         for (int i = 1; i < texLines.size(); i++) { // 1-based.
           writer.write(texLines.get(i));
@@ -140,7 +142,8 @@ public class LineBoundingBoxesIdentifier {
 
     List<String> texLines = new ArrayList<>();
     try {
-      BufferedReader reader = Files.newBufferedReader(texFile);
+      BufferedReader reader =
+          Files.newBufferedReader(texFile, StandardCharsets.UTF_8);
 
       try {
         // Add dummy to have 1-based indices.
@@ -208,7 +211,7 @@ public class LineBoundingBoxesIdentifier {
   public Rectangle getBoundingBoxOfPage(int pageNum) {
     return this.pageBoundingBoxes.get(pageNum);
   }
-    
+
   /**
    * Parses the synctex output for given line to get the coordinates of the
    * line.
@@ -224,7 +227,7 @@ public class LineBoundingBoxesIdentifier {
     affirm(status == 0, "Error on synctex call: " + synctex.getErrorString());
 
     List<PdfLine> pairs = parseStream(lineNum, synctex.getStream());
-    
+
     synctex.close();
 
     return pairs;
