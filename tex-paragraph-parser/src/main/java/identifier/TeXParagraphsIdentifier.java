@@ -109,7 +109,7 @@ public class TeXParagraphsIdentifier {
    */
   protected Document parseTexFile(TeXFile texFile) throws IOException,
     ParseException {
-    return parseTexFile(texFile.getPath());
+    return parseTexFile(texFile.getTmpPath());
   }
 
   /**

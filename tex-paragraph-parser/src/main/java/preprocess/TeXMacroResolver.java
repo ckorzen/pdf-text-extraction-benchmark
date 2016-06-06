@@ -86,7 +86,9 @@ public class TeXMacroResolver extends TeXParser {
   /**
    * Handles the given element from parsed tex document.
    */
-  protected void handleElement(Element element, BufferedWriter writer) {    
+  protected void handleElement(Element element, BufferedWriter writer) {  
+    System.out.println(element);
+    
     if (element instanceof MacroDefinition) {
       handleMacroDefinition((MacroDefinition) element, writer);
     } else if (element instanceof NewLine) {
@@ -205,7 +207,7 @@ public class TeXMacroResolver extends TeXParser {
     if (command == null) {
       return;
     }
-
+    
     // Check, if the command was defined via a macro.
     if (isDefinedByMacro(command)) {      
       // Resolve the macro.

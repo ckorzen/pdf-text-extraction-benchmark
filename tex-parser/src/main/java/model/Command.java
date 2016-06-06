@@ -35,6 +35,12 @@ public class Command extends Element {
   protected List<Group> groups;
         
   /**
+   * The list of options and groups of this command. The order in list 
+   * corresponds to the order in tex file.
+   */
+  protected List<Element> optionsAndGroupsInCorrectOrder;
+  
+  /**
    * Flag to indicate whether this command is a macro.
    */
   protected boolean isMacro;
@@ -48,6 +54,7 @@ public class Command extends Element {
     super(token);
     this.groups = new ArrayList<>();
     this.options = new ArrayList<>();
+    this.optionsAndGroupsInCorrectOrder = new ArrayList<>();
     this.name = name;
   }
   
@@ -58,6 +65,7 @@ public class Command extends Element {
    */
   public void addOption(Option option) {
     this.options.add(option);
+    this.optionsAndGroupsInCorrectOrder.add(option);
     this.beginLine = Math.min(this.beginLine, option.beginLine);
     this.endLine = Math.max(this.endLine, option.endLine);
     this.beginColumn = Math.min(this.beginColumn, option.beginColumn);
@@ -69,6 +77,7 @@ public class Command extends Element {
    */
   public void addGroup(Group group) {
     this.groups.add(group);
+    this.optionsAndGroupsInCorrectOrder.add(group);
     this.beginLine = Math.min(this.beginLine, group.beginLine);
     this.endLine = Math.max(this.endLine, group.endLine);
     this.beginColumn = Math.min(this.beginColumn, group.beginColumn);
@@ -204,11 +213,8 @@ public class Command extends Element {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append(getName());
-    for (Option option : getOptions()) {
-      sb.append(option.toString());
-    }
-    for (Group group : getGroups()) {
-      sb.append(group.toString());
+    for (Element optionOrGroup : optionsAndGroupsInCorrectOrder) {
+      sb.append(optionOrGroup);
     }
     return sb.toString();
   }
