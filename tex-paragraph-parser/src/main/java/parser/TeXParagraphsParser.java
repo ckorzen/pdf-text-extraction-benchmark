@@ -3,12 +3,9 @@ package parser;
 import static model.TeXParagraphParserConstants.TEX_ELEMENT_REFERENCES_PATH;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.freiburg.iif.path.PathUtils;
 import de.freiburg.iif.text.StringUtils;
 import model.Command;
 import model.Document;
@@ -43,14 +40,7 @@ public class TeXParagraphsParser {
    */
   public TeXParagraphsParser(Document document) throws IOException {
     this.document = document;
-    try {
-      // Load the element references.
-      String refPathStr = TEX_ELEMENT_REFERENCES_PATH;
-      Path refPath = PathUtils.getSystemResource(refPathStr, getClass());
-      this.texElementRefs = new TeXElementReferences(refPath);
-    } catch (URISyntaxException e) {
-      throw new IOException(e);
-    }
+    this.texElementRefs = new TeXElementReferences(TEX_ELEMENT_REFERENCES_PATH);
   }
 
   /**

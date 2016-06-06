@@ -2,9 +2,9 @@ package model;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,14 +29,6 @@ public class TeXElementReferences {
    * file where the metadata are stored.
    */
   public TeXElementReferences(String path) throws IOException {
-    this(Paths.get(path));
-  }
-
-  /**
-   * Creates a new element references object based on the given path to the 
-   * file where the metadata are stored.
-   */
-  public TeXElementReferences(Path path) throws IOException {
     this.references = readReferences(path);
   }
 
@@ -107,10 +99,12 @@ public class TeXElementReferences {
   /**
    * Reads the commands to consider.
    */
-  protected Map<String, TeXElementReference> readReferences(Path path)
+  protected Map<String, TeXElementReference> readReferences(String path)
     throws IOException {
     Map<String, TeXElementReference> references = new HashMap<>();
-    BufferedReader reader = Files.newBufferedReader(path);
+    InputStream is = getClass().getResourceAsStream(path);
+    InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
+    BufferedReader reader = new BufferedReader(isr);
 
     String line;
 
