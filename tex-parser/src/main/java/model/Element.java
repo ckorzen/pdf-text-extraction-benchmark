@@ -10,7 +10,7 @@ import parse.Token;
  *
  * @author Claudius Korzen
  */
-public abstract class Element implements Serializable {
+public class Element implements Serializable {
   /**
    * 
    */
@@ -76,5 +76,12 @@ public abstract class Element implements Serializable {
    */
   public int getEndColumnNumber() {
     return this.endColumn;
+  }
+  
+  /**
+   * Returns the column where the element ends.
+   */
+  public String getElementReferenceIdentifier() {
+    return this.toString();
   }
 }

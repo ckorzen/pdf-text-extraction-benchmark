@@ -51,7 +51,7 @@ public class ParagraphsIdentifier {
     identifyBoundingBoxes(texFile);
 
     // Visualize the bounding boxes.
-//    visualizeBoundingBoxes(texFile);
+    visualizeBoundingBoxes(texFile);
 
     return texFile;
   }

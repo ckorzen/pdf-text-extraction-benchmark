@@ -25,7 +25,7 @@ public class PdfLaTeX extends ExternalProgram {
     affirm(texFile != null, "No TeX file given.");
     affirm(Files.isRegularFile(texFile), "TeX file doesn't exist.");
     
-    addOption("-interaction", "batchmode");
+    addOption("-interaction", "nonstopmode");
     addArgument(texFile.toAbsolutePath().toString());
   }
   

@@ -23,4 +23,9 @@ public class NewParagraph extends Text {
   public String toString() {
     return "\n\n";
   }
+  
+  @Override
+  public String getElementReferenceIdentifier() {
+    return "\\par";
+  }
 }
