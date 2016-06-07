@@ -87,8 +87,6 @@ public class TeXMacroResolver extends TeXParser {
    * Handles the given element from parsed tex document.
    */
   protected void handleElement(Element element, BufferedWriter writer) {  
-    System.out.println(element);
-    
     if (element instanceof MacroDefinition) {
       handleMacroDefinition((MacroDefinition) element, writer);
     } else if (element instanceof NewLine) {

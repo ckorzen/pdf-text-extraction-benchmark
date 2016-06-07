@@ -34,7 +34,7 @@ import serializer.TeXParagraphSerializer;
  * start and end line of the paragraphs.
  * 
  * Experimental: As an experimental feature, this class is also able to 
- * identify the related coordinates of each paragraph in pdf file.
+ * identify the coordinates and page numbers of the related areas in pdf file.
  *
  * @author Claudius Korzen
  */
@@ -42,7 +42,7 @@ public class TeXParagraphParserMain {
   /**
    * The input defined by the user, as string.
    */
-  protected String inputPath;
+  protected String input;
 
   /**
    * The prefix to consider on parsing the input directory for input files.
@@ -52,7 +52,7 @@ public class TeXParagraphParserMain {
   /**
    * The output defined by the user, as string.
    */
-  protected String outputPath;
+  protected String output;
 
   /**
    * The features to extract.
@@ -62,7 +62,7 @@ public class TeXParagraphParserMain {
   /**
    * Flag that indicates if we have to identify the bounding boxes.
    */
-  protected boolean identifyBoxes;
+  protected boolean identifyPdfParagraphs;
   
   /**
    * The default features to extract.
@@ -132,14 +132,12 @@ public class TeXParagraphParserMain {
   public TeXParagraphParserMain(CommandLine cmd) {
     inputFiles = new ArrayList<>();
     
-    inputPath = getOptionValue(cmd, TexParagraphParserOptions.INPUT, null);
-    outputPath = getOptionValue(cmd, TexParagraphParserOptions.OUTPUT, null);
+    input = getOptionValue(cmd, TexParagraphParserOptions.INPUT, null);
+    output = getOptionValue(cmd, TexParagraphParserOptions.OUTPUT, null);
     inputPrefix = getOptionValue(cmd, TexParagraphParserOptions.PREFIX, "");
     features = getOptionValues(cmd, TexParagraphParserOptions.FEATURE, null);
-    identifyBoxes = hasOption(cmd, TexParagraphParserOptions.BOUNDING_BOXES);
+    identifyPdfParagraphs = hasOption(cmd, TexParagraphParserOptions.BOUNDING_BOXES);
   }
-
-  // ---------------------------------------------------------------------------
 
   /**
    * Runs this program.
@@ -151,56 +149,58 @@ public class TeXParagraphParserMain {
     processTexFiles();
   }
 
+  // ===========================================================================
+  
   /**
    * Validates the input given by the user and resolves the input directory / 
    * files as well as the output directory / file.
    */
   protected void initialize() {
-    affirm(inputPath != null, "No input given.");
-    affirm(!inputPath.trim().isEmpty(), "No input given.");
+    affirm(input != null, "No input given.");
+    affirm(!input.trim().isEmpty(), "No input given.");
 
-    Path input = Paths.get(inputPath).toAbsolutePath();
-    Path output = outputPath != null ? Paths.get(outputPath).toAbsolutePath() : null;
+    Path inPath = Paths.get(input).toAbsolutePath();
+    Path outPath = output != null ? Paths.get(output).toAbsolutePath() : null;
 
     // Check, if the input path exists.
-    affirm(Files.exists(input), "The given input doesn't exist.");
-    affirm(Files.isReadable(input), "The given input can't be read.");
+    affirm(Files.exists(inPath), "The given input doesn't exist.");
+    affirm(Files.isReadable(inPath), "The given input can't be read.");
     
     // Check, if the input path is a directory or a file.
-    if (Files.isRegularFile(input)) {
+    if (Files.isRegularFile(inPath)) {
       // The input is a single file.
       // Set the input directory to its parent.
-      this.inputDirectory = input.getParent();
+      this.inputDirectory = inPath.getParent();
       // Add the file to the files to process.
-      this.inputFiles.add(input);
+      this.inputFiles.add(inPath);
 
       // Check, if there is an output given.
-      if (output != null) {
-        if (Files.isDirectory(output)) {
+      if (outPath != null) {
+        if (Files.isDirectory(outPath)) {
           // The output is an existing directory.
-          this.outputDirectory = output;
+          this.outputDirectory = outPath;
         } else {
           // The output is an existing file OR the output doesn't exist.
           // If the output doesn't exist, interpret the output as a file
           // (because the input is a file).
-          this.outputFile = output;
-          this.outputDirectory = output.getParent();
+          this.outputFile = outPath;
+          this.outputDirectory = outPath.getParent();
         }
       }
-    } else if (Files.isDirectory(input)) {
+    } else if (Files.isDirectory(inPath)) {
       // The input is an existing directory.
-      this.inputDirectory = input;
+      this.inputDirectory = inPath;
       // Read the directory recursively to get all files to process.
-      readDirectory(input, this.inputFiles);
+      readDirectory(inPath, this.inputFiles);
 
       // Check, if there is an output given.
-      if (output != null) {
-        affirm(!Files.isRegularFile(output),
+      if (outPath != null) {
+        affirm(!Files.isRegularFile(outPath),
             "An input directory can't be serialized to a file.");
         // The output is an existing directory OR doesn't exist.
         // If the output doesn't exist, interpret the output as a directory,
         // (because the input is a directory).
-        this.outputDirectory = output;
+        this.outputDirectory = outPath;
       }
     }
   }
@@ -223,17 +223,17 @@ public class TeXParagraphParserMain {
 
     // Identify the paragraphs in the given tex file.
     identifyTexParagraphs(texFile);
-//    if (this.identifyBoxes) {
-//      identifyPdfParagraphs(texFile);
-//    }
-//
-    serialize(texFile, getSerializationTargetFile(texFile));
+    if (this.identifyPdfParagraphs) {
+      identifyPdfParagraphs(texFile);
+    }
+
+    serialize(texFile, defineSerializationTargetFile(texFile));
   }
 
-  // ___________________________________________________________________________
+  // ---------------------------------------------------------------------------
 
   /**
-   * Identifies the paragraphs from given tex file.
+   * Identifies the tex paragraphs from given tex file.
    */
   protected void identifyTexParagraphs(TeXFile texFile) throws IOException {
     new TeXParagraphsIdentifier(texFile).identify();
@@ -252,22 +252,16 @@ public class TeXParagraphParserMain {
    * TODO: Take the chosen features into account.
    */
   protected void serialize(TeXFile texFile, Path target) throws IOException {
-    // Create the target file if it doesn't exist yet.
-    if (!Files.exists(target)) {
-      Files.createDirectories(target.getParent());
-      Files.createFile(target);
-    }
-
     new TeXParagraphSerializer(texFile).serialize(target);
   }
 
-  // ___________________________________________________________________________
+  // ---------------------------------------------------------------------------
   // Some util methods.
 
   /**
    * Obtains the path to the target file.
    */
-  protected Path getSerializationTargetFile(TeXFile texFile) {
+  protected Path defineSerializationTargetFile(TeXFile texFile) {
     if (texFile == null) {
       return null;
     }
@@ -280,7 +274,7 @@ public class TeXParagraphParserMain {
     // Obtain the basename of the parent directory.
     String basename = PathUtils.getBasename(texFile.getPath().getParent());
 
-    Path targetDir = getSerializationTargetDir(texFile);
+    Path targetDir = defineSerializationTargetDir(texFile);
     if (targetDir != null) {
       return targetDir.resolve(basename + ".txt");
     }
@@ -290,7 +284,7 @@ public class TeXParagraphParserMain {
   /**
    * Obtains the path to the target directory.
    */
-  protected Path getSerializationTargetDir(TeXFile texFile) {
+  protected Path defineSerializationTargetDir(TeXFile texFile) {
     if (outputDirectory != null) {
       // Obtain the parent directory of the tex file.
       Path parentDirectory = texFile.getPath().getParent();
@@ -305,7 +299,7 @@ public class TeXParagraphParserMain {
     return null;
   }
 
-  // ___________________________________________________________________________
+  // ---------------------------------------------------------------------------
 
   /**
    * Returns the list of all selected features to extract. If there are no

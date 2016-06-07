@@ -21,6 +21,11 @@ public class TeXParagraph {
    */
   protected StringBuilder textBuilder;
 
+  /** 
+   * The TeX elements.
+   */
+  protected List<Element> texElements;
+  
   /**
    * Flag that indicates if we have to introduce a whitespace before next text.
    */
@@ -62,6 +67,7 @@ public class TeXParagraph {
     this.texLineNumsSet = new HashSet<>();
     this.texLineNums = new ArrayList<>();
     this.pdfParagraphs = new ArrayList<>();
+    this.texElements = new ArrayList<>();
   }
 
   // ---------------------------------------------------------------------------
@@ -138,13 +144,63 @@ public class TeXParagraph {
   /**
    * Adds the given tex element to this paragraph.
    */
-  public void registerTeXLineNumber(int num) {
-    if (!texLineNumsSet.contains(num)) {
-      texLineNumsSet.add(num);
+  public void registerTeXElement(Element element) {
+    this.texElements.add(element);
+    registerLineNumbers(element);
+  }
+
+  /**
+   * Registers the linenumbers of the given elements and all its subelements.
+   */
+  protected void registerLineNumbers(Element element) {    
+    if (element instanceof Group) {
+      Group group = (Group) element;
+      for (Element el : group.elements) {
+        registerLineNumbers(el);
+      }
+    }
+    
+    if (element instanceof Option) {
+      Option option = (Option) element;
+      for (Element el : option.elements) {
+        registerLineNumbers(el);
+      }
+    }
+    
+    if (element instanceof Command) {
+      Command cmd = (Command) element;
+      for (Option option : cmd.getOptions()) {
+        for (Element el : option.elements) {
+          registerLineNumbers(el);
+        }
+      }
+      for (Group group : cmd.getGroups()) {
+        for (Element el : group.elements) {
+          registerLineNumbers(el);
+        }
+      }
+    }
+    
+    int beginLine = element.getBeginLineNumber();
+    int endLine = element.getEndLineNumber();
+    
+    if (!texLineNumsSet.contains(beginLine)) {
+      texLineNumsSet.add(beginLine);
+      needTexLineNumbersUpdate = true;
+    }
+    if (!texLineNumsSet.contains(endLine)) {
+      texLineNumsSet.add(endLine);
       needTexLineNumbersUpdate = true;
     }
   }
-
+  
+  /**
+   * Returns the tex elements.
+   */
+  public List<Element> getTexElements() {
+    return this.texElements;
+  }
+  
   /**
    * Returns the tex line numbers of this paragraph in a list. This list is
    * sorted in ascending order and contains *no* duplicates.
@@ -176,7 +232,7 @@ public class TeXParagraph {
    * Returns true, if the text in this paragraph is empty, false otherwise.
    */
   public boolean isEmpty() {
-    return getText().isEmpty();
+    return getTexLineNumbers().isEmpty();
   }
 
   /**

@@ -5,8 +5,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
-import javax.print.attribute.HashAttributeSet;
-
 /**
  * A paragraph in a tex file.
  * 
@@ -99,6 +97,13 @@ public class TexParagraph {
   // ---------------------------------------------------------------------------
   
   /**
+   * Returns the elements of this paragraph in tex file.
+   */
+  public List<Element> getTexElements() {
+    return texElements;
+  }
+  
+  /**
    * Returns the number of elements.
    */
   public int getNumTexElements() {
@@ -140,13 +145,6 @@ public class TexParagraph {
 //  public int getTexEndColumn() {
 //    return texEndColumn;
 //  }
-
-  /**
-   * Returns the elements of this paragraph in tex file.
-   */
-  public List<Element> getTexElements() {
-    return texElements;
-  }
   
   @Override
   public String toString() {

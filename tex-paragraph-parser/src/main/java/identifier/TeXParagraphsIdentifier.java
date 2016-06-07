@@ -55,8 +55,8 @@ public class TeXParagraphsIdentifier {
     // Obtain the target file for this step.
     Path tmpPath = defineResolveMacrosTargetFile(texPath);
 
+    // Resolve macros and write it to tmpPath.
     resolveMacros(texPath, tmpPath);
-
     texFile.setTmpPath(tmpPath);
   }
 

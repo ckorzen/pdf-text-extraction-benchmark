@@ -1,33 +1,86 @@
 package model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import de.freiburg.iif.model.HasRectangle;
 import de.freiburg.iif.model.Rectangle;
+import de.freiburg.iif.model.simple.SimpleRectangle;
 
 /**
- * A pdf paragraph, defined by the page number and the bounding box in pdf.
- * 
- * @author Claudius Korzen
+ * A pdf paragraph.
  */
 public class PdfParagraph implements HasRectangle {
   /**
-   * The page number of this paragraph.
+   * The lines in this paragraph.
    */
-  protected int pageNum;
+  protected List<PdfLine> pdfLines;
   
   /**
-   * The bounding box of this paragraph.
+   * The bounding box.
    */
-  protected Rectangle boundingBox;
+  protected Rectangle pdfBoundingBox;
   
   /**
-   * Creates a new pdf paragraph.
+   * Flag that indicates if the bounding box must be recomputed.
+   */
+  protected boolean needsPdfBoundingBoxUpdate;
+  
+  /**
+   * The page number.
+   */
+  protected int pdfPageNumber;
+  
+  /**
+   * Creates new pdf paragraph.
    */
   public PdfParagraph() {
-    
+    this.pdfLines = new ArrayList<>();
+  }
+  
+  /**
+   * Adds the given pdf line to this paragraph.
+   */
+  public void addPdfLine(PdfLine line) {
+    this.pdfLines.add(line);
+    this.needsPdfBoundingBoxUpdate = true;
+    this.pdfPageNumber = line.getPdfPageNumber();
+  }
+  
+  /**
+   * Returns the bounding box of this paragraph.
+   */
+  public Rectangle getPdfBoundingBox() {
+    if (this.pdfBoundingBox == null || this.needsPdfBoundingBoxUpdate) {
+      this.pdfBoundingBox = computePdfBoundingBox();
+      this.needsPdfBoundingBoxUpdate = false;
+    }
+    return this.pdfBoundingBox;
+  }
+  
+  /**
+   * Computes the bounding box for this paragraph.
+   */
+  public Rectangle computePdfBoundingBox() {
+    return SimpleRectangle.computeBoundingBox(pdfLines);
+  }
+
+  /**
+   * Returns true, if this paragraph contains no lines, false otherwise.
+   */
+  public boolean isEmpty() {
+    return this.pdfLines.isEmpty();
   }
   
   @Override
   public Rectangle getRectangle() {
-    return boundingBox;
+    return getPdfBoundingBox();
+  }
+  
+  /**
+   * Returns the page number.
+   */
+  public int getPdfPageNumber() {
+    return pdfPageNumber;
   }
 }

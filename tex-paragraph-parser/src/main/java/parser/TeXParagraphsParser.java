@@ -105,7 +105,7 @@ public class TeXParagraphsParser {
     if (introduceNewParagraph) {
       // The element introduces a new paragraph. Add the previous paragraph to 
       // result (if not empty) and create a new paragraph.
-      if (!para.getText().trim().isEmpty()) {
+      if (!para.isEmpty()) {
         paras.add(para);
       }
       
@@ -122,9 +122,9 @@ public class TeXParagraphsParser {
     // (1) The element belongs to the introducing paragraph.
     // (2) The element doesn't belong to the introducing paragraph.
     // In case (2), ignore the current element.
-    boolean ignore = ref != null && ref.startsParagraphExclusiveElement();
-    
-    if (!ignore) {
+//    boolean ignore = ref != null && ref.startsParagraphExclusiveElement();
+//    
+//    if (!ignore) {
       if (element instanceof Group) {
         Group group = (Group) element;
         para = processElements(group.elements, feature, para, paras);
@@ -135,7 +135,7 @@ public class TeXParagraphsParser {
         Command command = (Command) element;
         para = processCommand(command, itr, feature, para, paras);
       }
-    }
+//    }
     return para;
   }
 
@@ -169,8 +169,7 @@ public class TeXParagraphsParser {
       para.registerWhitespace();
     } else {
       para.writeString(string);
-      para.registerTeXLineNumber(textElement.getBeginLineNumber());
-      para.registerTeXLineNumber(textElement.getEndLineNumber());
+      para.registerTeXElement(textElement);
     }
 
     return para;
@@ -181,7 +180,7 @@ public class TeXParagraphsParser {
    */
   protected TeXParagraph processCommand(Command cmd, Iterator<Element> itr,
       String feature, TeXParagraph para, List<TeXParagraph> paras) {
-                
+               
     // Check, if the command is a cross reference. TODO
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para, paras);
@@ -236,8 +235,21 @@ public class TeXParagraphsParser {
     // Write placeholder, if the command introduces a placeholder.
     if (ref.introducesPlaceholder()) {
       para.writeString(ref.getPlaceholder());
+      if (!ref.startsParagraphExclusiveElement()) {
+        para.registerTeXElement(cmd);
+      }
+      
+      // Proceed to the end element and register all elements. 
       String end = guessEndCommand(cmd);
-      itr.skipTo(end);
+      if (end != null) {
+        while (itr.hasNext()) {
+          Element el = itr.next();
+          if (el.toString().equals(end)) {
+            break;
+          }
+          para.registerTeXElement(el);
+        }
+      }
       return para;
     }
 
@@ -267,7 +279,7 @@ public class TeXParagraphsParser {
     // dass die Kindelemente in einem eigenen Kontext behandelt werden, ist
     // für das naechste Element prev == null.
     if (ref.endsParagraph()) {
-      if (!para.getText().trim().isEmpty()) {
+      if (!para.isEmpty()) {
         paras.add(para);
       }
       
@@ -285,6 +297,8 @@ public class TeXParagraphsParser {
   protected void processCrossReferenceCommand(Command cmd,
       Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
     Group group = cmd.getGroup();
+    TeXElementReference ref = getTeXElementReference(cmd);
+    
     // The group may be separated by whitespace.
     // If next element is a group, take this group as argument.
     if (group == null) {
@@ -309,6 +323,10 @@ public class TeXParagraphsParser {
           if (i < keys.length - 1) {
             para.writeString(" ");
           }
+        }
+        
+        if (ref != null && !ref.startsParagraphExclusiveElement()) {
+          para.registerTeXElement(cmd);
         }
       }
     }
