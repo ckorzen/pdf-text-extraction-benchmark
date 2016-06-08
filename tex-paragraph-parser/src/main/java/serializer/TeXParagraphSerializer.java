@@ -72,7 +72,7 @@ public class TeXParagraphSerializer {
     writer.newLine();
     
     for (TeXParagraph para : texFile.getTeXParagraphs()) {
-      String feature = para.getFeature() != null ? para.getFeature() : "text";
+      String feature = para.getRole() != null ? para.getRole() : "text";
       int startLine = para.getTexStartLine();
       int endLine = para.getTexEndLine();
       

@@ -14,7 +14,7 @@ public class TeXParagraph {
   /**
    * The feature role of this paragraph.
    */
-  protected String feature;
+  protected String role;
 
   /**
    * The text of this paragraph.
@@ -61,8 +61,8 @@ public class TeXParagraph {
   /**
    * Creates a new TexParagraph.
    */
-  public TeXParagraph(String feature) {
-    this.feature = feature;
+  public TeXParagraph(String role) {
+    this.role = role;
     this.textBuilder = new StringBuilder();
     this.texLineNumsSet = new HashSet<>();
     this.texLineNums = new ArrayList<>();
@@ -73,17 +73,17 @@ public class TeXParagraph {
   // ---------------------------------------------------------------------------
 
   /**
-   * Sets the feature of this tex paragraph.
+   * Sets the role of this tex paragraph.
    */
-  public void setFeature(String feature) {
-    this.feature = feature;
+  public void setRole(String role) {
+    this.role = role;
   }
 
   /**
-   * Returns the feature of this paragraph.
+   * Returns the role of this paragraph.
    */
-  public String getFeature() {
-    return this.feature;
+  public String getRole() {
+    return this.role;
   }
 
   // ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ public class TeXParagraph {
   /**
    * Writes the given text to this paragraph.
    */
-  public void writeString(String text) {
+  public void registerText(String text) {
     // Write a whitespace if we have to.
     if (introduceWhitespace) {
       textBuilder.append(" ");
@@ -144,42 +144,17 @@ public class TeXParagraph {
   /**
    * Adds the given tex element to this paragraph.
    */
+  public void registerTeXElements(List<Element> elements) {
+    for (Element element : elements) {
+      registerTeXElement(element);
+    }
+  }
+  
+  /**
+   * Adds the given tex element to this paragraph.
+   */
   public void registerTeXElement(Element element) {
     this.texElements.add(element);
-    registerLineNumbers(element);
-  }
-
-  /**
-   * Registers the linenumbers of the given elements and all its subelements.
-   */
-  protected void registerLineNumbers(Element element) {    
-    if (element instanceof Group) {
-      Group group = (Group) element;
-      for (Element el : group.elements) {
-        registerLineNumbers(el);
-      }
-    }
-    
-    if (element instanceof Option) {
-      Option option = (Option) element;
-      for (Element el : option.elements) {
-        registerLineNumbers(el);
-      }
-    }
-    
-    if (element instanceof Command) {
-      Command cmd = (Command) element;
-      for (Option option : cmd.getOptions()) {
-        for (Element el : option.elements) {
-          registerLineNumbers(el);
-        }
-      }
-      for (Group group : cmd.getGroups()) {
-        for (Element el : group.elements) {
-          registerLineNumbers(el);
-        }
-      }
-    }
     
     int beginLine = element.getBeginLineNumber();
     int endLine = element.getEndLineNumber();
@@ -192,6 +167,16 @@ public class TeXParagraph {
       texLineNumsSet.add(endLine);
       needTexLineNumbersUpdate = true;
     }
+  }
+  
+  /**
+   * Returns the last tex elements.
+   */
+  public Element getLastTexElement() {
+    if (!this.texElements.isEmpty()) {
+      return this.texElements.get(texElements.size() - 1);
+    }
+    return null;
   }
   
   /**
@@ -259,6 +244,6 @@ public class TeXParagraph {
 
   @Override
   public String toString() {
-    return getTexLineNumbers().toString();
+    return role + " " + getTexLineNumbers().toString();
   }
 }

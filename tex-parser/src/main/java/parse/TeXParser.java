@@ -342,7 +342,7 @@ public class TeXParser implements TeXParserConstants {
     case ESCAPE_COMMAND_COMMON_NAME:
       // The macro may be given as a command ...  
           macroCommand = MacroCommand();
-      definition.addGroup(new Group(macroCommand));
+      definition.setName(definition.getName() + macroCommand);
       break;
     case GROUP_START:
       jj_consume_token(GROUP_START);
@@ -1326,11 +1326,6 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_14() {
-    if (jj_3R_31()) return true;
-    return false;
-  }
-
   private boolean jj_3R_93() {
     Token xsp;
     xsp = jj_scanpos;
@@ -1341,6 +1336,11 @@ public class TeXParser implements TeXParserConstants {
     if (jj_scan_token(28)) return true;
     }
     }
+    return false;
+  }
+
+  private boolean jj_3_14() {
+    if (jj_3R_31()) return true;
     return false;
   }
 
@@ -1405,18 +1405,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_51() {
-    if (jj_3R_30()) return true;
-    return false;
-  }
-
   private boolean jj_3_24() {
     if (jj_3R_33()) return true;
     return false;
   }
 
-  private boolean jj_3_10() {
-    if (jj_3R_27()) return true;
+  private boolean jj_3R_51() {
+    if (jj_3R_30()) return true;
     return false;
   }
 
@@ -1425,13 +1420,18 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_50() {
-    if (jj_3R_29()) return true;
+  private boolean jj_3_10() {
+    if (jj_3R_27()) return true;
     return false;
   }
 
   private boolean jj_3R_91() {
     if (jj_3R_71()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_50() {
+    if (jj_3R_29()) return true;
     return false;
   }
 
@@ -1481,13 +1481,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_48() {
-    if (jj_3R_27()) return true;
+  private boolean jj_3_22() {
+    if (jj_scan_token(STAR)) return true;
     return false;
   }
 
-  private boolean jj_3_22() {
-    if (jj_scan_token(STAR)) return true;
+  private boolean jj_3R_48() {
+    if (jj_3R_27()) return true;
     return false;
   }
 
@@ -1535,11 +1535,6 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_7() {
-    if (jj_3R_24()) return true;
-    return false;
-  }
-
   private boolean jj_3R_35() {
     Token xsp;
     xsp = jj_scanpos;
@@ -1553,6 +1548,11 @@ public class TeXParser implements TeXParserConstants {
     }
     }
     }
+    return false;
+  }
+
+  private boolean jj_3_7() {
+    if (jj_3R_24()) return true;
     return false;
   }
 
@@ -1591,11 +1591,6 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_44() {
-    if (jj_3R_24()) return true;
-    return false;
-  }
-
   private boolean jj_3R_95() {
     if (jj_3R_76()) return true;
     Token xsp;
@@ -1603,6 +1598,11 @@ public class TeXParser implements TeXParserConstants {
       xsp = jj_scanpos;
       if (jj_3R_96()) { jj_scanpos = xsp; break; }
     }
+    return false;
+  }
+
+  private boolean jj_3R_44() {
+    if (jj_3R_24()) return true;
     return false;
   }
 
@@ -1616,11 +1616,6 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_43() {
-    if (jj_3R_23()) return true;
-    return false;
-  }
-
   private boolean jj_3R_67() {
     if (jj_3R_78()) return true;
     Token xsp;
@@ -1631,6 +1626,11 @@ public class TeXParser implements TeXParserConstants {
     }
     xsp = jj_scanpos;
     if (jj_3R_80()) jj_scanpos = xsp;
+    return false;
+  }
+
+  private boolean jj_3R_43() {
+    if (jj_3R_23()) return true;
     return false;
   }
 
@@ -1757,6 +1757,16 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
+  private boolean jj_3R_88() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(6)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(7)) return true;
+    }
+    return false;
+  }
+
   private boolean jj_3_2() {
     if (jj_3R_19()) return true;
     return false;
@@ -1768,16 +1778,6 @@ public class TeXParser implements TeXParserConstants {
     if (jj_3_2()) {
     jj_scanpos = xsp;
     if (jj_3R_18()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_88() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_scan_token(6)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(7)) return true;
     }
     return false;
   }

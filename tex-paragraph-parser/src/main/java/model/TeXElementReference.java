@@ -124,16 +124,16 @@ public class TeXElementReference {
   // ___________________________________________________________________________
 
   /**
-   * Returns true, if this reference defines a context.
+   * Returns true, if this reference defines a role.
    */
-  public boolean definesFeatureName() {
-    return getFeatureName() != null;
+  public boolean definesRole() {
+    return getRole() != null;
   }
 
   /**
-   * Returns the defined context name.
+   * Returns the defined role.
    */
-  public String getFeatureName() {
+  public String getRole() {
     return getString(6);
   }
 

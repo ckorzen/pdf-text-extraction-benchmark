@@ -1,5 +1,6 @@
 package identifier;
 
+import static de.freiburg.iif.affirm.Affirm.affirm;
 import static model.TeXParagraphParserConstants.TMP_TEX_EXTENSIONS;
 
 import java.io.IOException;
@@ -15,6 +16,7 @@ import model.TeXParagraph;
 import parse.ParseException;
 import parse.TeXParser;
 import parser.TeXParagraphsParser;
+import parser.TeXParagraphsParser2;
 import preprocess.TeXMacroResolver;
 
 /**
@@ -31,7 +33,7 @@ public class TeXParagraphsIdentifier {
   /**
    * Creates a new paragraphs identifier for the given tex file.
    */
-  public TeXParagraphsIdentifier(TeXFile file) {
+  public TeXParagraphsIdentifier(TeXFile file) {    
     this.texFile = file;
   }
 
@@ -41,8 +43,8 @@ public class TeXParagraphsIdentifier {
    * resolved file.
    */
   public void identify() throws IOException {
-    resolveMacros(this.texFile);
-    identifyTeXParagraphs(this.texFile);
+    resolveMacros(this.texFile); // Sets texFile.tmpPath
+    identifyTeXParagraphs(this.texFile); // Reads texFile.tmpPath
   }
 
   // ===========================================================================
@@ -51,8 +53,10 @@ public class TeXParagraphsIdentifier {
    * Resolves the macros for the given tex file.
    */
   protected void resolveMacros(TeXFile texFile) throws IOException {
+    affirm(texFile != null, "No tex file given");
+    
     Path texPath = texFile.getPath();
-    // Obtain the target file for this step.
+    // Define the target file for this step.
     Path tmpPath = defineResolveMacrosTargetFile(texPath);
 
     // Resolve macros and write it to tmpPath.
@@ -65,8 +69,10 @@ public class TeXParagraphsIdentifier {
    * given target path.
    */
   protected void resolveMacros(Path file, Path targetPath) throws IOException {
+    affirm(Files.isRegularFile(file), "The given tex file doesn't exist.");
+    affirm(targetPath != null, "No target path given");
+    
     InputStream stream = Files.newInputStream(file);
-
     try {
       new TeXMacroResolver(stream).resolveMacros(targetPath);
     } catch (ParseException e) {
@@ -82,8 +88,11 @@ public class TeXParagraphsIdentifier {
    * Identifies the text paragraphs in the given tex file.
    */
   protected void identifyTeXParagraphs(TeXFile texFile) throws IOException {
+    affirm(texFile != null, "No tex file given.");
+    
     // Parse the tex file.
     Document document;
+    
     try {
       document = parseTexFile(texFile);
     } catch (ParseException e) {
@@ -99,7 +108,7 @@ public class TeXParagraphsIdentifier {
    */
   protected List<TeXParagraph> identifyTeXParagraphs(Document document)
     throws IOException {
-    return new TeXParagraphsParser(document).identifyParagraphs();
+    return new TeXParagraphsParser2(document).processGroup();
   }
 
   // ---------------------------------------------------------------------------
@@ -109,7 +118,11 @@ public class TeXParagraphsIdentifier {
    */
   protected Document parseTexFile(TeXFile texFile) throws IOException,
     ParseException {
-    return parseTexFile(texFile.getTmpPath());
+    affirm(texFile != null, "No tex file given.");
+    
+    // Parse the version where the macros are resolved.
+    Path texPath = texFile.getTmpPath();
+    return parseTexFile(texPath);
   }
 
   /**
@@ -117,6 +130,8 @@ public class TeXParagraphsIdentifier {
    */
   protected Document parseTexFile(Path texPath)
     throws IOException, ParseException {
+    affirm(Files.isRegularFile(texPath), "The given tex file doesn't exist.");
+    
     InputStream input = Files.newInputStream(texPath);
 
     Document document;
@@ -154,6 +169,8 @@ public class TeXParagraphsIdentifier {
    * Defines the path to the target directory for the preprocessing step.
    */
   protected Path defineResolveMacrosTargetDirectory(Path texFile) {
+    affirm(texFile != null, "No tex file given.");
+    
     return texFile.getParent();
   }
 }

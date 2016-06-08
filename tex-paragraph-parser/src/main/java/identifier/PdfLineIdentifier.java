@@ -36,7 +36,7 @@ public class PdfLineIdentifier {
    * "widows". So we add some (slim) text to end of paragraphs to avoid such
    * widows (paragraph bounding boxes aren't affected). 
    */
-  protected static final String PARA_ADDENDUM = "\\hspace{-5pt}i";
+  protected static final String PARA_ADDENDUM = "~\\hspace{-10pt}i";
  
   /**
    * Creates a new pdf line identifier.

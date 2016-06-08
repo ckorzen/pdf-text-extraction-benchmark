@@ -201,6 +201,13 @@ public class Group extends Element implements Iterable<Element> {
   // ___________________________________________________________________________
   
   /**
+   * Returns the elements of this group.
+   */
+  public List<Element> getElements() {
+    return this.elements;
+  }
+  
+  /**
    * Returns the text of this group.
    */
   public String getText() {

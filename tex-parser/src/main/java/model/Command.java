@@ -38,7 +38,7 @@ public class Command extends Element {
    * The list of options and groups of this command. The order in list 
    * corresponds to the order in tex file.
    */
-  protected List<Element> optionsAndGroupsInCorrectOrder;
+  protected List<Group> optionsAndGroupsInCorrectOrder;
   
   /**
    * Flag to indicate whether this command is a macro.
@@ -84,6 +84,13 @@ public class Command extends Element {
     this.endColumn = Math.max(this.endColumn, group.endColumn);
   }
  
+  /**
+   * Returns the list of options and groups in correct order.
+   */
+  public List<Group> getOptionsAndGroupsInCorrectOrder() {
+    return this.optionsAndGroupsInCorrectOrder;
+  }
+  
   /**
    * Returns the options of this command.
    */

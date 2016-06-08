@@ -1,6 +1,7 @@
 package parser;
 
 import static model.TeXParagraphParserConstants.TEX_ELEMENT_REFERENCES_PATH;
+import static de.freiburg.iif.affirm.Affirm.affirm;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,175 +25,202 @@ import model.Text;
  * @author Claudius Korzen
  *
  */
-public class TeXParagraphsParser {  
-  /** 
-   * The document to parse. 
+public class TeXParagraphsParser2 {
+  /**
+   * The document to parse.
    */
   protected Document document;
 
-  /** 
-   * The tex element references. 
+  /**
+   * The tex element references.
    */
   protected TeXElementReferences texElementRefs;
-  
+
   /**
    * Creates a new paragraph parser for the given document.
    */
-  public TeXParagraphsParser(Document document) throws IOException {
-    this.document = document;
+  public TeXParagraphsParser2(Document document) throws IOException {
     this.texElementRefs = new TeXElementReferences(TEX_ELEMENT_REFERENCES_PATH);
+    this.document = document;
   }
 
   /**
    * Identifies the paragraphs in the given document.
    */
-  public List<TeXParagraph> identifyParagraphs() {
+  public List<TeXParagraph> processGroup() {
     return processDocument(document);
   }
 
   // ===========================================================================
-  
+
   /**
    * Processes the given document.
    */
   protected List<TeXParagraph> processDocument(Document document) {
-    List<TeXParagraph> paragraphs = new ArrayList<>();
-    TeXParagraph paragraph = new TeXParagraph();
+    affirm(document != null, "No document given");
 
-    processElements(document.elements, null, paragraph, paragraphs);
+    return processGroup(document);
+  }
+
+  /**
+   * Processes the given group.
+   */
+  protected List<TeXParagraph> processGroup(Group document) {
+    affirm(document != null, "No document given");
+
+    List<TeXParagraph> paragraphs = new ArrayList<>();
+    TeXParagraph para = new TeXParagraph();
+    
+    processGroup(document, "text", para, paragraphs);
+    
+    for (TeXParagraph p : paragraphs) {
+      System.out.println(p);
+    }
     
     return paragraphs;
   }
-
+  
   /**
-   * Processes the given elements. The given feature represents the current 
-   * feature context, 'para' represents the current paragraph and 'paras' 
-   * represents the list of paragraphs where to put identified paragraphs into. 
+   * Processes the given group. The given role represents the current
+   * role context, 'para' represents the current paragraph and 'paras'
+   * represents the list of paragraphs where to put identified paragraphs into.
    */
-  protected TeXParagraph processElements(List<Element> elements, 
-      String feature, TeXParagraph para, List<TeXParagraph> paras) {
-        
+  protected TeXParagraph processGroup(Group group, String role, 
+      TeXParagraph para, List<TeXParagraph> paras) {
+    if (group != null) {
+      return processElements(group.elements, role, para, paras);
+    }
+    return null;
+  }
+  
+  /**
+   * Processes the given elements. The given role represents the current
+   * role context, 'para' represents the current paragraph and 'paras'
+   * represents the list of paragraphs where to put identified paragraphs into.
+   */
+  protected TeXParagraph processElements(List<Element> elements, String role,
+      TeXParagraph para, List<TeXParagraph> paras) {
     Iterator<Element> itr = new Iterator<>(elements);
     while (itr.hasNext()) {
-      Element prevElement = itr.previous();
       Element element = itr.next();
-      para = processElement(prevElement, element, itr, feature, para, paras);
-    }
-
-    return para;
-  }
-
-  /**
-   * Processes the given element. 'prevElement' represents the previous element,
-   * 'itr' represents the iterator through the elements and can be used to 
-   * traverse the elements. 'feature' represents the current feature context, 
-   * 'para' represents the current paragraph and 'paras' represents the list of
-   * paragraphs where to put identified paragraphs into.
-   */
-  protected TeXParagraph processElement(Element prevElement, Element element,
-      Iterator<Element> itr, String feature, TeXParagraph para, 
-      List<TeXParagraph> paras) {
-        
-    TeXElementReference prevRef = getTeXElementReference(prevElement);
-    TeXElementReference ref = getTeXElementReference(element);
-            
-    // Obtain if the previous element ends a paragraph.
-    boolean prevEndsParagraph = prevRef != null && prevRef.endsParagraph(); 
-    // Obtain if the current element starts a paragraph.
-    boolean startsParagraph = ref != null && ref.startsParagraph();
-    boolean introduceNewParagraph = prevEndsParagraph || startsParagraph;
-                
-    if (introduceNewParagraph) {
-      // The element introduces a new paragraph. Add the previous paragraph to 
-      // result (if not empty) and create a new paragraph.
-      if (!para.isEmpty()) {
-        paras.add(para);
-      }
       
-      // Check if the element introduces a new feature. If so, take it as the
-      // new feature context, otherwise take the 'predefined' feature.
-      String refFeature = ref != null ? ref.getRole() : null;
-      feature = refFeature != null ? refFeature : feature;
-      
-      // Create the new paragraph.
-      para = new TeXParagraph(feature);
-    }
-
-    // We differ into 2 types on introducing a new paragraph:
-    // (1) The element belongs to the introducing paragraph.
-    // (2) The element doesn't belong to the introducing paragraph.
-    // In case (2), ignore the current element.
-//    boolean ignore = ref != null && ref.startsParagraphExclusiveElement();
-//    
-//    if (!ignore) {
+      // We differ into 2 types on introducing a new paragraph:
+      // (1) The element belongs to the introducing paragraph.
+      // (2) The element doesn't belong to the introducing paragraph.
+      // In case (2), ignore the current element.
       if (element instanceof Group) {
-        Group group = (Group) element;
-        para = processElements(group.elements, feature, para, paras);
-      } else if (element instanceof Text) {
-        Text text = (Text) element;
-        para = processText(text, itr, feature, para, paras);
+        para = processGroup(((Group) element), role, para, paras);
       } else if (element instanceof Command) {
-        Command command = (Command) element;
-        para = processCommand(command, itr, feature, para, paras);
+        para = processCommand(((Command) element), role, itr, para, paras);
+      } else if (element instanceof Text) {
+        para = processText((Text) element, role, itr, para, paras);
       }
-//    }
+    }
+    
     return para;
   }
-
+  
   /**
    * Processes the given text element.
    */
-  protected TeXParagraph processText(Text textElement, Iterator<Element> itr,
-      String feature, TeXParagraph para, List<TeXParagraph> paras) {
-    String string = textElement.toString().trim();
+  protected TeXParagraph processText(Text textElement, String role, 
+      Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
+    String text = textElement.toString().trim();
         
     // Don't allow text that starts with '@' to ignore commands like
     // "\twocolumn[\csname @twocolumnfalse\endcsname]"
     // FIXME: Check, if this is doesn't ignore regular words.
-    if (string.startsWith("@")) {
+    if (text.startsWith("@")) {
       return para;
     }
 
+    // ******************************
+        
+    TeXElementReference ref = getTeXElementReference(textElement); 
+    // Obtain if the current element starts a paragraph.
+    boolean startsParagraph = ref != null && ref.startsParagraph();
+        
+    role = ref != null && ref.definesRole() ? ref.getRole() : role;
+    
+    if (startsParagraph) {                
+      if (!para.isEmpty()) {
+        paras.add(para);
+      }
+      para = new TeXParagraph(role);
+    }
+    
+    // ******************************
+    
     // TODO: Move the normalization to an extra method.
-    string = string.replaceAll("~", " ");
-    string = string.replaceAll("``", "\"");
-    string = string.replaceAll("''", "\"");
-    string = string.replaceAll("`", "'");
-    string = string.replaceAll("&", ""); // Remove the separators in tabular
+    text = text.replaceAll("~", " ");
+    text = text.replaceAll("``", "\"");
+    text = text.replaceAll("''", "\"");
+    text = text.replaceAll("`", "'");
+    text = text.replaceAll("&", ""); // Remove the separators in tabular
     // Replace all variant of a dash by the simple one.
-    string = string.replaceAll("--", "-");
+    text = text.replaceAll("--", "-");
     // Replace all variant of a dash by the simple one.
-    string = string.replaceAll("---", "-");
-
-    if (string.isEmpty()) {
+    text = text.replaceAll("---", "-");
+    
+    if (text.isEmpty()) {
       // Replace all whitespaces and newlines by a single whitespace.
       para.registerWhitespace();
     } else {
-      para.registerText(string);
+      para.registerText(text);
       para.registerTeXElement(textElement);
     }
-
+    
+    // ******************************
+     
+    // Obtain if the current element starts a paragraph.
+    boolean endsParagraph = ref != null && ref.endsParagraph();
+            
+    if (endsParagraph) {                
+      if (!para.isEmpty()) {
+        paras.add(para);
+      }
+      para = new TeXParagraph("text");
+    }
+    
+    // ******************************
+    
     return para;
   }
-
+  
   /**
    * Process the given command.
    */
-  protected TeXParagraph processCommand(Command cmd, Iterator<Element> itr,
-      String feature, TeXParagraph para, List<TeXParagraph> paras) {
-               
+  protected TeXParagraph processCommand(Command cmd, String role, 
+      Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
     // Check, if the command is a cross reference. TODO
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
-      processCrossReferenceCommand(cmd, itr, para, paras);
+      processCrossReferenceCommand(cmd, itr, paras);
     }
 
     TeXElementReference ref = getTeXElementReference(cmd);
     
     if (ref == null) {
+      itr.skipTo(guessEndCommand(cmd));
       // Do nothing if there is no element reference for the command.
       return para;
     }
-
+    
+    // ******************************
+    
+    // Obtain if the current element starts a paragraph.
+    boolean startsParagraph = ref != null && ref.startsParagraph();
+    
+    role = ref != null && ref.definesRole() ? ref.getRole() : role;
+    
+    if (startsParagraph) {                
+      if (!para.isEmpty()) {
+        paras.add(para);
+      }
+      para = new TeXParagraph(role);
+    }
+    
+    // ******************************
+    
     // Some arguments of some commands won't be defined within a group but as
     // a consecutive string, e.g. "\vksip 5pt". 
     // So check, if the command has the expected number of groups. If not, 
@@ -231,36 +259,15 @@ public class TeXParagraphsParser {
         }
       }
     }
-
-    // Write placeholder, if the command introduces a placeholder.
-    if (ref.introducesPlaceholder()) {
-      para.registerText(ref.getPlaceholder());
-      if (!ref.startsParagraphExclusiveElement()) {
-        para.registerTeXElement(cmd);
-      }
-      
-      // Proceed to the end element and register all elements. 
-      String end = guessEndCommand(cmd);
-      if (end != null) {
-        while (itr.hasNext()) {
-          Element el = itr.next();
-          if (el.toString().equals(end)) {
-            break;
-          }
-          para.registerTeXElement(el);
-        }
-      }
-      return para;
-    }
-
+    
     // Check, if we have to parse the options part of the command.
     if (ref.definesOptionsToParse()) {
       List<Option> options = cmd.getOptions();
       for (Option option : options) {
-        para = processElements(option.elements, feature, para, paras);
+        para = processGroup(option, role, para, paras);
       }
     }
-
+    
     // Check which groups of the command we have to parse.
     if (ref.definesGroupsToParse()) {
       List<Integer> groupsToParse = ref.getGroupsToParse();
@@ -268,34 +275,46 @@ public class TeXParagraphsParser {
         Group group = cmd.hasGroups(id + 1) ? cmd.getGroup(id + 1) : null;
 
         if (group != null) {
-          para = processElements(group.elements, feature, para, paras);
+          para = processGroup(group, role, para, paras);
         }
       }
     }
     
-    // TODO: Kommandos wie "\section{xxx}" sollen als eigene Paragraphen 
-    // erkannt werden, also das naechste Element in einen neuen Paragrpahen. 
-    // Das wird normalerweise ueber prev.endsParagraph() geregelt, aber dadurch
-    // dass die Kindelemente in einem eigenen Kontext behandelt werden, ist
-    // für das naechste Element prev == null.
-    if (ref.endsParagraph()) {
+    List<Element> childElements = getChildElements(cmd, itr);
+
+    // Write placeholder, if the command introduces a placeholder.
+    if (ref.introducesPlaceholder()) {
+      para.registerText(ref.getPlaceholder());
+      para.registerTeXElements(childElements);
+    } else {
+      para = processElements(childElements, role, para, paras);
+    }
+    
+    // ******************************
+    
+    ref = !childElements.isEmpty() ? getTeXElementReference(childElements.get(childElements.size() - 1)) : ref;
+    
+    // Obtain if the current element starts a paragraph.
+    boolean endsParagraph = ref != null && ref.endsParagraph();
+            
+    if (endsParagraph) {                
       if (!para.isEmpty()) {
         paras.add(para);
       }
-      
-      para = new TeXParagraph(feature);
+      para = new TeXParagraph("text");
     }
     
-    // Process all child commands within this context, e.g. 
-    // '\begin{abstract} ... \end{abstract}'
-    return processElements(getChildElements(cmd, itr), feature, para, paras);
+    // ******************************
+    
+    return para;
   }
-
+  
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
   protected void processCrossReferenceCommand(Command cmd,
-      Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
+      Iterator<Element> itr,  List<TeXParagraph> paras) {
+    TeXParagraph para = paras.get(paras.size() - 1);
     Group group = cmd.getGroup();
     TeXElementReference ref = getTeXElementReference(cmd);
     
@@ -340,11 +359,11 @@ public class TeXParagraphsParser {
   protected List<Element> getChildElements(Command cmd, Iterator<Element> i) {
     List<Element> elements = new ArrayList<>();
 
-    TeXElementReference startCmdRef = getTeXElementReference(cmd);
-    int outline = startCmdRef != null ? startCmdRef.getOutlineLevel() : -1;
+//    TeXElementReference startCmdRef = getTeXElementReference(cmd);
+//    int outline = startCmdRef != null ? startCmdRef.getOutlineLevel() : -1;
     String endCommand = guessEndCommand(cmd);
     
-    if (endCommand != null || outline > 0) {
+    if (endCommand != null /*|| outline > 0*/) {
       while (i.hasNext()) {
         Element element = i.next();
 
@@ -354,24 +373,24 @@ public class TeXParagraphsParser {
           break;
         }
 
-        // Check the outline level of the next element.
-        if (i.hasNext()) {
-          Element el = i.peek();
-          if (el instanceof Command) {
-            TeXElementReference cmdRef = getTeXElementReference((Command) el);
-            if (cmdRef != null && cmdRef.definesOutlineLevel()) {
-              if (cmdRef.getOutlineLevel() == outline) {
-                break;
-              }
-            }
-          }
-        }
+//        // Check the outline level of the next element.
+//        if (i.hasNext()) {
+//          Element el = i.peek();
+//          if (el instanceof Command) {
+//            TeXElementReference cmdRef = getTeXElementReference((Command) el);
+//            if (cmdRef != null && cmdRef.definesOutlineLevel()) {
+//              if (cmdRef.getOutlineLevel() == outline) {
+//                break;
+//              }
+//            }
+//          }
+//        }
       }
     }
 
     return elements;
   }
-
+  
   /**
    * Guesses the end command of unknown command (= command without a reference).
    */
@@ -390,11 +409,10 @@ public class TeXParagraphsParser {
     TeXElementReference cmdRef = getTeXElementReference(command);
     return cmdRef != null ? cmdRef.getEndCommand() : null;
   }
-
+  
   // ===========================================================================
   
   protected TeXElementReference getTeXElementReference(Element element) {
     return this.texElementRefs.getElementReference(element);
   }
-  
 }
