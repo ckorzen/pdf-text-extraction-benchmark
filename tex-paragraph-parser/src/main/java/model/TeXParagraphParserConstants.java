@@ -24,4 +24,9 @@ public class TeXParagraphParserConstants {
    * The path to the tex element references. 
    */
   public static final String TEX_ELEMENT_REFERENCES_PATH = "/element-references.csv";
+  
+  /**
+   * The default role for a paragraph.
+   */
+  public static final String DEFAULT_PARAGRAPH_ROLE = "text";
 }

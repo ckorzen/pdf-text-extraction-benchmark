@@ -108,7 +108,7 @@ public class TeXParagraphsIdentifier {
    */
   protected List<TeXParagraph> identifyTeXParagraphs(Document document)
     throws IOException {
-    return new TeXParagraphsParser2(document).processGroup();
+    return new TeXParagraphsParser2(document).identifyParagraphs();
   }
 
   // ---------------------------------------------------------------------------

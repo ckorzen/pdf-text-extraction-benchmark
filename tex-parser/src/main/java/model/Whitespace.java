@@ -26,4 +26,9 @@ public class Whitespace extends Text {
       int endColumn) {
     super(" ", beginLine, endLine, beginColumn, endColumn);
   }
+
+  @Override
+  public boolean isWhitespace() {
+    return true;
+  }
 }

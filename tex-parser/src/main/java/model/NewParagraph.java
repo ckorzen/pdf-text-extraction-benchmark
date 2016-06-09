@@ -28,4 +28,9 @@ public class NewParagraph extends Text {
   public String getElementReferenceIdentifier() {
     return "\\par";
   }
+  
+  @Override
+  public boolean isWhitespace() {
+    return true;
+  }
 }

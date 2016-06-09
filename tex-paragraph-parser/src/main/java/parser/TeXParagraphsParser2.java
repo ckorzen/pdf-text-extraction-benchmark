@@ -1,7 +1,7 @@
 package parser;
 
+import static model.TeXParagraphParserConstants.DEFAULT_PARAGRAPH_ROLE;
 import static model.TeXParagraphParserConstants.TEX_ELEMENT_REFERENCES_PATH;
-import static de.freiburg.iif.affirm.Affirm.affirm;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,9 +23,8 @@ import model.Text;
  * Class to parse Document objects for text paragraphs.
  * 
  * @author Claudius Korzen
- *
  */
-public class TeXParagraphsParser2 {
+public class TeXParagraphsParser2 {  
   /**
    * The document to parse.
    */
@@ -47,7 +46,7 @@ public class TeXParagraphsParser2 {
   /**
    * Identifies the paragraphs in the given document.
    */
-  public List<TeXParagraph> processGroup() {
+  public List<TeXParagraph> identifyParagraphs() {
     return processDocument(document);
   }
 
@@ -57,26 +56,11 @@ public class TeXParagraphsParser2 {
    * Processes the given document.
    */
   protected List<TeXParagraph> processDocument(Document document) {
-    affirm(document != null, "No document given");
-
-    return processGroup(document);
-  }
-
-  /**
-   * Processes the given group.
-   */
-  protected List<TeXParagraph> processGroup(Group document) {
-    affirm(document != null, "No document given");
-
     List<TeXParagraph> paragraphs = new ArrayList<>();
     TeXParagraph para = new TeXParagraph();
     
-    processGroup(document, "text", para, paragraphs);
-    
-    for (TeXParagraph p : paragraphs) {
-      System.out.println(p);
-    }
-    
+    processGroup(document, DEFAULT_PARAGRAPH_ROLE, para, paragraphs);
+        
     return paragraphs;
   }
   
@@ -87,10 +71,7 @@ public class TeXParagraphsParser2 {
    */
   protected TeXParagraph processGroup(Group group, String role, 
       TeXParagraph para, List<TeXParagraph> paras) {
-    if (group != null) {
-      return processElements(group.elements, role, para, paras);
-    }
-    return null;
+    return processElements(group.getElements(), role, para, paras);
   }
   
   /**
@@ -100,14 +81,11 @@ public class TeXParagraphsParser2 {
    */
   protected TeXParagraph processElements(List<Element> elements, String role,
       TeXParagraph para, List<TeXParagraph> paras) {
+    
     Iterator<Element> itr = new Iterator<>(elements);
     while (itr.hasNext()) {
       Element element = itr.next();
       
-      // We differ into 2 types on introducing a new paragraph:
-      // (1) The element belongs to the introducing paragraph.
-      // (2) The element doesn't belong to the introducing paragraph.
-      // In case (2), ignore the current element.
       if (element instanceof Group) {
         para = processGroup(((Group) element), role, para, paras);
       } else if (element instanceof Command) {
@@ -133,24 +111,10 @@ public class TeXParagraphsParser2 {
     if (text.startsWith("@")) {
       return para;
     }
-
-    // ******************************
+    
+    // Check if the element introduces a new paragraph.
+    para = checkForParagraphStart(textElement, role, para, paras);
         
-    TeXElementReference ref = getTeXElementReference(textElement); 
-    // Obtain if the current element starts a paragraph.
-    boolean startsParagraph = ref != null && ref.startsParagraph();
-        
-    role = ref != null && ref.definesRole() ? ref.getRole() : role;
-    
-    if (startsParagraph) {                
-      if (!para.isEmpty()) {
-        paras.add(para);
-      }
-      para = new TeXParagraph(role);
-    }
-    
-    // ******************************
-    
     // TODO: Move the normalization to an extra method.
     text = text.replaceAll("~", " ");
     text = text.replaceAll("``", "\"");
@@ -167,22 +131,14 @@ public class TeXParagraphsParser2 {
       para.registerWhitespace();
     } else {
       para.registerText(text);
+      if (textElement.getBeginLineNumber() == 952) {
+        System.out.println("XXX: " + textElement);
+      }
       para.registerTeXElement(textElement);
     }
     
-    // ******************************
-     
-    // Obtain if the current element starts a paragraph.
-    boolean endsParagraph = ref != null && ref.endsParagraph();
-            
-    if (endsParagraph) {                
-      if (!para.isEmpty()) {
-        paras.add(para);
-      }
-      para = new TeXParagraph("text");
-    }
-    
-    // ******************************
+    // Check if the element ends a paragraph.
+    para = checkForParagraphEnd(textElement, role, para, paras);
     
     return para;
   }
@@ -194,7 +150,7 @@ public class TeXParagraphsParser2 {
       Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
     // Check, if the command is a cross reference. TODO
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
-      processCrossReferenceCommand(cmd, itr, paras);
+      processCrossReferenceCommand(cmd, itr, para);
     }
 
     TeXElementReference ref = getTeXElementReference(cmd);
@@ -204,22 +160,12 @@ public class TeXParagraphsParser2 {
       // Do nothing if there is no element reference for the command.
       return para;
     }
+        
+    // Check if the element introduces a new paragraph.
+    para = checkForParagraphStart(cmd, role, para, paras);
     
-    // ******************************
-    
-    // Obtain if the current element starts a paragraph.
-    boolean startsParagraph = ref != null && ref.startsParagraph();
-    
-    role = ref != null && ref.definesRole() ? ref.getRole() : role;
-    
-    if (startsParagraph) {                
-      if (!para.isEmpty()) {
-        paras.add(para);
-      }
-      para = new TeXParagraph(role);
-    }
-    
-    // ******************************
+    // Role may have changed.
+    role = para.getRole();
     
     // Some arguments of some commands won't be defined within a group but as
     // a consecutive string, e.g. "\vksip 5pt". 
@@ -287,24 +233,17 @@ public class TeXParagraphsParser2 {
       para.registerText(ref.getPlaceholder());
       para.registerTeXElements(childElements);
     } else {
+      System.out.println(role + " " + cmd + " " + childElements);
       para = processElements(childElements, role, para, paras);
     }
     
-    // ******************************
-    
-    ref = !childElements.isEmpty() ? getTeXElementReference(childElements.get(childElements.size() - 1)) : ref;
-    
-    // Obtain if the current element starts a paragraph.
-    boolean endsParagraph = ref != null && ref.endsParagraph();
-            
-    if (endsParagraph) {                
-      if (!para.isEmpty()) {
-        paras.add(para);
-      }
-      para = new TeXParagraph("text");
+    Element lastElement = cmd;
+    if (childElements != null && !childElements.isEmpty()) {
+      lastElement = childElements.get(childElements.size() - 1);
     }
     
-    // ******************************
+    // Check if the element ends a paragraph.
+    para = checkForParagraphEnd(lastElement, role, para, paras);
     
     return para;
   }
@@ -312,9 +251,8 @@ public class TeXParagraphsParser2 {
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
-  protected void processCrossReferenceCommand(Command cmd,
-      Iterator<Element> itr,  List<TeXParagraph> paras) {
-    TeXParagraph para = paras.get(paras.size() - 1);
+  protected void processCrossReferenceCommand(Command cmd, 
+      Iterator<Element> itr, TeXParagraph para) {
     Group group = cmd.getGroup();
     TeXElementReference ref = getTeXElementReference(cmd);
     
@@ -411,6 +349,57 @@ public class TeXParagraphsParser2 {
   }
   
   // ===========================================================================
+  
+  /**
+   * Checks if the given element introduces a new paragraph. If so, this method
+   * adds the given 'para' to 'paras' (if it is not empty) and creates a new 
+   * paragraph. The role of the newly created paragraph is either the role 
+   * defined by the element reference (if any) or the given role otherwise.
+   * Returns either the newly created paragraph or the given paragraph if no
+   * new paragraph was introduced.
+   */
+  protected TeXParagraph checkForParagraphStart(Element element, String role, 
+      TeXParagraph para, List<TeXParagraph> paras) {
+    TeXElementReference ref = getTeXElementReference(element); 
+    // Obtain if the current element starts a paragraph.
+    boolean startsParagraph = ref != null && ref.startsParagraph();
+        
+    role = ref != null && ref.definesRole() ? ref.getRole() : role;
+    role = role == null ? DEFAULT_PARAGRAPH_ROLE : role;
+        
+    if (startsParagraph) {                
+      if (!para.isEmpty()) {
+        paras.add(para);
+      }
+      para = new TeXParagraph(role);
+    }
+    
+    return para;
+  }
+  
+  /**
+   * Checks if the given element ends a paragraph. If so, this method
+   * adds the given 'para' to 'paras' (if it is not empty) and creates a new 
+   * paragraph. The role of the newly created paragraph is defined by the 
+   * default role. Returns either the newly created paragraph or the given 
+   * paragraph if no new paragraph was introduced.
+   */
+  protected TeXParagraph checkForParagraphEnd(Element element, String role, 
+      TeXParagraph para, List<TeXParagraph> paras) {
+    TeXElementReference ref = getTeXElementReference(element);
+    
+    // Obtain if the current element starts a paragraph.
+    boolean endsParagraph = ref != null && ref.endsParagraph();
+            
+    if (endsParagraph) {                
+      if (!para.isEmpty()) {
+        paras.add(para);
+      }
+      para = new TeXParagraph(DEFAULT_PARAGRAPH_ROLE);
+    }
+    
+    return para;
+  }
   
   protected TeXElementReference getTeXElementReference(Element element) {
     return this.texElementRefs.getElementReference(element);

@@ -23,4 +23,9 @@ public class NewLine extends Text {
   public String toString() {
     return "\n";
   }
+  
+  @Override
+  public boolean isWhitespace() {
+    return true;
+  }
 }

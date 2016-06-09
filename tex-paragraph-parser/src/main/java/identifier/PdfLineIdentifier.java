@@ -75,12 +75,13 @@ public class PdfLineIdentifier {
         affirm(lineNum < texLines.size(), "Line number is too large.");
 
         String prevParagraphEndLine = texLines.get(lineNum);
-        
+                        
         // Add the addendum to the end of paragraph.
-        if (!prevParagraphEndLine.trim().startsWith("\\")
-            && !prevParagraphEndLine.trim().endsWith("\\")
+        if (/*!prevParagraphEndLine.trim().startsWith("\\")*/ // fails for line \foobar{foo} hello world.
+            !prevParagraphEndLine.trim().endsWith("\\")
             && !prevParagraphEndLine.trim().endsWith("{")
-            && !prevParagraphEndLine.trim().endsWith("}")) { // TODO
+            && !prevParagraphEndLine.trim().endsWith("}")
+            && !prevParagraphEndLine.trim().endsWith("$$")) { // TODO
           prevParagraphEndLine += PARA_ADDENDUM;
           texLines.set(lineNum, prevParagraphEndLine);
         }

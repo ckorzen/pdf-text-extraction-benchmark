@@ -27,6 +27,7 @@ import identifier.PdfParagraphsIdentifier;
 import identifier.TeXParagraphsIdentifier;
 import model.TeXFile;
 import serializer.TeXParagraphSerializer;
+import visualizer.TeXParagraphVisualizer;
 
 /**
  * Class to identify text paragraphs in tex files. This class is able to 
@@ -50,10 +51,15 @@ public class TeXParagraphParserMain {
   protected String inputPrefix;
   
   /**
-   * The output defined by the user, as string.
+   * The serialization path defined by the user, as string.
    */
-  protected String output;
+  protected String serialization;
 
+  /**
+   * The visualization path defined by the user, as string.
+   */
+  protected String visualization;
+  
   /**
    * The features to extract.
    */
@@ -85,14 +91,24 @@ public class TeXParagraphParserMain {
   protected List<Path> inputFiles;
 
   /**
-   * The output file (only set, if the input is a file).
+   * The serialization file (only set, if the input is a file).
    */
-  protected Path outputFile;
+  protected Path serializationFile;
 
   /**
-   * The output directory.
+   * The serialization directory.
    */
-  protected Path outputDirectory;
+  protected Path serializationDirectory;
+  
+  /**
+   * The visualization file (only set, if the input is a file).
+   */
+  protected Path visualizationFile;
+
+  /**
+   * The visualization directory.
+   */
+  protected Path visualizationDirectory;
 
   /**
    * The main method to start the identifcation of paragraphs.
@@ -133,7 +149,8 @@ public class TeXParagraphParserMain {
     inputFiles = new ArrayList<>();
     
     input = getOptionValue(cmd, TexParagraphParserOptions.INPUT, null);
-    output = getOptionValue(cmd, TexParagraphParserOptions.OUTPUT, null);
+    serialization = getOptionValue(cmd, TexParagraphParserOptions.OUTPUT, null);
+    visualization = getOptionValue(cmd, TexParagraphParserOptions.VISUALIZE, null);
     inputPrefix = getOptionValue(cmd, TexParagraphParserOptions.PREFIX, "");
     features = getOptionValues(cmd, TexParagraphParserOptions.FEATURE, null);
     identifyPdfParagraphs = hasOption(cmd, TexParagraphParserOptions.BOUNDING_BOXES);
@@ -160,7 +177,8 @@ public class TeXParagraphParserMain {
     affirm(!input.trim().isEmpty(), "No input given.");
 
     Path inPath = Paths.get(input).toAbsolutePath();
-    Path outPath = output != null ? Paths.get(output).toAbsolutePath() : null;
+    Path serPath = serialization != null ? Paths.get(serialization).toAbsolutePath() : null;
+    Path visPath = visualization != null ? Paths.get(visualization).toAbsolutePath() : null;
 
     // Check, if the input path exists.
     affirm(Files.exists(inPath), "The given input doesn't exist.");
@@ -174,17 +192,31 @@ public class TeXParagraphParserMain {
       // Add the file to the files to process.
       this.inputFiles.add(inPath);
 
-      // Check, if there is an output given.
-      if (outPath != null) {
-        if (Files.isDirectory(outPath)) {
+      // Check, if there is an serialiation path given.
+      if (serPath != null) {
+        if (Files.isDirectory(serPath)) {
           // The output is an existing directory.
-          this.outputDirectory = outPath;
+          this.serializationDirectory = serPath;
         } else {
           // The output is an existing file OR the output doesn't exist.
           // If the output doesn't exist, interpret the output as a file
           // (because the input is a file).
-          this.outputFile = outPath;
-          this.outputDirectory = outPath.getParent();
+          this.serializationFile = serPath;
+          this.serializationDirectory = serPath.getParent();
+        }
+      }
+      
+      // Check, if there is an visualization path given.
+      if (visPath != null) {
+        if (Files.isDirectory(visPath)) {
+          // The output is an existing directory.
+          this.visualizationDirectory = visPath;
+        } else {
+          // The output is an existing file OR the output doesn't exist.
+          // If the output doesn't exist, interpret the output as a file
+          // (because the input is a file).
+          this.visualizationFile = visPath;
+          this.visualizationDirectory = visPath.getParent();
         }
       }
     } else if (Files.isDirectory(inPath)) {
@@ -194,13 +226,23 @@ public class TeXParagraphParserMain {
       readDirectory(inPath, this.inputFiles);
 
       // Check, if there is an output given.
-      if (outPath != null) {
-        affirm(!Files.isRegularFile(outPath),
+      if (serPath != null) {
+        affirm(!Files.isRegularFile(serPath),
             "An input directory can't be serialized to a file.");
         // The output is an existing directory OR doesn't exist.
         // If the output doesn't exist, interpret the output as a directory,
         // (because the input is a directory).
-        this.outputDirectory = outPath;
+        this.serializationDirectory = serPath;
+      }
+      
+      // Check, if there is an visualization path given.
+      if (visPath != null) {
+        affirm(!Files.isRegularFile(visPath),
+            "An input directory can't be visualized to a file.");
+        // The output is an existing directory OR doesn't exist.
+        // If the output doesn't exist, interpret the output as a directory,
+        // (because the input is a directory).
+        this.visualizationDirectory = visPath;
       }
     }
   }
@@ -227,7 +269,16 @@ public class TeXParagraphParserMain {
       identifyPdfParagraphs(texFile);
     }
 
-    serialize(texFile, defineSerializationTargetFile(texFile));
+    Path serializationTargetFile = defineSerializationTargetFile(texFile);
+    Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
+    
+    if (serializationTargetFile != null) {
+      serialize(texFile, serializationTargetFile);
+    }
+    
+    if (visualizationTargetFile != null) {
+      visualize(texFile, visualizationTargetFile);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -255,6 +306,15 @@ public class TeXParagraphParserMain {
     new TeXParagraphSerializer(texFile).serialize(target);
   }
 
+  /**
+   * Visualizes the selected features to file.
+   * 
+   * TODO: Take the chosen features into account.
+   */
+  protected void visualize(TeXFile texFile, Path target) throws IOException {
+    new TeXParagraphVisualizer(texFile).visualize(target);
+  }
+  
   // ---------------------------------------------------------------------------
   // Some util methods.
 
@@ -266,9 +326,9 @@ public class TeXParagraphParserMain {
       return null;
     }
 
-    if (outputFile != null) {
+    if (serializationFile != null) {
       // If there is a output file defined explicitly, return it.
-      return outputFile;
+      return serializationFile;
     }
 
     // Obtain the basename of the parent directory.
@@ -285,7 +345,7 @@ public class TeXParagraphParserMain {
    * Obtains the path to the target directory.
    */
   protected Path defineSerializationTargetDir(TeXFile texFile) {
-    if (outputDirectory != null) {
+    if (serializationDirectory != null) {
       // Obtain the parent directory of the tex file.
       Path parentDirectory = texFile.getPath().getParent();
       // Obtain the parent directory of the parent directory.
@@ -293,12 +353,53 @@ public class TeXParagraphParserMain {
       // Obtain the path of the texFile relative to the global input path.
       Path relativePath = inputDirectory.relativize(parentParentDirectory);
 
-      return outputDirectory.resolve(relativePath);
+      return serializationDirectory.resolve(relativePath);
     }
 
     return null;
   }
 
+  /**
+   * Defines the path to the visualization file.
+   */
+  protected Path defineVisualizationTargetFile(TeXFile texFile) {
+    if (texFile == null) {
+      return null;
+    }
+
+    if (visualizationFile != null) {
+      // If there is a output file defined explicitly, return it.
+      return visualizationFile;
+    }
+
+    // Obtain the basename of the parent directory.
+    String basename = PathUtils.getBasename(texFile.getPath().getParent());
+
+    Path targetDir = defineVisualizationTargetDir(texFile);
+    if (targetDir != null) {
+      return targetDir.resolve(basename + ".vis.pdf");
+    }
+    return null;
+  }
+
+  /**
+   * Defines the path to the visualization directory.
+   */
+  protected Path defineVisualizationTargetDir(TeXFile texFile) {
+    if (visualizationDirectory != null) {
+      // Obtain the parent directory of the tex file.
+      Path parentDirectory = texFile.getPath().getParent();
+      // Obtain the parent directory of the parent directory.
+      Path parentParentDirectory = parentDirectory.getParent();
+      // Obtain the path of the texFile relative to the global input path.
+      Path relativePath = inputDirectory.relativize(parentParentDirectory);
+
+      return visualizationDirectory.resolve(relativePath);
+    }
+
+    return null;
+  }
+  
   // ---------------------------------------------------------------------------
 
   /**
@@ -484,6 +585,11 @@ public class TeXParagraphParserMain {
      */
     OUTPUT("o", "output", "The output file/directory.", true, true),
 
+    /**
+     * Create option to define the path to visualization file / directory.
+     */
+    VISUALIZE("v", "visualize", "The visualization file/directory.", true, true),
+    
     /**
      * Create option to define the prefix(es) to consider on parsing the input
      * directory.

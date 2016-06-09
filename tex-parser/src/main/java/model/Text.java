@@ -11,8 +11,8 @@ public class Text extends Element {
   /** The serial id. */
   protected static final long serialVersionUID = -7150317095394410328L;
   /** The text. */
-  protected String text;
-    
+  protected String text;  
+  
   /**
    * The constructor.
    */
@@ -40,5 +40,12 @@ public class Text extends Element {
   @Override
   public String toString() {
     return text;
+  }
+  
+  /**
+   * Returns true, if this text only contains whitespaces.
+   */
+  public boolean isWhitespace() {
+    return text != null && text.trim().isEmpty();
   }
 }

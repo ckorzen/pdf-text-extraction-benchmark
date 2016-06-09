@@ -2,8 +2,6 @@ package identifier;
 
 import static de.freiburg.iif.affirm.Affirm.affirm;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -13,8 +11,6 @@ import java.util.ListIterator;
 import java.util.Set;
 
 import de.freiburg.iif.model.Rectangle;
-import drawer.PdfDrawer;
-import drawer.pdfbox.PdfBoxDrawer;
 import model.PdfLine;
 import model.PdfParagraph;
 import model.TeXFile;
@@ -61,49 +57,26 @@ public class PdfParagraphsIdentifier {
    * Identifies the pdf paragraphs from given tex file.
    */
   public void identify() throws IOException {    
-    for (TeXParagraph paragraph : this.texFile.getTeXParagraphs()) {      
-      List<PdfLine> pdfLines = identifyPdfLines(paragraph);
-      List<PdfParagraph> pdfParagraphs = identifyPdfParagraphs(pdfLines);
+    for (TeXParagraph para : this.texFile.getTeXParagraphs()) {      
+      List<PdfLine> pdfLines = identifyPdfLines(para);
+      List<PdfParagraph> pdfParagraphs = identifyPdfParagraphs(para, pdfLines);
             
-      paragraph.setPdfParagraphs(pdfParagraphs);
+      para.setPdfParagraphs(pdfParagraphs);
     }
-    
-    // Visualize the bounding boxes.
-    visualizeBoundingBoxes(texFile);
   }
-    
-  /**
-   * Visualizes the given bounding boxes.
-   */
-  protected void visualizeBoundingBoxes(TeXFile texFile) throws IOException {
-    PdfDrawer drawer = new PdfBoxDrawer(texFile.getPdfPath());
-    
-    for (TeXParagraph p : texFile.getTeXParagraphs()) {
-      for (PdfParagraph x : p.getPdfParagraphs()) {
-        drawer.drawRectangle(x.getPdfBoundingBox(), x.getPdfPageNumber());
-      }
-    }
-
-    File output = new File("/home/korzen/Downloads/paraboxes.pdf");
-
-    FileOutputStream fos = new FileOutputStream(output);
-    drawer.writeTo(fos);
-    fos.close();
-  }
-  
+      
   /**
    * Identifies the pdf lines for the given tex paragraph.
    */
   protected List<PdfLine> identifyPdfLines(TeXParagraph paragraph) 
       throws IOException {
     LinkedList<PdfLine> paraLines = new LinkedList<>();
-    
+        
     for (int i : paragraph.getTexLineNumbers()) {
       
       List<PdfLine> pdfLines = lineIdentifier.getBoundingBoxesOfLine(i, 0);
                      
       for (PdfLine line : pdfLines) {
-        
         // Clean up the lines a bit: Only consider still unknown lines and
         // let "climb up" the line to the "correct" position (with respect to
         // the reading order).
@@ -131,15 +104,17 @@ public class PdfParagraphsIdentifier {
   /**
    * Identifies the pdf paragraphs in the given pdf lines.
    */
-  protected List<PdfParagraph> identifyPdfParagraphs(List<PdfLine> pdfLines) 
-      throws IOException {
+  protected List<PdfParagraph> identifyPdfParagraphs(TeXParagraph para, 
+      List<PdfLine> pdfLines) throws IOException {
     List<PdfParagraph> pdfParagraphs = new ArrayList<>();
            
+    System.out.println(para);
+    
     // Split the lines into paragraphs.
     PdfLine prevLine = null;
     PdfParagraph pdfParagraph = null;
     for (PdfLine line : pdfLines) {        
-      if (introducesNewPdfParagraph(prevLine, line)) {
+      if (introducesNewPdfParagraph(para, prevLine, line)) {
         if (pdfParagraph != null && !pdfParagraph.isEmpty()) {
           pdfParagraphs.add(pdfParagraph);
         }
@@ -163,7 +138,8 @@ public class PdfParagraphsIdentifier {
    * This method checks if the both given lines belongs to two different 
    * paragraphs.
    */
-  protected boolean introducesNewPdfParagraph(PdfLine prevLine, PdfLine line) {
+  protected boolean introducesNewPdfParagraph(TeXParagraph para, 
+      PdfLine prevLine, PdfLine line) {    
     if (prevLine == null && line == null) {
       return false;
     }
@@ -180,9 +156,24 @@ public class PdfParagraphsIdentifier {
     if (prevLine.getPdfPageNumber() != line.getPdfPageNumber()) {
       return true;
     }
+        
+    // TODO: Theoretically, formulas, tables and figures could be splitted by 
+    // columns, too. But for now, don't allow column splits within formulas.
+    if (para != null) {
+      if ("formula".equals(para.getRole())) {
+        return false;  
+      }
+      
+      if ("table".equals(para.getRole())) {
+        return false;  
+      }
+      
+      if ("figure".equals(para.getRole())) {
+        return false;  
+      }
+    }
     
     // EXPERIMENTAL: Analyze the vertical distance between the lines.
-    Rectangle pageRect = pageIdentifier.getBoundingBox(line.getPdfPageNumber());
     Rectangle prevRect = prevLine.getRectangle();
     Rectangle rect = line.getRectangle();
     
@@ -198,9 +189,10 @@ public class PdfParagraphsIdentifier {
     
     // Compute the distance between the lines.
     float verticalDistance = Math.abs(prevMinY - maxY);
-    
+           
     // The lines introduce a new paragraph if verticalDistance is "too large".
-    if (verticalDistance > 0.25 * pageRect.getHeight()) {
+    if (verticalDistance > 5 * prevRect.getHeight()) {
+      System.out.println(prevLine + " " + line);
       return true;
     }
     

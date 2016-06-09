@@ -21,16 +21,16 @@ public class TeXParagraph {
    */
   protected StringBuilder textBuilder;
 
-  /** 
+  /**
    * The TeX elements.
    */
   protected List<Element> texElements;
-  
+
   /**
    * Flag that indicates if we have to introduce a whitespace before next text.
    */
   protected boolean introduceWhitespace;
-  
+
   /**
    * The line numbers of this paragraphs in a set (to avoid duplicates).
    */
@@ -50,6 +50,16 @@ public class TeXParagraph {
    * The associated pdf paragraphs.
    */
   protected List<PdfParagraph> pdfParagraphs;
+
+  /**
+   * The first element in this paragraph which is not a whitespace.
+   */
+  protected Element firstNonWhitespaceElement;
+
+  /**
+   * The last element in this paragraph which is not a whitespace.
+   */
+  protected Element lastNonWhitespaceElement;
 
   /**
    * Creates a new TexParagraph.
@@ -113,13 +123,13 @@ public class TeXParagraph {
 
   /**
    * Registers a whitespace to introduce before the next non-whitespace text.
-   * That mechanism was introduced to only write a single whitespace even if 
+   * That mechanism was introduced to only write a single whitespace even if
    * there is a run of whitespaces.
    */
   public void registerWhitespace() {
     introduceWhitespace = true;
   }
-  
+
   /**
    * Writes the given text to this paragraph.
    */
@@ -149,16 +159,29 @@ public class TeXParagraph {
       registerTeXElement(element);
     }
   }
-  
+
   /**
    * Adds the given tex element to this paragraph.
    */
   public void registerTeXElement(Element element) {
     this.texElements.add(element);
+
+    if (element instanceof Text) {
+      Text text = (Text) element;
+
+      if (text.isWhitespace()) {
+        return;
+      }
+    }
+
+    if (firstNonWhitespaceElement == null) {
+      firstNonWhitespaceElement = element;
+    }
+    lastNonWhitespaceElement = element;
     
     int beginLine = element.getBeginLineNumber();
     int endLine = element.getEndLineNumber();
-    
+
     if (!texLineNumsSet.contains(beginLine)) {
       texLineNumsSet.add(beginLine);
       needTexLineNumbersUpdate = true;
@@ -168,30 +191,34 @@ public class TeXParagraph {
       needTexLineNumbersUpdate = true;
     }
   }
-  
+
   /**
-   * Returns the last tex elements.
+   * Returns the first non-whitespace element.
    */
-  public Element getLastTexElement() {
-    if (!this.texElements.isEmpty()) {
-      return this.texElements.get(texElements.size() - 1);
-    }
-    return null;
+  public Element getFirstNonWhitespaceElement() {
+    return firstNonWhitespaceElement;
   }
   
+  /**
+   * Returns the last non-whitespace element.
+   */
+  public Element getLastNonWhitespaceElement() {
+    return lastNonWhitespaceElement;
+  }
+
   /**
    * Returns the tex elements.
    */
   public List<Element> getTexElements() {
     return this.texElements;
   }
-  
+
   /**
    * Returns the tex line numbers of this paragraph in a list. This list is
    * sorted in ascending order and contains *no* duplicates.
    */
   public List<Integer> getTexLineNumbers() {
-    // The list is derived from the set of line numbers. Check if we have to 
+    // The list is derived from the set of line numbers. Check if we have to
     // recompute this list (because the set of line numbers changed).
     if (this.needTexLineNumbersUpdate) {
       this.texLineNums = computeTexLineNumbers();
@@ -202,7 +229,7 @@ public class TeXParagraph {
 
   /**
    * Computes the sorted list of line numbers (with no duplicates) from the set
-   * of line numbers. 
+   * of line numbers.
    */
   public List<Integer> computeTexLineNumbers() {
     List<Integer> texLineNums = new ArrayList<>(texLineNumsSet);
