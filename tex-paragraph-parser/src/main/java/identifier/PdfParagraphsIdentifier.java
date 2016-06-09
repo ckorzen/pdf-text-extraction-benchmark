@@ -71,31 +71,50 @@ public class PdfParagraphsIdentifier {
   protected List<PdfLine> identifyPdfLines(TeXParagraph paragraph) 
       throws IOException {
     LinkedList<PdfLine> paraLines = new LinkedList<>();
-        
-    for (int i : paragraph.getTexLineNumbers()) {
       
+    float sumLineHeights = 0;
+    float numLineHeights = 0;
+            
+    for (int i : paragraph.getTexLineNumbers()) {
       List<PdfLine> pdfLines = lineIdentifier.getBoundingBoxesOfLine(i, 0);
-                     
+          
+      // Only consider still unknown pdf lines. Exception: If a paragraph only
+      // consists of already known lines, consider all lines of the paragraph.
+      // Background: Title and authors are mostly added to pdf via \maketitle.
+      // So, title and authors have the same pdf lines.
+      List<PdfLine> unknownPdfLines = new ArrayList<>();
+      for (PdfLine line : pdfLines) {
+        if (!alreadySeenLines.contains(line)) {
+          unknownPdfLines.add(line);
+          alreadySeenLines.add(line);
+        }
+      }
+      
+      pdfLines = unknownPdfLines;
+      
       for (PdfLine line : pdfLines) {
         // Clean up the lines a bit: Only consider still unknown lines and
         // let "climb up" the line to the "correct" position (with respect to
         // the reading order).
-        if (!alreadySeenLines.contains(line)) {
-          int numParaLines = paraLines.size();
-          ListIterator<PdfLine> itr = paraLines.listIterator(numParaLines);
+        int numParaLines = paraLines.size();
+        ListIterator<PdfLine> itr = paraLines.listIterator(numParaLines);
         
-          while (itr.hasPrevious()) {
-            int order = obtainReadingOrder(itr.previous(), line);
-            // Check, if the lines are in correct order.
-            if (order < 1) {
-              itr.next();
-              break;
-            }
+        while (itr.hasPrevious()) {
+          int order = obtainReadingOrder(itr.previous(), line);
+          // Check, if the lines are in correct order.
+          if (order < 1) {
+            itr.next();
+            break;
           }
-          itr.add(line);
-          alreadySeenLines.add(line);
         }
+        itr.add(line);
+        sumLineHeights += line.getRectangle().getHeight();
+        numLineHeights += 1;
       }
+    }
+    
+    if (numLineHeights > 0) {
+      paragraph.setAverageLineHeight(sumLineHeights / numLineHeights);
     }
     
     return paraLines;
@@ -107,9 +126,7 @@ public class PdfParagraphsIdentifier {
   protected List<PdfParagraph> identifyPdfParagraphs(TeXParagraph para, 
       List<PdfLine> pdfLines) throws IOException {
     List<PdfParagraph> pdfParagraphs = new ArrayList<>();
-           
-    System.out.println(para);
-    
+               
     // Split the lines into paragraphs.
     PdfLine prevLine = null;
     PdfParagraph pdfParagraph = null;
@@ -192,7 +209,6 @@ public class PdfParagraphsIdentifier {
            
     // The lines introduce a new paragraph if verticalDistance is "too large".
     if (verticalDistance > 5 * prevRect.getHeight()) {
-      System.out.println(prevLine + " " + line);
       return true;
     }
     

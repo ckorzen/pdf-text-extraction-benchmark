@@ -38,7 +38,6 @@ public class TeXParagraphSerializer {
    * Serializes the paragraphs of given tex file to given path.
    */
   public void serialize(Path target) throws IOException {
-    System.out.println(target);
     // Create the target file if it doesn't exist yet.
     if (!Files.exists(target)) {
       Files.createDirectories(target.getParent());

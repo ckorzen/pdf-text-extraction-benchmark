@@ -61,6 +61,8 @@ public class TeXParagraph {
    */
   protected Element lastNonWhitespaceElement;
 
+  protected float averageLineHeight;
+  
   /**
    * Creates a new TexParagraph.
    */
@@ -272,5 +274,13 @@ public class TeXParagraph {
   @Override
   public String toString() {
     return role + " " + getTexLineNumbers().toString();
+  }
+
+  public void setAverageLineHeight(float f) {
+    this.averageLineHeight = f;
+  }
+  
+  public float getAverageLineHeight() {
+    return this.averageLineHeight;
   }
 }

@@ -16,7 +16,6 @@ import model.TeXParagraph;
 import parse.ParseException;
 import parse.TeXParser;
 import parser.TeXParagraphsParser;
-import parser.TeXParagraphsParser2;
 import preprocess.TeXMacroResolver;
 
 /**
@@ -108,7 +107,7 @@ public class TeXParagraphsIdentifier {
    */
   protected List<TeXParagraph> identifyTeXParagraphs(Document document)
     throws IOException {
-    return new TeXParagraphsParser2(document).identifyParagraphs();
+    return new TeXParagraphsParser(document).identifyParagraphs();
   }
 
   // ---------------------------------------------------------------------------
