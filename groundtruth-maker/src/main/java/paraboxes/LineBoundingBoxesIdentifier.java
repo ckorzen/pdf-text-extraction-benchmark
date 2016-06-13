@@ -226,7 +226,7 @@ public class LineBoundingBoxesIdentifier {
 
     affirm(status == 0, "Error on synctex call: " + synctex.getErrorString());
 
-    List<PdfLine> pairs = parseStream(lineNum, synctex.getStream());
+    List<PdfLine> pairs = parseStream(lineNum, synctex.getInputStream());
 
     synctex.close();
 

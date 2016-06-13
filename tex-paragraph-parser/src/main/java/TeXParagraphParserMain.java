@@ -265,6 +265,7 @@ public class TeXParagraphParserMain {
 
     // Identify the paragraphs in the given tex file.
     identifyTexParagraphs(texFile);
+        
     if (this.identifyPdfParagraphs) {
       identifyPdfParagraphs(texFile);
     }

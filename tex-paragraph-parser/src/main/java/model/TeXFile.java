@@ -7,6 +7,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import de.freiburg.iif.model.Rectangle;
+import identifier.PdfPageIdentifier;
+
 /**
  * A TeX file.
  * 
@@ -29,9 +32,19 @@ public class TeXFile {
   protected Path pdfFile;
 
   /**
+   * The path to the synctex file.
+   */
+  protected Path synctexFile;
+  
+  /**
    * The number of lines.
    */
   protected int numTeXLines;
+  
+  /**
+   * The page identifier.
+   */
+  protected PdfPageIdentifier pageIdentifier;
   
   /**
    * The list of paragraphs of this tex file.
@@ -82,10 +95,27 @@ public class TeXFile {
   }
   
   /**
-   * Sets the path to the related pdf file.
+   * Sets the path to the related pdf file and instantiate the page identifier.
    */
   public void setPdfPath(Path pdfPath) {
     this.pdfFile = pdfPath;
+    this.pageIdentifier = new PdfPageIdentifier(this);
+  }
+  
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Returns the path to the related synctex file.
+   */
+  public Path getSynctexPath() {
+    return synctexFile;
+  }
+  
+  /**
+   * Sets the path to the related synctex file.
+   */
+  public void setSynctexPath(Path synctexPath) {
+    this.synctexFile = synctexPath;
   }
   
   // ---------------------------------------------------------------------------
@@ -125,5 +155,19 @@ public class TeXFile {
    */
   public void addTeXParagraph(TeXParagraph paragraph) {
     this.texParagraphs.add(paragraph);
+  }
+  
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Returns the bounding box of given page. 
+   */
+  public Rectangle getPageBoundingBox(int pageNum) {
+    if (this.pageIdentifier == null) {
+      // The page identifier is only set on setting the pdf path (see above).
+      throw new IllegalStateException("You have to set the pdf path before you "
+          + "can use getPageBoundingBox");
+    }
+    return this.pageIdentifier.getBoundingBox(pageNum);
   }
 }

@@ -24,6 +24,8 @@ public class PdfLine implements Comparable<PdfLine>, HasRectangle {
    */
   protected Rectangle boundingBox;
 
+  protected int numContentRecords;
+  
   /**
    * Creates a new pdf line.
    */
@@ -121,5 +123,26 @@ public class PdfLine implements Comparable<PdfLine>, HasRectangle {
     }
       
     return 0;
+  }
+  
+  public void addContentRecord(float x, float y) {
+    if (x < boundingBox.getMinX()) {
+      boundingBox.setMinX(x);
+    }
+    if (x > boundingBox.getMaxX()) {
+      boundingBox.setMaxX(x);
+    }
+    if (y < boundingBox.getMinY()) {
+      boundingBox.setMinY(y);
+    }
+    if (y > boundingBox.getMaxY()) {
+      boundingBox.setMaxY(y);
+    }
+    
+    numContentRecords++;
+  }
+  
+  public int getNumContentRecords() {
+    return this.numContentRecords;
   }
 }

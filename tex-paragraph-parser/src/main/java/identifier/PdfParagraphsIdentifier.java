@@ -56,15 +56,21 @@ public class PdfParagraphsIdentifier {
   /**
    * Identifies the pdf paragraphs from given tex file.
    */
-  public void identify() throws IOException {    
+  public void identify() throws IOException {
     for (TeXParagraph para : this.texFile.getTeXParagraphs()) {      
       List<PdfLine> pdfLines = identifyPdfLines(para);
       List<PdfParagraph> pdfParagraphs = identifyPdfParagraphs(para, pdfLines);
             
       para.setPdfParagraphs(pdfParagraphs);
+      
     }
   }
-      
+     
+  public long sumRuntimesConstructor;
+  public long sumRuntimesRun;
+  public long sumRuntimesParse;
+  public long sumCalls;
+  
   /**
    * Identifies the pdf lines for the given tex paragraph.
    */
@@ -77,39 +83,42 @@ public class PdfParagraphsIdentifier {
             
     for (int i : paragraph.getTexLineNumbers()) {
       List<PdfLine> pdfLines = lineIdentifier.getBoundingBoxesOfLine(i, 0);
-          
-      // Only consider still unknown pdf lines. Exception: If a paragraph only
-      // consists of already known lines, consider all lines of the paragraph.
-      // Background: Title and authors are mostly added to pdf via \maketitle.
-      // So, title and authors have the same pdf lines.
-      List<PdfLine> unknownPdfLines = new ArrayList<>();
-      for (PdfLine line : pdfLines) {
-        if (!alreadySeenLines.contains(line)) {
-          unknownPdfLines.add(line);
-          alreadySeenLines.add(line);
-        }
-      }
-      
-      pdfLines = unknownPdfLines;
-      
-      for (PdfLine line : pdfLines) {
-        // Clean up the lines a bit: Only consider still unknown lines and
-        // let "climb up" the line to the "correct" position (with respect to
-        // the reading order).
-        int numParaLines = paraLines.size();
-        ListIterator<PdfLine> itr = paraLines.listIterator(numParaLines);
-        
-        while (itr.hasPrevious()) {
-          int order = obtainReadingOrder(itr.previous(), line);
-          // Check, if the lines are in correct order.
-          if (order < 1) {
-            itr.next();
-            break;
+            
+      if (pdfLines != null) {
+        // Only consider still unknown pdf lines. Exception: If a paragraph only
+        // consists of already known lines, consider all lines of the paragraph.
+        // Background: Title and authors are mostly added to pdf via \maketitle.
+        // So, title and authors have the same pdf lines.
+        List<PdfLine> unknownPdfLines = new ArrayList<>();
+        for (PdfLine line : pdfLines) {
+          if (!alreadySeenLines.contains(line)) {
+            unknownPdfLines.add(line);
+            alreadySeenLines.add(line);
           }
         }
-        itr.add(line);
-        sumLineHeights += line.getRectangle().getHeight();
-        numLineHeights += 1;
+        
+        pdfLines = unknownPdfLines;
+        
+        for (PdfLine line : pdfLines) {
+          // Clean up the lines a bit: Only consider still unknown lines and
+          // let "climb up" the line to the "correct" position (with respect to
+          // the reading order).
+          int numParaLines = paraLines.size();
+          ListIterator<PdfLine> itr = paraLines.listIterator(numParaLines);
+          
+          while (itr.hasPrevious()) {
+            int order = obtainReadingOrder(itr.previous(), line);
+            // Check, if the lines are in correct order.
+            if (order < 1) {
+              itr.next();
+              break;
+            }
+          }
+          itr.add(line);
+          
+          sumLineHeights += line.getRectangle().getHeight();
+          numLineHeights += 1;
+        }
       }
     }
     

@@ -14,7 +14,6 @@ import java.util.concurrent.TimeoutException;
 import de.freiburg.iif.model.Rectangle;
 import de.freiburg.iif.model.simple.SimpleRectangle;
 import external.SyncTeX;
-import identifier.PdfPageIdentifier;
 import model.PdfLine;
 import model.TeXFile;
 
@@ -28,20 +27,14 @@ public class PdfLinesParser {
    * The tex file to process.
    */
   protected TeXFile texFile;
-    
-  /** 
-   * The pdf page identifier.
-   */
-  protected PdfPageIdentifier pageIdentifier;
-  
+      
   /**
    * Creates a new pdf line parser.
    */
   public PdfLinesParser(TeXFile texFile) {
     this.texFile = texFile;
-    this.pageIdentifier = new PdfPageIdentifier(texFile);
   }
-    
+      
   /**
    * Parses the synctex output for given line number and column number.
    */
@@ -49,18 +42,13 @@ public class PdfLinesParser {
     Path texPath = this.texFile.getTmpPath();
     Path pdfPath = this.texFile.getPdfPath();
     SyncTeX synctex = new SyncTeX(texPath, pdfPath);
-    
-    int status = -1;
+        
     try {
-      status = synctex.run(lineNum, columnNum);
+      synctex.run(lineNum, columnNum);
     } catch (TimeoutException e) {
       throw new IOException(e);
     }
-  
-    affirm(status == 0, "Error on synctex call: " + synctex.getErrorString());
-  
     List<PdfLine> pairs = parseStream(lineNum, synctex.getStream());
-  
     synctex.close();
   
     return pairs;
@@ -111,7 +99,7 @@ public class PdfLinesParser {
 
       if (line.startsWith("v:")) {
         float y = Float.parseFloat(line.substring(2));
-        currentMinY = pageIdentifier.getBoundingBox(pageNum).getMaxY() - y;
+        currentMinY = texFile.getPageBoundingBox(pageNum).getMaxY() - y;
         if (currentMinY < minY) {
           minY = currentMinY;
         }

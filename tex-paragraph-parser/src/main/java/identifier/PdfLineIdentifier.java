@@ -31,6 +31,11 @@ public class PdfLineIdentifier {
   protected TeXFile texFile;
     
   /** 
+   * The synctex parser.
+   */
+//  protected SyncTeXParser2 synctexParser;
+  
+  /** 
    * The addendum we append to the end of each paragraph. 
    * Synctex has issues to identify the coordinates of a line on so called
    * "widows". So we add some (slim) text to end of paragraphs to avoid such
@@ -41,16 +46,16 @@ public class PdfLineIdentifier {
   /**
    * Creates a new pdf line identifier.
    */
-  public PdfLineIdentifier(TeXFile texFile) {
+  public PdfLineIdentifier(TeXFile texFile) throws IOException {
     this.texFile = texFile;
+//    this.synctexParser = new SyncTeXParser2(texFile);
     
     // Handle widows.
     Path tmpTeXPath = handleWidows(texFile);
     this.texFile.setTmpPath(tmpTeXPath);
     
     // Compile the enriched version of tex file.
-    Path pdfPath = compileTexFile(tmpTeXPath);
-    this.texFile.setPdfPath(pdfPath);
+    compileTexFile(tmpTeXPath);
   }
   
   /**
@@ -154,6 +159,10 @@ public class PdfLineIdentifier {
 
   // ===========================================================================
 
+  public long sumRuntimesConstructor;
+  public long sumRuntimesRun;
+  public long sumRuntimesParse;
+  
   /**
    * Parses the synctex output for given line to get the coordinates of the
    * line.
@@ -170,7 +179,7 @@ public class PdfLineIdentifier {
    * Compiles the given tex file and makes sure that the related pdf- and
    * synctex-file exist.
    */
-  protected Path compileTexFile(Path texPath) {
+  protected Path compileTexFile(Path texPath) throws IOException {
     try {
       Path outputDir = defineOutputDirectory(texFile);     
       new PdfLaTeX(texPath, true, outputDir).run(true);
@@ -186,6 +195,11 @@ public class PdfLineIdentifier {
     affirm(syncTexFile != null, "No syncTeX file produced.");
     affirm(Files.isRegularFile(syncTexFile), "No syncTeX file produced.");
 
+    this.texFile.setPdfPath(pdfFile);
+    this.texFile.setSynctexPath(syncTexFile);
+    
+//    this.synctexParser.parse(); // TODO
+    
     return pdfFile;
   }
 
