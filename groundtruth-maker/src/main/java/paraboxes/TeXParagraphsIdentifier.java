@@ -28,7 +28,7 @@ public class TeXParagraphsIdentifier {
    * The tex file to process.
    */
   protected final TeXFile texFile;
-  
+
   /**
    * Creates a new paragraphs identifier for the given tex file.
    */
@@ -43,9 +43,9 @@ public class TeXParagraphsIdentifier {
    * end line and end column of a paragraph. The order of paragraphs in the
    * output corresponds to the order of paragraphs in tex file.
    */
-  public void identify() throws Exception {   
+  public void identify() throws Exception {
     List<TexParagraph> paragraphs = processDocument(parse());
-    
+
     this.texFile.setTeXParagraphs(paragraphs);
   }
 
@@ -68,28 +68,28 @@ public class TeXParagraphsIdentifier {
    */
   protected List<TexParagraph> processDocument(Document document) {
     affirm(document != null, "No document given.");
-    
-//    List<TexParagraph> paragraphs = new ArrayList<>();
-//    processElements(document.elements, paragraphs);
-//    return paragraphs;
+
+    // List<TexParagraph> paragraphs = new ArrayList<>();
+    // processElements(document.elements, paragraphs);
+    // return paragraphs;
     return processElements(document.elements);
   }
-  
+
   /**
    * Identifies paragraphs in the given list of elements.
    */
   protected List<TexParagraph> processElements(List<Element> elements) {
     affirm(elements != null, "No elements given.");
-    
+
     List<TexParagraph> paragraphs = new ArrayList<>();
     TexParagraph paragraph = new TexParagraph();
-    
+
     Element prevElement = null;
     for (Element element : elements) {
       if (ignoreElement(element)) {
         continue;
       }
-      
+
       if (element instanceof Group) {
         List<Element> groupElements = ((Group) element).elements;
         List<TexParagraph> groupParagraphs = processElements(groupElements);
@@ -120,10 +120,10 @@ public class TeXParagraphsIdentifier {
         }
       } else {
         ParagraphSplitType type = computeParaSplitType(prevElement, element);
-        
+
         if (type != null) {
           // 'type' is not null, i.e. there is a paragraph split.
-          // Add the previous paragraph to result, if it is not empty and 
+          // Add the previous paragraph to result, if it is not empty and
           // create a new one.
           if (paragraph.getNumTexElements() > 0) {
             paragraphs.add(paragraph);
@@ -134,13 +134,14 @@ public class TeXParagraphsIdentifier {
         // Add the element to the paragraph, if the type allows it.
         if (type != ParagraphSplitType.EXCLUSIVE_NEXT_ELEMENT) {
           paragraph.addTexElement(element);
-          
+
           // Also process all options and groups of a command.
           if (element instanceof Command) {
             Command command = (Command) element;
             if (command.hasOptions()) {
               for (Option option : command.getOptions()) {
-                List<TexParagraph> optionParas = processElements(option.elements);
+                List<TexParagraph> optionParas =
+                    processElements(option.elements);
                 if (optionParas.size() == 0) {
                   continue;
                 } else if (optionParas.size() == 1) {
@@ -173,16 +174,16 @@ public class TeXParagraphsIdentifier {
           }
         }
       }
-      prevElement = element; 
+      prevElement = element;
     }
-    
+
     if (paragraph.getNumTexElements() > 0) {
       paragraphs.add(paragraph);
     }
-    
+
     return paragraphs;
   }
-  
+
   /**
    * Computes the type of paragraph split between the two given elements.
    * Returns null if there is no paragraph split.
@@ -226,16 +227,16 @@ public class TeXParagraphsIdentifier {
    * The different types of a paragraph split.
    */
   public enum ParagraphSplitType {
-    /** 
-     * Describes a paragraph split, where the current element implies a 
-     * paragraph split and the element *should* be a member of the paragraph 
-     * (e.g. '\section{Introduction}'). 
+    /**
+     * Describes a paragraph split, where the current element implies a
+     * paragraph split and the element *should* be a member of the paragraph
+     * (e.g. '\section{Introduction}').
      */
-    INCLUSIVE_NEXT_ELEMENT, 
-    /** 
-     * Describes a paragraph split, where the current element implies a 
-     * paragraph split and the element *shouldn't* be a member of the paragraph 
-     * (e.g. '\par'). 
+    INCLUSIVE_NEXT_ELEMENT,
+    /**
+     * Describes a paragraph split, where the current element implies a
+     * paragraph split and the element *shouldn't* be a member of the paragraph
+     * (e.g. '\par').
      */
     EXCLUSIVE_NEXT_ELEMENT
   }
@@ -247,20 +248,20 @@ public class TeXParagraphsIdentifier {
     if (element == null) {
       return true;
     }
-    
+
     if (element instanceof NewLine || element instanceof Whitespace) {
       return true;
     }
-    
+
     if (element.toString().startsWith("\\label")) {
       return true;
     }
-    
+
     return false;
   }
-  
+
   /**
-   * The list of elements that implies a paragraph split and the element is 
+   * The list of elements that implies a paragraph split and the element is
    * *not* a member of the paragraph.
    */
   protected List<String> exclusiveParagraphSplitElements = createList(
@@ -269,8 +270,8 @@ public class TeXParagraphsIdentifier {
       "\\bibitem");
 
   /**
-   * The list of elements that implies a paragraph split and the element *is* 
-   * a member of the paragraph.
+   * The list of elements that implies a paragraph split and the element *is* a
+   * member of the paragraph.
    */
   protected List<String> inclusiveParagraphSplitElements = createList(
       "\\begin{abstract}",
@@ -279,7 +280,7 @@ public class TeXParagraphsIdentifier {
       "\\subsubsection");
 
   /**
-   * The list of elements that implies the end of a paragraph. 
+   * The list of elements that implies the end of a paragraph.
    */
   protected List<String> endParagraphElements = createList(
       "\\end{abstract}",
