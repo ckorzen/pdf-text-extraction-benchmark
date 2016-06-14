@@ -21,7 +21,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-import de.freiburg.iif.collection.CollectionUtils;
 import de.freiburg.iif.model.Rectangle;
 import de.freiburg.iif.path.PathUtils;
 import de.freiburg.iif.text.StringUtils;

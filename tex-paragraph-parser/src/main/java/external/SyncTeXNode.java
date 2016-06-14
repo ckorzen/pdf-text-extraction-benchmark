@@ -1,5 +1,10 @@
 package external;
 
+/**
+ * 
+ * @author korzen
+ *
+ */
 public class SyncTeXNode {
   int pageNum;
   int lineNum;

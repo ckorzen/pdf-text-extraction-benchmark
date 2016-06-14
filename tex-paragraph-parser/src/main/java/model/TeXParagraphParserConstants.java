@@ -4,7 +4,7 @@ import static de.freiburg.iif.collection.CollectionUtils.toList;
 import java.util.List;
 
 /**
- * Some global constants for TeXParagraphParser
+ * Some global constants for TeXParagraphParser.
  * 
  * @author Claudius Korzen
  *
@@ -23,7 +23,8 @@ public class TeXParagraphParserConstants {
   /** 
    * The path to the tex element references. 
    */
-  public static final String TEX_ELEMENT_REFERENCES_PATH = "/element-references.csv";
+  public static final String TEX_ELEMENT_REFERENCES_PATH = 
+      "/element-references.csv";
   
   /**
    * The default role for a paragraph.

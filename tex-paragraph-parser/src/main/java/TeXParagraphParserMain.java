@@ -30,12 +30,12 @@ import serializer.TeXParagraphSerializer;
 import visualizer.TeXParagraphVisualizer;
 
 /**
- * Class to identify text paragraphs in tex files. This class is able to 
+ * Class to identify text paragraphs in tex files. This class is able to
  * identify the text of each paragraph from a given tex file, as well as the
  * start and end line of the paragraphs.
  * 
- * Experimental: As an experimental feature, this class is also able to 
- * identify the coordinates and page numbers of the related areas in pdf file.
+ * Experimental: As an experimental feature, this class is also able to identify
+ * the coordinates and page numbers of the related areas in pdf file.
  *
  * @author Claudius Korzen
  */
@@ -49,7 +49,7 @@ public class TeXParagraphParserMain {
    * The prefix to consider on parsing the input directory for input files.
    */
   protected String inputPrefix;
-  
+
   /**
    * The serialization path defined by the user, as string.
    */
@@ -59,23 +59,23 @@ public class TeXParagraphParserMain {
    * The visualization path defined by the user, as string.
    */
   protected String visualization;
-  
+
   /**
    * The path to the texmf dir.
    */
   protected List<String> texmfPaths = Arrays.asList(
       PathUtils.getWorkingDirectory(getClass()) + "/classes/texmf");
-  
+
   /**
    * The features to extract.
    */
   protected List<String> features;
-    
+
   /**
    * Flag that indicates if we have to identify the bounding boxes.
    */
   protected boolean identifyPdfParagraphs;
-  
+
   /**
    * The default features to extract.
    */
@@ -85,7 +85,7 @@ public class TeXParagraphParserMain {
    * Some predefined feature profiles.
    */
   protected Map<String, List<String>> featureProfiles;
-  
+
   /**
    * The resolved input directory.
    */
@@ -105,7 +105,7 @@ public class TeXParagraphParserMain {
    * The serialization directory.
    */
   protected Path serializationDirectory;
-  
+
   /**
    * The visualization file (only set, if the input is a file).
    */
@@ -122,7 +122,7 @@ public class TeXParagraphParserMain {
   public static void main(String[] args) {
     // Create command line options.
     Options options = buildOptions();
-    
+
     // Try to parse the given command line arguments.
     CommandLine cmd = null;
     try {
@@ -153,7 +153,7 @@ public class TeXParagraphParserMain {
    */
   public TeXParagraphParserMain(CommandLine cmd) {
     inputFiles = new ArrayList<>();
-       
+
     input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
     visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);
@@ -167,16 +167,16 @@ public class TeXParagraphParserMain {
    * Runs this program.
    */
   public void run() throws IOException {
-    // Initialize the paragraph parser. 
+    // Initialize the paragraph parser.
     initialize();
     // Process the tex files.
     processTexFiles();
   }
 
   // ===========================================================================
-  
+
   /**
-   * Validates the input given by the user and resolves the input directory / 
+   * Validates the input given by the user and resolves the input directory /
    * files as well as the output directory / file.
    */
   protected void initialize() {
@@ -184,15 +184,15 @@ public class TeXParagraphParserMain {
     affirm(!input.trim().isEmpty(), "No input given.");
 
     Path inPath = Paths.get(input).toAbsolutePath();
-    Path serPath = serialization != null 
+    Path serPath = serialization != null
         ? Paths.get(serialization).toAbsolutePath() : null;
-    Path visPath = visualization != null 
+    Path visPath = visualization != null
         ? Paths.get(visualization).toAbsolutePath() : null;
 
     // Check, if the input path exists.
     affirm(Files.exists(inPath), "The given input doesn't exist.");
     affirm(Files.isReadable(inPath), "The given input can't be read.");
-    
+
     // Check, if the input path is a directory or a file.
     if (Files.isRegularFile(inPath)) {
       // The input is a single file.
@@ -214,7 +214,7 @@ public class TeXParagraphParserMain {
           this.serializationDirectory = serPath.getParent();
         }
       }
-      
+
       // Check, if there is an visualization path given.
       if (visPath != null) {
         if (Files.isDirectory(visPath)) {
@@ -243,7 +243,7 @@ public class TeXParagraphParserMain {
         // (because the input is a directory).
         this.serializationDirectory = serPath;
       }
-      
+
       // Check, if there is an visualization path given.
       if (visPath != null) {
         affirm(!Files.isRegularFile(visPath),
@@ -267,25 +267,25 @@ public class TeXParagraphParserMain {
 
   /**
    * Processes the given tex file. Identifies the paragraphs in the given tex
-   * file and serializes them to file. 
+   * file and serializes them to file.
    */
   protected void processTexFile(Path file) throws IOException {
     TeXFile texFile = new TeXFile(file);
 
     // Identify the paragraphs in the given tex file.
     identifyTexParagraphs(texFile);
-        
+
     if (this.identifyPdfParagraphs) {
       identifyPdfParagraphs(texFile, this.texmfPaths);
     }
 
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
     Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
-    
+
     if (serializationTargetFile != null) {
       serialize(texFile, serializationTargetFile);
     }
-        
+
     if (visualizationTargetFile != null) {
       visualize(texFile, visualizationTargetFile);
     }
@@ -303,8 +303,8 @@ public class TeXParagraphParserMain {
   /**
    * Identifies the pdf paragraphs for the tex paragraphs in the given tex file.
    */
-  protected void identifyPdfParagraphs(TeXFile texFile, List<String> texmfPaths) 
-      throws IOException {
+  protected void identifyPdfParagraphs(TeXFile texFile, List<String> texmfPaths)
+    throws IOException {
     new PdfParagraphsIdentifier(texFile, texmfPaths).identify();
   }
 
@@ -325,7 +325,7 @@ public class TeXParagraphParserMain {
   protected void visualize(TeXFile texFile, Path target) throws IOException {
     new TeXParagraphVisualizer(texFile).visualize(target);
   }
-  
+
   // ---------------------------------------------------------------------------
   // Some util methods.
 
@@ -410,7 +410,7 @@ public class TeXParagraphParserMain {
 
     return null;
   }
-  
+
   // ---------------------------------------------------------------------------
 
   /**
@@ -524,7 +524,7 @@ public class TeXParagraphParserMain {
       builder.required(opt.required);
       builder.hasArg(opt.hasArg);
       builder.numberOfArgs(opt.numArgs);
-      
+
       options.addOption(builder.build());
     }
 
@@ -599,8 +599,9 @@ public class TeXParagraphParserMain {
     /**
      * Create option to define the path to visualization file / directory.
      */
-    VISUALIZE("v", "visualize", "The visualization file/directory.", false, true, 1),
-    
+    VISUALIZE("v", "visualize", "The visualization file/directory.", false,
+        true, 1),
+
     /**
      * Create option to define the prefix(es) to consider on parsing the input
      * directory.
@@ -626,10 +627,10 @@ public class TeXParagraphParserMain {
     /**
      * Create option to define path to the texmf dir.
      */
-    TEXMF_PATHS("t", "texmf", 
-        "The path to the texmf directory", 
+    TEXMF_PATHS("t", "texmf",
+        "The path to the texmf directory",
         false, true, Option.UNLIMITED_VALUES),
-    
+
     /**
      * Create option to enable the identification of paragraphs bounding boxes.
      */

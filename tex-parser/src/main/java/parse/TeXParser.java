@@ -109,8 +109,8 @@ public class TeXParser implements TeXParserConstants {
 
   /**   * Registers the given macro definition.   */
   protected void registerMacroDefinition(MacroDefinition macro) {
-        if (macro != null && !macro.getValues().isEmpty()) {
-          macros.put(macro.getKey().getText(), macro.getValues().get(0));
+    if (macro != null && !macro.getValues().isEmpty()) {
+      macros.put(macro.getKey().getText(), macro.getValues().get(0));
     }
   }
 

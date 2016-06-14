@@ -89,7 +89,8 @@ public class PdfLineIdentifier {
         String prevParagraphEndLine = texLines.get(lineNum);
                         
         // Add the addendum to the end of paragraph.
-        if (/*!prevParagraphEndLine.trim().startsWith("\\")*/ // fails for line \foobar{foo} hello world.
+        // fails for line \foobar{foo} hello world.
+        if (/*!prevParagraphEndLine.trim().startsWith("\\")*/ 
             !prevParagraphEndLine.trim().endsWith("\\")
             && !prevParagraphEndLine.trim().endsWith("{")
             && !prevParagraphEndLine.trim().endsWith("}")

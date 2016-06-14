@@ -4,7 +4,6 @@ import static de.freiburg.iif.affirm.Affirm.affirm;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -214,14 +213,14 @@ public class PdfParagraphsIdentifier {
     Rectangle prevRect = prevLine.getRectangle();
     Rectangle rect = line.getRectangle();
 
-    float height = prevRect.getHeight();
-    float prevMinX = prevRect.getMinX();
-    float prevMaxX = prevRect.getMaxX();
+//    float height = prevRect.getHeight();
+//    float prevMinX = prevRect.getMinX();
+//    float prevMaxX = prevRect.getMaxX();
     float prevMinY = prevRect.getMinY();
-    float prevMaxY = prevRect.getMaxY();
-    float minX = rect.getMinX();
-    float maxX = rect.getMaxX();
-    float minY = rect.getMinY();
+//    float prevMaxY = prevRect.getMaxY();
+//    float minX = rect.getMinX();
+//    float maxX = rect.getMaxX();
+//    float minY = rect.getMinY();
     float maxY = rect.getMaxY();
 
     if (Math.abs(prevMinY - maxY) > 0.25 * pageRect.getHeight()) {
