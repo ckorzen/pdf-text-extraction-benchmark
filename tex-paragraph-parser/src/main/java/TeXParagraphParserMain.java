@@ -61,6 +61,11 @@ public class TeXParagraphParserMain {
   protected String visualization;
   
   /**
+   * The path to the texmf dir.
+   */
+  protected String texmfPath = PathUtils.getWorkingDirectory(getClass()) + "/classes/texmf";
+  
+  /**
    * The features to extract.
    */
   protected List<String> features;
@@ -116,7 +121,7 @@ public class TeXParagraphParserMain {
   public static void main(String[] args) {
     // Create command line options.
     Options options = buildOptions();
-
+    
     // Try to parse the given command line arguments.
     CommandLine cmd = null;
     try {
@@ -147,13 +152,14 @@ public class TeXParagraphParserMain {
    */
   public TeXParagraphParserMain(CommandLine cmd) {
     inputFiles = new ArrayList<>();
-    
+       
     input = getOptionValue(cmd, TexParagraphParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TexParagraphParserOptions.OUTPUT, null);
     visualization = getOptionValue(cmd, TexParagraphParserOptions.VISUALIZE, null);
     inputPrefix = getOptionValue(cmd, TexParagraphParserOptions.PREFIX, "");
     features = getOptionValues(cmd, TexParagraphParserOptions.FEATURE, null);
     identifyPdfParagraphs = hasOption(cmd, TexParagraphParserOptions.BOUNDING_BOXES);
+    texmfPath = getOptionValue(cmd, TexParagraphParserOptions.TEXMF_PATHS, texmfPath);
   }
 
   /**
@@ -267,7 +273,7 @@ public class TeXParagraphParserMain {
     identifyTexParagraphs(texFile);
         
     if (this.identifyPdfParagraphs) {
-      identifyPdfParagraphs(texFile);
+      identifyPdfParagraphs(texFile, this.texmfPath);
     }
 
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
@@ -294,8 +300,9 @@ public class TeXParagraphParserMain {
   /**
    * Identifies the pdf paragraphs for the tex paragraphs in the given tex file.
    */
-  protected void identifyPdfParagraphs(TeXFile texFile) throws IOException {
-    new PdfParagraphsIdentifier(texFile).identify();
+  protected void identifyPdfParagraphs(TeXFile texFile, String texmfPath) 
+      throws IOException {
+    new PdfParagraphsIdentifier(texFile, texmfPath).identify();
   }
 
   /**
@@ -514,7 +521,7 @@ public class TeXParagraphParserMain {
       builder.required(opt.required);
       builder.hasArg(opt.hasArg);
       builder.numberOfArgs(opt.numArgs);
-
+      
       options.addOption(builder.build());
     }
 
@@ -613,6 +620,13 @@ public class TeXParagraphParserMain {
         "Enable the identification of paragraphs bounding boxes.",
         false),
 
+    /**
+     * Create option to define path to the texmf dir.
+     */
+    TEXMF_PATHS("t", "texmf", 
+        "The path to the texmf directory", 
+        false, true, 1),
+    
     /**
      * Create option to enable the identification of paragraphs bounding boxes.
      */

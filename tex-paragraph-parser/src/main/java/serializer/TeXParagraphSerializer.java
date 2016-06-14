@@ -26,7 +26,7 @@ public class TeXParagraphSerializer {
    * The tex file to process.
    */
   protected TeXFile texFile;
-  
+    
   /**
    * The default constructor.
    */

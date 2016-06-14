@@ -41,15 +41,16 @@ public class PdfParagraphsIdentifier {
    * The set of already seen lines.
    */
   protected Set<PdfLine> alreadySeenLines = new HashSet<>();
-  
+    
   /**
    * Creates a new pdf paragraph identifier.
    */
-  public PdfParagraphsIdentifier(TeXFile texFile) throws IOException {    
+  public PdfParagraphsIdentifier(TeXFile texFile, String texmfPath) 
+      throws IOException {    
     affirm(texFile != null);
     
     this.texFile = texFile;
-    this.lineIdentifier = new PdfLineIdentifier(texFile);
+    this.lineIdentifier = new PdfLineIdentifier(texFile, texmfPath);
     this.pageIdentifier = new PdfPageIdentifier(texFile);
   }
   

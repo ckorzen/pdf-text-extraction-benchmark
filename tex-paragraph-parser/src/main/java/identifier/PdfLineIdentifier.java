@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import external.PdfLaTeX;
-import external.SyncTeXParser2;
 import model.PdfLine;
 import model.TeXFile;
 import model.TeXParagraph;
@@ -31,6 +30,11 @@ public class PdfLineIdentifier {
    */
   protected TeXFile texFile;
     
+  /**
+   * The path to the texmf dir.
+   */
+  protected String texmfPath;
+    
   /** 
    * The synctex parser.
    */
@@ -47,8 +51,10 @@ public class PdfLineIdentifier {
   /**
    * Creates a new pdf line identifier.
    */
-  public PdfLineIdentifier(TeXFile texFile) throws IOException {
+  public PdfLineIdentifier(TeXFile texFile, String texmfPath) 
+      throws IOException {
     this.texFile = texFile;
+    this.texmfPath = texmfPath;
 //    this.synctexParser = new SyncTeXParser2(texFile);
     
     // Handle widows.
@@ -184,7 +190,7 @@ public class PdfLineIdentifier {
   protected Path compileTexFile(Path texPath) throws IOException {
     try {
       Path outputDir = defineOutputDirectory(texFile);     
-      new PdfLaTeX(texPath, true, outputDir).run(true);
+      new PdfLaTeX(texPath, this.texmfPath, true, outputDir).run(true);
     } catch (Exception e) {
       throw new IllegalStateException("Couldn't compile the tex file.");
     }
