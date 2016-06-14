@@ -34,7 +34,7 @@ public class PdfLineIdentifier {
   /** 
    * The synctex parser.
    */
-  protected SyncTeXParser2 synctexParser;
+//  protected SyncTeXParser2 synctexParser;
   
   /** 
    * The addendum we append to the end of each paragraph. 
@@ -49,7 +49,7 @@ public class PdfLineIdentifier {
    */
   public PdfLineIdentifier(TeXFile texFile) throws IOException {
     this.texFile = texFile;
-    this.synctexParser = new SyncTeXParser2(texFile);
+//    this.synctexParser = new SyncTeXParser2(texFile);
     
     // Handle widows.
     Path tmpTeXPath = handleWidows(texFile);
