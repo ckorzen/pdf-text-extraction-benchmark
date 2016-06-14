@@ -30,7 +30,7 @@ public class SyncTeXBox implements HasRectangle {
     this.height = height;
     this.depth = depth;
     this.nodes = new ArrayList<>();
-    this.boundingBox = new SimpleRectangle(x, y, x + width, y + height + depth);
+    this.boundingBox = new SimpleRectangle(x, y, x + width, y + height);
   }
 
   // ===========================================================================

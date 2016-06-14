@@ -108,7 +108,7 @@ public class TeXParagraphSerializer {
       return null;
     }
     
-    return String.format("(%d,[%f,%f,%f,%f])", paragraph.getPdfPageNumber(),
+    return String.format("(%d;[%f;%f;%f;%f])", paragraph.getPdfPageNumber(),
         box.getMinX(), box.getMinY(), box.getMaxX(), box.getMaxY());
   }
 }

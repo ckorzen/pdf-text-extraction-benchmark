@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import external.PdfLaTeX;
+import external.SyncTeXParser2;
 import model.PdfLine;
 import model.TeXFile;
 import model.TeXParagraph;
@@ -33,7 +34,7 @@ public class PdfLineIdentifier {
   /** 
    * The synctex parser.
    */
-//  protected SyncTeXParser2 synctexParser;
+  protected SyncTeXParser2 synctexParser;
   
   /** 
    * The addendum we append to the end of each paragraph. 
@@ -48,7 +49,7 @@ public class PdfLineIdentifier {
    */
   public PdfLineIdentifier(TeXFile texFile) throws IOException {
     this.texFile = texFile;
-//    this.synctexParser = new SyncTeXParser2(texFile);
+    this.synctexParser = new SyncTeXParser2(texFile);
     
     // Handle widows.
     Path tmpTeXPath = handleWidows(texFile);
@@ -169,7 +170,8 @@ public class PdfLineIdentifier {
    */
   public List<PdfLine> getBoundingBoxesOfLine(int lineNum, int columnNumber) 
       throws IOException {
-    return new PdfLinesParser(this.texFile).parse(lineNum, columnNumber);
+//    return synctexParser.getPdfLinesIndex(lineNum);
+    return new PdfLinesParser(texFile).parse(lineNum, columnNumber);
   }
 
   // ===========================================================================

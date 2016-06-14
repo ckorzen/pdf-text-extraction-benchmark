@@ -13,7 +13,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Stack;
+import java.util.TreeMap;
 
 import drawer.pdfbox.PdfBoxDrawer;
 import model.PdfLine;
@@ -53,7 +55,7 @@ public class SyncTeXParser2 {
   /** 
    * Index of all boxes per line.
    */
-  protected Map<Integer, List<PdfLine>> linesIndex;
+  protected TreeMap<Integer, List<PdfLine>> linesIndex;
   
   PdfBoxDrawer drawer;
   
@@ -64,7 +66,7 @@ public class SyncTeXParser2 {
   
   public SyncTeXParser2(TeXFile texFile) throws IOException {
     this.texFile = texFile;
-    this.linesIndex = new HashMap<>();
+    this.linesIndex = new TreeMap<>();
     this.boxesStack = new Stack<>();
     this.magnification = 1000;
     this.xoffset = 0;
@@ -235,7 +237,7 @@ public class SyncTeXParser2 {
    * @throws IOException 
    */
   protected void handleGlueNode(String line) throws IOException {
-    // Do nothing.
+    handleNodeStart(line);
   }
   
   /**
@@ -361,5 +363,14 @@ public class SyncTeXParser2 {
   
   protected float toPdfCoordinate(int point) {
     return (this.unit * point) / 65781.76f * (1000f / magnification);
+  }
+  
+  public Map<Integer, List<PdfLine>> getPdfLinesIndex() {
+    return this.linesIndex;
+  }
+  
+  public List<PdfLine> getPdfLinesIndex(int lineNum) {
+    Entry<Integer, List<PdfLine>> entry = this.linesIndex.floorEntry(lineNum);
+    return entry != null ? entry.getValue() : null;
   }
 }

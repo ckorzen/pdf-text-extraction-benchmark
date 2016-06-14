@@ -589,7 +589,7 @@ public class TeXParagraphParserMain {
     /**
      * Create option to define the path to visualization file / directory.
      */
-    VISUALIZE("v", "visualize", "The visualization file/directory.", true, true),
+    VISUALIZE("v", "visualize", "The visualization file/directory.", false, true),
     
     /**
      * Create option to define the prefix(es) to consider on parsing the input
