@@ -29,46 +29,46 @@ public class PdfLineIdentifier {
    * The tex file to process.
    */
   protected TeXFile texFile;
-    
+
   /**
    * The path to the texmf dir.
    */
   protected List<String> texmfPaths;
-    
-  /** 
+
+  /**
    * The synctex parser.
    */
-//  protected SyncTeXParser2 synctexParser;
-  
-  /** 
-   * The addendum we append to the end of each paragraph. 
-   * Synctex has issues to identify the coordinates of a line on so called
-   * "widows". So we add some (slim) text to end of paragraphs to avoid such
-   * widows (paragraph bounding boxes aren't affected). 
+  // protected SyncTeXParser2 synctexParser;
+
+  /**
+   * The addendum we append to the end of each paragraph. Synctex has issues to
+   * identify the coordinates of a line on so called "widows". So we add some
+   * (slim) text to end of paragraphs to avoid such widows (paragraph bounding
+   * boxes aren't affected).
    */
   protected static final String PARA_ADDENDUM = "~\\hspace{-10pt}i";
- 
+
   /**
    * Creates a new pdf line identifier.
    */
-  public PdfLineIdentifier(TeXFile texFile, List<String> texmfPaths) 
-      throws IOException {
+  public PdfLineIdentifier(TeXFile texFile, List<String> texmfPaths)
+    throws IOException {
     this.texFile = texFile;
     this.texmfPaths = texmfPaths;
-//    this.synctexParser = new SyncTeXParser2(texFile);
-    
+    // this.synctexParser = new SyncTeXParser2(texFile);
+
     // Handle widows.
     Path tmpTeXPath = handleWidows(texFile);
     this.texFile.setTmpPath(tmpTeXPath);
-    
+
     // Compile the enriched version of tex file.
     compileTexFile(tmpTeXPath);
   }
-  
+
   /**
    * Synctex has issues to identify the coordinates of a line on so called
    * "widows". So we add some (slim) text to end of paragraphs to avoid such
-   * widows (paragraph bounding boxes aren't affected). 
+   * widows (paragraph bounding boxes aren't affected).
    */
   protected Path handleWidows(TeXFile texFile) {
     affirm(texFile != null, "No tex file given");
@@ -79,7 +79,7 @@ public class PdfLineIdentifier {
     // Iterate through the paragraphs and identify the end line of each para.
     for (int i = 0; i < paragraphs.size(); i++) {
       TeXParagraph prevParagraph = i > 0 ? paragraphs.get(i - 1) : null;
-      
+
       if (prevParagraph != null) {
         int lineNum = prevParagraph.getTexEndLine();
 
@@ -87,11 +87,10 @@ public class PdfLineIdentifier {
         affirm(lineNum < texLines.size(), "Line number is too large.");
 
         String prevParagraphEndLine = texLines.get(lineNum);
-                        
+
         // Add the addendum to the end of paragraph.
-        // fails for line \foobar{foo} hello world.
-        if (/*!prevParagraphEndLine.trim().startsWith("\\")*/ 
-            !prevParagraphEndLine.trim().endsWith("\\")
+
+        if (!prevParagraphEndLine.trim().endsWith("\\")
             && !prevParagraphEndLine.trim().endsWith("{")
             && !prevParagraphEndLine.trim().endsWith("}")
             && !prevParagraphEndLine.trim().endsWith("$$")) { // TODO
@@ -103,13 +102,13 @@ public class PdfLineIdentifier {
 
     // Furthermore, \label commands make trouble on identifying the coordinates
     // of lines correctly. Comment out such labels.
-//    for (int i = 0; i < texLines.size(); i++) {
-//      String line = texLines.get(i);
-//
-//      if (line != null && line.startsWith("\\label")) {
-//        texLines.set(i, "%" + line);
-//      }
-//    }
+    // for (int i = 0; i < texLines.size(); i++) {
+    // String line = texLines.get(i);
+    //
+    // if (line != null && line.startsWith("\\label")) {
+    // texLines.set(i, "%" + line);
+    // }
+    // }
 
     // Write the enriched tex file.
     Path enriched = defineTmpTexPath(texFile);
@@ -170,14 +169,14 @@ public class PdfLineIdentifier {
   public long sumRuntimesConstructor;
   public long sumRuntimesRun;
   public long sumRuntimesParse;
-  
+
   /**
    * Parses the synctex output for given line to get the coordinates of the
    * line.
    */
-  public List<PdfLine> getBoundingBoxesOfLine(int lineNum, int columnNumber) 
-      throws IOException {
-//    return synctexParser.getPdfLinesIndex(lineNum);
+  public List<PdfLine> getBoundingBoxesOfLine(int lineNum, int columnNumber)
+    throws IOException {
+    // return synctexParser.getPdfLinesIndex(lineNum);
     return new PdfLinesParser(texFile).parse(lineNum, columnNumber);
   }
 
@@ -190,7 +189,7 @@ public class PdfLineIdentifier {
    */
   protected Path compileTexFile(Path texPath) throws IOException {
     try {
-      Path outputDir = defineOutputDirectory(texFile);     
+      Path outputDir = defineOutputDirectory(texFile);
       new PdfLaTeX(texPath, this.texmfPaths, true, outputDir).run(true);
     } catch (Exception e) {
       throw new IllegalStateException("Couldn't compile the tex file.");
@@ -206,15 +205,15 @@ public class PdfLineIdentifier {
 
     this.texFile.setPdfPath(pdfFile);
     this.texFile.setSynctexPath(syncTexFile);
-    
-//    this.synctexParser.parse(); // TODO
-    
+
+    // this.synctexParser.parse(); // TODO
+
     return pdfFile;
   }
 
   // ===========================================================================
   // Compile methods.
-  
+
   /**
    * Returns the path to the enriched pdf file.
    */

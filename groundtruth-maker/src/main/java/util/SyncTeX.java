@@ -38,11 +38,10 @@ public class SyncTeX extends ExternalProgram {
     this.pdfFilePath = pdfFile.toAbsolutePath().toString();
   }
 
-  public int run(int lineNumber, int columnNumber)
-      throws IOException, TimeoutException {
+  public int run(int line, int column) throws IOException, TimeoutException {
     List<String> options = new ArrayList<>();
     options.add("-i");
-    options.add(lineNumber + ":" + columnNumber + ":" + this.texFilePath);
+    options.add(line + ":" + column + ":" + this.texFilePath);
     options.add("-o");
     options.add(this.pdfFilePath);
     setOptions(options);
