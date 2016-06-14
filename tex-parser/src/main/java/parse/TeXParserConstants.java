@@ -26,43 +26,47 @@ public interface TeXParserConstants {
   /** RegularExpression Id. */
   int STAR = 9;
   /** RegularExpression Id. */
-  int GROUP_START = 10;
+  int UNDERSCORE = 10;
   /** RegularExpression Id. */
-  int GROUP_END = 11;
+  int CIRCUMFLEX = 11;
   /** RegularExpression Id. */
-  int OPTION_START = 12;
+  int GROUP_START = 12;
   /** RegularExpression Id. */
-  int OPTION_END = 13;
+  int GROUP_END = 13;
   /** RegularExpression Id. */
-  int COMMAND_PREFIX = 14;
+  int OPTION_START = 14;
   /** RegularExpression Id. */
-  int DEF_COMMAND_PREFIX = 15;
+  int OPTION_END = 15;
   /** RegularExpression Id. */
-  int NEW_COMMAND_PREFIX = 16;
+  int COMMAND_PREFIX = 16;
   /** RegularExpression Id. */
-  int WELL_DEFINED_DEFAULT_COMMAND = 17;
+  int DEF_COMMAND_PREFIX = 17;
   /** RegularExpression Id. */
-  int WELL_DEFINED_TABBING_COMMAND = 18;
+  int NEW_COMMAND_PREFIX = 18;
   /** RegularExpression Id. */
-  int WELL_DEFINED_COMMON_COMMAND = 19;
+  int WELL_DEFINED_DEFAULT_COMMAND = 19;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_DEFAULT_NAME = 20;
+  int WELL_DEFINED_TABBING_COMMAND = 20;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_TABBING_NAME = 21;
+  int WELL_DEFINED_COMMON_COMMAND = 21;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_COMMON_NAME = 22;
+  int ESCAPE_COMMAND_DEFAULT_NAME = 22;
   /** RegularExpression Id. */
-  int MARKER = 23;
+  int ESCAPE_COMMAND_TABBING_NAME = 23;
   /** RegularExpression Id. */
-  int UPPERCASE_CHAR = 24;
+  int ESCAPE_COMMAND_COMMON_NAME = 24;
   /** RegularExpression Id. */
-  int LOWERCASE_CHAR = 25;
+  int MARKER = 25;
   /** RegularExpression Id. */
-  int DIGIT = 26;
+  int UPPERCASE_CHAR = 26;
   /** RegularExpression Id. */
-  int CHAR = 27;
+  int LOWERCASE_CHAR = 27;
   /** RegularExpression Id. */
-  int OTHER_SYMBOL = 28;
+  int DIGIT = 28;
+  /** RegularExpression Id. */
+  int CHAR = 29;
+  /** RegularExpression Id. */
+  int OTHER_SYMBOL = 30;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -83,6 +87,8 @@ public interface TeXParserConstants {
     "<NEW_LINE>",
     "<NEW_PARAGRAPH>",
     "\"*\"",
+    "\"_\"",
+    "\"^\"",
     "\"{\"",
     "\"}\"",
     "\"[\"",

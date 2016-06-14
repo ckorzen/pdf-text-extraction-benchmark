@@ -33,7 +33,7 @@ public class PdfLineIdentifier {
   /**
    * The path to the texmf dir.
    */
-  protected String texmfPath;
+  protected List<String> texmfPaths;
     
   /** 
    * The synctex parser.
@@ -51,10 +51,10 @@ public class PdfLineIdentifier {
   /**
    * Creates a new pdf line identifier.
    */
-  public PdfLineIdentifier(TeXFile texFile, String texmfPath) 
+  public PdfLineIdentifier(TeXFile texFile, List<String> texmfPaths) 
       throws IOException {
     this.texFile = texFile;
-    this.texmfPath = texmfPath;
+    this.texmfPaths = texmfPaths;
 //    this.synctexParser = new SyncTeXParser2(texFile);
     
     // Handle widows.
@@ -190,7 +190,7 @@ public class PdfLineIdentifier {
   protected Path compileTexFile(Path texPath) throws IOException {
     try {
       Path outputDir = defineOutputDirectory(texFile);     
-      new PdfLaTeX(texPath, this.texmfPath, true, outputDir).run(true);
+      new PdfLaTeX(texPath, this.texmfPaths, true, outputDir).run(true);
     } catch (Exception e) {
       throw new IllegalStateException("Couldn't compile the tex file.");
     }

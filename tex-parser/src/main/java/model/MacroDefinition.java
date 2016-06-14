@@ -1,5 +1,8 @@
 package model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import parse.Token;
 
 /**
@@ -13,30 +16,62 @@ public class MacroDefinition extends Command {
   protected static final long serialVersionUID = 1814478884419802065L;
 
   /**
+   * The macro command (the command to substitute).
+   */
+  protected Group key;
+  
+  /**
+   * The substitution.
+   */
+  protected List<Group> values;
+  
+  /**
    * Creates a new macro definition.
    */
   public MacroDefinition(String name, Token token) {
     super(name, token);
+    this.values = new ArrayList<>();
+  }
+  
+  /**
+   * Sets macro command.
+   */
+  public void setKey(Group group) {
+    this.key = group;
   }
   
   /**
    * Returns the defined command.
    */
-  public Command getCommand() {
-    if (hasGroups()) {
-      return getGroup().first(Command.class);
-    }
-    return null;
+  public Group getKey() {
+    return this.key;
+  }
+  
+  /**
+   * Adds a substitution.
+   */
+  public void addValue(Group group) {
+    this.values.add(group);
   }
   
   /**
    * Returns the group to plug in on calling the defined command.
    */
-  public Group getSubstitution() {
-    if (hasGroups(2)) {
-      return getGroup(2);
+  public List<Group> getValues() {
+    return this.values;
+  }
+  
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getName());
+    sb.append(getKey().getText());
+    if (!getValues().isEmpty()) {
+      for (Group v : getValues()) {
+        sb.append(v);
+      }
     }
-    return null;
+    return sb.toString();
   }
   
 }

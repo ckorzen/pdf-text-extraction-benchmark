@@ -2,12 +2,9 @@ package external;
 
 import static de.freiburg.iif.affirm.Affirm.affirm;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.TimeoutException;
+import java.util.List;
 
 import de.freiburg.iif.cmd.ExternalProgram;
 import model.TeXFile;
@@ -30,19 +27,27 @@ public class PdfLaTeX extends ExternalProgram {
   /** 
    * Creates a new instance of PdfLateX based on the given tex file.
    */
-  public PdfLaTeX(Path texFile, String texmfPath) {
+  public PdfLaTeX(Path texFile, List<String> texmfPaths) {
     this();
         
-    // Define environment variable such that needed sty files are found.
-    if (texmfPath != null && !texmfPath.isEmpty()) {
-      // Make sure, that the path ends with "//:"
-      if (texmfPath.endsWith("/")) {
-        texmfPath += "/:";
-      } else {
-        texmfPath += "//:";
+    if (texmfPaths != null) {
+      StringBuilder sb = new StringBuilder();
+      for (String texmfPath : texmfPaths) {
+        // Define environment variable such that needed sty files are found.
+        if (texmfPath != null && !texmfPath.isEmpty()) {
+          sb.append(texmfPath);
+          // Make sure, that the path ends with "//:"
+          if (texmfPath.endsWith("/")) {
+            sb.append("/:");
+          } else {
+            sb.append("//:");
+          }
+        }
       }
-      addEnvironmentVariable(TEXMFKEY, texmfPath);
+      addEnvironmentVariable(TEXMFKEY, sb.toString());
     }
+    
+    
             
     affirm(texFile != null, "No TeX file given.");
     affirm(Files.isRegularFile(texFile), "TeX file doesn't exist.");
@@ -55,8 +60,8 @@ public class PdfLaTeX extends ExternalProgram {
    * Creates a new instance of PdfLateX based on the given tex file. Enables
    * synctex flag if 'withSyncTex' is true.
    */
-  public PdfLaTeX(Path texFile, String texmfPath, boolean withSyncTex) {
-    this(texFile, texmfPath);
+  public PdfLaTeX(Path texFile, List<String> texmfPaths, boolean withSyncTex) {
+    this(texFile, texmfPaths);
     
     if (withSyncTex) {
       addOption("-synctex", "-1");
@@ -68,9 +73,9 @@ public class PdfLaTeX extends ExternalProgram {
    * synctex flag if 'withSyncTex' is true. Writes the output files to given 
    * output directory. 
    */
-  public PdfLaTeX(Path texFile, String texmfPath, boolean withSyncTex, 
+  public PdfLaTeX(Path texFile, List<String> texmfPaths, boolean withSyncTex, 
       Path outputDir) {
-    this(texFile, texmfPath, withSyncTex);
+    this(texFile, texmfPaths, withSyncTex);
     
     if (outputDir != null) {
       addOption("-output-directory", outputDir.toAbsolutePath().toString());
@@ -82,16 +87,17 @@ public class PdfLaTeX extends ExternalProgram {
   /** 
    * Creates a new instance of PdfLateX based on the given tex file.
    */
-  public PdfLaTeX(TeXFile texFile, String texmfPath) {
-    this(texFile.getPath(), texmfPath);
+  public PdfLaTeX(TeXFile texFile, List<String> texmfPaths) {
+    this(texFile.getPath(), texmfPaths);
   }
   
   /** 
    * Creates a new instance of PdfLateX based on the given tex file. Enables
    * synctex flag if 'withSyncTex' is true.
    */
-  public PdfLaTeX(TeXFile texFile, String texmfPath, boolean withSyncTex) {
-    this(texFile.getPath(), texmfPath, withSyncTex);
+  public PdfLaTeX(TeXFile texFile, List<String> texmfPaths, 
+      boolean withSyncTex) {
+    this(texFile.getPath(), texmfPaths, withSyncTex);
   }
   
   /** 
@@ -99,8 +105,8 @@ public class PdfLaTeX extends ExternalProgram {
    * synctex flag if 'withSyncTex' is true. Writes the output files to given 
    * output directory. 
    */
-  public PdfLaTeX(TeXFile texFile, String texmfPath, boolean withSyncTex, 
+  public PdfLaTeX(TeXFile texFile, List<String> texmfPaths, boolean withSyncTex, 
       Path outputDir) {
-    this(texFile.getPath(), texmfPath, withSyncTex, outputDir);
+    this(texFile.getPath(), texmfPaths, withSyncTex, outputDir);
   }
 }

@@ -45,12 +45,12 @@ public class PdfParagraphsIdentifier {
   /**
    * Creates a new pdf paragraph identifier.
    */
-  public PdfParagraphsIdentifier(TeXFile texFile, String texmfPath) 
+  public PdfParagraphsIdentifier(TeXFile texFile, List<String> texmfPaths) 
       throws IOException {    
     affirm(texFile != null);
     
     this.texFile = texFile;
-    this.lineIdentifier = new PdfLineIdentifier(texFile, texmfPath);
+    this.lineIdentifier = new PdfLineIdentifier(texFile, texmfPaths);
     this.pageIdentifier = new PdfPageIdentifier(texFile);
   }
   

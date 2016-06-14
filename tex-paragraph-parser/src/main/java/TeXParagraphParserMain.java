@@ -63,7 +63,8 @@ public class TeXParagraphParserMain {
   /**
    * The path to the texmf dir.
    */
-  protected String texmfPath = PathUtils.getWorkingDirectory(getClass()) + "/classes/texmf";
+  protected List<String> texmfPaths = Arrays.asList(
+      PathUtils.getWorkingDirectory(getClass()) + "/classes/texmf");
   
   /**
    * The features to extract.
@@ -132,7 +133,7 @@ public class TeXParagraphParserMain {
     }
 
     // Print usage if 'cmd' contains the help option.
-    if (hasOption(cmd, TexParagraphParserOptions.HELP)) {
+    if (hasOption(cmd, TeXParserOptions.HELP)) {
       printUsage(options);
       System.exit(0);
     }
@@ -153,13 +154,13 @@ public class TeXParagraphParserMain {
   public TeXParagraphParserMain(CommandLine cmd) {
     inputFiles = new ArrayList<>();
        
-    input = getOptionValue(cmd, TexParagraphParserOptions.INPUT, null);
-    serialization = getOptionValue(cmd, TexParagraphParserOptions.OUTPUT, null);
-    visualization = getOptionValue(cmd, TexParagraphParserOptions.VISUALIZE, null);
-    inputPrefix = getOptionValue(cmd, TexParagraphParserOptions.PREFIX, "");
-    features = getOptionValues(cmd, TexParagraphParserOptions.FEATURE, null);
-    identifyPdfParagraphs = hasOption(cmd, TexParagraphParserOptions.BOUNDING_BOXES);
-    texmfPath = getOptionValue(cmd, TexParagraphParserOptions.TEXMF_PATHS, texmfPath);
+    input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
+    serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
+    visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);
+    inputPrefix = getOptionValue(cmd, TeXParserOptions.PREFIX, "");
+    features = getOptionValues(cmd, TeXParserOptions.FEATURE, null);
+    identifyPdfParagraphs = hasOption(cmd, TeXParserOptions.BOUNDING_BOXES);
+    texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
   }
 
   /**
@@ -183,8 +184,10 @@ public class TeXParagraphParserMain {
     affirm(!input.trim().isEmpty(), "No input given.");
 
     Path inPath = Paths.get(input).toAbsolutePath();
-    Path serPath = serialization != null ? Paths.get(serialization).toAbsolutePath() : null;
-    Path visPath = visualization != null ? Paths.get(visualization).toAbsolutePath() : null;
+    Path serPath = serialization != null 
+        ? Paths.get(serialization).toAbsolutePath() : null;
+    Path visPath = visualization != null 
+        ? Paths.get(visualization).toAbsolutePath() : null;
 
     // Check, if the input path exists.
     affirm(Files.exists(inPath), "The given input doesn't exist.");
@@ -273,7 +276,7 @@ public class TeXParagraphParserMain {
     identifyTexParagraphs(texFile);
         
     if (this.identifyPdfParagraphs) {
-      identifyPdfParagraphs(texFile, this.texmfPath);
+      identifyPdfParagraphs(texFile, this.texmfPaths);
     }
 
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
@@ -282,7 +285,7 @@ public class TeXParagraphParserMain {
     if (serializationTargetFile != null) {
       serialize(texFile, serializationTargetFile);
     }
-    
+        
     if (visualizationTargetFile != null) {
       visualize(texFile, visualizationTargetFile);
     }
@@ -300,9 +303,9 @@ public class TeXParagraphParserMain {
   /**
    * Identifies the pdf paragraphs for the tex paragraphs in the given tex file.
    */
-  protected void identifyPdfParagraphs(TeXFile texFile, String texmfPath) 
+  protected void identifyPdfParagraphs(TeXFile texFile, List<String> texmfPaths) 
       throws IOException {
-    new PdfParagraphsIdentifier(texFile, texmfPath).identify();
+    new PdfParagraphsIdentifier(texFile, texmfPaths).identify();
   }
 
   /**
@@ -513,8 +516,8 @@ public class TeXParagraphParserMain {
     // Define some options.
     Options options = new Options();
 
-    TexParagraphParserOptions[] opts = TexParagraphParserOptions.values();
-    for (TexParagraphParserOptions opt : opts) {
+    TeXParserOptions[] opts = TeXParserOptions.values();
+    for (TeXParserOptions opt : opts) {
       Builder builder = Option.builder(opt.shortOpt);
       builder.longOpt(opt.longOpt);
       builder.desc(opt.description);
@@ -548,7 +551,7 @@ public class TeXParagraphParserMain {
    * Returns true, if the given command line contains the given option.
    */
   protected static boolean hasOption(CommandLine cmd,
-      TexParagraphParserOptions option) {
+      TeXParserOptions option) {
     return cmd != null && cmd.hasOption(option.shortOpt);
   }
 
@@ -557,7 +560,7 @@ public class TeXParagraphParserMain {
    * default value if the given command line doesn't contain the option.
    */
   protected static String getOptionValue(CommandLine cmd,
-      TexParagraphParserOptions option, String defaultValue) {
+      TeXParserOptions option, String defaultValue) {
     if (cmd != null) {
       return cmd.getOptionValue(option.shortOpt, defaultValue);
     }
@@ -569,7 +572,7 @@ public class TeXParagraphParserMain {
    * default value if the given command line doesn't contain the option.
    */
   protected static List<String> getOptionValues(CommandLine cmd,
-      TexParagraphParserOptions option, List<String> defaultValue) {
+      TeXParserOptions option, List<String> defaultValue) {
     if (cmd != null) {
       String[] values = cmd.getOptionValues(option.shortOpt);
       if (values != null) {
@@ -582,7 +585,7 @@ public class TeXParagraphParserMain {
   /**
    * Enumeration of all command line options.
    */
-  public enum TexParagraphParserOptions {
+  public enum TeXParserOptions {
     /**
      * Create option to define the input file / directory.
      */
@@ -596,7 +599,7 @@ public class TeXParagraphParserMain {
     /**
      * Create option to define the path to visualization file / directory.
      */
-    VISUALIZE("v", "visualize", "The visualization file/directory.", false, true),
+    VISUALIZE("v", "visualize", "The visualization file/directory.", false, true, 1),
     
     /**
      * Create option to define the prefix(es) to consider on parsing the input
@@ -616,7 +619,7 @@ public class TeXParagraphParserMain {
     /**
      * Create option to enable the identification of paragraphs bounding boxes.
      */
-    BOUNDING_BOXES("bb", "boundingboxes",
+    BOUNDING_BOXES("b", "boundingboxes",
         "Enable the identification of paragraphs bounding boxes.",
         false),
 
@@ -625,7 +628,7 @@ public class TeXParagraphParserMain {
      */
     TEXMF_PATHS("t", "texmf", 
         "The path to the texmf directory", 
-        false, true, 1),
+        false, true, Option.UNLIMITED_VALUES),
     
     /**
      * Create option to enable the identification of paragraphs bounding boxes.
@@ -653,14 +656,14 @@ public class TeXParagraphParserMain {
     /**
      * Creates a new option with given arguments.
      */
-    TexParagraphParserOptions(String opt, String longOpt, String description) {
+    TeXParserOptions(String opt, String longOpt, String description) {
       this(opt, longOpt, description, false);
     }
 
     /**
      * Creates a new option with given arguments.
      */
-    TexParagraphParserOptions(String opt, String longOpt, String description,
+    TeXParserOptions(String opt, String longOpt, String description,
         boolean required) {
       this(opt, longOpt, description, required, false);
     }
@@ -668,15 +671,15 @@ public class TeXParagraphParserMain {
     /**
      * Creates a new option with given arguments.
      */
-    TexParagraphParserOptions(String opt, String longOpt, String description,
+    TeXParserOptions(String opt, String longOpt, String description,
         boolean required, boolean hasArg) {
-      this(opt, longOpt, description, required, hasArg, required ? 1 : 0);
+      this(opt, longOpt, description, required, hasArg, hasArg ? 1 : 0);
     }
 
     /**
      * Creates a new option with given arguments.
      */
-    TexParagraphParserOptions(String opt, String longOpt, String description,
+    TeXParserOptions(String opt, String longOpt, String description,
         boolean required, boolean hasArg, int numArgs) {
       this.shortOpt = opt;
       this.longOpt = longOpt;
