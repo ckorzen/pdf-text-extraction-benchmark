@@ -14,7 +14,7 @@ public class PdfParagraph implements HasRectangle {
   /**
    * The lines in this paragraph.
    */
-  protected List<PdfLine> pdfLines;
+  protected List<SyncTeXBoundingBox> pdfLines;
   
   /**
    * The bounding box.
@@ -41,10 +41,10 @@ public class PdfParagraph implements HasRectangle {
   /**
    * Adds the given pdf line to this paragraph.
    */
-  public void addPdfLine(PdfLine line) {
+  public void addPdfLine(SyncTeXBoundingBox line) {
     this.pdfLines.add(line);
     this.needsPdfBoundingBoxUpdate = true;
-    this.pdfPageNumber = line.getPdfPageNumber();
+    this.pdfPageNumber = line.getPageNumber();
   }
   
   /**

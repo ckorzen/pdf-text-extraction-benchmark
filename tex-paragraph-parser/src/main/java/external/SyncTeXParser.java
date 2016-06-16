@@ -2,135 +2,216 @@ package external;
 
 import java.awt.Color;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
-import java.util.Stack;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
+import de.freiburg.iif.math.MathUtils;
 import de.freiburg.iif.model.Rectangle;
 import de.freiburg.iif.model.simple.SimpleRectangle;
-import de.freiburg.iif.rtree.RTree;
-import de.freiburg.iif.rtree.SimpleRTree;
+import drawer.PdfDrawer;
 import drawer.pdfbox.PdfBoxDrawer;
-import model.PdfLine;
-import model.TeXFile;
+import identifier.PdfPageIdentifier;
+import model.SyncTeXBoundingBox;
 
 /**
+ * A simple parser for SyncTeX files that allows forward searches. See
+ * <a href="http://manpages.ubuntu.com/manpages/xenial/en/man5/synctex.5.html"/>
+ * for more details about the sytnax of SyncTeX and
+ * <a href="http://itexmac.sourceforge.net/SyncTeX.html" /> for more details
+ * about the official SyncTeX parser.
  * 
- * @author korzen
- *
+ * @author Claudius Korzen
  */
 public class SyncTeXParser {
   /**
-   * The tex file..
+   * The synctex path to process.
    */
-  protected TeXFile texFile;
+  protected Path syncTexPath;
 
   /**
-   * The magnification.
+   * The page identifier to get bounding boces of pages.
+   */
+  protected PdfPageIdentifier pageIdentifier;
+
+  /**
+   * The magnification from preamble.
    */
   protected float magnification;
 
   /**
-   * The x offset.
+   * The x offset from preamble.
    */
   protected float xoffset;
 
   /**
-   * The y offset.
+   * The y offset from preamble.
    */
   protected float yoffset;
 
   /**
-   * The unit.
+   * The unit from preamble.
    */
   protected float unit;
 
   /**
    * The current page.
    */
-  protected int currentPage;
+  protected int pageNum;
 
   /**
-   * The previous line number.
+   * The current hbox.
    */
-  protected PdfLine currentLine;
+  protected SyncTeXBoundingBox currentHBox;
 
   /**
-   * The stack of boxes.
+   * The nesting level of the current hbox.
    */
-  protected Stack<Rectangle> boxesStack;
+  protected int currentHBoxLevel;
 
   /**
-   * Index of all boxes per line.
+   * Map that stores the bounding boxes of records within hboxes per line num.
    */
-  protected Map<Integer, List<PdfLine>> linesIndex;
-
-  PdfBoxDrawer drawer;
-  RTree<PdfLine> index = new SimpleRTree<>();
+  protected Map<Integer, List<SyncTeXBoundingBox>> recordBoundingBoxes;
 
   /**
-   * Creates a new synctex parser.
-   * 
-   * @throws IOException
+   * Map that stores the bounding boxes of merged records per line.
    */
-  public SyncTeXParser(TeXFile texFile) throws IOException {
-    this.linesIndex = new HashMap<>();
-    this.boxesStack = new Stack<>();
-    this.texFile = texFile;
+  protected TreeMap<Integer, List<SyncTeXBoundingBox>> mergedBoundingBoxes;
+
+  PdfDrawer drawer;
+
+  /**
+   * Creates a new SyncTeXParser for the given tex file.
+   */
+  public SyncTeXParser(Path synctexPath) throws IOException {
+    this(synctexPath, null);
+  }
+
+  /**
+   * Creates a new SyncTeXParser for the given tex file.
+   */
+  public SyncTeXParser(Path synctexPath, PdfPageIdentifier pageIdentifier) {
+    this.syncTexPath = synctexPath;
+    this.pageIdentifier = pageIdentifier;
     this.magnification = 1000;
     this.xoffset = 0;
     this.yoffset = 0;
     this.unit = 1;
+
+    try {
+      this.drawer = new PdfBoxDrawer(
+          Paths.get("/home/korzen/Downloads/arxiv/cond-mat0001227/"
+              + "cond-mat0001227.tmp.pdf"));
+    } catch (IOException e) {
+      e.printStackTrace();
+      System.exit(1);
+    }
   }
+
+  /**
+   * Returns the bounding boxes which belongs to the given tex line.
+   */
+  public List<SyncTeXBoundingBox> getSyncTexBoundingBoxes(int lineNumber)
+    throws IOException {
+
+    if (mergedBoundingBoxes == null) {
+      parse();
+      
+//      for (Entry<Integer, List<SyncTeXBoundingBox>> e : mergedBoundingBoxes.entrySet()) {
+//        for (SyncTeXBoundingBox b : e.getValue()) {
+//          System.out.println("***" + e.getKey() + " " + b);
+//        }
+//      }
+    }
+    
+    Integer ceilingKey = mergedBoundingBoxes.ceilingKey(lineNumber);
+    return ceilingKey != null ? mergedBoundingBoxes.get(ceilingKey) : null;
+  }
+
+  // ===========================================================================
 
   /**
    * Parses the given synctex file.
-   * 
-   * @return
    */
-  public Map<Integer, List<PdfLine>> parse() throws IOException {
-    Path synctexPath = texFile.getSynctexPath();
-    Charset cs = StandardCharsets.UTF_8;
-    BufferedReader reader = Files.newBufferedReader(synctexPath, cs);
+  protected void parse() throws IOException {
+    BufferedReader reader = null;
 
-    parse(reader);
+    try {
+      reader = Files.newBufferedReader(syncTexPath, StandardCharsets.UTF_8);
+      parse(reader);
+    } catch (Exception e) {
+      throw new IOException(e);
+    } finally {
+      if (reader != null) {
+        reader.close();
+      }
+    }
 
-    reader.close();
-
-    return this.linesIndex;
+    File output = new File("/home/korzen/Downloads/vis.pdf");
+    OutputStream os = new FileOutputStream(output);
+    drawer.writeTo(os);
   }
 
   /**
-   * Parses the given reader.
-   * 
-   * @throws IOException
+   * Parses a synctex file given by a reader.
    */
   protected void parse(BufferedReader reader) throws IOException {
     parsePreamble(reader);
     parseContent(reader);
+
+    this.mergedBoundingBoxes = mergeXRecords(recordBoundingBoxes);
+//    this.mergedBoundingBoxes = new TreeMap<>(recordBoundingBoxes);
+    
+    for (Entry<Integer, List<SyncTeXBoundingBox>> e : this.mergedBoundingBoxes
+        .entrySet()) {
+      for (SyncTeXBoundingBox box : e.getValue()) {
+        drawer.drawRectangle(box.getRectangle(), box.getPageNumber());
+        drawer.drawText("" + box.getTexLineNumber(), box.getPageNumber(),
+            box.getRectangle().getUpperLeft(), Color.BLACK, 5);
+      }
+    }
   }
 
   /**
-   * Parses the preamble from given reader.
+   * Parses the preamble of synctex file. The preamble has form:
+   * 
+   * SyncTeX Version:1 Input:1:/foo/bar/cond-mat0001227.tmp.tex
+   * Input:2:/usr/share/texlive/texmf-dist/tex/latex/base/latex209.def
+   * Input:3:/usr/share/texlive/texmf-dist/tex/latex/base/tracefnt.sty
+   * Output:pdf Magnification:1000 Unit:1 X Offset:0 Y Offset:0
+   * 
+   * This method parses the magnification, x offset, y offset and unit.
    */
   protected void parsePreamble(BufferedReader reader) throws IOException {
     String line;
     while ((line = reader.readLine()) != null) {
+      float value = Float.NaN;
+      String[] fields = line.split(":");
+      if (fields.length > 1) {
+        value = MathUtils.parseFloat(fields[1], value);
+      }
+
       if (line.startsWith("Magnification")) {
-        this.magnification = getColonArgFloat(line, 1, this.magnification);
+        this.magnification = value != Float.NaN ? value : this.magnification;
       } else if (line.startsWith("X Offset")) {
-        this.xoffset = getColonArgFloat(line, 1, this.xoffset);
+        this.xoffset = value != Float.NaN ? value : this.xoffset;
       } else if (line.startsWith("Y Offset")) {
-        this.yoffset = getColonArgFloat(line, 1, this.yoffset);
+        this.yoffset = value != Float.NaN ? value : this.yoffset;
       } else if (line.startsWith("Unit")) {
-        this.unit = getColonArgFloat(line, 1, this.unit);
+        this.unit = value != Float.NaN ? value : this.unit;
       } else if (line.startsWith("Content")) {
         break;
       }
@@ -138,9 +219,34 @@ public class SyncTeXParser {
   }
 
   /**
-   * Parses the content from given reader.
+   * Parses the content from given reader. The content has form:
+   * 
+   * Content: !629 {1 [1,101:4736286,50149404:29089004,45413118,0
+   * [1,101:6787433,50149404:27037857,48210137,0
+   * [1,101:6787433,3431010:27037857,1491743,0
+   * h1,101:6787433,3431010:27037857,0,0 ]
+   * [1,101:6787433,48183324:27037857,42887635,0 h1,45:6787433,6082121:0,0,0
+   * (1,45:6787433,9686576:27037857,943900,264379 k1,45:8764568,9686576:1977135
+   * (1,45:8764568,9686576:0,0,0 g1,45:8764568,9686576 g1,45:8764568,9686576
+   * g1,45:8379548,9686576 x1,45:8379548,9686576:0,0,0 g1,45:8764568,9686576 )
+   * 
+   * where the line "!629" introduces a byte offset. the line "{1" introduces a
+   * new page (with number '1'). the line
+   * "[1,101:4736286,50149404:29089004,45413118,0" introduces a new vbox by file
+   * #1 in line '101' at position x=4736286, y=50149404 and dimensions
+   * width=29089004, height=45413118 and depth=0. the line
+   * "h1,101:6787433,3431010:27037857,0,0" introduces a *void* (i.e. empty) hbox
+   * in surrounding vbox. the line
+   * "(1,45:6787433,9686576:27037857,943900,264379" introduces a new hbox (with
+   * same syntax as for vbox above). the line "k1,45:8764568,9686576:1977135"
+   * introduces a kern record in surrounding hbox. the line
+   * "g1,45:8764568,9686576" introduces a glue record. the line
+   * "x1,45:8764568,9686576" introduces a "current record".
    */
   protected void parseContent(BufferedReader reader) throws IOException {
+    this.recordBoundingBoxes = new HashMap<>();
+    this.mergedBoundingBoxes = new TreeMap<>();
+    
     String line;
     while ((line = reader.readLine()) != null) {
       char first = line.charAt(0);
@@ -189,271 +295,356 @@ public class SyncTeXParser {
   }
 
   /**
-   * Handles a page start.
+   * Handles a page start (type "{").
    */
   protected void handlePageStart(String line) {
-    this.currentPage = Integer.parseInt(line.substring(1));
+    // Obtain the current page number.
+    this.pageNum = Integer.parseInt(line.substring(1));
   }
 
   /**
-   * Handles a page end.
+   * Handles a page end (type "}").
    */
-  protected void handlePageEnd(String line) {
+  protected void handlePageEnd(String line) throws IOException {
     // Do nothing.
   }
 
   /**
-   * Handles a start of vbox.
+   * Handles a start of vbox (type "[").
    */
-  protected void handleVBoxStart(String line) throws IOException {
-    // handleNewBox(line);
+  protected void handleVBoxStart(String line) {
+    // Do nothing (we are only interested in hboxes for now).
   }
 
   /**
-   * Handles an end of vbox.
+   * Handles an end of vbox (type "]").
    */
-  protected void handleVBoxEnd(String line) throws IOException {
-    // if (currentLine != null && currentLine.getNumContentRecords() > 0) {
-    // if (!linesIndex.containsKey(currentLine.getTexLineNumber())) {
-    // linesIndex.put(currentLine.getTexLineNumber(), new ArrayList<PdfLine>());
-    // }
-    //
-    // drawer.drawRectangle(currentLine.getPdfBoundingBox(),
-    // currentLine.getPdfPageNumber(), Color.RED);
-    // drawer.drawText("" + currentLine.getTexLineNumber(),
-    // currentLine.getPdfPageNumber(),
-    // currentLine.getPdfBoundingBox().getUpperLeft());
-    //
-    // linesIndex.get(currentLine.getTexLineNumber()).add(currentLine);
-    // }
-    //
-    // currentLine = null;
-    // boxesStack.pop();
+  protected void handleVBoxEnd(String line) {
+    // Do nothing.
   }
 
   /**
-   * Handles a start of hbox.
+   * Handles a start of hbox (horizontal box, type "("). Roughly, it represents
+   * the bounding box of a text line in pdf.
    */
-  protected void handleHBoxStart(String line) throws IOException {
-    // handleNewBox(line);
+  protected void handleHBoxStart(String line) {
+    // Parse the line to get position and dimensions of the box.
+
+    // Only parse the box, if there is no active hbox yet (we don't want to
+    // know the hierarchical structure of the box, but only know the records
+    // within an hbox.
+    if (currentHBox == null) {
+      // <void vbox record> ::= "v" <link> ":" <point> ":" <size> <end>
+      char type = line.charAt(0);
+      line = line.substring(1);
+
+      String[] fields = line.split(":");
+
+      // <link> ::= <tag> "," <line>( "," <column>)?
+      String link = fields[0];
+      String[] linkFields = link.split(",");
+      int lineNum = Integer.parseInt(linkFields[1]);
+
+      // <point> ::= <integer> "," <integer>
+      String point = fields[1];
+      String[] pointFields = point.split(",");
+      int x = Integer.parseInt(pointFields[0]);
+      int y = Integer.parseInt(pointFields[1]);
+
+      // <size> ::= <Width> "," <Height> "," <Depth>
+      String size = fields[2];
+      String[] sizeFields = size.split(",");
+      int width = Integer.parseInt(sizeFields[0]);
+      int height = Integer.parseInt(sizeFields[1]);
+
+      Rectangle rect = toRectangle(x, y, width, height, true);
+      this.currentHBox = new SyncTeXBoundingBox(type, pageNum, lineNum, rect);
+    }
+
+    // Keep track of the hbox level to distinguish when to introduce a new box.
+    currentHBoxLevel++;
   }
 
   /**
-   * Handles an end of hbox.
+   * Handles an end of hbox (type ")").
    */
-  protected void handleHBoxEnd(String line) throws IOException {
-    // if (currentLine != null && currentLine.getNumContentRecords() > 0) {
-    // if (!linesIndex.containsKey(currentLine.getTexLineNumber())) {
-    // linesIndex.put(currentLine.getTexLineNumber(), new ArrayList<PdfLine>());
-    // }
-    //
-    // drawer.drawRectangle(currentLine.getPdfBoundingBox(),
-    // currentLine.getPdfPageNumber(), Color.RED);
-    // drawer.drawText("" + currentLine.getTexLineNumber(),
-    // currentLine.getPdfPageNumber(),
-    // currentLine.getPdfBoundingBox().getUpperLeft());
-    //
-    // linesIndex.get(currentLine.getTexLineNumber()).add(currentLine);
-    // }
-    //
-    // currentLine = null;
-    // boxesStack.pop();
+  protected void handleHBoxEnd(String line) {
+    // Keep track of the hbox level to distinguish when to introduce a new box.
+    currentHBoxLevel--;
+
+    if (currentHBoxLevel == 0) {
+      // The hbox level is 0, hence the finished hbox is a topmost hbox.
+      // Investigate all records within this hbox.
+      
+      // Prepare the bounding boxes of records of type "x" in the hbox.
+      List<SyncTeXBoundingBox> boxes = prepareXRecords(this.currentHBox);
+
+      // Register each bounding box by its tex line number.
+      for (SyncTeXBoundingBox box : boxes) {
+        int lineNum = box.getTexLineNumber();
+        if (!recordBoundingBoxes.containsKey(lineNum)) {
+          List<SyncTeXBoundingBox> emptyList = new ArrayList<>();
+          recordBoundingBoxes.put(lineNum, emptyList);
+        }
+        recordBoundingBoxes.get(lineNum).add(box);
+      }
+
+      // Reset the hbox.
+      this.currentHBox = null;
+    }
   }
 
   /**
-   * Handles a current record.
+   * Handles a current record (type "x").
    */
-  protected void handleCurrentRecord(String line) throws IOException {
-    // <current record> ::= "x" <link> ":" <point> <end of record>
-    line = line.substring(1);
-
-    String[] fields = line.split(":");
-    // String link = fields[0];
-    String point = fields[1];
-
-    // <link> ::= <tag> "," <line>( "," <column>)?
-    // String[] linkFields = link.split(",");
-    // int lineNum = Integer.parseInt(linkFields[1]);
-
-    // <point> ::= <integer> "," <integer>
-    String[] pointFields = point.split(",");
-    // int x = Integer.parseInt(pointFields[0]);
-    int y = Integer.parseInt(pointFields[1]);
-
-    // float xf = toPdfCoordinate(x);
-    float yf = toPdfCoordinate(y);
-    yf = texFile.getPageBoundingBox(currentPage).getMaxY() - yf;
+  protected void handleCurrentRecord(String line) {
+    handleRecordStart(line);
   }
 
   /**
-   * Handles a current record.
-   * 
-   * @throws IOException
+   * Handles a kern record.
    */
-  protected void handleKernRecord(String line) throws IOException {
-    // handleContent(line);
+  protected void handleKernRecord(String line) {
+    handleRecordStart(line);
   }
 
   /**
    * Handles a math record.
    */
-  protected void handleMathRecord(String line) throws IOException {
-    // handleContent(line);
+  protected void handleMathRecord(String line) {
+    handleRecordStart(line);
   }
 
   /**
    * Handles a glue record.
-   * 
-   * @throws IOException
    */
-  protected void handleGlueRecord(String line) throws IOException {
-    // handleContent(line);
+  protected void handleGlueRecord(String line) {
+    handleRecordStart(line);
   }
 
   /**
    * Handles a vbox record.
-   * 
-   * @throws IOException
    */
-  protected void handleVBoxRecord(String line) throws IOException {
-    // Do nothing.
+  protected void handleVBoxRecord(String line) {
+    handleRecordStart(line);
   }
 
   /**
    * Handles a hbox record.
    */
-  protected void handleHBoxRecord(String line) throws IOException {
-
+  protected void handleHBoxRecord(String line) {
+    handleRecordStart(line);
   }
 
-  protected void handleNewBox(String line) throws IOException {
-    // <void vbox record> ::= "v" <link> ":" <point> ":" <size> <end of record>
-    line = line.substring(1);
+  /**
+   * Handles the start of a new record.
+   */
+  protected void handleRecordStart(String line) {
+    if (currentHBox != null) {
+      // Parse the line to get the position and dimension of the record.
+      // Mainly there are three different kind of syntaxes for records:
+      // <current record> ::= "x" <link> ":" <point> <end>
+      // <kern record> ::= "k" <link> ":" <point> ":" <Width> <end>
+      // <void vbox record> ::= "v" <link> ":" <point> ":" <size> <end>
+      // For now, we are only interested in the line number and the point.
 
-    String[] fields = line.split(":");
-    // String link = fields[0];
-    String point = fields[1];
-    String size = fields[2];
+      char type = line.charAt(0);
+      line = line.substring(1);
 
-    // <link> ::= <tag> "," <line>( "," <column>)?
-    // String[] linkFields = link.split(",");
-    // int lineNum = Integer.parseInt(linkFields[1]);
+      int lineNum = 0;
+      int x = 0;
+      int y = 0;
 
-    // <point> ::= <integer> "," <integer>
-    String[] pointFields = point.split(",");
-    int x = Integer.parseInt(pointFields[0]);
-    int y = Integer.parseInt(pointFields[1]);
+      String[] fields = line.split(":");
 
-    // <size> ::= <Width> "," <Height> "," <Depth>
-    String[] sizeFields = size.split(",");
-    int width = Integer.parseInt(sizeFields[0]);
-    int height = Integer.parseInt(sizeFields[1]);
-    int depth = Integer.parseInt(sizeFields[2]);
+      if (fields.length > 0) {
+        // Parse the line number.
+        // <link> ::= <tag> "," <line>( "," <column>)?
+        String link = fields[0];
+        String[] linkFields = link.split(",");
+        lineNum = Integer.parseInt(linkFields[1]);
+      }
 
+      if (fields.length > 1) {
+        // Parse the point.
+        // <point> ::= <integer> "," <integer>
+        String point = fields[1];
+        String[] pointFields = point.split(",");
+        x = Integer.parseInt(pointFields[0]);
+        y = Integer.parseInt(pointFields[1]);
+      }
+
+      // Add the record to the current hbox.
+      Rectangle rect = toRectangle(x, y, 0, 0, true);
+      currentHBox.add(new SyncTeXBoundingBox(type, pageNum, lineNum, rect));
+    }
+  }
+
+  // ===========================================================================
+
+  /**
+   * Prepares the bounding box of records of type "x". Per default, synctex
+   * doesn't provide dimension for such records. This methods derives the
+   * bounding boxes from the dimension of surrounding hbox and the other records
+   * within the hbox.
+   */
+  protected List<SyncTeXBoundingBox> prepareXRecords(SyncTeXBoundingBox box) {
+    List<SyncTeXBoundingBox> boxes = new ArrayList<>();
+    if (box != null) {
+      // Iterate through the records of the given hbox and kkep track of the
+      // current x position to be able to obtain minX and maxX values.
+      float currentXPosition = box.getRectangle().getMinX();
+
+      for (SyncTeXBoundingBox record : box.getRecords()) {
+        if (record.getType() == 'x') { // TODO
+          Rectangle rect = record.getRectangle();
+
+          // The bounding box of record defines an x and an y value which
+          // represents the lower right of the bounding box. Hence,
+          // maxX = rect.minX and minY = rect.minY.
+          rect.setMaxX(rect.getMinX());
+          rect.setMinY(rect.getMinY());
+
+          // minX follows from 'currentXPosition', maxY follows from box.maxY.
+          rect.setMinX(currentXPosition);
+          rect.setMaxY(box.getRectangle().getMaxY());
+
+          // SyncteX holds some inconsistencies, try to fix them.
+          fixSyncTeXData(boxes, record);
+
+          boxes.add(record);
+        }
+        currentXPosition = record.getRectangle().getMaxX();
+      }
+    }
+    return boxes;
+  }
+
+  /**
+   * Given the bounding boxes of records per line, this method merges all
+   * consecutive bounding boxes with same tex line number and same minY value.
+   */
+  protected TreeMap<Integer, List<SyncTeXBoundingBox>> mergeXRecords(
+      Map<Integer, List<SyncTeXBoundingBox>> boxesMap) {
+    TreeMap<Integer, List<SyncTeXBoundingBox>> mergedBoxesMap = new TreeMap<>();
+
+    // Iterate through each list in the map.
+    for (Entry<Integer, List<SyncTeXBoundingBox>> e : boxesMap.entrySet()) {
+      int texLineNum = e.getKey();
+      List<SyncTeXBoundingBox> boundingBoxes = e.getValue();
+      List<SyncTeXBoundingBox> mergedBoundingBoxes = new ArrayList<>();
+
+      if (boundingBoxes != null && !boundingBoxes.isEmpty()) {
+        SyncTeXBoundingBox mergedBoundingBox = boundingBoxes.get(0);
+
+        // Iterate through the records of a tex line.
+        for (int i = 1; i < boundingBoxes.size(); i++) {
+          SyncTeXBoundingBox boundingBox = boundingBoxes.get(i);
+
+//          float mergedBoxMinY = mergedBoundingBox.getRectangle().getMinY();
+//          float boxMinY = boundingBox.getRectangle().getMinY();
+          float mergedBoxTexLineNumber = mergedBoundingBox.getTexLineNumber();
+          float boxTexLineNumber = boundingBox.getTexLineNumber();
+
+          // boolean hasSameMinY = boxMinY == mergedBoxMinY;
+          boolean hasSameLineNum = mergedBoxTexLineNumber == boxTexLineNumber;
+          boolean overlapsVertically = mergedBoundingBox.getRectangle()
+              .overlapsVertically(boundingBox.getRectangle());
+          
+          // Don't merge the current bounding box if minY or the line number
+          // isn't equal.
+          if (!hasSameLineNum || !overlapsVertically) {
+            mergedBoundingBoxes.add(mergedBoundingBox);
+            mergedBoundingBox = boundingBox;
+          } else {
+            mergedBoundingBox.extend(boundingBox);
+          }
+        }
+        mergedBoundingBoxes.add(mergedBoundingBox);
+      }
+            
+      mergedBoxesMap.put(texLineNum, mergedBoundingBoxes);  
+    }
+    return mergedBoxesMap;
+  }
+
+  // ===========================================================================
+
+  /**
+   * Tries to fix some inconsistencies in SyncTeXData.
+   */
+  protected void fixSyncTeXData(List<SyncTeXBoundingBox> previousRecords,
+      SyncTeXBoundingBox currentRecord) {
+    // Iterate through the previous records from behind.
+    int num = previousRecords.size();
+    ListIterator<SyncTeXBoundingBox> itr = previousRecords.listIterator(num);
+    
+    while (itr.hasPrevious()) {
+      SyncTeXBoundingBox previousRecord = itr.previous();
+      
+      float prevMinY = previousRecord.getRectangle().getMinY();
+      float minY = currentRecord.getRectangle().getMinY();
+      boolean hasSameMinY = prevMinY == minY;
+
+      int prevTexLineNumber = previousRecord.getTexLineNumber();
+      int texLineNumber = currentRecord.getTexLineNumber();
+      boolean hasLargerTexLineNumber = prevTexLineNumber > texLineNumber;
+
+      float prevMaxX = previousRecord.getRectangle().getMaxX();
+      float minX = currentRecord.getRectangle().getMinX();
+      boolean overlapsHorizontally = prevMaxX > minX;
+
+      boolean affected = false;
+
+      // Make sure, that all previous records with same minY value as the minY
+      // value of current record have a tex line number which is smaller or
+      // equal to the tex line number of the current record.
+      if (hasSameMinY && hasLargerTexLineNumber) {
+        previousRecord.setTexLineNumber(texLineNumber);
+        affected = true;
+      }
+
+      // Make sure, that the current record doesn't overlap with the previous
+      // record.
+      if (overlapsHorizontally) {
+        previousRecord.getRectangle().setMaxX(minX);
+        affected = true;
+      }
+
+      // Abort if the previous record wasn't affected.
+      if (!affected) {
+        break;
+      }
+    }
+  }
+
+  // ===========================================================================
+
+  /**
+   * Computes a rectangle for given values in pdf corrdinates. If
+   * 'toLowerLeftBase' is true, the coordinates are computed related to the
+   * lower left of the page.
+   */
+  protected Rectangle toRectangle(int x, int y, int width, int height,
+      boolean toLowerLeftBase) {
     float xf = toPdfCoordinate(x);
     float yf = toPdfCoordinate(y);
+    if (toLowerLeftBase && pageIdentifier != null) {
+      // The given values are based on upper left. Invert the y values to get
+      // values based on lower left.
+      Rectangle pageBoundingBox = pageIdentifier.getBoundingBox(pageNum);
+      yf = pageBoundingBox.getMaxY() - yf;
+    }
     float wf = toPdfCoordinate(width);
     float hf = toPdfCoordinate(height);
-    float df = toPdfCoordinate(depth);
 
-    yf = texFile.getPageBoundingBox(currentPage).getMaxY() - yf;
-
-    boxesStack.push(new SimpleRectangle(xf, yf, xf + wf, yf + hf + df));
+    return new SimpleRectangle(xf, yf, xf + wf, yf + hf);
   }
 
-  protected void handleContent(String line) throws IOException {
-    // <current record> ::= "x" <link> ":" <point> <end of record>
-    line = line.substring(1);
-
-    String[] fields = line.split(":");
-    String link = fields[0];
-    String point = fields[1];
-
-    // <link> ::= <tag> "," <line>( "," <column>)?
-    String[] linkFields = link.split(",");
-    int lineNum = Integer.parseInt(linkFields[1]);
-
-    // <point> ::= <integer> "," <integer>
-    String[] pointFields = point.split(",");
-    int x = Integer.parseInt(pointFields[0]);
-    int y = Integer.parseInt(pointFields[1]);
-
-    float xf = toPdfCoordinate(x);
-    float yf = toPdfCoordinate(y);
-    yf = texFile.getPageBoundingBox(currentPage).getMaxY() - yf;
-
-    if (currentLine == null || currentLine.getTexLineNumber() != lineNum) {
-      if (currentLine != null && currentLine.getNumContentRecords() > 0) {
-        if (!linesIndex.containsKey(currentLine.getTexLineNumber())) {
-          linesIndex.put(currentLine.getTexLineNumber(),
-              new ArrayList<PdfLine>());
-        }
-        drawer.drawRectangle(currentLine.getPdfBoundingBox(),
-            currentLine.getPdfPageNumber(), Color.RED);
-        drawer.drawText("" + currentLine.getTexLineNumber(),
-            currentLine.getPdfPageNumber(),
-            currentLine.getPdfBoundingBox().getUpperLeft());
-
-        linesIndex.get(currentLine.getTexLineNumber()).add(currentLine);
-      }
-
-      currentLine = new PdfLine(lineNum, currentPage, this.boxesStack.peek());
-    }
-
-    currentLine.addContentRecord(xf, yf);
-  }
-
-  protected void registerCurrentBox(PdfLine box) throws IOException {
-    if (box != null && box.getNumContentRecords() > 0) {
-      int lineNum = box.getTexLineNumber();
-      if (!linesIndex.containsKey(lineNum)) {
-        linesIndex.put(lineNum, new ArrayList<PdfLine>());
-      }
-      drawer.drawRectangle(box.getRectangle(), currentPage, Color.RED);
-      drawer.drawText("" + lineNum, currentPage,
-          box.getRectangle().getUpperLeft(), Color.RED);
-
-      linesIndex.get(lineNum).add(box);
-    }
-  }
-
+  /**
+   * Computes the pdf coordinate for given point.
+   */
   protected float toPdfCoordinate(int point) {
     return (this.unit * point) / 65781.76f * (1000f / magnification);
-  }
-
-  // ===========================================================================
-
-  /**
-   * For a colon delimited string, this method returns the i-th field as int.
-   */
-  protected float getColonArgFloat(String line, int i, float defaultValue) {
-    String field = getColonArg(line, i);
-    if (field != null) {
-      return Float.parseFloat(field);
-    }
-    return defaultValue;
-  }
-
-  /**
-   * For a colon delimited string, this method returns the i-th field as string.
-   */
-  protected String getColonArg(String line, int i) {
-    if (line != null) {
-      String[] fields = line.split(":");
-      if (i < fields.length) {
-        return fields[i];
-      }
-    }
-    return null;
-  }
-
-  // ===========================================================================
-
-  public Map<Integer, List<PdfLine>> getPdfLinesIndex() {
-    return this.linesIndex;
-  }
-
-  public List<PdfLine> getPdfLinesIndex(int texLineNum) {
-    return this.linesIndex.get(texLineNum);
   }
 }

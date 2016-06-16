@@ -35,11 +35,6 @@ public class PdfPageIdentifier {
    */
   public PdfPageIdentifier(TeXFile texFile) {
     this.texFile = texFile;
-    
-    // Load the bounding boxes of pages.
-    this.pageBoundingBoxes = loadPageBoundingBoxes(texFile);
-    affirm(this.pageBoundingBoxes != null, "No page bounding boxes given.");
-    affirm(this.pageBoundingBoxes.size() > 1, "No page bounding boxes given.");
   }
   
   /**
@@ -87,7 +82,12 @@ public class PdfPageIdentifier {
   /**
    * Returns the bounding box of given page.
    */
-  public Rectangle getBoundingBox(int pageNum) {
+  public Rectangle getBoundingBox(int pageNum) {    
+    if (this.pageBoundingBoxes == null) {
+      // Load the bounding boxes of pages.
+      this.pageBoundingBoxes = loadPageBoundingBoxes(texFile);
+    }
+    
     affirm(pageNum > 0, "The page number is too small");
     affirm(pageNum < pageBoundingBoxes.size(), "The page number is too large");
     

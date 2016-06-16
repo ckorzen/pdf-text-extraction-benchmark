@@ -12,11 +12,12 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import de.freiburg.iif.text.StringUtils;
 import external.PdfLaTeX;
-import model.PdfLine;
+import external.SyncTeX;
+import model.SyncTeXBoundingBox;
 import model.TeXFile;
 import model.TeXParagraph;
-import parser.PdfLinesParser;
 
 /**
  * Class to identify lines (page number and rectangle) from pdf files.
@@ -38,7 +39,7 @@ public class PdfLineIdentifier {
   /**
    * The synctex parser.
    */
-  // protected SyncTeXParser2 synctexParser;
+  protected SyncTeX synctex;
 
   /**
    * The addendum we append to the end of each paragraph. Synctex has issues to
@@ -47,6 +48,7 @@ public class PdfLineIdentifier {
    * boxes aren't affected).
    */
   protected static final String PARA_ADDENDUM = "~\\hspace{-10pt}i";
+//  protected static final String PARA_ADDENDUM = "";
 
   /**
    * Creates a new pdf line identifier.
@@ -55,7 +57,7 @@ public class PdfLineIdentifier {
     throws IOException {
     this.texFile = texFile;
     this.texmfPaths = texmfPaths;
-    // this.synctexParser = new SyncTeXParser2(texFile);
+    this.synctex = new SyncTeX(texFile);
 
     // Handle widows.
     Path tmpTeXPath = handleWidows(texFile);
@@ -93,8 +95,10 @@ public class PdfLineIdentifier {
         if (!prevParagraphEndLine.trim().endsWith("\\")
             && !prevParagraphEndLine.trim().endsWith("{")
             && !prevParagraphEndLine.trim().endsWith("}")
+            && !prevParagraphEndLine.trim().endsWith("[")
+            && !prevParagraphEndLine.trim().endsWith("]")
             && !prevParagraphEndLine.trim().endsWith("$$")) { // TODO
-          prevParagraphEndLine += PARA_ADDENDUM;
+          prevParagraphEndLine = StringUtils.rtrim(prevParagraphEndLine) + PARA_ADDENDUM;
           texLines.set(lineNum, prevParagraphEndLine);
         }
       }
@@ -174,10 +178,10 @@ public class PdfLineIdentifier {
    * Parses the synctex output for given line to get the coordinates of the
    * line.
    */
-  public List<PdfLine> getBoundingBoxesOfLine(int lineNum, int columnNumber)
+  public List<SyncTeXBoundingBox> getBoundingBoxesOfLine(int lineNum)
     throws IOException {
-    // return synctexParser.getPdfLinesIndex(lineNum);
-    return new PdfLinesParser(texFile).parse(lineNum, columnNumber);
+    return synctex.getBoundingBoxesOfLine(lineNum);
+    // return new PdfLinesParser(texFile).parse(lineNum, columnNumber);
   }
 
   // ===========================================================================
@@ -205,8 +209,6 @@ public class PdfLineIdentifier {
 
     this.texFile.setPdfPath(pdfFile);
     this.texFile.setSynctexPath(syncTexFile);
-
-    // this.synctexParser.parse(); // TODO
 
     return pdfFile;
   }
