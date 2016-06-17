@@ -271,24 +271,25 @@ public class TeXParagraphParserMain {
    */
   protected void processTexFile(Path file) throws IOException {
     TeXFile texFile = new TeXFile(file);
-
+    
     // Identify the paragraphs in the given tex file.
     identifyTexParagraphs(texFile);
 
     if (this.identifyPdfParagraphs) {
       identifyPdfParagraphs(texFile, this.texmfPaths);
     }
-
+    
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
     Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
-
+    
     if (serializationTargetFile != null) {
       serialize(texFile, serializationTargetFile);
     }
-
+    
     if (visualizationTargetFile != null) {
       visualize(texFile, visualizationTargetFile);
     }
+    
   }
 
   // ---------------------------------------------------------------------------

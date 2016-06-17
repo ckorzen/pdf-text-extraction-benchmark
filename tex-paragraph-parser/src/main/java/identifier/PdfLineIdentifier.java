@@ -47,7 +47,8 @@ public class PdfLineIdentifier {
    * (slim) text to end of paragraphs to avoid such widows (paragraph bounding
    * boxes aren't affected).
    */
-  protected static final String PARA_ADDENDUM = "~\\hspace{-10pt}i";
+//  protected static final String PARA_ADDENDUM = "~\\hspace{-10pt}i";
+  protected static final String PARA_ADDENDUM = "~\\hspace{0pt}i";
 //  protected static final String PARA_ADDENDUM = "";
 
   /**
@@ -178,7 +179,7 @@ public class PdfLineIdentifier {
    * Parses the synctex output for given line to get the coordinates of the
    * line.
    */
-  public List<SyncTeXBoundingBox> getBoundingBoxesOfLine(int lineNum)
+  public List<SyncTeXBoundingBox> getBoundingBoxes(int lineNum)
     throws IOException {
     return synctex.getBoundingBoxesOfLine(lineNum);
     // return new PdfLinesParser(texFile).parse(lineNum, columnNumber);

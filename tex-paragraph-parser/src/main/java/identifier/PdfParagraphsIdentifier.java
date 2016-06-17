@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
+import de.freiburg.iif.model.Rectangle;
 import model.PdfParagraph;
 import model.SyncTeXBoundingBox;
 import model.TeXFile;
@@ -60,9 +61,8 @@ public class PdfParagraphsIdentifier {
     for (TeXParagraph para : this.texFile.getTeXParagraphs()) {
       List<SyncTeXBoundingBox> pdfLines = identifyPdfLines(para);
       List<PdfParagraph> pdfParagraphs = identifyPdfParagraphs(para, pdfLines);
-
+      
       para.setPdfParagraphs(pdfParagraphs);
-
     }
   }
 
@@ -81,19 +81,16 @@ public class PdfParagraphsIdentifier {
     float sumLineHeights = 0;
     float numLineHeights = 0;
 
-    System.out.println(paragraph.getTexLineNumbers());
     for (int i : paragraph.getTexLineNumbers()) {
-      List<SyncTeXBoundingBox> pdfLines = lineIdentifier.getBoundingBoxesOfLine(i);
-
+      List<SyncTeXBoundingBox> pdfLines = lineIdentifier.getBoundingBoxes(i);
+      
       if (pdfLines != null) {
         // Only consider still unknown pdf lines. Exception: If a paragraph only
         // consists of already known lines, consider all lines of the paragraph.
         // Background: Title and authors are mostly added to pdf via \maketitle.
         // So, title and authors have the same pdf lines.
         List<SyncTeXBoundingBox> unknownPdfLines = new ArrayList<>();
-        for (SyncTeXBoundingBox line : pdfLines) {
-          System.out.println("  " + line);
-          
+        for (SyncTeXBoundingBox line : pdfLines) {          
           if (!alreadySeenLines.contains(line)) {
             unknownPdfLines.add(line);
             alreadySeenLines.add(line);
@@ -106,8 +103,8 @@ public class PdfParagraphsIdentifier {
           // Clean up the lines a bit: Only consider still unknown lines and
           // let "climb up" the line to the "correct" position (with respect to
           // the reading order).
-          int numParaLines = paraLines.size();
-          ListIterator<SyncTeXBoundingBox> itr = paraLines.listIterator(numParaLines);
+          int end = paraLines.size();
+          ListIterator<SyncTeXBoundingBox> itr = paraLines.listIterator(end);
 
           while (itr.hasPrevious()) {
             int order = obtainReadingOrder(itr.previous(), line);
@@ -168,7 +165,7 @@ public class PdfParagraphsIdentifier {
    * paragraphs.
    */
   protected boolean introducesNewPdfParagraph(TeXParagraph para,
-      SyncTeXBoundingBox prevLine, SyncTeXBoundingBox line) {
+      SyncTeXBoundingBox prevLine, SyncTeXBoundingBox line) {    
     if (prevLine == null && line == null) {
       return false;
     }
@@ -202,27 +199,29 @@ public class PdfParagraphsIdentifier {
       }
     }
 
-//    // EXPERIMENTAL: Analyze the vertical distance between the lines.
-//    Rectangle prevRect = prevLine.getRectangle();
-//    Rectangle rect = line.getRectangle();
-//
-//    // float height = prevRect.getHeight();
-//    // float prevMinX = prevRect.getMinX();
-//    // float prevMaxX = prevRect.getMaxX();
-//    float prevMinY = prevRect.getMinY();
-//    // float prevMaxY = prevRect.getMaxY();
-//    // float minX = rect.getMinX();
-//    // float maxX = rect.getMaxX();
-//    // float minY = rect.getMinY();
-//    float maxY = rect.getMaxY();
-//
-//    // Compute the distance between the lines.
-//    float verticalDistance = Math.abs(prevMinY - maxY);
-//
-//    // The lines introduce a new paragraph if verticalDistance is "too large".
-//    if (verticalDistance > 5 * prevRect.getHeight()) {
-//      return true;
-//    }
+    // EXPERIMENTAL: Analyze the vertical distance between the lines.
+    Rectangle prevRect = prevLine.getRectangle();
+    Rectangle rect = line.getRectangle();
+
+    if (prevRect.getHeight() > 2 && rect.getHeight() > 2) { // TODO
+      // float height = prevRect.getHeight();
+      // float prevMinX = prevRect.getMinX();
+      // float prevMaxX = prevRect.getMaxX();
+      float prevMinY = prevRect.getMinY();
+      // float prevMaxY = prevRect.getMaxY();
+      // float minX = rect.getMinX();
+      // float maxX = rect.getMaxX();
+      // float minY = rect.getMinY();
+      float maxY = rect.getMaxY();
+  
+      // Compute the distance between the lines.
+      float verticalDistance = Math.abs(prevMinY - maxY);
+  
+      // The lines introduce a new paragraph if verticalDistance is "too large".
+      if (verticalDistance > 5 * prevRect.getHeight()) {
+        return true;
+      }
+    }
 
     return false;
   }
@@ -236,6 +235,6 @@ public class PdfParagraphsIdentifier {
    */
   protected int obtainReadingOrder(SyncTeXBoundingBox line1, 
       SyncTeXBoundingBox line2) {
-    return line1.compareTo(line2);
+    return line1.getPageNumber() - line2.getPageNumber();
   }
 }
