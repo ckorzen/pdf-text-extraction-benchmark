@@ -51,6 +51,8 @@ public class TeXFile {
    */
   protected List<TeXParagraph> texParagraphs;
       
+  protected Document document;
+  
   /**
    * Creates a new instance of TeXFile.
    */
@@ -155,6 +157,16 @@ public class TeXFile {
    */
   public void addTeXParagraph(TeXParagraph paragraph) {
     this.texParagraphs.add(paragraph);
+  }
+  
+  // ---------------------------------------------------------------------------
+  
+  public void setDocument(Document document) {
+    this.document = document;
+  }
+  
+  public List<Element> getTeXElements() {
+    return this.document != null ? document.getElements() : null;
   }
   
   // ---------------------------------------------------------------------------

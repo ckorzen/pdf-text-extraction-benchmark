@@ -85,6 +85,13 @@ public class Command extends Element {
   }
  
   /**
+   * Adds a "virtual" group (i.e. a group that won't appear on serialization).
+   */
+  public void addVirtualGroup(Group group) {
+    this.groups.add(group);
+  }
+  
+  /**
    * Returns the list of options and groups in correct order.
    */
   public List<Group> getOptionsAndGroupsInCorrectOrder() {

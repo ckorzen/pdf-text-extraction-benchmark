@@ -37,7 +37,30 @@ public class SyncTeX {
       PdfPageIdentifier pageIdentifier = new PdfPageIdentifier(texFile);
       this.parser = new SyncTeXParser(synctexPath, pageIdentifier);
     }
-    
-    return this.parser.getSyncTexBoundingBoxes(lineNum);
+    return this.parser.getLineBoundingBoxes(lineNum);
+  }
+  
+  /**
+   * Returns the most common line height.
+   */
+  public float getMostCommonLineHeight() {
+    if (this.parser == null) {
+      Path synctexPath = texFile.getSynctexPath();
+      PdfPageIdentifier pageIdentifier = new PdfPageIdentifier(texFile);
+      this.parser = new SyncTeXParser(synctexPath, pageIdentifier);
+    }
+    return this.parser.getMostCommonLineHeight();
+  }
+
+  /**
+   * Returns the average line height.
+   */
+  public float getAverageLineHeight() {
+    if (this.parser == null) {
+      Path synctexPath = texFile.getSynctexPath();
+      PdfPageIdentifier pageIdentifier = new PdfPageIdentifier(texFile);
+      this.parser = new SyncTeXParser(synctexPath, pageIdentifier);
+    }
+    return this.parser.getAverageLineHeight();
   }
 }

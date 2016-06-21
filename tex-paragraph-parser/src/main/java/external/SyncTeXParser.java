@@ -1,15 +1,12 @@
 package external;
 
-import java.awt.Color;
+import static de.freiburg.iif.affirm.Affirm.affirm;
+
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,11 +16,10 @@ import java.util.Map.Entry;
 import java.util.Stack;
 import java.util.TreeMap;
 
+import de.freiburg.iif.counter.FloatCounter;
 import de.freiburg.iif.math.MathUtils;
 import de.freiburg.iif.model.Rectangle;
 import de.freiburg.iif.model.simple.SimpleRectangle;
-import drawer.PdfDrawer;
-import drawer.pdfbox.PdfBoxDrawer;
 import identifier.PdfPageIdentifier;
 import model.SyncTeXBoundingBox;
 
@@ -88,6 +84,16 @@ public class SyncTeXParser {
   protected TreeMap<Integer, List<SyncTeXBoundingBox>> mergedBoundingBoxes;
 
   /**
+   * The heights counter.
+   */
+  protected FloatCounter heightsCounter;
+  
+  /**
+   * Flag to indicate whether the tex file was laready parsed.
+   */
+  protected boolean parsed;
+  
+  /**
    * Creates a new SyncTeXParser for the given tex file.
    */
   public SyncTeXParser(Path synctexPath) throws IOException {
@@ -101,26 +107,43 @@ public class SyncTeXParser {
     this.syncTexPath = synctexPath;
     this.pageIdentifier = pageIdentifier;
     this.hboxStack = new Stack<>();
+    this.heightsCounter = new FloatCounter();
     this.magnification = 1000;
     this.xoffset = 0;
     this.yoffset = 0;
     this.unit = 1;
   }
-
+  
   /**
    * Returns the bounding boxes which belongs to the given tex line. If there
    * are no bounding boxes for given line number this method returns the
    * bounding boxes for the smallest larger line number.
    */
-  public List<SyncTeXBoundingBox> getSyncTexBoundingBoxes(int lineNumber)
+  public List<SyncTeXBoundingBox> getLineBoundingBoxes(int lineNumber)
     throws IOException {
 
-    if (mergedBoundingBoxes == null) {
+    if (!parsed) {
       parse();
     }
 
     Integer ceilingKey = mergedBoundingBoxes.ceilingKey(lineNumber);
     return ceilingKey != null ? mergedBoundingBoxes.get(ceilingKey) : null;
+  }
+  
+  /**
+   * Returns the most common line height.
+   */
+  public float getMostCommonLineHeight() {
+    affirm(parsed, "Synctex wasn't parsed yet");
+    return this.heightsCounter.getMostFrequentFloat();
+  }
+
+  /**
+   * Returns the average line height.
+   */
+  public float getAverageLineHeight() {
+    affirm(parsed, "Synctex wasn't parsed yet");
+    return this.heightsCounter.getAverageValue();
   }
 
   // ===========================================================================
@@ -141,10 +164,6 @@ public class SyncTeXParser {
         reader.close();
       }
     }
-
-    File output = new File("/home/korzen/Downloads/vis.pdf");
-    OutputStream os = new FileOutputStream(output);
-    drawer.writeTo(os);
   }
 
   /**
@@ -155,6 +174,7 @@ public class SyncTeXParser {
     parseContent(reader);
 
     this.mergedBoundingBoxes = mergeXRecords(recordBoundingBoxes);
+    this.parsed = true;
   }
 
   /**
@@ -328,8 +348,7 @@ public class SyncTeXParser {
 
     Rectangle rect = toRectangle(x, y, width, height, true);
     hboxStack.push(new SyncTeXBoundingBox(type, pageNum, lineNum, rect));
-    
-    drawBox(hboxStack.peek(), Color.RED);
+    heightsCounter.add(MathUtils.round(rect.getHeight(), 1));
   }
 
   /**
@@ -516,14 +535,12 @@ public class SyncTeXParser {
           // Don't merge the current bounding box if minY or the line number
           // isn't equal.
           if (!hasSameLineNum || !overlapsVertically) {
-            drawBox(mergedBoundingBox, Color.BLACK);
             mergedBoundingBoxes.add(mergedBoundingBox);
             mergedBoundingBox = boundingBox;
           } else {
             mergedBoundingBox.extend(boundingBox);
           }
         }
-        drawBox(mergedBoundingBox, Color.BLACK);
         mergedBoundingBoxes.add(mergedBoundingBox);
       }
 
@@ -611,39 +628,4 @@ public class SyncTeXParser {
   protected float toPdfCoordinate(int point) {
     return (this.unit * point) / 65781.76f * (1000f / magnification);
   }
-
-  // ===========================================================================
-
-  protected void drawBoxes(Iterable<SyncTeXBoundingBox> boxes, Color color) {
-    for (SyncTeXBoundingBox b : boxes) {
-      drawBox(b, color);
-    }
-  }
-
-  protected void drawBox(SyncTeXBoundingBox box, Color color) {
-    drawBox(box.getRectangle(), box.getPageNumber(), box.getTexLineNumber(), color);
-  }
-
-  int i = 0;
-  protected void drawBox(Rectangle rect, int pageNum, int texLineNum, Color color) {
-    if (drawer == null) {
-      try {
-        this.drawer = new PdfBoxDrawer(
-            Paths.get("/home/korzen/Downloads/arxiv/cond-mat0001227/"
-                + "cond-mat0001227.tmp.pdf"));
-      } catch (IOException e) {
-        e.printStackTrace();
-        System.exit(1);
-      }
-    }
-    try {
-      drawer.drawRectangle(rect, pageNum, color);
-      drawer.drawText("" + texLineNum, pageNum, rect.getUpperLeft(),
-          color, 5);
-    } catch (Exception e) {
-
-    }
-  }
-
-  PdfDrawer drawer;
 }

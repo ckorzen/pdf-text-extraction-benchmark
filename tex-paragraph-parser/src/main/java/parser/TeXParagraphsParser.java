@@ -164,6 +164,12 @@ public class TeXParagraphsParser {
     // Role may have changed.
     role = para.getRole();
     
+    // FIXME: Because \maketitle has no text to insert but represents a new
+    // paragraph we need some special handling here.
+    if ("\\maketitle".equals(cmd.toString())) {
+      para.registerTeXElement(cmd);
+    }
+    
     // Some arguments of some commands won't be defined within a group but as
     // a consecutive string, e.g. "\vksip 5pt". 
     // So check, if the command has the expected number of groups. If not, 
@@ -188,7 +194,7 @@ public class TeXParagraphsParser {
             Group nextGroup = (Group) nextElement;
             // context.elements.set(context.curIndex - 1, null);
             // Simply add the group to the command.
-            cmd.addGroup(nextGroup);
+            cmd.addVirtualGroup(nextGroup);
           } else if (nextElement instanceof Text) {
             itr.nextNonWhitespace();
             Text textElement = (Text) nextElement;
@@ -196,7 +202,7 @@ public class TeXParagraphsParser {
             String text = textElement.toString();
             if (!text.trim().isEmpty()) {
               // Create new Group and add it to the command.
-              cmd.addGroup(new Group(textElement));
+              cmd.addVirtualGroup(new Group(textElement));
             }
           }
         }

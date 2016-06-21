@@ -58,11 +58,29 @@ public class Element implements Serializable {
   }
 
   /**
+   * Sets the number of line where the element begins.
+   */
+  public void setBeginLineNumber(int beginLine) {
+    this.beginLine = beginLine;
+  }
+  
+  // ---------------------------------------------------------------------------
+  
+  /**
    * Returns the number of line where the element ends.
    */
   public int getEndLineNumber() {
     return this.endLine;
   }
+  
+  /**
+   * Sets the number of line where the element begins.
+   */
+  public void setEndLineNumber(int endLine) {
+    this.endLine = endLine;
+  }
+  
+  // ---------------------------------------------------------------------------
   
   /**
    * Returns the column where the element begins.
@@ -72,11 +90,29 @@ public class Element implements Serializable {
   }
 
   /**
+   * Sets the number of column where the element begins.
+   */
+  public void setBeginColumnNumber(int beginColumn) {
+    this.beginColumn = beginColumn;
+  }
+  
+  // ---------------------------------------------------------------------------
+  
+  /**
    * Returns the column where the element ends.
    */
   public int getEndColumnNumber() {
     return this.endColumn;
   }
+  
+  /**
+   * Sets the number of column where the element ends.
+   */
+  public void setEndColumnNumber(int endColumn) {
+    this.endColumn = endColumn;
+  }
+  
+  // ---------------------------------------------------------------------------
   
   /**
    * Returns the column where the element ends.

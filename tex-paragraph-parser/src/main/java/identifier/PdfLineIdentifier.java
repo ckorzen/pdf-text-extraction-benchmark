@@ -11,13 +11,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 
-import de.freiburg.iif.text.StringUtils;
 import external.PdfLaTeX;
 import external.SyncTeX;
+import model.Command;
+import model.Element;
+import model.Group;
+import model.NewLine;
 import model.SyncTeXBoundingBox;
 import model.TeXFile;
 import model.TeXParagraph;
+import model.Text;
+import model.Whitespace;
 
 /**
  * Class to identify lines (page number and rectangle) from pdf files.
@@ -47,9 +53,7 @@ public class PdfLineIdentifier {
    * (slim) text to end of paragraphs to avoid such widows (paragraph bounding
    * boxes aren't affected).
    */
-//  protected static final String PARA_ADDENDUM = "~\\hspace{-10pt}i";
   protected static final String PARA_ADDENDUM = "~\\hspace{0pt}i";
-//  protected static final String PARA_ADDENDUM = "";
 
   /**
    * Creates a new pdf line identifier.
@@ -61,7 +65,7 @@ public class PdfLineIdentifier {
     this.synctex = new SyncTeX(texFile);
 
     // Handle widows.
-    Path tmpTeXPath = handleWidows(texFile);
+    Path tmpTeXPath = prepareTeXFile(texFile);
     this.texFile.setTmpPath(tmpTeXPath);
 
     // Compile the enriched version of tex file.
@@ -69,51 +73,82 @@ public class PdfLineIdentifier {
   }
 
   /**
+   * Returns the most common line height.
+   */
+  public float getMostCommonLineHeight() {
+    return synctex.getMostCommonLineHeight();
+  }
+  
+  /**
+   * Returns the average common line height.
+   */
+  public float getAverageLineHeight() {
+    return synctex.getAverageLineHeight();
+  }
+  
+  // ===========================================================================
+  
+  /**
    * Synctex has issues to identify the coordinates of a line on so called
-   * "widows". So we add some (slim) text to end of paragraphs to avoid such
+   * "widows". So we add some (slim) text to end of paragraphs to avoid sucha
    * widows (paragraph bounding boxes aren't affected).
    */
-  protected Path handleWidows(TeXFile texFile) {
+  protected Path prepareTeXFile(TeXFile texFile) {
     affirm(texFile != null, "No tex file given");
 
-    List<String> texLines = readTexLines(texFile.getTmpPath());
     List<TeXParagraph> paragraphs = texFile.getTeXParagraphs();
-
+    
     // Iterate through the paragraphs and identify the end line of each para.
-    for (int i = 0; i < paragraphs.size(); i++) {
-      TeXParagraph prevParagraph = i > 0 ? paragraphs.get(i - 1) : null;
-
-      if (prevParagraph != null) {
-        int lineNum = prevParagraph.getTexEndLine();
-
-        affirm(lineNum > 0, "Line number is too small.");
-        affirm(lineNum < texLines.size(), "Line number is too large.");
-
-        String prevParagraphEndLine = texLines.get(lineNum);
-
-        // Add the addendum to the end of paragraph.
-
-        if (!prevParagraphEndLine.trim().endsWith("\\")
-            && !prevParagraphEndLine.trim().endsWith("{")
-            && !prevParagraphEndLine.trim().endsWith("}")
-            && !prevParagraphEndLine.trim().endsWith("[")
-            && !prevParagraphEndLine.trim().endsWith("]")
-            && !prevParagraphEndLine.trim().endsWith("$$")) { // TODO
-          prevParagraphEndLine = StringUtils.rtrim(prevParagraphEndLine) + PARA_ADDENDUM;
-          texLines.set(lineNum, prevParagraphEndLine);
+    for (TeXParagraph paragraph : paragraphs) {
+      if (paragraph != null) {
+        List<Element> elements = paragraph.getTexElements();                
+        int numElements = elements.size();
+        ListIterator<Element> itr = elements.listIterator(numElements);
+        
+        // Iterate through the elements of paragraph until a non-whitespace
+        // is found.
+        while (itr.hasPrevious()) {
+          Element previous = itr.previous();
+          
+          if (previous instanceof Whitespace) {
+            continue;
+          }
+          
+          if (previous instanceof NewLine) {
+            continue;
+          }
+          
+          if (previous instanceof Text) {
+            // Append the addendum to text.
+            Text text = (Text) previous;
+            text.appendText(PARA_ADDENDUM);
+            break;
+          }
+          
+          if (previous instanceof Command) {
+            Command cmd = (Command) previous;
+            
+            if ("\\end".equals(cmd.getName())) { // TODO
+              break;
+            }
+            
+            if (cmd.hasGroups()) {
+              // Append the addendum to last group of command.
+              Group group = cmd.getLastGroup();
+              group.addElement(new Text(PARA_ADDENDUM, null));
+            }
+            break;
+          }
+          
+          if (previous instanceof Group) {
+            // Append the addendum to group.
+            Group group = (Group) previous;
+            group.addElement(new Text(PARA_ADDENDUM, null));
+            break;
+          }
         }
       }
     }
-
-    // Furthermore, \label commands make trouble on identifying the coordinates
-    // of lines correctly. Comment out such labels.
-    // for (int i = 0; i < texLines.size(); i++) {
-    // String line = texLines.get(i);
-    //
-    // if (line != null && line.startsWith("\\label")) {
-    // texLines.set(i, "%" + line);
-    // }
-    // }
 
     // Write the enriched tex file.
     Path enriched = defineTmpTexPath(texFile);
@@ -121,9 +156,8 @@ public class PdfLineIdentifier {
       BufferedWriter writer =
           Files.newBufferedWriter(enriched, StandardCharsets.UTF_8);
       try {
-        for (int i = 1; i < texLines.size(); i++) { // 1-based.
-          writer.write(texLines.get(i));
-          writer.newLine();
+        for (Element element : texFile.getTeXElements()) { // 1-based.
+          writer.write(element.toString());
         }
       } catch (IOException e) {
         throw new IllegalStateException("Couldn't write enriched tex file.");
@@ -133,7 +167,8 @@ public class PdfLineIdentifier {
     } catch (IOException e) {
       throw new IllegalStateException("Couldn't write enriched tex file.");
     }
-
+    
+    
     affirm(Files.isRegularFile(enriched), "Enriched tex file doesn't exist.");
 
     return enriched;

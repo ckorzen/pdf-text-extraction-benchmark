@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
+import de.freiburg.iif.math.MathUtils;
 import de.freiburg.iif.model.Rectangle;
 import model.PdfParagraph;
 import model.SyncTeXBoundingBox;
@@ -80,7 +81,7 @@ public class PdfParagraphsIdentifier {
 
     float sumLineHeights = 0;
     float numLineHeights = 0;
-
+        
     for (int i : paragraph.getTexLineNumbers()) {
       List<SyncTeXBoundingBox> pdfLines = lineIdentifier.getBoundingBoxes(i);
       
@@ -202,27 +203,27 @@ public class PdfParagraphsIdentifier {
     // EXPERIMENTAL: Analyze the vertical distance between the lines.
     Rectangle prevRect = prevLine.getRectangle();
     Rectangle rect = line.getRectangle();
-
-    if (prevRect.getHeight() > 2 && rect.getHeight() > 2) { // TODO
-      // float height = prevRect.getHeight();
-      // float prevMinX = prevRect.getMinX();
-      // float prevMaxX = prevRect.getMaxX();
-      float prevMinY = prevRect.getMinY();
-      // float prevMaxY = prevRect.getMaxY();
-      // float minX = rect.getMinX();
-      // float maxX = rect.getMaxX();
-      // float minY = rect.getMinY();
-      float maxY = rect.getMaxY();
+    
+    float mostCommonLineHeight = lineIdentifier.getMostCommonLineHeight();
+    
+    // float height = prevRect.getHeight();
+    // float prevMinX = prevRect.getMinX();
+    // float prevMaxX = prevRect.getMaxX();
+    float prevMinY = prevRect.getMinY();
+    // float prevMaxY = prevRect.getMaxY();
+    // float minX = rect.getMinX();
+    // float maxX = rect.getMaxX();
+    // float minY = rect.getMinY();
+    float maxY = rect.getMaxY();
   
-      // Compute the distance between the lines.
-      float verticalDistance = Math.abs(prevMinY - maxY);
+    // Compute the distance between the lines.
+    float verticalDistance = Math.abs(prevMinY - maxY);
   
-      // The lines introduce a new paragraph if verticalDistance is "too large".
-      if (verticalDistance > 5 * prevRect.getHeight()) {
-        return true;
-      }
+    // The lines introduce a new paragraph if verticalDistance is "too large".
+    if (verticalDistance > 4 * mostCommonLineHeight) {
+      return true;
     }
-
+    
     return false;
   }
 

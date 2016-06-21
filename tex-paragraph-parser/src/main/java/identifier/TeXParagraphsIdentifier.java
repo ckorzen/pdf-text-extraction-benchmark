@@ -94,6 +94,7 @@ public class TeXParagraphsIdentifier {
     
     try {
       document = parseTexFile(texFile);
+      texFile.setDocument(document);
     } catch (ParseException e) {
       throw new IOException(e);
     }
