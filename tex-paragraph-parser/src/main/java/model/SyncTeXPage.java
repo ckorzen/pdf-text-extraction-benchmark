@@ -5,6 +5,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * A synctex page.
+ * 
+ * @author Claudius Korzen
+ */
 public class SyncTeXPage {
   /**
    * The number of this page.

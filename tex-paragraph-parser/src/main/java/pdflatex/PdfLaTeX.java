@@ -1,4 +1,4 @@
-package external;
+package pdflatex;
 
 import static de.freiburg.iif.affirm.Affirm.affirm;
 

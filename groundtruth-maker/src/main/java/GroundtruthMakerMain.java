@@ -38,7 +38,9 @@ import preprocess.TeXPreprocessor;
  * The main class to extract specific features from tex files.
  *
  * @author Claudius Korzen
+ * @deprecated  Use the tex-paragraph-parser project instead.
  */
+@Deprecated
 public class GroundtruthMakerMain {
   /**
    * The main method to start this program.

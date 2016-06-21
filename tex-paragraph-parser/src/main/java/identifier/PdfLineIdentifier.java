@@ -13,8 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
-import external.PdfLaTeX;
-import external.SyncTeX;
 import model.Command;
 import model.Element;
 import model.Group;
@@ -24,6 +22,8 @@ import model.TeXFile;
 import model.TeXParagraph;
 import model.Text;
 import model.Whitespace;
+import pdflatex.PdfLaTeX;
+import synctex.SyncTeX;
 
 /**
  * Class to identify lines (page number and rectangle) from pdf files.

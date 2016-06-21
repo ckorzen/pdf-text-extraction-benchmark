@@ -1,4 +1,4 @@
-package external;
+package synctex;
 
 import java.io.IOException;
 import java.nio.file.Path;

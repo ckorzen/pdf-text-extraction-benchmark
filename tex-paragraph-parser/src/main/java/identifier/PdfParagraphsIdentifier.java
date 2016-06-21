@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
-import de.freiburg.iif.math.MathUtils;
 import de.freiburg.iif.model.Rectangle;
 import model.PdfParagraph;
 import model.SyncTeXBoundingBox;
