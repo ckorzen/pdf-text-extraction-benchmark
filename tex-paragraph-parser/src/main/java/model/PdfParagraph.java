@@ -8,7 +8,10 @@ import de.freiburg.iif.model.Rectangle;
 import de.freiburg.iif.model.simple.SimpleRectangle;
 
 /**
- * A pdf paragraph.
+ * A pdf paragraph representing the position (with bounding box and page number)
+ * of a paragraph from tex file in pdf file.
+ * 
+ * @author Claudius Korzen
  */
 public class PdfParagraph implements HasRectangle {
   /**

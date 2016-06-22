@@ -16,7 +16,7 @@ import model.TeXFile;
 import model.TeXParagraph;
 
 /**
- * Serializer to serialize the paragraphs of a tex file.
+ * Class to serialize the paragraphs of a tex file.
  * 
  * @author Claudius Korzen
  *

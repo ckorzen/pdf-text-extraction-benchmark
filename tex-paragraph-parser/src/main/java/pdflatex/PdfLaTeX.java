@@ -44,6 +44,8 @@ public class PdfLaTeX extends ExternalProgram {
           }
         }
       }
+      // Set environment variable to find the paths to additional sty files and
+      // cls files.
       addEnvironmentVariable(TEXMFKEY, sb.toString());
     }
 

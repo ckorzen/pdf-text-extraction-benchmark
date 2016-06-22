@@ -17,7 +17,12 @@ import de.freiburg.iif.model.simple.SimpleRectangle;
 import model.TeXFile;
 
 /**
- * Identifies the bounding boxes of pdf pages.
+ * Class to identify the bounding boxes of pages in pdf files. 
+ * The coordinates provided by synctex are relative to the upper left, but we
+ * need coordinates relative to the lower left. Hence, we have to "invert" the
+ * coordinates. For that we need to know the dimensions of each page.
+ * 
+ * @author Claudius Korzen
  */
 public class PdfPageIdentifier {
   /**
@@ -26,21 +31,36 @@ public class PdfPageIdentifier {
   protected TeXFile texFile;
   
   /** 
-   * The bounding boxes of pages. 
+   * The obtained bounding boxes of pages. 
    */
   protected List<Rectangle> pageBoundingBoxes;
   
   /**
-   * Creates a new pdf page identifier.
+   * Creates a new pdf page identifier for given tex file.
    */
   public PdfPageIdentifier(TeXFile texFile) {
     this.texFile = texFile;
   }
   
   /**
-   * The coordinates provided by synctex are relative to the upper left, but we
-   * need coordinates relative to the lower left. Hence, we have to adapt the
-   * coordinates. For that we need to know the dimensions of each page.
+   * Returns the bounding box of given page.
+   */
+  public Rectangle getBoundingBox(int pageNum) {    
+    if (this.pageBoundingBoxes == null) {
+      // Lazy loading: Only load the bounding boxes on first request.
+      this.pageBoundingBoxes = loadPageBoundingBoxes(texFile);
+    }
+    
+    affirm(pageNum > 0, "The page number is too small");
+    affirm(pageNum < pageBoundingBoxes.size(), "The page number is too large");
+    
+    return this.pageBoundingBoxes.get(pageNum);
+  }
+  
+  // ===========================================================================
+  
+  /**
+   * Reads the bounding boxes of pages in given pdf file.
    */
   protected List<Rectangle> loadPageBoundingBoxes(TeXFile texFile) {
     List<Rectangle> pageBoundingBoxes = new ArrayList<>();
@@ -75,22 +95,5 @@ public class PdfPageIdentifier {
     }
 
     return pageBoundingBoxes;
-  }
-  
-  // ===========================================================================
-  
-  /**
-   * Returns the bounding box of given page.
-   */
-  public Rectangle getBoundingBox(int pageNum) {    
-    if (this.pageBoundingBoxes == null) {
-      // Load the bounding boxes of pages.
-      this.pageBoundingBoxes = loadPageBoundingBoxes(texFile);
-    }
-    
-    affirm(pageNum > 0, "The page number is too small");
-    affirm(pageNum < pageBoundingBoxes.size(), "The page number is too large");
-    
-    return this.pageBoundingBoxes.get(pageNum);
   }
 }

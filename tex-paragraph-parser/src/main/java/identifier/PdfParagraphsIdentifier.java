@@ -17,7 +17,7 @@ import model.TeXFile;
 import model.TeXParagraph;
 
 /**
- * Identifies the pdf paragraphs for tex paragraphs.
+ * Class to identify the positions of paragraphs from tex files in pdf files.
  * 
  * @author Claudius Korzen
  */
@@ -55,40 +55,33 @@ public class PdfParagraphsIdentifier {
   }
 
   /**
-   * Identifies the pdf paragraphs from given tex file.
+   * Identifies the positions of paragraphs of given tex file.
    */
   public void identify() throws IOException {
+    // Iterate through the (already obtained!) paragraphs.
     for (TeXParagraph para : this.texFile.getTeXParagraphs()) {
+      // Identify the position of lines belonging to the current paragraph.
       List<SyncTeXBoundingBox> pdfLines = identifyPdfLines(para);
+      // Compose the bounding boxes of paragraphs from given lines.
       List<PdfParagraph> pdfParagraphs = identifyPdfParagraphs(para, pdfLines);
       
       para.setPdfParagraphs(pdfParagraphs);
     }
   }
 
-  public long sumRuntimesConstructor;
-  public long sumRuntimesRun;
-  public long sumRuntimesParse;
-  public long sumCalls;
-
   /**
-   * Identifies the pdf lines for the given tex paragraph.
+   * Identifies the positions of lines belonging to the given paragraph.
    */
   protected List<SyncTeXBoundingBox> identifyPdfLines(TeXParagraph paragraph)
     throws IOException {
     LinkedList<SyncTeXBoundingBox> paraLines = new LinkedList<>();
-
-    float sumLineHeights = 0;
-    float numLineHeights = 0;
-        
+      
+    // Obtain the bounding boxes of each line in the given paragraph.
     for (int i : paragraph.getTexLineNumbers()) {
       List<SyncTeXBoundingBox> pdfLines = lineIdentifier.getBoundingBoxes(i);
       
       if (pdfLines != null) {
-        // Only consider still unknown pdf lines. Exception: If a paragraph only
-        // consists of already known lines, consider all lines of the paragraph.
-        // Background: Title and authors are mostly added to pdf via \maketitle.
-        // So, title and authors have the same pdf lines.
+        // Only consider still unknown pdf lines.
         List<SyncTeXBoundingBox> unknownPdfLines = new ArrayList<>();
         for (SyncTeXBoundingBox line : pdfLines) {          
           if (!alreadySeenLines.contains(line)) {
@@ -97,12 +90,10 @@ public class PdfParagraphsIdentifier {
           }
         }
 
-        pdfLines = unknownPdfLines;
-
-        for (SyncTeXBoundingBox line : pdfLines) {
-          // Clean up the lines a bit: Only consider still unknown lines and
-          // let "climb up" the line to the "correct" position (with respect to
-          // the reading order).
+        // TODO: Do we still need to obtain the "reading order"?
+        for (SyncTeXBoundingBox line : unknownPdfLines) {
+          // Clean up the lines a bit: let "climb up" the line to the "correct" 
+          // position (with respect to the reading order).
           int end = paraLines.size();
           ListIterator<SyncTeXBoundingBox> itr = paraLines.listIterator(end);
 
@@ -115,22 +106,15 @@ public class PdfParagraphsIdentifier {
             }
           }
           itr.add(line);
-
-          sumLineHeights += line.getRectangle().getHeight();
-          numLineHeights += 1;
         }
       }
-    }
-
-    if (numLineHeights > 0) {
-      paragraph.setAverageLineHeight(sumLineHeights / numLineHeights);
     }
 
     return paraLines;
   }
 
   /**
-   * Identifies the pdf paragraphs in the given pdf lines.
+   * Composes the bounding boxes of paragraph from given lines.
    */
   protected List<PdfParagraph> identifyPdfParagraphs(TeXParagraph para,
       List<SyncTeXBoundingBox> pdfLines) throws IOException {
@@ -140,6 +124,8 @@ public class PdfParagraphsIdentifier {
     SyncTeXBoundingBox prevLine = null;
     PdfParagraph pdfParagraph = null;
     for (SyncTeXBoundingBox line : pdfLines) {
+      // Decide if the line introduces a new bounding box (e.g. because it
+      // is located in a different column.
       if (introducesNewPdfParagraph(para, prevLine, line)) {
         if (pdfParagraph != null && !pdfParagraph.isEmpty()) {
           pdfParagraphs.add(pdfParagraph);

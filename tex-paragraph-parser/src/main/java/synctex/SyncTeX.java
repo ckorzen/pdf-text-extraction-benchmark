@@ -9,6 +9,7 @@ import model.SyncTeXBoundingBox;
 import model.TeXFile;
 
 /**
+ * Class to read the positions of lines from syntex files.
  * 
  * @author Claudius Korzen
  */
@@ -30,9 +31,13 @@ public class SyncTeX {
     this.texFile = texFile;
   }
   
+  /**
+   * Returns the bounding boxes of given line.
+   */
   public List<SyncTeXBoundingBox> getBoundingBoxesOfLine(int lineNum) 
       throws IOException {
     if (this.parser == null) {
+      // Lazy loading.
       Path synctexPath = texFile.getSynctexPath();
       PdfPageIdentifier pageIdentifier = new PdfPageIdentifier(texFile);
       this.parser = new SyncTeXParser(synctexPath, pageIdentifier);
@@ -45,6 +50,7 @@ public class SyncTeX {
    */
   public float getMostCommonLineHeight() {
     if (this.parser == null) {
+      // Lazy loading.
       Path synctexPath = texFile.getSynctexPath();
       PdfPageIdentifier pageIdentifier = new PdfPageIdentifier(texFile);
       this.parser = new SyncTeXParser(synctexPath, pageIdentifier);
@@ -57,6 +63,7 @@ public class SyncTeX {
    */
   public float getAverageLineHeight() {
     if (this.parser == null) {
+      // Lazy loading.
       Path synctexPath = texFile.getSynctexPath();
       PdfPageIdentifier pageIdentifier = new PdfPageIdentifier(texFile);
       this.parser = new SyncTeXParser(synctexPath, pageIdentifier);

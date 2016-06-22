@@ -8,7 +8,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 
 /**
  * A reference for a single tex element containing some semantic metadata about
- * the metadata.
+ * the tex element.
  * 
  * @author Claudius Korzen
  *

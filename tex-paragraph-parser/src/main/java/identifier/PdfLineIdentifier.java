@@ -2,14 +2,12 @@ package identifier;
 
 import static de.freiburg.iif.affirm.Affirm.affirm;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
@@ -26,10 +24,10 @@ import pdflatex.PdfLaTeX;
 import synctex.SyncTeX;
 
 /**
- * Class to identify lines (page number and rectangle) from pdf files.
+ * Class to identify the position (page number and bounding box) of lines from
+ * tex files in pdf files.
  * 
  * @author Claudius Korzen
- *
  */
 public class PdfLineIdentifier {
   /**
@@ -43,15 +41,16 @@ public class PdfLineIdentifier {
   protected List<String> texmfPaths;
 
   /**
-   * The synctex parser.
+   * The synctex parser. This is the core to identify the positions of 
+   * paragraphs.
    */
   protected SyncTeX synctex;
 
   /**
    * The addendum we append to the end of each paragraph. Synctex has issues to
    * identify the coordinates of a line on so called "widows". So we add some
-   * (slim) text to end of paragraphs to avoid such widows (paragraph bounding
-   * boxes aren't affected).
+   * (slim) text to end of paragraphs to avoid such widows and to get reliable
+   * positions.
    */
   protected static final String PARA_ADDENDUM = "~\\hspace{0pt}i";
 
@@ -63,30 +62,68 @@ public class PdfLineIdentifier {
     this.texFile = texFile;
     this.texmfPaths = texmfPaths;
     this.synctex = new SyncTeX(texFile);
-
-    // Handle widows.
-    Path tmpTeXPath = prepareTeXFile(texFile);
-    this.texFile.setTmpPath(tmpTeXPath);
-
-    // Compile the enriched version of tex file.
-    compileTexFile(tmpTeXPath);
   }
 
   /**
-   * Returns the most common line height.
+   * Returns the position of the given line from tex file in pdf file. May be a
+   * list of positions, e.g. if the given line was splitted into multiple lines
+   * in pdf file.
+   */
+  public List<SyncTeXBoundingBox> getBoundingBoxes(int lineNum) 
+      throws IOException {
+    if (texFile.getPdfPath() == null || texFile.getSynctexPath() == null) {
+      compileTexFile();
+    }
+    
+    return synctex.getBoundingBoxesOfLine(lineNum);
+  }
+  
+  /**
+   * Returns the most common line height in the given tex file.
    */
   public float getMostCommonLineHeight() {
     return synctex.getMostCommonLineHeight();
   }
   
   /**
-   * Returns the average common line height.
+   * Returns the average line height in the given tex file.
    */
   public float getAverageLineHeight() {
     return synctex.getAverageLineHeight();
   }
   
   // ===========================================================================
+  // Compile methods.
+  
+  /**
+   * Compiles the given tex file and makes sure that the related pdf- and
+   * synctex-file exist.
+   */
+  protected Path compileTexFile() throws IOException {
+    // Prepare the tex file.
+    Path tmpTeXPath = prepareTeXFile(texFile);
+    this.texFile.setTmpPath(tmpTeXPath);
+    
+    try {
+      Path outputDir = defineOutputDirectory(texFile);
+      new PdfLaTeX(tmpTeXPath, this.texmfPaths, true, outputDir).run(true);
+    } catch (Exception e) {
+      throw new IllegalStateException("Couldn't compile the tex file.");
+    }
+
+    Path pdfFile = definePdfPath(texFile);
+    affirm(pdfFile != null, "No PDF file produced.");
+    affirm(Files.isRegularFile(pdfFile), "No PDF file produced.");
+
+    Path syncTexFile = defineSynctexPath(texFile);
+    affirm(syncTexFile != null, "No syncTeX file produced.");
+    affirm(Files.isRegularFile(syncTexFile), "No syncTeX file produced.");
+
+    this.texFile.setPdfPath(pdfFile);
+    this.texFile.setSynctexPath(syncTexFile);
+
+    return pdfFile;
+  }
   
   /**
    * Synctex has issues to identify the coordinates of a line on so called
@@ -128,7 +165,9 @@ public class PdfLineIdentifier {
           if (previous instanceof Command) {
             Command cmd = (Command) previous;
             
-            if ("\\end".equals(cmd.getName())) { // TODO
+            // TODO: Don't allow the addendum in reserved commands like
+            // "\end{document}".
+            if ("\\end".equals(cmd.getName())) { 
               break;
             }
             
@@ -174,83 +213,8 @@ public class PdfLineIdentifier {
     return enriched;
   }
 
-  /**
-   * Reads the lines of tex file into list.
-   */
-  protected List<String> readTexLines(Path texFile) {
-    affirm(texFile != null, "No tex file given");
-    affirm(Files.isRegularFile(texFile), "Given tex file doesn't exist.");
-
-    List<String> texLines = new ArrayList<>();
-    try {
-      BufferedReader reader =
-          Files.newBufferedReader(texFile, StandardCharsets.UTF_8);
-
-      try {
-        // Add dummy to have 1-based indices.
-        texLines.add(null);
-
-        String line;
-        while ((line = reader.readLine()) != null) {
-          texLines.add(line);
-        }
-      } finally {
-        reader.close();
-      }
-    } catch (Exception e) {
-      throw new IllegalStateException("Couldn't read the tex file.", e);
-    }
-
-    return texLines;
-  }
-
   // ===========================================================================
-
-  public long sumRuntimesConstructor;
-  public long sumRuntimesRun;
-  public long sumRuntimesParse;
-
-  /**
-   * Parses the synctex output for given line to get the coordinates of the
-   * line.
-   */
-  public List<SyncTeXBoundingBox> getBoundingBoxes(int lineNum)
-    throws IOException {
-    return synctex.getBoundingBoxesOfLine(lineNum);
-    // return new PdfLinesParser(texFile).parse(lineNum, columnNumber);
-  }
-
-  // ===========================================================================
-  // Compile methods.
-
-  /**
-   * Compiles the given tex file and makes sure that the related pdf- and
-   * synctex-file exist.
-   */
-  protected Path compileTexFile(Path texPath) throws IOException {
-    try {
-      Path outputDir = defineOutputDirectory(texFile);
-      new PdfLaTeX(texPath, this.texmfPaths, true, outputDir).run(true);
-    } catch (Exception e) {
-      throw new IllegalStateException("Couldn't compile the tex file.");
-    }
-
-    Path pdfFile = definePdfPath(texFile);
-    affirm(pdfFile != null, "No PDF file produced.");
-    affirm(Files.isRegularFile(pdfFile), "No PDF file produced.");
-
-    Path syncTexFile = defineSynctexPath(texFile);
-    affirm(syncTexFile != null, "No syncTeX file produced.");
-    affirm(Files.isRegularFile(syncTexFile), "No syncTeX file produced.");
-
-    this.texFile.setPdfPath(pdfFile);
-    this.texFile.setSynctexPath(syncTexFile);
-
-    return pdfFile;
-  }
-
-  // ===========================================================================
-  // Compile methods.
+  // Util methods.
 
   /**
    * Returns the path to the enriched pdf file.

@@ -19,14 +19,16 @@ import parser.TeXParagraphsParser;
 import preprocess.TeXMacroResolver;
 
 /**
- * Class to manage the identification of text paragraphs from tex files.
+ * Class to identify paragraphs from tex file.
  * Actually, this is a higher level class for {@link TeXParagraphsParser} that
  * sets up all the necessary stuff for the parser.  
  * 
  * @author Claudius Korzen
  */
 public class TeXParagraphsIdentifier {
-  /** The tex file to process. */
+  /** 
+   * The tex file to process. 
+   */
   protected TeXFile texFile;
 
   /**

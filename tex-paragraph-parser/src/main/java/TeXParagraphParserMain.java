@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -30,18 +29,19 @@ import serializer.TeXParagraphSerializer;
 import visualizer.TeXParagraphVisualizer;
 
 /**
- * Class to identify text paragraphs in tex files. This class is able to
- * identify the text of each paragraph from a given tex file, as well as the
- * start and end line of the paragraphs.
+ * Class to identify paragraphs in tex files. It identifies the textual content
+ * of each paragraph and obtains the related line numbers in tex file.
  * 
- * Experimental: As an experimental feature, this class is also able to identify
- * the coordinates and page numbers of the related areas in pdf file.
+ * Experimental: As an experimental feature, this class is also able to 
+ * identify the position (coordinates and page number) of each paragraph
+ * in related pdf file.
  *
  * @author Claudius Korzen
  */
 public class TeXParagraphParserMain {
   /**
-   * The input defined by the user, as string.
+   * The input as defined by the user, as string. May be a path to a tex file
+   * or a path to a directory containing tex files.
    */
   protected String input;
 
@@ -51,73 +51,78 @@ public class TeXParagraphParserMain {
   protected String inputPrefix;
 
   /**
-   * The serialization path defined by the user, as string.
+   * The path to serialization file as defined by the user, as string. It 
+   * denotes the file where to store the paragraphs in a serialized form.
+   * May be a path to a directory or a file.
    */
   protected String serialization;
 
   /**
-   * The visualization path defined by the user, as string.
+   * The path to visualization file as defined by the user, as string. It 
+   * denotes the path to a pdf file where the paragraphs are visualized by
+   * their bounding boxes. Is only used when the computation of positions of 
+   * the paragraphs is enabled. May be a path to a directory or a pdf file.
    */
   protected String visualization;
 
   /**
-   * The path to the texmf dir.
+   * The path to the texmf dir. On computing positions of paragraphs, we need 
+   * to compile the tex files to pdf files. But the tex files may depend on 
+   * some system-unknown documentstyles (e.g. "revtex"). 
+   * To be able to compile such tex files, one can define this path to a 
+   * directory where the related sty files, cls files etc. can be found. 
    */
   protected List<String> texmfPaths = Arrays.asList(
       PathUtils.getWorkingDirectory(getClass()) + "/classes/texmf");
 
   /**
-   * The features to extract.
-   */
-  protected List<String> features;
-
-  /**
-   * Flag that indicates if we have to identify the bounding boxes.
+   * Flag that indicates if we have to identify the positions of paragraphs
+   * from pdf.
    */
   protected boolean identifyPdfParagraphs;
 
   /**
-   * The default features to extract.
-   */
-  protected List<String> defaultFeatures;
-
-  /**
-   * Some predefined feature profiles.
-   */
-  protected Map<String, List<String>> featureProfiles;
-
-  /**
-   * The resolved input directory.
+   * The input directory, resolved from users input. If the input is a file,
+   * this path denotes the parent directory. If the input is a directory, this
+   * path denotes exactly this directory. 
    */
   protected Path inputDirectory;
 
   /**
-   * The resolved input files to process.
+   * The list of resolved input files to process. If the input is a file, the 
+   * list consists of this single file. If the input is a directory, the lists
+   * consists of all tex files found in the directory.
    */
   protected List<Path> inputFiles;
 
   /**
-   * The serialization file (only set, if the input is a file).
+   * The serialization file. Is only set, if the input is a file.
    */
   protected Path serializationFile;
 
   /**
-   * The serialization directory.
+   * The serialization directory, resolved from users serialization path. If 
+   * the path is a file, 'serializationDirectory' denotes its parent 
+   * directory. If the serialization path is a directory, 
+   * 'serializationDirectory' denotes exactly this directory. 
    */
   protected Path serializationDirectory;
 
   /**
-   * The visualization file (only set, if the input is a file).
+   * The visualization file. Is only set, if the input is a file.
    */
   protected Path visualizationFile;
 
   /**
-   * The visualization directory.
+   * The visualization directory, resolved from users visualization path. If the
+   * path is a file, 'visualization' denotes its parent directory. 
+   * If the visualization path is a directory, 'visualizationDirectory' denotes 
+   * exactly this directory. 
    */
   protected Path visualizationDirectory;
 
   /**
-   * The main method to start the identifcation of paragraphs.
+   * The main method to start the paragraphs parser.
    */
   public static void main(String[] args) {
     // Create command line options.
@@ -147,9 +152,7 @@ public class TeXParagraphParserMain {
   }
 
   /**
-   * Creates new paragraph parser based on the given command line object.
-   * 
-   * TODO: Define default feature and feature profiles.
+   * Creates a new paragraph parser based on the given command line object.
    */
   public TeXParagraphParserMain(CommandLine cmd) {
     inputFiles = new ArrayList<>();
@@ -158,13 +161,12 @@ public class TeXParagraphParserMain {
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
     visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);
     inputPrefix = getOptionValue(cmd, TeXParserOptions.PREFIX, "");
-    features = getOptionValues(cmd, TeXParserOptions.FEATURE, null);
     identifyPdfParagraphs = hasOption(cmd, TeXParserOptions.BOUNDING_BOXES);
     texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
   }
 
   /**
-   * Runs this program.
+   * Runs the paragraph parser.
    */
   public void run() throws IOException {
     // Initialize the paragraph parser.
@@ -177,7 +179,8 @@ public class TeXParagraphParserMain {
 
   /**
    * Validates the input given by the user and resolves the input directory /
-   * files as well as the output directory / file.
+   * files as well as the serialization directory / file and 
+   * visualization directory / file.
    */
   protected void initialize() {
     affirm(input != null, "No input given.");
@@ -201,7 +204,7 @@ public class TeXParagraphParserMain {
       // Add the file to the files to process.
       this.inputFiles.add(inPath);
 
-      // Check, if there is an serialiation path given.
+      // Check, if there is an serialization path given.
       if (serPath != null) {
         if (Files.isDirectory(serPath)) {
           // The output is an existing directory.
@@ -257,7 +260,7 @@ public class TeXParagraphParserMain {
   }
 
   /**
-   * Processes the parsed tex files.
+   * Processes the tex files found from users input.
    */
   protected void processTexFiles() throws IOException {
     for (Path file : this.inputFiles) {
@@ -266,8 +269,10 @@ public class TeXParagraphParserMain {
   }
 
   /**
-   * Processes the given tex file. Identifies the paragraphs in the given tex
-   * file and serializes them to file.
+   * Processes the given tex file. Identifies the paragraphs from given tex
+   * file and their positions in pdf file if global flag 
+   * 'identifyPdfParagraphs' is set to true. Serializes and visualizes the
+   * paragraphs if related paths are given.
    */
   protected void processTexFile(Path file) throws IOException {
     TeXFile texFile = new TeXFile(file);
@@ -275,6 +280,7 @@ public class TeXParagraphParserMain {
     // Identify the paragraphs in the given tex file.
     identifyTexParagraphs(texFile);
 
+    // Identify the postions of tex paragraphs in tex file.
     if (this.identifyPdfParagraphs) {
       identifyPdfParagraphs(texFile, this.texmfPaths);
     }
@@ -282,10 +288,12 @@ public class TeXParagraphParserMain {
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
     Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
     
+    // Serialize.
     if (serializationTargetFile != null) {
       serialize(texFile, serializationTargetFile);
     }
     
+    // Visualize.
     if (visualizationTargetFile != null) {
       visualize(texFile, visualizationTargetFile);
     }
@@ -295,14 +303,15 @@ public class TeXParagraphParserMain {
   // ---------------------------------------------------------------------------
 
   /**
-   * Identifies the tex paragraphs from given tex file.
+   * Identifies the paragraphs from given tex file.
    */
   protected void identifyTexParagraphs(TeXFile texFile) throws IOException {
     new TeXParagraphsIdentifier(texFile).identify();
   }
 
   /**
-   * Identifies the pdf paragraphs for the tex paragraphs in the given tex file.
+   * Identifies the positions of paragraphs from given tex file in related pdf 
+   * file.
    */
   protected void identifyPdfParagraphs(TeXFile texFile, List<String> texmfPaths)
     throws IOException {
@@ -311,8 +320,6 @@ public class TeXParagraphParserMain {
 
   /**
    * Serializes the selected features to file.
-   * 
-   * TODO: Take the chosen features into account.
    */
   protected void serialize(TeXFile texFile, Path target) throws IOException {
     new TeXParagraphSerializer(texFile).serialize(target);
@@ -320,8 +327,6 @@ public class TeXParagraphParserMain {
 
   /**
    * Visualizes the selected features to file.
-   * 
-   * TODO: Take the chosen features into account.
    */
   protected void visualize(TeXFile texFile, Path target) throws IOException {
     new TeXParagraphVisualizer(texFile).visualize(target);
@@ -413,29 +418,6 @@ public class TeXParagraphParserMain {
   }
 
   // ---------------------------------------------------------------------------
-
-  /**
-   * Returns the list of all selected features to extract. If there are no
-   * features selected, this method returns null.
-   */
-  protected List<String> getFeatures() {
-    if (features.isEmpty()) {
-      return null;
-    }
-
-    // Prepopulate the features with the default ones.
-    List<String> allFeatures = new ArrayList<>(defaultFeatures);
-    for (String feature : features) {
-      if (featureProfiles.containsKey(feature)) {
-        // The feature is a profile name, add all features of the profile.
-        allFeatures.addAll(featureProfiles.get(feature));
-      } else {
-        // Add the single feature.
-        allFeatures.add(feature);
-      }
-    }
-    return allFeatures;
-  }
 
   /**
    * Reads the given directory recursively and fills the given list with found
@@ -557,8 +539,8 @@ public class TeXParagraphParserMain {
   }
 
   /**
-   * Returns the value associated with given option as string. Returns the given
-   * default value if the given command line doesn't contain the option.
+   * Returns the value associated with given option as string. Returns the 
+   * given default value if the given command line doesn't contain the option.
    */
   protected static String getOptionValue(CommandLine cmd,
       TeXParserOptions option, String defaultValue) {
@@ -569,8 +551,8 @@ public class TeXParagraphParserMain {
   }
 
   /**
-   * Returns the value associated with given option as string. Returns the given
-   * default value if the given command line doesn't contain the option.
+   * Returns the value associated with given option as string. Returns the 
+   * given default value if the given command line doesn't contain the option.
    */
   protected static List<String> getOptionValues(CommandLine cmd,
       TeXParserOptions option, List<String> defaultValue) {
@@ -609,13 +591,6 @@ public class TeXParagraphParserMain {
      */
     PREFIX("p", "prefix",
         "The prefix(es) to consider on parsing the input directory.",
-        false, true, Option.UNLIMITED_VALUES),
-
-    /**
-     * Create option to define feature(s) to output.
-     */
-    FEATURE("f", "feature",
-        "The feature(s) to output.",
         false, true, Option.UNLIMITED_VALUES),
 
     /**

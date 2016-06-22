@@ -11,7 +11,7 @@ import de.freiburg.iif.model.Rectangle;
 import identifier.PdfPageIdentifier;
 
 /**
- * A TeX file.
+ * A class represneting a TeX file.
  * 
  * @author Claudius Korzen
  */
@@ -51,6 +51,9 @@ public class TeXFile {
    */
   protected List<TeXParagraph> texParagraphs;
       
+  /**
+   * The parsed document.
+   */
   protected Document document;
   
   /**
@@ -161,10 +164,16 @@ public class TeXFile {
   
   // ---------------------------------------------------------------------------
   
+  /**
+   * Sets the parsed document.
+   */
   public void setDocument(Document document) {
     this.document = document;
   }
   
+  /**
+   * Returns the tex elements in this tex file.
+   */
   public List<Element> getTeXElements() {
     return this.document != null ? document.getElements() : null;
   }

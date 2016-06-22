@@ -7,13 +7,11 @@ import de.freiburg.iif.model.HasRectangle;
 import de.freiburg.iif.model.Rectangle;
 
 /**
- * A bounding box in pdf files..
+ * A "position" (bounding box + page number) within pdf files.
  * 
  * @author Claudius Korzen
- *
  */
-public class SyncTeXBoundingBox implements Comparable<SyncTeXBoundingBox>,
-    HasRectangle {
+public class SyncTeXBoundingBox implements HasRectangle {
   /**
    * The records of this box.
    */
@@ -114,39 +112,7 @@ public class SyncTeXBoundingBox implements Comparable<SyncTeXBoundingBox>,
     this.lineNum = lineNum;
   }
   
-  
   // ---------------------------------------------------------------------------
-
-  @Override
-  public int compareTo(SyncTeXBoundingBox o) {
-    if (getPageNumber() < o.getPageNumber()) {
-      return -1;
-    }
-    if (getPageNumber() > o.getPageNumber()) {
-      return 1;
-    }
-
-    Rectangle rect1 = getRectangle();
-    Rectangle rect2 = o.getRectangle();
-
-    if (rect1.overlapsHorizontally(rect2)) {
-      if (rect1.getMinY() > rect2.getMinY()) {
-        return -1;
-      }
-      if (rect1.getMinY() < rect2.getMinY()) {
-        return 1;
-      }
-    } else {
-      if (rect1.getMinX() < rect2.getMinX()) {
-        return -1;
-      }
-      if (rect1.getMinX() > rect2.getMinX()) {
-        return 1;
-      }
-    }
-
-    return 0;
-  }
 
   @Override
   public String toString() {
