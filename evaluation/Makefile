@@ -28,7 +28,7 @@ pdftohtml_CMD = pdftohtml -xml -zoom 1 -nomerge -stdout -q -enc "UTF-8" %IN > %O
 PDFExtract_CMD = java -jar bin/PDFExtract/PDFExtract/pdfextract-cli/target/pdfextract-cli-M3-SNAPSHOT-jar-with-dependencies.jar %IN  %OUT
 lapdftext_CMD = java -cp bin/lapdftextProject/lapdftext/target/lapdftext-1.7.5-SNAPSHOT-jar-with-dependencies.jar edu.isi.bmkeg.lapdf.bin.ReadSectionText %IN  %OUT
 pdfextract_CMD = pdf-extract extract --semantic %IN > %OUT
-pdfXtk_CMD = java -cp bin/pdfxtk/trunk/pdfXtk/target/pdfXtk-0.9-SNAPSHOT-jar-with-dependencies.jar at.ac.tuwien.dbai.pdfwrap.ProcessFile -xmillum -spaces %IN %OUT > /dev/null
+pdfXtk_CMD = java -cp bin/pdfxtk/trunk/pdfXtk/target/pdfXtk-0.9-SNAPSHOT-jar-with-dependencies.jar at.ac.tuwien.dbai.pdfwrap.ProcessFile -xmillum -spaces %IN %OUT > /dev/nullq
 icecite_CMD = java -jar $(PDF_PARSER_JAR_TARGET) --feature paragraphs --role body-text --format txt %IN  %OUT
 
 all: extract evaluate
