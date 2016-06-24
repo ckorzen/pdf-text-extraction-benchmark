@@ -1,0 +1,1137 @@
+%----------------------------------------------
+\def\fileversion{v1.20a}% was \def\fileversion{v1.20}%
+\def\filedate{21.6.94}%  was \def\filedate{26.1.94}%
+%%%
+%%% from a suggestion by eijkhout@csrd.uiuc.edu to allow
+%%% loading as a style file:
+\edef\epsfigRestoreAt{\catcode`@=\number\catcode`@\relax}%
+\catcode`\@=11\relax
+\ifx\undefined\@makeother                % -pks-
+\def\@makeother#1{\catcode`#1=12\relax}  % -pks-
+\fi                                      % -pks-
+\immediate\write16{Document style option `epsfig', \fileversion\space
+<\filedate> (edited by SPQR + pks)}% was <\filedate> (edited by SPQR)}%
+%%%--------------------------------------------------------------------
+%%% psfig merged with EPSF = epsfig Release 1
+%%% 1.0 November 91
+%%% 1.1 Dec 91  fixed some bugs
+%%% 1.2 Jan 92  fixed bug that it never stopped reading PS file until
+%%%             it reached the end! merged in changes from psfig1.8
+%%%             (plain TeX definition of \fbox, new code for rotation)
+%%% 1.3 Jan 92  separated out \special code so that dvitops can be
+%%%             supported. use \psfigdriver{dvitops}%
+%%% 1.4 Jan 92  fixed dvitops. need to input psfig at different point
+%%%      in dvips from dvitops. define \psfig@start and \psfig@end to cope
+%%%      with this
+%%% 1.5 Jan 92  force use of psfig method if using dvitops
+%%% 1.6 May 92 fixed bugs
+%%% 1.7 Sep 92 added support for emtex, sort of. reads a .bb file
+%%%            and imports .pcx file. Boolean flag \epsfigdos used
+%%%             to indicate that we cannot have more than one . in the
+%%%             suffix (ie we will look at file.bb not file.eps.bb)
+%%%
+%%% 1.8 Sep 92 added support for OzTeX; fixed bugs in dvips support
+%%% (including clipping to bounding box); removed use of dimen100.
+%%%
+%%% 1.9 Dec 92 cleaned up documentation again
+%%% 1.10 Mar 93 cleaned up for plain TeX
+%%% 1.11 Mar 93 merged in changes by Peter Galko (supplied by CERN) for
+%%%             use with Textures
+%%% 1.12 Apr 93 actually *tested* the Textures additions, and so rewrote
+%%%            from scratch (borrowed an idea from psbox)
+%%% 1.13 May 93 allow for file names with _ or $ in them in \psdraft, and
+%%%             fix problem that occurred with missing BoundingBox
+%%% 1.14 May 93 allow for .z suffix
+%%% 1.15 July 93 allow for .gz suffix
+%%%              use \leavevmode as appropriate
+%%%              fix plain \TeX mode 
+%%%             (fixes from Peter-Klaus Schilling <R02SCH@DSYIBM.DESY.DE>)
+%%% 1.16 August 93 [peta@mcrcim.mcgill.edu (Peter Whaite)]
+%%%        -- Implement Perl scripts to do compressed file inclusion and bb
+%%%           generation. 
+%%%        -- Add \pscompress.
+%%%        -- Tidy up comments.
+%%% 1.17 September 93 SPQR
+%%%     better code for literal name printing
+%%%     allowed for spaces around , and =
+%%% 1.18 17.9.93
+%%%   updates to epsbb and epsfig from Peter W
+%%% 1.19 14.11.93
+%%%   mistaken placement of calculation of EPS@Height resulted in errors
+%%% 1.20 defaults to no compression
+%--------------------------------------------------------
+%%%
+%%% code rearranged by Sebastian Rahtz (spqr@uk.ac.york.minster)
+%%% from work by
+%%% Trevor Darrell; Tom Rokicki; Daniel Smith; H. Payne, Robert Russell
+%%%
+%%% This is a version of Darrell's `psfig' macros which are designed
+%%% to be used with dvips or dvitops, and the `epsf' macros (these are
+%%% automaticaly included by the style file). I did this because the
+%%% \special commands used by `epsf' appear to be more robust and
+%%% portable than the raw \specials used by `psfig', but I preferred
+%%% the psfig interface. This system preserves the psfig interface,
+%%% but mainly uses epsf macros to carry out the job. The user
+%%% interface is identical to \psfig, but you just use \epsfig
+%%% instead. Rotation uses the original psfig macros: I could not work
+%%% out how to do rotation with the epsf macros.
+%%%
+%%% The same applies to `rheight' and `rwidth'
+%%%
+%%% If you *really* want old psfig behaviour regardless, use \psfig. It is
+%%% still there. Some of the features have gone, however. \figurepath
+%%% seemed redundant, since it could be controlled by the TEXINPUTS
+%%% variable anyway.
+%%%
+%%% As an added feature, if FILE cannot be found, a file called FILE.bb
+%%% is searched for. This should simply contain a %%BoundingBox line. A perl
+%%% script "epsbb" is provided to generate these automatically.  It is
+%%% assumed that if this exists, then the actual postscript is in UNIX
+%%% compress format in FILE.Z or in GNU gzip format in FILE.gz or FILE.z.
+%%%
+%%% The macros then read the BB from FILE.bb, but insert "`epsfig FILE`" in
+%%% the  output for dvips to interpret (don't worry, it knows about this).
+%%% "Epsfig" is another perl script which  searches the TEXINPUTS path for
+%%% FILE or FILE.{gz,z,Z}.
+%%%
+%%% As an added bonus if you say \pscompress the -c switch will be passed to
+%%% epsfig, causing automatic FILE.bb generation and compression the first
+%%% time dvips is run.  Files in the system directories will NOT be
+%%% compressed.
+%%% If you are *not* on a Unix system and use this, deliberately or by
+%%% mischance, you will have problems!
+%%%
+%%% This file can be included in a dumped format, or used as a LaTeX
+%%% style file, or used in plain TeX. It does not load itself twice (I hope)
+%%%
+%--------------------------------------------------------------------
+%--------------------------------------------------------------------
+%%% previous notes. this copy of psfig.tex inherited from versions 1.8
+%--------------------------------------------------------------------
+%%% All psfig/tex software, documentation, and related files
+%%% in this distribution of psfig/tex are
+%%% Copyright 1987, 1988, 1991 Trevor J. Darrell
+%
+%%% Permission is granted for use and non-profit distribution of psfig/tex
+%%% providing that this notice be clearly maintained. The right to
+%%% distribute any portion of psfig/tex for profit or as part of any commercial
+%%% product is specifically reserved for the author(s) of that portion.
+%%%
+%%% Thanks to Greg Hager (GDH) and Ned Batchelder for their contributions
+%%% to this project.
+%%%--------------------------------------------------------------------------
+%%% GDH 7/26/87 -- changed so that it first looks in the local directory,
+%%% then in a specified global directory for the ps file.
+%%% SPQR 12/91 removed that last change. it follows TEXINPUTS anyway
+%%% RPR 6/25/91 -- changed so that it defaults to user-supplied name if
+%%% boundingbox info is specified, assuming graphic will be created by
+%%% print time.
+%%% SPQR 12/91 removed that last change. use LaTeX error message instead
+%%% SPQR 12/91 -- `no file found' produces LaTeX error message.
+%%%                If you recover from that the file name is set in draft
+%%%                mode in place of the file.
+%%%
+%%% Modified by J. Daniel Smith on 9 October 1990 to accept the
+%%% %%BoundingBox: comment with or without a space after the colon.  Stole
+%%% file reading code from Tom Rokicki's EPSF.TEX file (see below).
+%%% --- SPQR 12.91 removed most of this to use epsf directly
+%%%
+%%% More modifications by J. Daniel Smith on 29 March 1991 to allow the
+%%% the included PostScript figure to be rotated.  The amount of
+%%% rotation is specified by the "angle=" parameter of the \epsfig command.
+%%%
+%%% Modified by Robert Russell on June 25, 1991 to allow users to specify
+%%% .ps filenames which don't yet exist, provided they explicitly provide
+%%% boundingbox information via the \epsfig command. Note: This will only work
+%%% if the "file=" parameter follows all four "bb???=" parameters in the
+%%% command. This is due to the order in which psfig interprets these params.
+%%% ---- SPQR 12.91 removed all this
+%%%
+%%% 3 Jul 1991  JDS     check if file already read in once
+%%%
+%-----------------------------USAGE---------------------------------------
+% From: gvr@cs.brown.edu (George V. Reilly)
+%
+% \psdraft      draws an outline box, but doesn't include the figure
+%               in the DVI file.  Useful for previewing.
+%
+% \psfull       includes the figure in the DVI file (default).
+%
+% \psscalefirst width= or height= specifies the size of the figure
+%               before rotation.
+% \psrotatefirst (default) width= or height= specifies the size of the
+%                figure after rotation.  Asymetric figures will
+%                appear to shrink.
+%
+% usage: \epsfig{file=, figure=, height=, width=,
+%                       bbllx=, bblly=, bburx=, bbury=,
+%                       rheight=, rwidth=, clip=, angle=, silent=}%
+%
+%       "file" is the filename.  If no path name is specified and the
+%               file is not found in the current directory,
+%               it will be looked for in directory \psfigurepath.
+%       "figure" is a synonym for "file".
+%       By default, the width and height of the figure are taken from
+%               the BoundingBox of the figure.
+%       If "width" is specified, the figure is scaled so that it has
+%               the specified width.  Its height changes proportionately.
+%       If "height" is specified, the figure is scaled so that it has
+%               the specified height.  Its width changes proportionately.
+%       If both "width" and "height" are specified, the figure is scaled
+%               anamorphically.
+%       "bbllx", "bblly", "bburx", and "bbury" control the PostScript
+%               BoundingBox.
+%       "rheight" and "rwidth" are the reserved height and width
+%               of the figure, i.e., how big TeX actually thinks
+%               the figure is.  They default to "width" and "height".
+%       The "clip" option ensures that no portion of the figure will
+%               appear outside its BoundingBox.  "clip=" is a switch and
+%               takes no value, but the `=' must be present.
+%       The "angle" option specifies the angle of rotation (degrees, ccw).
+%       The "silent" option makes \psfig work silently.
+%
+%--------------------------------------------------------------------------
+\newcount\EPS@Height \newcount\EPS@Width \newcount\EPS@xscale
+\newcount\EPS@yscale
+\def\psfigdriver#1{%
+  \bgroup\edef\next{\def\noexpand\tempa{#1}}%
+    \uppercase\expandafter{\next}%
+    \def\LN{DVITOLN03}%
+    \def\DVItoPS{DVITOPS}%
+    \def\DVIPS{DVIPS}%
+    \def\emTeX{EMTEX}%
+    \def\OzTeX{OZTEX}%
+    \def\Textures{TEXTURES}%
+    \global\chardef\fig@driver=0
+    \ifx\tempa\LN
+        \global\chardef\fig@driver=0\fi
+    \ifx\tempa\DVItoPS
+        \global\chardef\fig@driver=1\fi
+    \ifx\tempa\DVIPS
+        \global\chardef\fig@driver=2\fi
+    \ifx\tempa\emTeX
+        \global\chardef\fig@driver=3\fi
+    \ifx\tempa\OzTeX
+        \global\chardef\fig@driver=4\fi
+    \ifx\tempa\Textures
+        \global\chardef\fig@driver=5\fi
+  \egroup
+\def\psfig@start{}%
+\def\psfig@end{}%
+\def\epsfig@gofer{}%
+\ifcase\fig@driver
+% case 0 ln03
+\typeout{WARNING! ****
+ no specials for LN03 psfig}%
+%
+\or % case 1: dvitops
+\def\psfig@start{}%
+\def\psfig@end{\special{dvitops: import \@p@sfilefinal \space
+\@p@swidth sp \space \@p@sheight sp \space fill}%
+\if@clip \typeout{Clipping not supported}\fi
+\if@angle \typeout{Rotating not supported}\fi
+}%
+\let\epsfig@gofer\psfig@end
+%
+\or %case2 dvips
+\def\psfig@start{\special{ps::[begin]  \@p@swidth \space \@p@sheight \space%
+        \@p@sbbllx \space \@p@sbblly \space%
+        \@p@sbburx \space \@p@sbbury \space%
+        startTexFig \space }%
+        \if@clip
+                \if@verbose
+                        \typeout{(clipped to BB) }%
+                \fi
+                \special{ps:: doclip \space }%
+        \fi
+        \if@angle              % moved after \if@clip ... \fi -pks-
+                \special {ps:: \@p@sangle \space rotate \space}
+        \fi
+        \special{ps: plotfile \@p@sfilefinal \space }%
+        \special{ps::[end] endTexFig \space }%
+}%
+\def\psfig@end{}%
+\def\epsfig@gofer{\if@clip
+                        \if@verbose
+                           \typeout{(clipped to BB)}%
+                        \fi
+                        \epsfclipon
+                  \fi
+                  \epsfsetgraph{\@p@sfilefinal}%
+}%
+%
+\or % case 3, emTeX
+\typeout{WARNING. You must have a .bb info file with the Bounding Box
+  of the pcx file}%
+\def\psfig@start{}%
+% when emtex imports a pcx file, it is *below* where we are now.
+% so raise the box
+\def\psfig@end{\typeout{pcx import of \@p@sfilefinal}%
+\if@clip \typeout{Clipping not supported}\fi
+\if@angle \typeout{Rotating not supported}\fi
+\raisebox{\@p@srheight sp}{\special{em: graph \@p@sfilefinal}}}%
+\def\epsfig@gofer{}%
+%
+\or % case 4, OzTeX
+\def\psfig@start{}%
+\def\psfig@end{%
+\EPS@Width\@p@swidth
+\EPS@Height\@p@sheight
+\divide\EPS@Width by 65781  % convert sp to bp
+\divide\EPS@Height by 65781
+\special{epsf=\@p@sfilefinal
+\space
+width=\the\EPS@Width
+\space
+height=\the\EPS@Height
+}%
+\if@clip \typeout{Clipping not supported}\fi
+\if@angle \typeout{Rotating not supported}\fi
+}%
+\let\epsfig@gofer\psfig@end
+\or % case 5, Textures
+\def\psfig@end{
+% what is scaling of picture
+         \EPS@Width=\@bbw  
+         \divide\EPS@Width by 1000
+         \EPS@xscale=\@p@swidth \divide \EPS@xscale by \EPS@Width
+         \EPS@Height=\@bbh  
+         \divide\EPS@Height by 1000
+         \EPS@yscale=\@p@sheight \divide \EPS@yscale by\EPS@Height
+% take largest calculated scale
+  \ifnum\EPS@xscale>\EPS@yscale\EPS@xscale=\EPS@yscale\fi
+\if@clip
+   \if@verbose
+      \typeout{(clipped to BB)}%
+   \fi
+   \epsfclipon
+\fi
+\special{illustration \@p@sfilefinal\space scaled \the\EPS@xscale}%
+}%
+\def\psfig@start{}%
+\let\epsfig\psfig
+\else
+\typeout{WARNING. *** unknown  driver - no psfig}%
+\fi
+}%
+% copies of bits of LaTeX we need....
+\newdimen\ps@dimcent
+%
+% \fbox is defined in latex.tex; so if \fbox is undefined, assume that
+% we are not in LaTeX.
+% Perhaps this could be done better???
+\ifx\undefined\fbox
+% \fbox code from modified slightly from LaTeX
+\newdimen\fboxrule
+\newdimen\fboxsep
+\newdimen\ps@tempdima
+\newbox\ps@tempboxa
+\fboxsep = 0pt
+\fboxrule = .4pt
+\long\def\fbox#1{\leavevmode\setbox\ps@tempboxa\hbox{#1}\ps@tempdima\fboxrule
+    \advance\ps@tempdima \fboxsep \advance\ps@tempdima \dp\ps@tempboxa
+   \hbox{\lower \ps@tempdima\hbox
+  {\vbox{\hrule height \fboxrule
+          \hbox{\vrule width \fboxrule \hskip\fboxsep
+          \vbox{\vskip\fboxsep \box\ps@tempboxa\vskip\fboxsep}\hskip
+                 \fboxsep\vrule width \fboxrule}%
+                 \hrule height \fboxrule}}}}%
+\fi
+\ifx\@ifundefined\undefined
+\long\def\@ifundefined#1#2#3{\expandafter\ifx\csname
+  #1\endcsname\relax#2\else#3\fi}%
+\fi
+%
+\@ifundefined{typeout}%
+{\gdef\typeout#1{\immediate\write\sixt@@n{#1}}}%
+{\relax}%
+%
+%%% check to see if macros already loaded in (maybe some other file says
+%%% "\input epsfig") ...
+\@ifundefined{epsfig}{}{\typeout{EPSFIG --- already loaded}\endinput}%
+%
+%%%
+%%% we need Rokicki's EPSF macros anyway, unless they are already loaded
+%
+\@ifundefined{epsfbox}{\input epsf}{}%
+%
+%% SPQR 12.91 handling of errors using standard LaTeX error
+%% mechanism. In case we are plain TeX we first define the
+%% error routines...
+\ifx\undefined\@latexerr
+        \newlinechar`\^^J
+        \def\@spaces{\space\space\space\space}%
+        \def\@latexerr#1#2{%
+        \edef\@tempc{#2}\expandafter\errhelp\expandafter{\@tempc}%
+        \typeout{Error. \space see a manual for explanation.^^J
+         \space\@spaces\@spaces\@spaces Type \space H <return> \space for
+         immediate help.}\errmessage{#1}}%
+\fi
+%------------------------
+%% a couple of LaTeX error messages
+\def\@whattodo{You tried to include a PostScript figure which
+cannot be found^^JIf you press return to carry on anyway,^^J
+The failed name will be printed in place of the figure.^^J
+or type X to quit}%
+\def\@whattodobb{You tried to include a PostScript figure which
+has no^^Jbounding box, and you supplied none.^^J
+If you press return to carry on anyway,^^J
+The failed name will be printed in place of the figure.^^J
+or type X to quit}%
+%------------------------
+%
+%------------------------------------------------------------------------
+%------------------------------------------------------------------------
+%%% @psdo control structure -- similar to Latex @for.
+%%% I redefined these with different names so that psfig can
+%%% be used with TeX as well as LaTeX, and so that it will not
+%%% be vunerable to future changes in LaTeX's internal
+%%% control structure,
+%
+\def\@nnil{\@nil}%
+\def\@empty{}%
+\def\@psdonoop#1\@@#2#3{}%
+\def\@psdo#1:=#2\do#3{\edef\@psdotmp{#2}\ifx\@psdotmp\@empty \else
+    \expandafter\@psdoloop#2,\@nil,\@nil\@@#1{#3}\fi}%
+\def\@psdoloop#1,#2,#3\@@#4#5{\def#4{#1}\ifx #4\@nnil \else
+       #5\def#4{#2}\ifx #4\@nnil \else#5\@ipsdoloop #3\@@#4{#5}\fi\fi}%
+\def\@ipsdoloop#1,#2\@@#3#4{\def#3{#1}\ifx #3\@nnil
+       \let\@nextwhile=\@psdonoop \else
+      #4\relax\let\@nextwhile=\@ipsdoloop\fi\@nextwhile#2\@@#3{#4}}%
+\def\@tpsdo#1:=#2\do#3{\xdef\@psdotmp{#2}\ifx\@psdotmp\@empty \else
+    \@tpsdoloop#2\@nil\@nil\@@#1{#3}\fi}%
+\def\@tpsdoloop#1#2\@@#3#4{\def#3{#1}\ifx #3\@nnil
+       \let\@nextwhile=\@psdonoop \else
+      #4\relax\let\@nextwhile=\@tpsdoloop\fi\@nextwhile#2\@@#3{#4}}%
+%%%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% file reading stuff from epsf.tex
+%%%   EPSF.TEX macro file:
+%%%   Written by Tomas Rokicki of Radical Eye Software, 29 Mar 1989.
+%%%   Revised by Don Knuth, 3 Jan 1990.
+%%%   Revised by Tomas Rokicki to accept bounding boxes with no
+%%%      space after the colon, 18 Jul 1990.
+%%%   Portions modified/removed for use in PSFIG package by
+%%%      J. Daniel Smith, 9 October 1990.
+%%%   Just the bit which knows about (atend) as a BoundingBox
+%
+%%%    hacked back a bit by SPQR 12/91
+%
+\long\def\epsfaux#1#2:#3\\{\ifx#1\epsfpercent
+   \def\testit{#2}\ifx\testit\epsfbblit
+        \@atendfalse
+        \epsf@atend #3 . \\%
+        \if@atend
+           \if@verbose
+                \typeout{epsfig: found `(atend)'; continuing search}%
+           \fi
+        \else
+                \epsfgrab #3 . . . \\%
+                \epsffileokfalse\global\no@bbfalse
+                \global\epsfbbfoundtrue
+        \fi
+   \fi\fi}%
+%
+%%% Determine if the stuff following the %%BoundingBox is `(atend)'
+%%% J. Daniel Smith.  Copied from \epsf@grab above.
+%
+\def\epsf@atendlit{(atend)}
+%
+\def\epsf@atend #1 #2 #3\\{%
+   \def\epsf@tmp{#1}\ifx\epsf@tmp\empty
+      \epsf@atend #2 #3 .\\\else
+   \ifx\epsf@tmp\epsf@atendlit\@atendtrue\fi\fi}%
+ 
+ 
+%%% End of file reading stuff from epsf.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% trigonometry stuff from "trig.tex"
+\chardef\trig@letter = 11
+\chardef\other = 12
+ 
+\newif\ifdebug %%% turn me on to see TeX hard at work ...
+\newif\ifc@mpute %%% don't need to compute some values
+\newif\if@atend
+\c@mputetrue % but assume that we do
+ 
+\let\then = \relax
+\def\r@dian{pt }%
+\let\r@dians = \r@dian
+\let\dimensionless@nit = \r@dian
+\let\dimensionless@nits = \dimensionless@nit
+\def\internal@nit{sp }%
+\let\internal@nits = \internal@nit
+\newif\ifstillc@nverging
+\def \Mess@ge #1{\ifdebug \then \message {#1} \fi}%
+ 
+{ %%% Things that need abnormal catcodes %%%
+        \catcode `\@ = \trig@letter
+        \gdef \nodimen {\expandafter \n@dimen \the \dimen}%
+        \gdef \term #1 #2 #3%
+               {\edef \t@ {\the #1}%%% freeze parameter 1 (count, by value)
+                \edef \t@@ {\expandafter \n@dimen \the #2\r@dian}%
+                                   %%% freeze parameter 2 (dimen, by value)
+                \t@rm {\t@} {\t@@} {#3}%
+               }%
+        \gdef \t@rm #1 #2 #3%
+               {{%
+                \count 0 = 0
+                \dimen 0 = 1 \dimensionless@nit
+                \dimen 2 = #2\relax
+                \Mess@ge {Calculating term #1 of \nodimen 2}%
+                \loop
+                \ifnum  \count 0 < #1
+                \then   \advance \count 0 by 1
+                        \Mess@ge {Iteration \the \count 0 \space}%
+                        \Multiply \dimen 0 by {\dimen 2}%
+                        \Mess@ge {After multiplication, term = \nodimen 0}%
+                        \Divide \dimen 0 by {\count 0}%
+                        \Mess@ge {After division, term = \nodimen 0}%
+                \repeat
+                \Mess@ge {Final value for term #1 of
+                                \nodimen 2 \space is \nodimen 0}%
+                \xdef \Term {#3 = \nodimen 0 \r@dians}%
+                \aftergroup \Term
+               }}%
+        \catcode `\p = \other
+        \catcode `\t = \other
+        \gdef \n@dimen #1pt{#1} %%% throw away the ``pt''
+}%
+ 
+\def \Divide #1by #2{\divide #1 by #2} %%% just a synonym
+ 
+\def \Multiply #1by #2%%% allows division of a dimen by a dimen
+       {{%%% should really freeze parameter 2 (dimen, passed by value)
+        \count 0 = #1\relax
+        \count 2 = #2\relax
+        \count 4 = 65536
+        \Mess@ge {Before scaling, count 0 = \the \count 0 \space and
+                        count 2 = \the \count 2}%
+        \ifnum  \count 0 > 32767 %%% do our best to avoid overflow
+        \then   \divide \count 0 by 4
+                \divide \count 4 by 4
+        \else   \ifnum  \count 0 < -32767
+                \then   \divide \count 0 by 4
+                        \divide \count 4 by 4
+                \else
+                \fi
+        \fi
+        \ifnum  \count 2 > 32767 %%% while retaining reasonable accuracy
+        \then   \divide \count 2 by 4
+                \divide \count 4 by 4
+        \else   \ifnum  \count 2 < -32767
+                \then   \divide \count 2 by 4
+                        \divide \count 4 by 4
+                \else
+                \fi
+        \fi
+        \multiply \count 0 by \count 2
+        \divide \count 0 by \count 4
+        \xdef \product {#1 = \the \count 0 \internal@nits}%
+        \aftergroup \product
+       }}%
+ 
+\def\r@duce{\ifdim\dimen0 > 90\r@dian \then   % sin(x) = sin(180-x)
+                \multiply\dimen0 by -1
+                \advance\dimen0 by 180\r@dian
+                \r@duce
+            \else \ifdim\dimen0 < -90\r@dian \then  % sin(x) = sin(360+x)
+                \advance\dimen0 by 360\r@dian
+                \r@duce
+                \fi
+            \fi}%
+ 
+\def\Sine#1%
+       {{%
+        \dimen 0 = #1 \r@dian
+        \r@duce
+        \ifdim\dimen0 = -90\r@dian \then
+           \dimen4 = -1\r@dian
+           \c@mputefalse
+        \fi
+        \ifdim\dimen0 = 90\r@dian \then
+           \dimen4 = 1\r@dian
+           \c@mputefalse
+        \fi
+        \ifdim\dimen0 = 0\r@dian \then
+           \dimen4 = 0\r@dian
+           \c@mputefalse
+        \fi
+%
+        \ifc@mpute \then
+                % convert degrees to radians
+                \divide\dimen0 by 180
+                \dimen0=3.141592654\dimen0
+%
+                \dimen 2 = 3.1415926535897963\r@dian %%% a well-known constant
+                \divide\dimen 2 by 2 %%% we only deal with -pi/2 : pi/2
+                \Mess@ge {Sin: calculating Sin of \nodimen 0}%
+                \count 0 = 1 %%% see power-series expansion for sine
+                \dimen 2 = 1 \r@dian %%% ditto
+                \dimen 4 = 0 \r@dian %%% ditto
+                \loop
+                        \ifnum  \dimen 2 = 0 %%% then we've done
+                        \then   \stillc@nvergingfalse
+                        \else   \stillc@nvergingtrue
+                        \fi
+                        \ifstillc@nverging %%% then calculate next term
+                        \then   \term {\count 0} {\dimen 0} {\dimen 2}%
+                                \advance \count 0 by 2
+                                \count 2 = \count 0
+                                \divide \count 2 by 2
+                                \ifodd  \count 2 %%% signs alternate
+                                \then   \advance \dimen 4 by \dimen 2
+                                \else   \advance \dimen 4 by -\dimen 2
+                                \fi
+                \repeat
+        \fi
+                        \xdef \sine {\nodimen 4}%
+       }}%
+ 
+%%% Now the Cosine can be calculated easily by calling \Sine:
+%%%  cos(x) = sin(90-x)
+\def\Cosine#1{\ifx\sine\UnDefined\edef\Savesine{\relax}\else
+                             \edef\Savesine{\sine}\fi
+        {\dimen0=#1\r@dian\multiply\dimen0 by -1
+         \advance\dimen0 by 90\r@dian
+         \Sine{\nodimen 0}%
+         \xdef\cosine{\sine}%
+         \xdef\sine{\Savesine}}}
+%%% end of trig stuff
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\def\psdraft{\def\@psdraft{0}}%
+\def\psfull{\def\@psdraft{1}}%
+\psfull
+\newif\if@compress
+\def\pscompress{\@compresstrue}
+\def\psnocompress{\@compressfalse}
+\@compressfalse
+\newif\if@scalefirst
+\def\psscalefirst{\@scalefirsttrue}%
+\def\psrotatefirst{\@scalefirstfalse}%
+\psrotatefirst
+%
+\newif\if@draftbox
+\def\psnodraftbox{\@draftboxfalse}%
+\@draftboxtrue
+%
+\newif\if@noisy
+\@noisyfalse
+\newif\ifno@bb
+%%% These are for the option list.
+%%% A specification of the form a = b maps to calling \@p@@sa{b}%
+\newif\if@bbllx
+\newif\if@bblly
+\newif\if@bburx
+\newif\if@bbury
+\newif\if@height
+\newif\if@width
+\newif\if@rheight
+\newif\if@rwidth
+\newif\if@angle
+\newif\if@clip
+\newif\if@verbose
+\newif\if@prologfile
+\def\@p@@sprolog#1{\@prologfiletrue\def\@prologfileval{#1}}%
+\def\@p@@sclip#1{\@cliptrue}%
+%
+\newif\ifepsfig@dos  % only single suffix possible
+\def\epsfigdos{\epsfig@dostrue}%
+\epsfig@dosfalse
+%%% if this is true, the original Darrell macros and specials are used
+\newif\ifuse@psfig
+%
+\def\ParseName#1{\expandafter\@Parse#1}%
+\def\@Parse#1.#2:{\gdef\BaseName{#1}\gdef\FileType{#2}}%
+
+\def\@p@@sfile#1{%
+  \ifepsfig@dos
+     \ParseName{#1:}%
+  \else
+     \gdef\BaseName{#1}\gdef\FileType{}%
+  \fi
+  \def\@p@sfile{NO FILE: #1}%
+  \def\@p@sfilefinal{NO FILE: #1}%
+  \openin1=#1
+  \ifeof1\closein1\openin1=\BaseName.bb
+    \ifeof1\closein1
+      \if@bbllx                 % No postscript file but bb given explicitly.
+        \if@bblly\if@bburx\if@bbury
+          \def\@p@sfile{#1}%
+          \def\@p@sfilefinal{#1}%
+        \fi\fi\fi
+      \else                     % No bounding box found.
+        \@latexerr{ERROR. PostScript file #1 not found}\@whattodo
+        \@p@@sbbllx{100bp}%
+        \@p@@sbblly{100bp}%
+        \@p@@sbburx{200bp}%
+        \@p@@sbbury{200bp}%
+        \psdraft
+      \fi
+    \else                       % Postscript file is compressed.
+      \closein1%
+      \edef\@p@sfile{\BaseName.bb}%
+      \typeout{using BB from \@p@sfile}%
+      \ifnum\fig@driver=3
+        \edef\@p@sfilefinal{\BaseName.pcx}%
+      \else
+        \ifepsfig@dos
+          \edef\@p@sfilefinal{"`gunzip -c `texfind \BaseName.{z,Z,gz}"}%
+        \else
+          \edef\@p@sfilefinal{"`epsfig \if@compress-c \fi#1"}%          
+        \fi
+      \fi
+    \fi
+  \else\closein1                % Postscript file is not compressed.
+    \edef\@p@sfile{#1}%
+    \if@compress  
+      \edef\@p@sfilefinal{"`epsfig -c #1"}%
+    \else
+      \edef\@p@sfilefinal{#1}%
+    \fi
+  \fi%
+}
+
+% alternative syntax: figure=
+\let\@p@@sfigure\@p@@sfile
+%
+\def\@p@@sbbllx#1{%
+                                            \@bbllxtrue
+                \ps@dimcent=#1
+                \edef\@p@sbbllx{\number\ps@dimcent}%
+                \divide\ps@dimcent by65536
+                \global\edef\epsfllx{\number\ps@dimcent}%
+}%
+\def\@p@@sbblly#1{%
+                \@bbllytrue
+                \ps@dimcent=#1
+                \edef\@p@sbblly{\number\ps@dimcent}%
+                \divide\ps@dimcent by65536
+                \global\edef\epsflly{\number\ps@dimcent}%
+}%
+\def\@p@@sbburx#1{%
+                \@bburxtrue
+                \ps@dimcent=#1
+                \edef\@p@sbburx{\number\ps@dimcent}%
+                \divide\ps@dimcent by65536
+                \global\edef\epsfurx{\number\ps@dimcent}%
+}%
+\def\@p@@sbbury#1{%
+                \@bburytrue
+                \ps@dimcent=#1
+                \edef\@p@sbbury{\number\ps@dimcent}%
+                \divide\ps@dimcent by65536
+                \global\edef\epsfury{\number\ps@dimcent}%
+}%
+\def\@p@@sheight#1{%
+                \@heighttrue
+                \global\epsfysize=#1
+                \ps@dimcent=#1
+                \edef\@p@sheight{\number\ps@dimcent}%
+}%
+\def\@p@@swidth#1{%
+                \@widthtrue
+                \global\epsfxsize=#1
+                \ps@dimcent=#1
+                \edef\@p@swidth{\number\ps@dimcent}% 
+}%
+\def\@p@@srheight#1{%
+                \@rheighttrue\use@psfigtrue
+                \ps@dimcent=#1
+                \edef\@p@srheight{\number\ps@dimcent}%
+}%
+\def\@p@@srwidth#1{%
+                \@rwidthtrue\use@psfigtrue
+                \ps@dimcent=#1
+                \edef\@p@srwidth{\number\ps@dimcent}%
+}%
+\def\@p@@sangle#1{%
+                \use@psfigtrue
+                \@angletrue
+                \edef\@p@sangle{#1}%
+}%
+\def\@p@@ssilent#1{%
+                \@verbosefalse
+}%
+\def\@p@@snoisy#1{%
+                \@verbosetrue
+}%
+\def\@cs@name#1{\csname #1\endcsname}%
+\def\@setparms#1=#2,{\@cs@name{@p@@s#1}{#2}}%
+%
+%%% initialize the defaults (size the size of the figure)
+%
+\def\ps@init@parms{%
+                \@bbllxfalse \@bbllyfalse
+                \@bburxfalse \@bburyfalse
+                \@heightfalse \@widthfalse
+                \@rheightfalse \@rwidthfalse
+                \def\@p@sbbllx{}\def\@p@sbblly{}%
+                \def\@p@sbburx{}\def\@p@sbbury{}%
+                \def\@p@sheight{}\def\@p@swidth{}%
+                \def\@p@srheight{}\def\@p@srwidth{}%
+                \def\@p@sangle{0}%
+                \def\@p@sfile{}%
+                \use@psfigfalse
+                \@prologfilefalse
+                \def\@sc{}%
+                \if@noisy
+                        \@verbosetrue
+                \else
+                        \@verbosefalse
+                \fi
+                \@clipfalse
+}%
+%
+%%% Go through the options setting things up.
+%
+\def\parse@ps@parms#1{%
+                \@psdo\@psfiga:=#1\do
+                   {\expandafter\@setparms\@psfiga,}%
+\if@prologfile
+\special{header=\@prologfileval}%
+\fi
+}%
+%
+%%% Compute bb height and width
+%
+\def\bb@missing{%
+        \if@verbose
+            \typeout{psfig: searching \@p@sfile \space  for bounding box}%
+        \fi
+        \epsfgetbb{\@p@sfile}%
+        \ifepsfbbfound
+            \ps@dimcent=\epsfllx bp\edef\@p@sbbllx{\number\ps@dimcent}%
+            \ps@dimcent=\epsflly bp\edef\@p@sbblly{\number\ps@dimcent}%
+            \ps@dimcent=\epsfurx bp\edef\@p@sbburx{\number\ps@dimcent}%
+            \ps@dimcent=\epsfury bp\edef\@p@sbbury{\number\ps@dimcent}%
+        \else
+            \epsfbbfoundfalse
+        \fi
+}
+%
+% rotate point (#1,#2) about (0,0).
+% The sine and cosine of the angle are already stored in \sine and
+% \cosine.  The result is placed in (\p@intvaluex, \p@intvaluey).
+\newdimen\p@intvaluex
+\newdimen\p@intvaluey
+\def\rotate@#1#2{{\dimen0=#1 sp\dimen1=#2 sp
+%               calculate x' = x \cos\theta - y \sin\theta
+                  \global\p@intvaluex=\cosine\dimen0
+                  \dimen3=\sine\dimen1
+                  \global\advance\p@intvaluex by -\dimen3
+%               calculate y' = x \sin\theta + y \cos\theta
+                  \global\p@intvaluey=\sine\dimen0
+                  \dimen3=\cosine\dimen1
+                  \global\advance\p@intvaluey by \dimen3
+                  }}%
+\def\compute@bb{%
+                \epsfbbfoundfalse
+                \if@bbllx\epsfbbfoundtrue\fi
+                \if@bblly\epsfbbfoundtrue\fi
+                \if@bburx\epsfbbfoundtrue\fi
+                \if@bbury\epsfbbfoundtrue\fi
+                \ifepsfbbfound\else\bb@missing\fi
+                \ifepsfbbfound\else
+                \@latexerr{ERROR. cannot locate BoundingBox}\@whattodobb
+                        \@p@@sbbllx{100bp}%
+                        \@p@@sbblly{100bp}%
+                        \@p@@sbburx{200bp}%
+                        \@p@@sbbury{200bp}%
+                        \no@bbtrue
+                        \psdraft
+                \fi
+                %
+%
+% store height/width of original (unrotated) bounding box
+                \count203=\@p@sbburx
+                \count204=\@p@sbbury
+                \advance\count203 by -\@p@sbbllx
+                \advance\count204 by -\@p@sbblly
+                \edef\ps@bbw{\number\count203}%
+                \edef\ps@bbh{\number\count204}%
+                 \edef\@bbw{\number\count203}%
+                \edef\@bbh{\number\count204}%
+               \if@angle
+                        \Sine{\@p@sangle}\Cosine{\@p@sangle}%
+ 
+{\ps@dimcent=\maxdimen\xdef\r@p@sbbllx{\number\ps@dimcent}%
+ 
+\xdef\r@p@sbblly{\number\ps@dimcent}%
+ 
+\xdef\r@p@sbburx{-\number\ps@dimcent}%
+ 
+\xdef\r@p@sbbury{-\number\ps@dimcent}}%
+%
+% Need to rotate all four points and take the X-Y extremes of the new
+% points as the new bounding box.
+                        \def\minmaxtest{%
+                           \ifnum\number\p@intvaluex<\r@p@sbbllx
+                              \xdef\r@p@sbbllx{\number\p@intvaluex}\fi
+                           \ifnum\number\p@intvaluex>\r@p@sbburx
+                              \xdef\r@p@sbburx{\number\p@intvaluex}\fi
+                           \ifnum\number\p@intvaluey<\r@p@sbblly
+                              \xdef\r@p@sbblly{\number\p@intvaluey}\fi
+                           \ifnum\number\p@intvaluey>\r@p@sbbury
+                              \xdef\r@p@sbbury{\number\p@intvaluey}\fi
+                           }%
+%                       lower left
+                        \rotate@{\@p@sbbllx}{\@p@sbblly}%
+                        \minmaxtest
+%                       upper left
+                        \rotate@{\@p@sbbllx}{\@p@sbbury}%
+                        \minmaxtest
+%                       lower right
+                        \rotate@{\@p@sbburx}{\@p@sbblly}%
+                        \minmaxtest
+%                       upper right
+                        \rotate@{\@p@sbburx}{\@p@sbbury}%
+                        \minmaxtest
+ 
+\edef\@p@sbbllx{\r@p@sbbllx}\edef\@p@sbblly{\r@p@sbblly}%
+ 
+\edef\@p@sbburx{\r@p@sbburx}\edef\@p@sbbury{\r@p@sbbury}%
+                \fi
+                \count203=\@p@sbburx
+                \count204=\@p@sbbury
+                \advance\count203 by -\@p@sbbllx
+                \advance\count204 by -\@p@sbblly
+                \edef\@bbw{\number\count203}%
+                \edef\@bbh{\number\count204}%
+}%
+%
+% \in@hundreds performs #1 * (#2 / #3) correct to the hundreds,
+%       then leaves the result in @result
+%
+\def\in@hundreds#1#2#3{\count240=#2 \count241=#3
+                     \count100=\count240        % 100 is first digit #2/#3
+                     \divide\count100 by \count241
+                     \count101=\count100
+                     \multiply\count101 by \count241
+                     \advance\count240 by -\count101
+                     \multiply\count240 by 10
+                     \count101=\count240        %101 is second digit of #2/#3
+                     \divide\count101 by \count241
+                     \count102=\count101
+                     \multiply\count102 by \count241
+                     \advance\count240 by -\count102
+                     \multiply\count240 by 10
+                     \count102=\count240        % 102 is the third digit
+                     \divide\count102 by \count241
+                     \count200=#1\count205=0
+                     \count201=\count200
+                        \multiply\count201 by \count100
+                        \advance\count205 by \count201
+                     \count201=\count200
+                        \divide\count201 by 10
+                        \multiply\count201 by \count101
+                        \advance\count205 by \count201
+                        %
+                     \count201=\count200
+                        \divide\count201 by 100
+                        \multiply\count201 by \count102
+                        \advance\count205 by \count201
+                        %
+                     \edef\@result{\number\count205}%
+}%
+\def\compute@wfromh{%
+                % computing : width = height * (bbw / bbh)
+                \in@hundreds{\@p@sheight}{\@bbw}{\@bbh}%
+                \edef\@p@swidth{\@result}%
+}%
+\def\compute@hfromw{%
+                % computing : height = width * (bbh / bbw)
+                \in@hundreds{\@p@swidth}{\@bbh}{\@bbw}%
+                \edef\@p@sheight{\@result}%
+}%
+\def\compute@handw{%
+                \if@height
+                        \if@width
+                        \else
+                                \compute@wfromh
+                        \fi
+                \else
+                        \if@width
+                                \compute@hfromw
+                        \else
+                                \edef\@p@sheight{\@bbh}%
+                                \edef\@p@swidth{\@bbw}%
+                        \fi
+                \fi
+}%
+\def\compute@resv{%
+                \if@rheight \else \edef\@p@srheight{\@p@sheight} \fi
+                \if@rwidth \else \edef\@p@srwidth{\@p@swidth} \fi
+}%
+%
+% Compute any missing values
+\def\compute@sizes{%
+        \if@scalefirst\if@angle
+% at this point the bounding box has been adjsuted correctly for
+% rotation.  PSFIG does all of its scaling using \@bbh and \@bbw.  If
+% a width= or height= was specified along with \psscalefirst, then the
+% width=/height= value needs to be adjusted to match the new (rotated)
+% bounding box size (specifed in \@bbw and \@bbh).
+%    \ps@bbw       width=
+%    -------  =  ----------
+%    \@bbw       new width=
+% so `new width=' = (width= * \@bbw) / \ps@bbw; where \ps@bbw is the
+% width of the original (unrotated) bounding box.
+        \if@width
+           \in@hundreds{\@p@swidth}{\@bbw}{\ps@bbw}%
+           \edef\@p@swidth{\@result}%
+        \fi
+        \if@height
+           \in@hundreds{\@p@sheight}{\@bbh}{\ps@bbh}%
+           \edef\@p@sheight{\@result}%
+        \fi
+        \fi\fi
+        \compute@handw
+        \compute@resv
+}
+%
+
+%------------------------------------------------------------------
+%%% by the way, possible parameters to the PSfile= command in dvips are:
+%%%                    llx
+%%%                    lly
+%%%                    urx
+%%%                    ury
+%%%                    rwi
+%       hoffset The horizontal offset (default 0)
+%       voffset The vertical offset (default 0)
+%       hsize   The horizontal clipping size (default 612)
+%       vsize   The vertical clipping size (default 792)
+%       hscale  The horizontal scaling factor (default 100)
+%       vscale  The vertical scaling factor (default 100)
+%       angle   The rotation (default 0)
+%------------------------------------------------------------------
+\long\def\graphic@verb#1{\def\next{#1}%
+  {\expandafter\graphic@strip\meaning\next}}
+\def\graphic@strip#1>{}
+\def\graphic@zapspace#1{%
+  #1\ifx\graphic@zapspace#1\graphic@zapspace%
+  \else\expandafter\graphic@zapspace%
+  \fi}
+\def\psfig#1{%
+\edef\@tempa{\graphic@zapspace#1{}}%
+\ifvmode\leavevmode\fi\vbox {%
+        %
+        \ps@init@parms
+        \parse@ps@parms{\@tempa}%
+        %
+        \ifnum\@psdraft=1
+                \typeout{[\@p@sfilefinal]}%
+                \if@verbose
+                        \typeout{epsfig: using PSFIG macros}%
+                \fi
+                \psfig@method
+        \else
+                \epsfig@draft
+        \fi
+}
+}%
+\def\graphic@zapspace#1{%
+  #1\ifx\graphic@zapspace#1\graphic@zapspace%
+  \else\expandafter\graphic@zapspace%
+  \fi}
+\def\epsfig#1{%
+\edef\@tempa{\graphic@zapspace#1{}}%
+\ifvmode\leavevmode\fi\vbox {%
+        %
+        \ps@init@parms
+        \parse@ps@parms{\@tempa}%
+        %
+        \ifnum\@psdraft=1
+          \if@angle\use@psfigtrue\fi
+          {\ifnum\fig@driver=1\global\use@psfigtrue\fi}%
+          {\ifnum\fig@driver=3\global\use@psfigtrue\fi}%
+          {\ifnum\fig@driver=4\global\use@psfigtrue\fi}%
+          {\ifnum\fig@driver=5\global\use@psfigtrue\fi}%
+                \ifuse@psfig
+                        \if@verbose
+                                \typeout{epsfig: using PSFIG macros}%
+                        \fi
+                        \psfig@method
+                \else
+                        \if@verbose
+                                \typeout{epsfig: using EPSF macros}%
+                        \fi
+                        \epsf@method
+                \fi
+        \else
+                \epsfig@draft
+        \fi
+}%
+}%
+ 
+ 
+\def\epsf@method{%
+        \epsfbbfoundfalse
+        \if@bbllx\epsfbbfoundtrue\fi
+        \if@bblly\epsfbbfoundtrue\fi
+        \if@bburx\epsfbbfoundtrue\fi
+        \if@bbury\epsfbbfoundtrue\fi
+        \ifepsfbbfound\else\epsfgetbb{\@p@sfile}\fi
+        \ifepsfbbfound
+           \typeout{<\@p@sfilefinal>}%
+           \epsfig@gofer
+        \else
+          \@latexerr{ERROR - Cannot locate BoundingBox}\@whattodobb
+          \@p@@sbbllx{100bp}%
+          \@p@@sbblly{100bp}%
+          \@p@@sbburx{200bp}%
+          \@p@@sbbury{200bp}%
+                \count203=\@p@sbburx
+                \count204=\@p@sbbury
+                \advance\count203 by -\@p@sbbllx
+                \advance\count204 by -\@p@sbblly
+                \edef\@bbw{\number\count203}%
+                \edef\@bbh{\number\count204}%
+          \compute@sizes
+          \epsfig@@draft
+       \fi
+}%
+\def\psfig@method{%
+        \compute@bb
+        \ifepsfbbfound
+          \compute@sizes
+          \psfig@start
+          % Create the vbox to reserve the space for the figure%
+          \vbox to \@p@srheight sp{\hbox to \@p@srwidth 
+            sp{\hss}\vss\psfig@end}%
+        \else
+           \epsfig@draft
+        \fi
+}%
+%
+% draft figure, just reserve the space and print the
+% path name.
+\def\epsfig@draft{\compute@bb\compute@sizes\epsfig@@draft}%
+%
+\def\epsfig@@draft{%
+\typeout{<(draft only) \@p@sfilefinal>}%
+\if@draftbox
+        % Verbose draft: print file name in box
+        \hbox{{\fboxsep0pt\fbox{\vbox to \@p@srheight sp{%
+        \vss\hbox to \@p@srwidth sp{ \hss 
+           \expandafter\Literally\@p@sfilefinal\@nil
+                          \hss }\vss
+        }}}}%
+\else
+        % Non-verbose draft
+        \vbox to \@p@srheight sp{%
+        \vss\hbox to \@p@srwidth sp{\hss}\vss}%
+\fi
+}%
+\def\Literally#1\@nil{{\tt\graphic@verb{#1}}}
+% default to dvips
+\psfigdriver{dvips}%
+% and to DOS file conventions
+%%% \epsfigdos
+\epsfigRestoreAt
+ 
