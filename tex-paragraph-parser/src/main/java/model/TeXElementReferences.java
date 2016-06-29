@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,7 +24,7 @@ public class TeXElementReferences {
   /**
    * The element references.
    */
-  protected Map<String, TeXElementReference> references;
+  protected Map<String, List<TeXElementReference>> references;
 
   /**
    * Creates a new element references object based on the given path to the 
@@ -37,7 +39,7 @@ public class TeXElementReferences {
   /**
    * Returns the element references.
    */
-  public Map<String, TeXElementReference> getElementReferences() {
+  public Map<String, List<TeXElementReference>> getElementReferences() {
     return this.references;
   }
 
@@ -47,12 +49,27 @@ public class TeXElementReferences {
   public boolean hasElementReference(Element element) {
     return getElementReference(element) != null;
   }
+  
+  /**
+   * Returns true, if the given element with given contextRole has a reference.
+   */
+  public boolean hasElementReference(Element element, String contextRole) {
+    return getElementReference(element, contextRole) != null;
+  }
 
+  /**
+   * Returns true, if the given element has a reference.
+   */
+  public TeXElementReference getElementReference(Element element) {
+    return getElementReference(element, null);
+  }
+  
   /**
    * Returns the element reference for the given element or null if there is no
    * such reference.
    */
-  public TeXElementReference getElementReference(Element element) {
+  public TeXElementReference getElementReference(Element element, 
+      String contextRole) {
     if (element == null) {
       return null;
     }
@@ -77,6 +94,8 @@ public class TeXElementReferences {
       }
     }
      
+    List<TeXElementReference> candidates = null;
+    
     if (matchingKey != null) {
       if (element instanceof Command) {
         Command cmd = (Command) element;
@@ -85,13 +104,30 @@ public class TeXElementReferences {
         // contain the whole command name, i.e. it is not allowed to match the
         // command \title{foo bar}" to a reference "\t".
         if (matchingKey.contains(cmd.getName())) {
-          return this.references.get(matchingKey);
+          candidates = this.references.get(matchingKey);
         }
       } else {
-        return this.references.get(matchingKey);
+        candidates = this.references.get(matchingKey);
       }
     }
-    return null;
+    
+    TeXElementReference refWithoutContextRole = null;
+    
+    if (candidates != null) {      
+      // Iterate through the various reference variants for the element and 
+      // check if there is a reference with same context role.
+      for (TeXElementReference ref : candidates) {
+        if (ref.getContextRole() == null) {
+          refWithoutContextRole = ref;
+        } else {
+          if (ref.getContextRole().equals(contextRole)) {
+            return ref;
+          }
+        }
+      }
+    }
+        
+    return refWithoutContextRole;
   }
 
   // ---------------------------------------------------------------------------
@@ -99,9 +135,9 @@ public class TeXElementReferences {
   /**
    * Reads the commands to consider.
    */
-  protected Map<String, TeXElementReference> readReferences(String path)
+  protected Map<String, List<TeXElementReference>> readReferences(String path)
     throws IOException {
-    Map<String, TeXElementReference> references = new HashMap<>();
+    Map<String, List<TeXElementReference>> references = new HashMap<>();
     InputStream is = getClass().getResourceAsStream(path);
     InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
     BufferedReader reader = new BufferedReader(isr);
@@ -121,7 +157,12 @@ public class TeXElementReferences {
 
       String[] fields = line.split(ELEMENT_REFERENCES_SEPARATOR, -1);
       TeXElementReference ref = new TeXElementReference(fields);
-      references.put(ref.getCommandName(), ref);
+      String name = ref.getCommandName();
+      if (!references.containsKey(name)) {
+        references.put(name, new ArrayList<TeXElementReference>());
+      }
+      
+      references.get(name).add(ref);
     }
 
     reader.close();

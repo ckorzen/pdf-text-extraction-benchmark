@@ -99,7 +99,7 @@ public class SyncTeXParser {
   public SyncTeXParser(Path synctexPath) throws IOException {
     this(synctexPath, null);
   }
-
+  
   /**
    * Creates a new SyncTeXParser for the given tex file.
    */
@@ -127,6 +127,7 @@ public class SyncTeXParser {
     }
 
     Integer ceilingKey = mergedBoundingBoxes.ceilingKey(lineNumber);
+        
     return ceilingKey != null ? mergedBoundingBoxes.get(ceilingKey) : null;
   }
   
@@ -347,14 +348,14 @@ public class SyncTeXParser {
     int height = Integer.parseInt(sizeFields[1]);
 
     Rectangle rect = toRectangle(x, y, width, height, true);
+    
     hboxStack.push(new SyncTeXBoundingBox(type, pageNum, lineNum, rect));
-    heightsCounter.add(MathUtils.round(rect.getHeight(), 1));
   }
 
   /**
    * Handles an end of hbox (type ")").
    */
-  protected void handleHBoxEnd(String line) {
+  protected void handleHBoxEnd(String line) {    
     // Prepare the bounding boxes of records of type "x" in the hbox.
     List<SyncTeXBoundingBox> boxes = prepareXRecords(hboxStack.pop());
 
@@ -408,7 +409,7 @@ public class SyncTeXParser {
    * Handles a hbox record.
    */
   protected void handleHBoxRecord(String line) {
-    handleRecordStart(line);
+//    handleRecordStart(line);
   }
 
   /**
@@ -421,7 +422,7 @@ public class SyncTeXParser {
     // <kern record> ::= "k" <link> ":" <point> ":" <Width> <end>
     // <void vbox record> ::= "v" <link> ":" <point> ":" <size> <end>
     // For now, we are only interested in the line number and the point.
-
+    
     if (hboxStack.isEmpty()) {
       // There is no active hbox. Abort.
       return;
@@ -452,7 +453,7 @@ public class SyncTeXParser {
       x = Integer.parseInt(pointFields[0]);
       y = Integer.parseInt(pointFields[1]);
     }
-
+    
     // Add the record to the current hbox.
     Rectangle rect = toRectangle(x, y, 0, 0, true);
     hboxStack.peek().add(new SyncTeXBoundingBox(type, pageNum, lineNum, rect));
@@ -497,7 +498,6 @@ public class SyncTeXParser {
         currentXPosition = record.getRectangle().getMaxX();
       }
     }
-
     return boxes;
   }
 
@@ -535,6 +535,7 @@ public class SyncTeXParser {
           // Don't merge the current bounding box if minY or the line number
           // isn't equal.
           if (!hasSameLineNum || !overlapsVertically) {
+            
             mergedBoundingBoxes.add(mergedBoundingBox);
             mergedBoundingBox = boundingBox;
           } else {
@@ -544,6 +545,11 @@ public class SyncTeXParser {
         mergedBoundingBoxes.add(mergedBoundingBox);
       }
 
+      // Register the lines in heightsCounter.
+      for (SyncTeXBoundingBox box : mergedBoundingBoxes) {
+        heightsCounter.add(MathUtils.round(box.getRectangle().getHeight(), 1));
+      }
+      
       mergedBoxesMap.put(texLineNum, mergedBoundingBoxes);
     }
     return mergedBoxesMap;

@@ -14,18 +14,18 @@ import org.apache.commons.lang3.StringEscapeUtils;
  *
  */
 public class TeXElementReference {
-  /** 
-   * The underlying array containing the various metadata fields. 
+  /**
+   * The underlying array containing the various metadata fields.
    */
   protected String[] fields;
-  
+
   /**
    * Creates a new reference based on the given metadata array.
    */
   public TeXElementReference(String[] fields) {
     this.fields = fields;
   }
-  
+
   /**
    * Returns the command name.
    */
@@ -52,6 +52,32 @@ public class TeXElementReference {
   // ___________________________________________________________________________
 
   /**
+   * Returns true, if this reference defines a context role.
+   */
+  public boolean definesContextRole() {
+    return getContextRole() != null;
+  }
+
+  /**
+   * Returns the context role. A command may have a different meaning in 
+   * different contexts. 
+   * 
+   * Example: The command "\ref" may occur in 
+   * 
+   * (1) body text introducing a cross reference.
+   * (2) \begin{references} \ref ... \end{references} introducing a new 
+   * bibliography item. 
+   * 
+   * So a TeXElementReference is only valid for an element, if it live in the 
+   * given context role (or context role is null). 
+   */
+  public String getContextRole() {
+    return getString(2);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
    * Returns true, if this reference defines an placeholder.
    */
   public boolean introducesPlaceholder() {
@@ -62,7 +88,7 @@ public class TeXElementReference {
    * Returns the defined placeholder.
    */
   public String getPlaceholder() {
-    return getString(2);
+    return getString(3);
   }
 
   // ___________________________________________________________________________
@@ -71,10 +97,10 @@ public class TeXElementReference {
    * Returns true, if this reference defines the introduction of a paragraph.
    */
   public boolean startsParagraph() {
-    return startsParagraphExclusiveElement() 
+    return startsParagraphExclusiveElement()
         || startsParagraphInclusiveElement();
   }
-  
+
   /**
    * Returns true, if this reference defines the introduction of a paragraph.
    */
@@ -88,25 +114,25 @@ public class TeXElementReference {
   public boolean startsParagraphExclusiveElement() {
     return getIntroduceParagraphType() == 2;
   }
-  
+
   /**
    * Returns the defined outline level.
    */
   public int getIntroduceParagraphType() {
-    return getInteger(3);
+    return getInteger(4);
   }
-  
+
   // ___________________________________________________________________________
-  
+
   /**
    * Returns true, if this reference defines the end of a paragraph.
    */
   public boolean endsParagraph() {
-    return getBoolean(4);
+    return getBoolean(5);
   }
 
   // ___________________________________________________________________________
-  
+
   /**
    * Returns true, if this reference defines an outline level.
    */
@@ -118,9 +144,9 @@ public class TeXElementReference {
    * Returns the defined outline level.
    */
   public int getOutlineLevel() {
-    return getInteger(5);
+    return getInteger(6);
   }
-  
+
   // ___________________________________________________________________________
 
   /**
@@ -134,7 +160,23 @@ public class TeXElementReference {
    * Returns the defined role.
    */
   public String getRole() {
-    return getString(6);
+    return getString(7);
+  }
+
+  // ___________________________________________________________________________
+
+  /**
+   * Returns true, if this reference defines a role for child elements.
+   */
+  public boolean definesRoleForChildElements() {
+    return getRole() != null;
+  }
+
+  /**
+   * Returns the defined role for the child elements.
+   */
+  public String getRoleForChildElements() {
+    return getString(8);
   }
 
   // ___________________________________________________________________________
@@ -150,11 +192,11 @@ public class TeXElementReference {
    * Returns the defined number of groups.
    */
   public int getNumberOfGroups() {
-    return getInteger(7);
+    return getInteger(9);
   }
 
   // ___________________________________________________________________________
-  
+
   /**
    * Returns true, if this reference defines the groups to parse.
    */
@@ -166,14 +208,14 @@ public class TeXElementReference {
    * Returns the defined groups to parse.
    */
   public List<Integer> getGroupsToParse() {
-    return getIntegerList(8, ";");
+    return getIntegerList(10, ";");
   }
 
   /**
    * Returns the index of the given group id in the list of groups to parse.
    */
   protected int getIndexOfGroupIdInGroupsToParse(int groupId) {
-    List<Integer> groupsToParse = getIntegerList(8, ";");
+    List<Integer> groupsToParse = getIntegerList(10, ";");
     if (groupsToParse != null) {
       for (int i = 0; i < groupsToParse.size(); i++) {
         if (groupsToParse.get(i) == groupId) {
@@ -190,11 +232,10 @@ public class TeXElementReference {
    * Returns true, if this reference defines the parsing of options.
    */
   public boolean definesOptionsToParse() {
-    return getInteger(9) > 0;
+    return getInteger(11) > 0;
   }
-  
+
   // ___________________________________________________________________________
-  
 
   @Override
   public String toString() {
@@ -255,7 +296,7 @@ public class TeXElementReference {
     }
     return result;
   }
-  
+
   /**
    * Returns the value of the i-th field as an booleanb.
    */

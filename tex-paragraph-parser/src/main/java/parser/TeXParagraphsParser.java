@@ -129,7 +129,7 @@ public class TeXParagraphsParser {
     if (text.isEmpty()) {
       // Replace all whitespaces and newlines by a single whitespace.
       para.registerWhitespace();
-    } else {
+    } else {      
       para.registerText(text);
       para.registerTeXElement(textElement);
     }
@@ -150,10 +150,10 @@ public class TeXParagraphsParser {
       processCrossReferenceCommand(cmd, itr, para);
     }
 
-    TeXElementReference ref = getTeXElementReference(cmd);
+    TeXElementReference ref = getTeXElementReference(cmd, role);
     
     if (ref == null) {
-      itr.skipTo(guessEndCommand(cmd));
+      itr.skipTo(guessEndCommand(cmd, role));
       // Do nothing if there is no element reference for the command.
       return para;
     }
@@ -229,14 +229,18 @@ public class TeXParagraphsParser {
       }
     }
     
-    List<Element> childElements = getChildElements(cmd, itr);
-
+    List<Element> childElements = getChildElements(cmd, itr, role);
+    String roleForChildElements = ref.getRoleForChildElements();
+    if (roleForChildElements == null) {
+      roleForChildElements = role;
+    }
+    
     // Write placeholder, if the command introduces a placeholder.
     if (ref.introducesPlaceholder()) {
       para.registerText(ref.getPlaceholder());
       para.registerTeXElements(childElements);
     } else {
-      para = processElements(childElements, role, para, paras);
+      para = processElements(childElements, roleForChildElements, para, paras);
     }
     
     Element lastElement = cmd;
@@ -256,7 +260,7 @@ public class TeXParagraphsParser {
   protected void processCrossReferenceCommand(Command cmd, 
       Iterator<Element> itr, TeXParagraph para) {
     Group group = cmd.getGroup();
-    TeXElementReference ref = getTeXElementReference(cmd);
+    TeXElementReference ref = getTeXElementReference(cmd, para.getRole());
     
     // The group may be separated by whitespace.
     // If next element is a group, take this group as argument.
@@ -296,12 +300,13 @@ public class TeXParagraphsParser {
    * Collects all elements of the environment, that is introduced by the given
    * command.
    */
-  protected List<Element> getChildElements(Command cmd, Iterator<Element> i) {
+  protected List<Element> getChildElements(Command cmd, Iterator<Element> i, 
+      String role) {
     List<Element> elements = new ArrayList<>();
 
 //    TeXElementReference startCmdRef = getTeXElementReference(cmd);
 //    int outline = startCmdRef != null ? startCmdRef.getOutlineLevel() : -1;
-    String endCommand = guessEndCommand(cmd);
+    String endCommand = guessEndCommand(cmd, role);
     
     if (endCommand != null /*|| outline > 0*/) {
       while (i.hasNext()) {
@@ -334,7 +339,7 @@ public class TeXParagraphsParser {
   /**
    * Guesses the end command of unknown command (= command without a reference).
    */
-  protected String guessEndCommand(Command command) {
+  protected String guessEndCommand(Command command, String role) {
     if (command == null) {
       return null;
     }
@@ -346,7 +351,7 @@ public class TeXParagraphsParser {
     }
 
     // Check, if the references defines a end command for the command.
-    TeXElementReference cmdRef = getTeXElementReference(command);
+    TeXElementReference cmdRef = getTeXElementReference(command, role);
     return cmdRef != null ? cmdRef.getEndCommand() : null;
   }
   
@@ -362,14 +367,21 @@ public class TeXParagraphsParser {
    */
   protected TeXParagraph checkForParagraphStart(Element element, String role, 
       TeXParagraph para, List<TeXParagraph> paras) {
-    TeXElementReference ref = getTeXElementReference(element); 
+    TeXElementReference ref = getTeXElementReference(element, role); 
     // Obtain if the current element starts a paragraph.
     boolean startsParagraph = ref != null && ref.startsParagraph();
-        
-    role = ref != null && ref.definesRole() ? ref.getRole() : role;
-    role = role == null ? DEFAULT_PARAGRAPH_ROLE : role;
-        
-    if (startsParagraph) {                
+    
+    // Role may be predefined, for example if the element is a child element
+    // of aanother element. 
+    // For example, in \begin{thebibliography} \item ... \end{thebibliography}
+    // the role for \item is predined by "reference" to resolve ambiguities
+    // with "\item" elements within itemizes.
+    if (role == null || role == DEFAULT_PARAGRAPH_ROLE) {
+      role = ref != null && ref.definesRole() ? ref.getRole() : role;
+      role = role == null ? DEFAULT_PARAGRAPH_ROLE : role;
+    }
+    
+    if (startsParagraph) {
       if (!para.isEmpty()) {
         paras.add(para);
       }
@@ -388,7 +400,7 @@ public class TeXParagraphsParser {
    */
   protected TeXParagraph checkForParagraphEnd(Element element, String role, 
       TeXParagraph para, List<TeXParagraph> paras) {
-    TeXElementReference ref = getTeXElementReference(element);
+    TeXElementReference ref = getTeXElementReference(element, role);
     
     // Obtain if the current element starts a paragraph.
     boolean endsParagraph = ref != null && ref.endsParagraph();
@@ -403,7 +415,8 @@ public class TeXParagraphsParser {
     return para;
   }
   
-  protected TeXElementReference getTeXElementReference(Element element) {
-    return this.texElementRefs.getElementReference(element);
+  protected TeXElementReference getTeXElementReference(Element element, 
+      String role) {
+    return this.texElementRefs.getElementReference(element, role);
   }
 }

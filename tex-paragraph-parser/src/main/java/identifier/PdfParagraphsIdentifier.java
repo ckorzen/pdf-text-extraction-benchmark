@@ -75,7 +75,7 @@ public class PdfParagraphsIdentifier {
   protected List<SyncTeXBoundingBox> identifyPdfLines(TeXParagraph paragraph)
     throws IOException {
     LinkedList<SyncTeXBoundingBox> paraLines = new LinkedList<>();
-      
+                  
     // Obtain the bounding boxes of each line in the given paragraph.
     for (int i : paragraph.getTexLineNumbers()) {
       List<SyncTeXBoundingBox> pdfLines = lineIdentifier.getBoundingBoxes(i);
