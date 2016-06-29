@@ -54,6 +54,11 @@ public class TeXParagraphParserMain {
   protected String inputPrefix;
 
   /**
+   * The suffix to use on creating serialization target file.
+   */
+  protected String serialFileSuffix;
+  
+  /**
    * The path to serialization file as defined by the user, as string. It 
    * denotes the file where to store the paragraphs in a serialized form.
    * May be a path to a directory or a file.
@@ -179,6 +184,7 @@ public class TeXParagraphParserMain {
     texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
     isPlainSerialization = hasOption(cmd, TeXParserOptions.PLAIN_SERIALIZATION);
     roles = resolveRoles(getOptionValues(cmd, TeXParserOptions.ROLE, null));
+    serialFileSuffix = getOptionValue(cmd, TeXParserOptions.SUFFIX, ".txt");
   }
 
   /**
@@ -303,7 +309,7 @@ public class TeXParagraphParserMain {
     
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
     Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
-    
+        
     // Serialize.
     if (serializationTargetFile != null) {
       serialize(texFile, this.roles, serializationTargetFile);
@@ -375,7 +381,7 @@ public class TeXParagraphParserMain {
 
     Path targetDir = defineSerializationTargetDir(texFile);
     if (targetDir != null) {
-      return targetDir.resolve(basename + ".txt");
+      return targetDir.resolve(basename + serialFileSuffix);
     }
     return null;
   }
@@ -640,6 +646,13 @@ public class TeXParagraphParserMain {
         "The prefix(es) to consider on parsing the input directory.",
         false, true, Option.UNLIMITED_VALUES),
 
+    /**
+     * Create option to define the suffix for serialization files to create.
+     */
+    SUFFIX("s", "suffix",
+        "The suffix to use on creating serialization file(s).",
+        false, true, 1),
+    
     /**
      * Create option to enable the identification of paragraphs bounding boxes.
      */
