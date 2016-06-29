@@ -49,11 +49,12 @@ arxiv-benchmark-body:
 	@echo "*************************"
 
 	@java -jar $(ARXIV_BENCHMARK_JAR) \
-		-input $(TEX_SRC) \
-		-output $(GROUNDTRUTH_TARGET) \
-		-prefix $(PREFIX) \
-		-suffix ".body.cd b	txt" \
-		-feature "body"
+		--input $(TEX_SRC) \
+		--output $(GROUNDTRUTH_TARGET) \
+		--prefix $(PREFIX) \
+		--suffix ".body.txt" \
+		--role "body" \
+		--plain
 
 # Extract stuff from the pdf source using the extraction tool defined by $TOOL.
 extract: validate   
