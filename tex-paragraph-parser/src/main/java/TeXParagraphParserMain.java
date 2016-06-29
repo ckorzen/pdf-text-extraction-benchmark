@@ -299,6 +299,11 @@ public class TeXParagraphParserMain {
   protected void processTexFile(Path file) throws IOException {
     TeXFile texFile = new TeXFile(file);
     
+    Path serializationTargetFile = defineSerializationTargetFile(texFile);
+    Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
+    
+    System.out.println(file + " -> " + serializationTargetFile);
+    
     // Identify the paragraphs in the given tex file.
     identifyTexParagraphs(texFile);
 
@@ -306,9 +311,6 @@ public class TeXParagraphParserMain {
     if (this.identifyPdfParagraphs) {
       identifyPdfParagraphs(texFile, this.texmfPaths);
     }
-    
-    Path serializationTargetFile = defineSerializationTargetFile(texFile);
-    Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
         
     // Serialize.
     if (serializationTargetFile != null) {
