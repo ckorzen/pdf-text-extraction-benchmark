@@ -1,6 +1,7 @@
 import static de.freiburg.iif.affirm.Affirm.affirm;
-import static model.TeXParagraphParserConstants.TEX_EXTENSIONS;
-import static model.TeXParagraphParserConstants.TMP_TEX_EXTENSIONS;
+import static model.TeXParagraphParserSettings.TEX_EXTENSIONS;
+import static model.TeXParagraphParserSettings.TMP_TEX_EXTENSIONS;
+import static model.TeXParagraphParserSettings.getRoleProfiles;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -25,7 +27,8 @@ import de.freiburg.iif.text.StringUtils;
 import identifier.PdfParagraphsIdentifier;
 import identifier.TeXParagraphsIdentifier;
 import model.TeXFile;
-import serializer.TeXParagraphSerializer;
+import serializer.TeXParagraphTsvSerializer;
+import serializer.TeXParagraphTxtSerializer;
 import visualizer.TeXParagraphVisualizer;
 
 /**
@@ -122,6 +125,17 @@ public class TeXParagraphParserMain {
   protected Path visualizationDirectory;
 
   /**
+   * Flag to indicate whether we have to serialize only the texts of paragraphs 
+   * into text file.
+   */
+  protected boolean isPlainSerialization;
+  
+  /**
+   * The roles to consider on serialization.
+   */
+  protected List<String> roles;
+  
+  /**
    * The main method to start the paragraphs parser.
    */
   public static void main(String[] args) {
@@ -163,6 +177,8 @@ public class TeXParagraphParserMain {
     inputPrefix = getOptionValue(cmd, TeXParserOptions.PREFIX, "");
     identifyPdfParagraphs = hasOption(cmd, TeXParserOptions.BOUNDING_BOXES);
     texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
+    isPlainSerialization = hasOption(cmd, TeXParserOptions.PLAIN_SERIALIZATION);
+    roles = resolveRoles(getOptionValues(cmd, TeXParserOptions.ROLE, null));
   }
 
   /**
@@ -290,12 +306,12 @@ public class TeXParagraphParserMain {
     
     // Serialize.
     if (serializationTargetFile != null) {
-      serialize(texFile, serializationTargetFile);
+      serialize(texFile, this.roles, serializationTargetFile);
     }
     
     // Visualize.
     if (visualizationTargetFile != null) {
-      visualize(texFile, visualizationTargetFile);
+      visualize(texFile, this.roles, visualizationTargetFile);
     }
     
   }
@@ -321,15 +337,21 @@ public class TeXParagraphParserMain {
   /**
    * Serializes the selected features to file.
    */
-  protected void serialize(TeXFile texFile, Path target) throws IOException {
-    new TeXParagraphSerializer(texFile).serialize(target);
+  protected void serialize(TeXFile texFile, List<String> roles, Path target) 
+      throws IOException {
+    if (this.isPlainSerialization) {
+      new TeXParagraphTxtSerializer(texFile).serialize(target, roles);
+    } else {
+      new TeXParagraphTsvSerializer(texFile).serialize(target, roles);
+    }
   }
 
   /**
    * Visualizes the selected features to file.
    */
-  protected void visualize(TeXFile texFile, Path target) throws IOException {
-    new TeXParagraphVisualizer(texFile).visualize(target);
+  protected void visualize(TeXFile texFile, List<String> roles, Path target) 
+      throws IOException {
+    new TeXParagraphVisualizer(texFile).visualize(target, roles);
   }
 
   // ---------------------------------------------------------------------------
@@ -489,6 +511,31 @@ public class TeXParagraphParserMain {
     return false;
   }
 
+  /**
+   * Resolves roles. The user is allowed to define roles by "profile names". A
+   * profile defines a specific set of role names. 
+   * 
+   * Example: A profile could be "body" that defines roles like "text" and 
+   * "headings".
+   */
+  protected List<String> resolveRoles(List<String> roles) {
+    if (roles != null) {
+      Map<String, List<String>> roleProfiles = getRoleProfiles();
+      List<String> resolvedRoles = new ArrayList<>();
+            
+      for (String role : roles) {
+        if (roleProfiles.containsKey(role)) {
+          resolvedRoles.addAll(roleProfiles.get(role));
+        } else {
+          resolvedRoles.add(role);
+        }
+      }
+      
+      return resolvedRoles;
+    }
+    return null;
+  }
+  
   // ===========================================================================
   // Methods and class related to options.
 
@@ -601,6 +648,20 @@ public class TeXParagraphParserMain {
         false),
 
     /**
+     * Create option to define roles to serialize.
+     */
+    ROLE("r", "role",
+        "Defines roles to consider on serialization of paragraphs.",
+        false, true, Option.UNLIMITED_VALUES),
+    
+    /**
+     * Create option to serialize only the text of paragraphs into txt file.
+     */
+    PLAIN_SERIALIZATION("x", "plain",
+        "Outputs only the text of paragraphs delmited by \n\n into txt file.",
+        false),
+    
+    /**
      * Create option to define path to the texmf dir.
      */
     TEXMF_PATHS("t", "texmf",
@@ -626,7 +687,7 @@ public class TeXParagraphParserMain {
 
     /** The flag to indicate whether this option has arguments. */
     public boolean hasArg;
-
+    
     /** The number of arguments of this option. */
     public int numArgs;
 
@@ -652,7 +713,7 @@ public class TeXParagraphParserMain {
         boolean required, boolean hasArg) {
       this(opt, longOpt, description, required, hasArg, hasArg ? 1 : 0);
     }
-
+    
     /**
      * Creates a new option with given arguments.
      */

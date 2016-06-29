@@ -1,7 +1,7 @@
 package parser;
 
-import static model.TeXParagraphParserConstants.DEFAULT_PARAGRAPH_ROLE;
-import static model.TeXParagraphParserConstants.TEX_ELEMENT_REFERENCES_PATH;
+import static model.TeXParagraphParserSettings.DEFAULT_PARAGRAPH_ROLE;
+import static model.TeXParagraphParserSettings.TEX_ELEMENT_REFERENCES_PATH;
 
 import java.io.IOException;
 import java.util.ArrayList;

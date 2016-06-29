@@ -1,7 +1,7 @@
 package identifier;
 
 import static de.freiburg.iif.affirm.Affirm.affirm;
-import static model.TeXParagraphParserConstants.TMP_TEX_EXTENSIONS;
+import static model.TeXParagraphParserSettings.TMP_TEX_EXTENSIONS;
 
 import java.io.IOException;
 import java.io.InputStream;

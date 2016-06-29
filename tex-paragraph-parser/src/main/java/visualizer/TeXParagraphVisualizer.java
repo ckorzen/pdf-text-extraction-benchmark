@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import de.freiburg.iif.model.Rectangle;
 import drawer.PdfDrawer;
@@ -35,10 +36,16 @@ public class TeXParagraphVisualizer {
   /**
    * Visualizes the given bounding boxes.
    */
-  public void visualize(Path target) throws IOException {
+  public void visualize(Path target, List<String> roles) throws IOException {
     PdfDrawer drawer = new PdfBoxDrawer(texFile.getPdfPath());
     
     for (TeXParagraph p : texFile.getTeXParagraphs()) {
+      // Don't consider the paragraph if there is a list of roles given and
+      // it doesn't contain the role of the paragraph.
+      if (roles != null && !roles.contains(p.getRole())) {
+        continue;
+      }
+      
       for (PdfParagraph x : p.getPdfParagraphs()) {
         Rectangle rect = x.getPdfBoundingBox();
         int pageNum = x.getPdfPageNumber();
