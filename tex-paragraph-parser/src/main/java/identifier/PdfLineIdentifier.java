@@ -53,6 +53,7 @@ public class PdfLineIdentifier {
    * positions.
    */
   protected static final String PARA_ADDENDUM = "~\\hspace{0pt}i";
+//  protected static final String PARA_ADDENDUM = "";
 
   /**
    * Creates a new pdf line identifier.

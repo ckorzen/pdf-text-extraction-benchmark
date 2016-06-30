@@ -1,0 +1,218 @@
+% This file, equations.sty (August 1988), contains a collection of macros
+% to aid in constructing displayed equations in LaTeX.  Written by
+%   Charles Karney
+%   Plasma Physics Laboratory   Phone:   +1 609 243 2607
+%   Princeton University        MFEnet:  Karney@PPC.MFEnet
+%   PO Box 451                  ARPAnet: Karney%PPC.MFEnet@NMFECC.ARPA
+%   Princeton, NJ 08543-0451    Bitnet:  Karney%PPC.MFEnet@ANLVMS.Bitnet
+% with some ideas and macros borrowed from John Hobby and Stephen Gildea.
+
+% --------------------USER DOCUMENTATION--------------------
+
+% Use this as a style option, e.g.,
+%     \documentstyle[equations]{article}
+% These probably don't work in conjunction with the leqno option.
+
+% This implements the following:
+
+% (1) \yesnumber turns on an equation number in an eqnarray* environment
+% (just as \nonumber turns it off in an eqnarray environment).  E.g.,
+%     \begin{eqnarray*}
+%        a &=& b \\
+%          & & + c \\
+%          & & + d \\
+%          & & + e \\
+%          & & + f \\
+%          & & + g \yesnumber
+%     \end{eqnarray*}
+
+% (2) The eqalign environment is just like Plain TeX's \eqalign.  E.g.,
+%     \begin{equation}
+%           \begin{eqalign}
+%              a &= b, \\
+%              c &= d.
+%           \end{eqalign}
+%     \end{equation}
+% Note that \begin{equation} \end{equation} or equivalent is needed.
+
+% (3) The eqalignno environment is just like Plain TeX's \eqalignno.  E.g.,
+%     \begin{eqalignno}
+%        a &= b, \label{foo}\\
+%        c &= d. \label{bar}
+%     \end{eqalignno}
+% Note the absence of \begin{equation} \end{equation}.  \nonumber can be used
+% to suppress the equation number.  eqalignno* is the same except that the
+% equation numbers are suppressed (unless a \yesnumber appears).
+
+% (4) The eqaligntwo environment is a two-equation per line equivalent of
+% eqalignno.  E.g.,
+%     \begin{eqaligntwo}
+%        a &= b, & x &= y, \label{foo} \\
+%        c &= d, & z &= w. \label{bar}
+%     \end{eqaligntwo}
+% eqaligntwo* is defined similarly.
+
+% (5) The cases environment is just like Plain TeX's \cases.  E.g.,
+%     \begin{equation}
+%        u(x) =
+%           \begin{cases}
+%             0, & for $x < 0$,
+%             1, & for $x \ge 0$.
+%           \end{cases}
+%     \end{equation}
+% Note the first column is treated as math, the second column as text.
+
+% (6) I've borrowed John Hobby's modifications to the eqnarray environment
+% (to fix up the spacing around the operator), and to the \big, \bigg, etc.
+% operators (to make them scale with the point size).
+
+% (7) I've borrowed Stephen Gildea's subequations environment, and fixed it
+% so that it ignores spaces after the environment and so that you can refer
+% both to the overall set of equations and to individual subequations.  E.g.,
+%     \begin{subequations} \label{foo}
+%       \begin{eqalignno}
+%          a &= b, \label{foo-a} \\
+%          c &= d, \label{foo-b}
+%       \end{eqalignno}
+%       text text text text ...
+%       \begin{equation}
+%          e = f. \label{foo-c}
+%       \end{equation}
+%     \end{subequations}
+% Now \ref{foo}, \ref{foo-a}, \ref{foo-b}, \ref{foo-c}, produce 1, 1a, 1b,
+% 1c.
+
+% --------------------END OF USER DOCUMENTATION--------------------
+
+% Fix up eqnarray* so that \yesnumber and \nonumber do the obvious things
+\newif\if@defeqnsw \@defeqnswtrue
+
+% This is John Hobby's (hobby@research.att.com) version to fix up the spacing.
+\def\eqnarray{\stepcounter{equation}\let\@currentlabel=\theequation
+\if@defeqnsw\global\@eqnswtrue\else\global\@eqnswfalse\fi
+\global\@eqnswtrue
+\tabskip\@centering\let\\=\@eqncr
+$$\halign to \displaywidth\bgroup\hfil\global\@eqcnt\z@
+  $\displaystyle\tabskip\z@{##}$&\global\@eqcnt\@ne
+  \hfil$\displaystyle{{}##{}}$\hfil
+  &\global\@eqcnt\tw@ $\displaystyle{##}$\hfil
+  \tabskip\@centering&\llap{##}\tabskip\z@\cr}
+
+\def\yesnumber{\global\@eqnswtrue}
+
+\def\@@eqncr{\let\@tempa\relax\global\advance\@eqcnt by \@ne
+    \ifcase\@eqcnt \def\@tempa{& & & &}\or \def\@tempa{& & &}\or
+     \def\@tempa{& &}\or \def\@tempa{&}\else\fi
+     \@tempa \if@eqnsw\@eqnnum\stepcounter{equation}\fi
+     \if@defeqnsw\global\@eqnswtrue\else\global\@eqnswfalse\fi
+     \global\@eqcnt\z@\cr}
+
+% Several formulas like \eqalign (to go inside \begin{equation}
+% \end{equation} or $$ $$.
+
+\def\@eqnacr{{\ifnum0=`}\fi\@ifstar{\@yeqnacr}{\@yeqnacr}}
+
+\def\@yeqnacr{\@ifnextchar [{\@xeqnacr}{\@xeqnacr[\z@]}}
+
+\def\@xeqnacr[#1]{\ifnum0=`{\fi}\cr \noalign{\vskip\jot\vskip #1\relax}}
+
+\def\eqalign{\null\,\vcenter\bgroup\openup1\jot \m@th \let\\=\@eqnacr
+\ialign\bgroup\strut
+\hfil$\displaystyle{##}$&$\displaystyle{{}##}$\hfil\crcr}
+\def\endeqalign{\crcr\egroup\egroup\,}
+
+% \cases
+
+\def\cases{\left\{\,\vcenter\bgroup\normalbaselines\m@th \let\\=\@eqnacr
+    \ialign\bgroup$##\hfil$&\quad##\hfil\crcr}
+\def\endcases{\crcr\egroup\egroup\right.}
+
+% Several formulas like \eqalignno (doesn't need the $$ $$)
+
+\def\eqalignno{\stepcounter{equation}\let\@currentlabel=\theequation
+\if@defeqnsw\global\@eqnswtrue\else\global\@eqnswfalse\fi
+\let\\=\@eqncr
+$$\displ@y \tabskip\@centering \halign to \displaywidth\bgroup
+  \global\@eqcnt\@ne\hfil
+  $\@lign\displaystyle{##}$\tabskip\z@skip&\global\@eqcnt\tw@
+  $\@lign\displaystyle{{}##}$\hfil\tabskip\@centering&
+  \llap{\@lign##}\tabskip\z@skip\crcr}
+
+\def\endeqalignno{\@@eqncr\egroup
+      \global\advance\c@equation\m@ne$$\global\@ignoretrue}
+
+
+% Here's the eqalignno* environment:
+
+\@namedef{eqalignno*}{\@defeqnswfalse\eqalignno}
+\@namedef{endeqalignno*}{\endeqalignno}
+
+% Two formulas like \eqalignno (doesn't need the $$ $$)
+
+\def\eqaligntwo{\stepcounter{equation}\let\@currentlabel=\theequation
+\if@defeqnsw\global\@eqnswtrue\else\global\@eqnswfalse\fi
+\let\\=\@eqncr
+$$\displ@y \tabskip\@centering \halign to \displaywidth\bgroup
+  \global\@eqcnt\m@ne\hfil
+  $\@lign\displaystyle{##}$\tabskip\z@skip&\global\@eqcnt\z@
+  $\@lign\displaystyle{{}##}$\hfil\qquad&\global\@eqcnt\@ne
+  \hfil$\@lign\displaystyle{##}$&\global\@eqcnt\tw@
+  $\@lign\displaystyle{{}##}$\hfil\tabskip\@centering&
+  \llap{\@lign##}\tabskip\z@skip\crcr}
+
+\def\endeqaligntwo{\@@eqncr\egroup
+      \global\advance\c@equation\m@ne$$\global\@ignoretrue}
+
+\@namedef{eqaligntwo*}{\@defeqnswfalse\eqaligntwo}
+\@namedef{endeqaligntwo*}{\endeqaligntwo}
+
+% subequations
+%%% File: subeqn.sty
+%%% The subequations environment %%%
+%
+% Within the subequations environment, the only change is that
+% equations are labeled differently.  The number stays the same,
+% and lower case letters are appended.  For example, if after doing
+% three equations, numbered 1, 2, and 3, you start a subequations
+% environmment and do three more equations, they will be numbered
+% 4a, 4b, and 4c.  After you end the subequations environment, the
+% next equation will be numbered 5.
+%
+% Both text and equations can be put inside the subequations environment.
+%
+% If you make any improvements, I'd like to hear about them.
+%
+% Stephen Gildea
+% MIT Earth Resources Lab
+% Cambridge, Mass. 02139
+% mit-erl!gildea
+% gildea@erl.mit.edu
+%
+\newtoks\@stequation
+
+\def\subequations{\refstepcounter{equation}%
+  \edef\@savedequation{\the\c@equation}%
+  \@stequation=\expandafter{\theequation}%   %only want \theequation
+  \edef\@savedtheequation{\the\@stequation}% %expanded once
+  \edef\oldtheequation{\theequation}%
+  \setcounter{equation}{0}%
+  \def\theequation{\oldtheequation\alph{equation}}}
+
+\def\endsubequations{%
+  \setcounter{equation}{\@savedequation}%
+  \@stequation=\expandafter{\@savedtheequation}%
+  \edef\theequation{\the\@stequation}%
+  \global\@ignoretrue}
+
+% More from John Hobby
+% Fix Plain's \bigl, \Bigl, etc. macros so that they try to scale with
+% LaTeX size changes.  This uses the fact that \@setsize sets \ht\strutbox
+% to be 70% of the normal unstretched baselineskip.
+
+\def\big#1{{\hbox{$\left#1\vcenter to1.428\ht\strutbox{}\right.\n@space$}}}
+\def\Big#1{{\hbox{$\left#1\vcenter to2.142\ht\strutbox{}\right.\n@space$}}}
+\def\bigg#1{{\hbox{$\left#1\vcenter to2.857\ht\strutbox{}\right.\n@space$}}}
+\def\Bigg#1{{\hbox{$\left#1\vcenter to3.571\ht\strutbox{}\right.\n@space$}}}
+
+\endinput
+

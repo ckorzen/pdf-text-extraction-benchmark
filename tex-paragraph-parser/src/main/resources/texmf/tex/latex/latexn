@@ -1,0 +1,174 @@
+From: John Collins <collins@phys.psu.edu>
+To: local-admin@xxx.lanl.gov, admin0@qfwfq.lanl.gov
+Subject: hep-ph comment from collins@phys.psu.edu
+Date: Mon, 18 Aug 1997 13:43:22 -0400 (EDT)
+
+I would like to submit the attached csh script to be added to macros
+available in the preprint archives.  Here is an appropriate description:
+
+    latexn (Csh script that automatically runs latex the correct number of
+            times to resolve cross references.)
+
+I have found it very useful, especially because latex doesn't always
+detect correctly whether it should be rerun.
+
+John Collins
+
+#! /bin/csh -f
+# File: latexn
+
+# This is a csh script for UNIX systems.  It runs Latex enough times to 
+# resolve cross references, and to get the table of contents (if any) correct.
+# It also runs makeindex if needed.  See the help text below for more details.
+
+# INSTALLATION: Make this an executable file: chmod a+x latexn
+# and put it in an appropriate directory for executable files.
+# If your system has non-standard commands to run latex and makeindex, 
+# then change the appropriate lines.
+
+# CUSTOMIZATION
+# Similarly, if you have personal preferences as to how these programs should
+# be used, change the appropriate lines.  For example, Andrei Klot points out
+# that if you would like latex to stop automatically after the first error it
+# finds, you can replace the line
+#
+#       latex $thisfile
+# by
+#       echo X | latex $thisfile
+
+# FILES GENERATED: In addition to the standard LaTeX output files, 
+# back-up copies of the previous .aux and .idx files are generated. These
+# have names like file.aux.bak and file.idx.bak.  
+
+# J.C. Collins.  collins@phys.psu.edu
+# 21 Mar 97 JCC.  Clean-up
+# 17 Mar 97 JCC.  Try latex command line to be echo X | latex ...
+#                 (Suggestion from klot@priam.serma.cea.fr, so that
+#                 LaTeX just stops on an error, without user intervention.)
+#                 But leave that as suggestion for customization.
+# 20 Jan 97 JCC.  Clean up from previous versions.  
+
+@ maxcount = 5
+
+if ( "$1" == "" ) then
+# No command line arguments => help message.
+cat << EOT
+ Usage 
+
+     latexn file
+ 
+ LaTeXs file.tex.  If there are no errors then LaTeX is repeated as necessary
+ to fix cross references, and to ensure that the table of contents and the 
+ index (if any) are correct.  Makeindex is run if necessary.
+ If the file has an explicit extension, then LaTeX is applied to that file
+ rather to file.tex.
+ The maximum number of attempts at LaTeX is $maxcount.  If LaTeX gives an
+ error (as indicated by its exit code), then no repeated runs of LaTeX are
+ made.  
+EOT
+exit
+endif
+
+
+# Variables
+# thisfile = source file.
+# thisbase= base of filename.
+# thisext = extension of filename.
+# resulttex = exitcode
+
+set thisfile=$1
+set thisbase=$thisfile:r
+set thisext=$thisfile:e
+set resulttex=0
+
+if ( "$thisext" == "" ) then
+   # No extension supplied.  
+   set thisfile=$thisbase.tex
+endif
+
+if ( -e $thisfile ) then
+   @ count = 0
+   # We'll repeat LaTeX until the variable dorepeat is undefined.  
+   # We'll use LaTeX at least once.
+   set dorepeat
+   while ( $?dorepeat ) 
+      if ( -e $thisbase.idx) then
+         echo Making backup of old .idx file: $thisbase.idx.bak
+         cp -p $thisbase.idx $thisbase.idx.bak
+         makeindex $thisbase.idx
+         echo ' '
+      endif
+      if ( -e $thisbase.aux) then
+         echo Making backup of old .aux file: $thisbase.aux.bak
+         cp -p $thisbase.aux $thisbase.aux.bak
+      else if ( ! -e $thisbase.aux.bak) then
+	 # Make dummy file.  This will save a pass if there are no
+         # cross-references generated
+         echo "\relax " >! $thisbase.aux.bak
+      endif
+#        Normal latex:
+      latex $thisfile
+#        Commented out alternative to standard latex command to make
+#        latex stop after it encounters an error.
+#      echo X | latex $thisfile
+      set resulttex=$status
+      @ count = $count + 1
+      echo Exit code $resulttex.  Number of iterations $count.
+      # status = 0 => no error or mild error (overfull and underfull etc)
+      if ( $count >= $maxcount ) then
+          unset dorepeat
+          echo "I've tried $count times.  That's enough."
+      else if ( $resulttex >= 1 ) then
+         echo "Bad error.  Therefore I will not run latex a second time"
+         echo Return code $resulttex
+         unset dorepeat
+      else
+         # Default to not needing to do anything more:
+         unset dorepeat
+         # Now find any conditions that require a rerun of LaTeX:
+         if ( ! -e $thisbase.aux ) then
+            echo latex produced no .aux file.
+            if ( -e $thisbase.aux.bak ) then
+               echo The .aux.bak file is of no use.  I will delete it.
+               rm  $thisbase.aux.bak
+            endif
+         else if ( -e $thisbase.aux.bak ) then
+            # "Has the .aux file changed?"
+            diff $thisbase.aux $thisbase.aux.bak > /dev/null
+            if ( $status == 0) then
+               echo The .aux file has not changed.
+            else
+               echo The .aux file has changed.  I must run latex again.
+               set dorepeat
+            endif
+         else
+            echo I have a .aux file, but there was no previous one, so I must run latex again.
+            set dorepeat
+         endif
+         if ( ! -e $thisbase.idx ) then
+            if ( -e $thisbase.idx.bak ) then
+               echo latex produced no .idx file.
+               echo The .idx.bak file is of no use.  I will delete it.
+               rm  $thisbase.idx.bak
+            endif
+         else if ( -e $thisbase.idx.bak ) then
+            # Has the .idx file changed?
+            diff $thisbase.idx $thisbase.idx.bak > /dev/null
+            if ( $status == 0) then
+               echo The .idx file has not changed.
+            else
+               echo The .idx file has changed.  I must run latex again.
+               set dorepeat
+            endif
+         else
+            echo I have a .idx file, but there was no previous one, so I must run latex again.
+            set dorepeat
+         endif
+      endif
+      echo ===============================================
+   end
+else
+   echo File $thisfile does not exist.
+endif
+exit $resulttex
+

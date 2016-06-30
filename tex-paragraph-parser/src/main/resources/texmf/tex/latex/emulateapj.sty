@@ -1,0 +1,1050 @@
+%% This is emulateapj.sty, version 19 May 1998
+%% if this version is old please obtain a new one at the site below
+%%
+%%
+%% `emulateapj' is a LaTeX (209 or 2e) style to approximate the Astrophysical
+%% Journal (ApJ) page look. The page length of the document is close to that
+%% in ApJ if postscript Times fonts are used instead of the standard CM fonts
+%% (see below). `emulateapj' requires the `multicol' package available from
+%% CTAN archives.
+%% 
+%% The file emulateapj.sty is a modification of the AAS (American Astronomical
+%% Society) preprint style aaspp4.sty, including pieces of the plain TeX
+%% apjformat* by someone BLW. If a manuscript is prepared using the standard
+%% AAS macros used for electronic manuscript submission, the only thing
+%% required from the user is to replace the style `aaspp4' with `emulateapj' in
+%% the first line of the document. We tried not to touch any of the nonobvious
+%% aaspp4 functionality to save trouble for users, so large parts of the code
+%% are probably useless, of which we did not care.
+%%
+%% The latest version of emulateapj.sty is available from
+%% http://hea-www.harvard.edu/~alexey/emulateapj/
+%% To use Times postscript fonts, also use the accompanying file apjfonts.sty 
+%% (at the site above, there is also a package of font files if necessary).
+%% 
+%% 
+%% Maxim Markevitch <maxim@head-cfa.harvard.edu>, 
+%% Alexey Vikhlinin <alexey@head-cfa.harvard.edu>
+%%
+%%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%% Solutions for some common problems:
+%% 
+%% 1) Because `multicol' package cannot deal with floats of the width of the
+%% single column, footnotes, figures, tables etc. can only be set across two
+%% columns (that is, use `figure*' environment instead of `figure'.)
+%% Alternatively, insert figures as non-floats in the exact place of the text
+%% by hand.
+%% 
+%% 2) There is a command \submitted{your text} to replace the default text
+%% in the upper left corner of the front page ("Draft version \today") with
+%% `your text'. Use it before the title commands.
+%% 
+%% 3) There is a package option `onecolumn' (available only in LaTeX2e),
+%% \usepackage[onecolumn]{emulateapj}, which sets the whole paper in one column
+%% mode as is done by the ApJ for papers with lengthy equations. Even if the
+%% document is `onecolumn', `thebibliography' or `references' are typeset in
+%% two columns.
+%% 
+%% 4) For users of `deluxetable': in LaTeX2e, the table font size is not
+%% reduced by putting fontsize commands inside \begin{deluxetable} and
+%% \end{deluxtable}. To reduce the font size, \tablefontsize command is
+%% defined. To use, put e.g., \tablefontsize{\footnotesize} after 
+%% \begin{deluxetable}.
+%%
+%% 5) The \title command makes the entire title text, even math, upper case.
+%% If you wish to preserve the lower case in some portion of the title, use 
+%% the \lowercase macro, e.g. \title{Upper case text \lowercase{$lower case$}}
+%% If you wish to preserve the letter case in the entrire title, redefine
+%% the \uppercase macro locally: 
+%% {\let\uppercase\relax \title{The Title} }
+%%
+%%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%% Fixes:
+%% 6 Nov 96 (AV): support for thebibliography added (was only `references');
+%%      also fixed interference with `tabular'
+%% 12 Dec 96 (AV): added command \submitted
+%% 10.1.97 (MM) raised title by 8mm, changed section spacing
+%% 24.1.97 (AV) fixed Appendix
+%% 24.2.97 (AV) fixed appendix interference with thebibliography
+%%  7.3.97 (AV) fixed small bug in appendix
+%% 16.3.97 (AV) changed the definition of {references} and {thebibliography}
+%%              to prohibit the page break between the reference section
+%%              title and body and the split of a reference item across
+%%              columns.
+%% 25.6.97 (AV) put \end{multicols} before \end{document} if they were not
+%%              closed by bibliography or appendix.
+%% 25.6.97 (AV) ``onecolumn'' option: \usepackage[onecolumn]{emulateapj}
+%% 15.9.97 (AV) \tablefontsize for plano table to change the font size
+%%              throughout the table
+%% 15.9.97 (AV) (suggested by Joern Wilms wilms@astro.uni-tuebingen.de)
+%%              redefine \figcapion to type the caption text in \footnotesize
+%%              and change fnum@figure to type Fig.XXX in \sc
+%% 15.9.97 (AV) define \tabcation which makes it possible to typeset
+%%              non-floating tables.
+%% 21.10.97 (AV) fix \keywords for long keyword lists.
+%% 24.10.97 (AV) make title width = abstract
+%% 10.12.97 (AV) prohibit hyphenation in the references
+%% 10.12.97 (AV) make author list width = 0.9abstract
+%% 28.02.98 (AV) define textheight equal to the whole number of lines.
+%% 06.03.98 (AV) fix @firstsection in definition of \section
+%% 11.05.98 (AV) A sectioning command definition was changed for Apr 4, 98
+%%               version, which introduced a bug in labeling mechanism. It
+%%               is fixed now.
+%% 19.05.98 (AV) \frenchspacing inside references and thebibliography
+%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\@ifundefined{documentclass}{ % non-latex2e:
+        \input{multicol.sty}\let\scshape=\sc%
+        \@ifundefined{epsfbox}{\@input{epsf.sty}}{\relax}}
+      {\RequirePackage{multicol,epsf}\ProvidesPackage{emulateapj}}
+
+
+
+%  ****************************************************
+%  *             TWO AND SINGLE ONE COLUMN STYLES: AV *
+%  ****************************************************
+%
+% I define `slocitlum' which is \relax if onecolumn option is chosen or
+% plain multicols if twocolumn (default option); `slocitlum' is used
+% everywhere except for `thebibliography' and `references' which should be
+% always set in two columns.
+%
+\newenvironment{slocitlum}[1]{\relax}{\relax}
+\@ifundefined{documentclass}{ % non-latex2e:
+\renewenvironment{slocitlum}[1]{\begin{multicols}{#1}}{\end{multicols}}
+}
+{
+\DeclareOption{twocolumn}{
+\renewenvironment{slocitlum}[1]{\begin{multicols}{#1}}{\end{multicols}}
+}
+\DeclareOption{onecolumn}{
+\renewenvironment{slocitlum}[1]{\relax}{\relax}
+}
+\ExecuteOptions{twocolumn}
+\ProcessOptions
+}
+
+
+
+
+%%%%% include atbeginend.sty by AV:
+
+% Replace plain \begin and \end with\BeginEnvironment and \EndEnvironment
+\let\BeginEnvironment=\begin
+\let\EndEnvironment=\end
+%% \ifundefined from TeXbook
+\def\IfUnDef#1{\expandafter\ifx\csname#1\endcsname\relax}
+% Null command needed to for \nothing{something}=.nothing.
+\def\NullCom#1{}
+\def\begin#1{%
+% if defined \BeforeBeg for this environment, execute it
+\IfUnDef{BeforeBeg#1}\else\csname BeforeBeg#1\endcsname\fi%
+\IfUnDef{AfterBeg#1}% This is done to skip the command for environments
+                     % which can take arguments, like multicols; YOU MUST NOT
+                     % USE \AfterBegin{...}{...} for such environments!
+        \let\SaveBegEnd=\BeginEnvironment%
+\else
+        % Start this environment
+                \BeginEnvironment{#1}%
+        % and execute code after \begin{environment}
+                \csname AfterBeg#1\endcsname
+        \let\SaveBegEnd=\NullCom
+\fi
+\SaveBegEnd{#1}
+}
+\def\end#1{%
+% execute code before \end{environment}
+\IfUnDef{BeforeEnd#1}\else\csname BeforeEnd#1\endcsname\fi%
+% close this environment
+\EndEnvironment{#1}
+% and execute code after \begin{environment}
+\IfUnDef{AfterEnd#1}\else\csname AfterEnd#1\endcsname\fi%
+}
+\def\BeforeBegin#1#2{\expandafter\gdef\csname BeforeBeg#1\endcsname {#2}}
+\def\BeforeEnd  #1#2{\expandafter\gdef\csname BeforeEnd#1\endcsname {#2}}
+\def\AfterBegin #1#2{\expandafter\gdef\csname AfterBeg#1\endcsname {#2}}
+\def\AfterEnd   #1#2{\expandafter\gdef\csname AfterEnd#1\endcsname{#2}}
+
+%%%% end of atbeginend.sty
+
+
+\def\revtex@ver{4.0}    % Version number of this file.
+\def\revtex@date{25 Apr 95}     % Revision date.
+\def\revtex@org{AAS}            % Sponsoring organization.
+\def\revtex@jnl{AAS}            % Applicable journal, if specific.
+\def\revtex@genre{emulateapj}   % Document "type".
+
+%aas % Display identifying message on screen and in logfile.
+%aas \typeout{\revtex@org\space \revtex@genre\space substyle,
+%aas     v\revtex@ver\space <\revtex@date>.}
+
+%  ****************************************
+%  *            PAGE LAYOUT               *
+%  ****************************************
+
+% Page size, spacing parameters, etc.
+
+%% (MM) for ApJ approx, using Times-Roman 10pt font:
+\textwidth=18.55cm
+\columnsep=8.5mm
+\parindent=3.5mm
+\voffset=-20mm
+\hoffset=-9mm
+
+\newlength{\abstrwidth}
+\abstrwidth=15.9cm
+
+\topmargin=0in
+\headheight=.15in
+\headsep=0.5in
+\oddsidemargin=0in
+\evensidemargin=0in
+\parskip=0cm
+
+\tolerance=600          % 3x "normal" value; cuts down on overfull complaints
+
+\def\@tightleading{1.1}
+\def\@doubleleading{1.6}
+
+%% AV,MM, to have 63 lines per column, with textheight 25cm:
+\def\baselinestretch{0.92}
+\textheight=24.4cm
+\textheight=63\baselineskip
+\textheight=\baselinestretch\textheight
+\ifdim\textheight>24.6cm\textheight=24.4cm\fi
+
+\let\tighten=\relax
+\let\tightenlines=\tighten
+\let\singlespace=\relax
+\let\doublespace=\relax
+
+\def\eqsecnum{
+    \@newctr{equation}[section]
+    \def\theequation{\hbox{\normalsize\arabic{section}-\arabic{equation}}}}
+
+\def\@journalname{The Astrophysical Journal}
+\def\cpr@holder{American Astronomical Society}
+
+\def\received#1{\gdef\@recvdate{#1}}    \received{}
+\def\accepted#1{\gdef\@accptdate{#1}}   \accepted{}
+\def\revised#1{\gdef\@revisedate{#1}}   \revised{}
+\def\journalid#1#2{\gdef\@jourvol{#1}\gdef\@jourdate{#2}}
+\def\articleid#1#2{\gdef\@startpage{#1}\gdef\@finishpage{#2}}
+\def\paperid#1{\gdef\@paperid{#1}} \paperid{MS-0001-SAMP}
+\def\ccc#1{\gdef\CCC@code{#1}} \ccc{000-00\$75.95-CDB}
+
+\def\cpright#1#2{\@nameuse{cpr@#1} \gdef\cpr@year{#2}
+    \typeout{`#1' copyright \cpr@year.}}
+
+\newcount\@cprtype \@cprtype=\@ne       % Default copyright type.
+\def\cpr@AAS{\@cprtype=1}
+\def\cpr@PD{\@cprtype=2}
+\def\cpr@Crown{\@cprtype=3}
+\def\cpr@none{\@cprtype=4}
+\def\cpr@ASP{\@cprtype=5}
+
+\def\cpr@year{\number\year}             % Default copyright year.
+
+\def\@slug{\par\noindent
+    \ifcase\@cprtype
+        \relax
+    \or
+        Copyright \cpr@year\space by the \cpr@holder.
+    \or
+        This article is in the public domain.
+    \or
+        Crown copyright \cpr@year\space by the \cpr@holder.
+    \or
+        No copyright is claimed for this article.
+    \or
+        Copyright \cpr@year\space by the ASP.
+    \fi
+    \par\noindent
+    Manuscript number \@paperid.\par\noindent
+    \CCC@code
+}
+
+%% running heads:
+\def\lefthead#1{\gdef\@versohead{#1}} \lefthead{\relax}
+\def\righthead#1{\gdef\@rectohead{#1}} \righthead{\relax}
+
+%% MM Create "apjheads" page style:
+\def\ps@apjheads{\let\@mkboth\markboth
+    \def\@evenfoot{}
+    \def\@evenhead{\lower9mm\hbox to\textwidth{
+                     \rm\thepage\hfil \rm\@rectohead \hfil}}}
+    \def\@oddfoot{}
+    \def\@oddhead{\lower9mm\hbox to\textwidth{
+                     \hfil\rm\@versohead\hfil \rm\thepage}}
+\@twosidetrue
+\ps@apjheads
+
+% \@runheads determines formatting of running head information.
+
+\def\@runheads{\@tempcnta\c@page
+  \@whilenum \@tempcnta >0\do{
+    \vskip 3ex
+    \hbox to30pc{\small\expandafter\uppercase\expandafter{\@versohead}:
+        \expandafter\uppercase\expandafter{\@rectohead}\hfil}
+    \advance\@tempcnta by\m@ne}
+}
+
+
+\def\slugcomment#1{\gdef\slug@comment{#1}} \slugcomment{}
+
+\newdimen\@slugcmmntwidth \@slugcmmntwidth .67\textwidth
+\long\def\@makeslugcmmnt{\ifx\slug@comment\@empty\relax\else
+    \setbox\@tempboxa\hbox{\slug@comment}
+    \ifdim \wd\@tempboxa >\@slugcmmntwidth
+        \hbox to\textwidth{\hss
+            \parbox\@slugcmmntwidth\slug@comment}
+    \else
+        \hbox to\textwidth{\hfil\box\@tempboxa}  
+    \fi
+    \vskip 2ex
+\fi}
+
+\def\@rcvaccrule{\vrule\@width1.75in\@height0.5pt\@depth\z@}
+\def\@dates{{\center\if@twocolumn\small\else\normalsize\fi%
+    {\it Received}\space%
+    \ifx\@empty\@recvdate\@rcvaccrule\else\@recvdate\fi;%
+    \if@twocolumn\\[.5ex]\else\hspace{1.5em}\fi%
+    {\it accepted}\space%
+    \ifx\@empty\@accptdate\@rcvaccrule\else\@accptdate\fi%
+    \endcenter}
+}
+\def\sluginfo{{\center
+    \@dates
+    %\@slug
+    %\@runheads
+    \endcenter}}
+\let\dates=\sluginfo    % Backwards compatibility
+
+%  ****************************************
+%  *            FRONT MATTER              *
+%  ****************************************
+
+%% AV renewed
+\@ifundefined{documentclass}{ % non-latex2e:
+\let\abstract\relax
+\let\endabstract\relax
+\def\abstract{\bgroup\center\minipage{\abstrwidth}
+\vspace{2pt}\centerline{ABSTRACT}   \vspace{3pt} \parindent=3.5mm}
+\def\endabstract{\endminipage \endcenter \egroup}
+}
+{% LaTeX 2e definition
+\renewenvironment{abstract}[0]{\center
+    \begin{minipage}{\abstrwidth}
+    \vspace{2pt}
+    \centerline{ABSTRACT}
+    \vspace{3pt}
+    \parindent=3.5mm}
+{\end{minipage}\endcenter}
+}
+\BeforeBegin{abstract}{\centerline{\small\it{\@submitted}}}
+
+%% MM
+%% "apjbot" for the title page:
+\def\ps@apjbot{
+    \def\@oddfoot{\raise7mm\hbox to\textwidth{\hfil\rm\thepage\hfil}}
+    \def\@oddhead{}}
+
+\def\title#1{{\thispagestyle{apjbot}
+  \subtitle
+  \vspace{12mm}
+  \center
+\begin{minipage}{\abstrwidth}
+\center\uppercase{#1}\endcenter
+\end{minipage}\endcenter}}
+
+\def\author#1{
+\vspace*{-1.5ex}%
+{\topsep 3pt
+\center
+\begin{minipage}{0.9\abstrwidth}\center\small\scshape#1\endcenter\end{minipage}
+\endcenter
+}
+\vspace*{-1pt}}
+\let\authoraddr=\@gobble
+\let\authoremail=\@gobble
+
+\def\affil#1{\vspace*{-0.8ex}{\topsep 0pt\center
+\begin{minipage}{0.9\abstrwidth}\center\footnotesize%
+\def\baselinestretch{1.0}%
+#1\endcenter\end{minipage}
+\endcenter}}
+
+\def\altaffilmark#1{$^{#1}$}
+\def\altaffiltext#1#2{\footnotetext[#1]{#2}\stepcounter{footnote}}
+
+
+% Redefine the LaTeX \and command for this style.
+%% MM
+\def\and{\vspace{0pt}{\topsep\z@\center {\sc and}\endcenter}\vspace{3pt}}
+
+%  ****************************************
+%  *             KEYWORDS                 *
+%  ****************************************
+
+\def\@keywordtext{Subject headings}
+\def\@keyworddelim{---}
+
+%% MM,AV
+\newlength{\kwdtextwidth}
+\settowidth{\kwdtextwidth}{{\it\@keywordtext:\/}}
+\def\keywords#1{\begin{center}
+  \begin{minipage}{\abstrwidth}
+  \vspace*{-6pt}\raggedright
+  \par\hangindent=\kwdtextwidth\hangafter=1 \noindent
+  {\it\@keywordtext:\/}\space #1
+  \end{minipage}  
+\end{center}}
+
+\let\subjectheadings=\keywords
+
+\def\@kwds#1{#1\relax}
+
+
+%  ****************************************
+%  *             FOOTNOTES                *
+%  ****************************************
+
+%% MM
+\skip\footins 2mm
+\footnotesep 2ex
+\let\footnoterule\relax
+
+\def\notetoeditor#1{}%
+
+%  ****************************************
+%  *             SECTIONS                 *
+%  ****************************************
+
+\newif\if@firstsection \@firstsectiontrue
+
+%% MM: section vertical indents by eye:
+\def\section{%
+    \if@firstsection\@firstsectionfalse\begin{slocitlum}{2}\fi%
+    \@startsection{section}{1}{\z@}{10pt plus 2pt minus 1pt}{5pt}{\footnotesize \center}}
+
+\def\subsection{\@startsection{subsection}{2}{\z@}{5pt plus 1pt minus 1pt}{5pt}%
+{\normalsize\it \center}}
+
+\def\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+    {2ex plus 1ex minus .2ex}{1ex plus .2ex}{\normalsize\it \center}}
+
+\def\thesection{\@arabic{\c@section}}
+\def\thesubsection{\thesection.\@arabic{\c@subsection}}
+\def\thesubsubsection{\thesubsection.\@arabic{\c@subsubsection}}
+\def\theparagraph{\thesubsubsection.\@arabic{\c@paragraph}}
+
+
+\def\sec@upcase#1{\uppercase{#1}}
+\def\subsec@upcase#1{\relax{#1}}
+
+\def\secnum@size{\small}
+\def\subsecnum@size{\normalsize}
+
+%
+% How the section number will appear in the section title - AV
+\def\ApjSectionMarkInTitle#1{#1.\ }
+
+\def\@sect#1#2#3#4#5#6[#7]#8%
+{\@tempskipa #5\relax 
+ \ifdim \@tempskipa >\z@ \begingroup
+     #6\relax 
+  \ifnum #2>\c@secnumdepth \def \@svsec {}\else 
+    \refstepcounter{#1} \edef \@svsec {\ApjSectionMarkInTitle 
+    {\csname the#1\endcsname}}\fi
+  \@hangfrom {\hskip #3\relax 
+    \ifnum #2=1\secnum@size {\rm\@svsec~}%
+    \else \subsecnum@size {\rm\@svsec~}\fi }%
+  {\interlinepenalty \@M 
+   \ifnum #2=1\sec@upcase{#8}%
+   \else \subsec@upcase{#8}\fi\par}\endgroup 
+  \csname #1mark\endcsname {#7}\addcontentsline{toc}{#1}%
+  {\ifnum #2>\c@secnumdepth \else \protect \numberline 
+     {\csname the#1\endcsname }\fi #7}%
+  \else 
+  \ifnum #2>\c@secnumdepth \def \@svsec {}\else 
+    \refstepcounter{#1} \edef \@svsec {\ApjSectionMarkInTitle 
+    {\csname the#1\endcsname}}\fi
+    \def \@svsechd {#6\hskip #3%
+    \ifnum #2=1\secnum@size{\rm\@svsec~}\else\subsecnum@size{\rm\@svsec~}\fi%
+    \ifnum #2=1\sec@upcase{#8}\else\subsec@upcase{#8}\fi%
+     \csname #1mark\endcsname {#7}\addcontentsline{toc}{#1}%
+      {\ifnum #2>\c@secnumdepth \else \protect \numberline {\csname
+      the#1\endcsname }\fi #7}}\fi \@xsect {#5} \penalty 0
+%-refstepcounter is now within a group. So \@currentlabel, which is normally
+%-set by \refstepcounter is hidden within a group. Need to set it manually.
+\protected@edef\@currentlabel{\csname p@#1\endcsname\csname the#1\endcsname}
+}
+
+% \def\@sect#1#2#3#4#5#6[#7]#8{%
+%      \ifnum #2>\c@secnumdepth
+%      \def\@svsec{}\else
+% %     \refstepcounter{#1}\edef\@svsec{\csname the#1\endcsname.\ }\fi
+%      \refstepcounter{#1}\edef\@svsec{\ApjSectionMarkInTitle{\csname the#1\endcsname}}\fi
+%      \@tempskipa #5\relax
+%       \ifdim \@tempskipa>\z@
+%         \begingroup #6\relax
+%           \@hangfrom{\hskip #3\relax%
+%       \ifnum#2=1\secnum@size{\rm\@svsec}
+%       \else\subsecnum@size{\rm\@svsec~}\fi%
+%       }{\interlinepenalty \@M 
+%       \ifnum#2=1\sec@upcase{#8}\else\subsec@upcase{#8}\fi\par}%
+%         \endgroup
+%        \csname #1mark\endcsname{#7}\addcontentsline
+%          {toc}{#1}{\ifnum #2>\c@secnumdepth \else
+%                       \protect\numberline{\csname the#1\endcsname}\fi
+%                     #7}\else
+%        \def\@svsechd{#6\hskip #3\@svsec \sec@upcase{#8}\csname #1mark\endcsname
+%                       {#7}\addcontentsline
+%                            {toc}{#1}{\ifnum #2>\c@secnumdepth \else
+%                              \protect\numberline{\csname the#1\endcsname}\fi
+%                        #7}}\fi
+%      \@xsect{#5}
+% % MM:
+% \penalty 0}
+
+\def\@ssect#1#2#3#4#5{\@tempskipa #3\relax
+   \ifdim \@tempskipa>\z@
+     \begingroup #4\@hangfrom{\hskip #1}{\interlinepenalty \@M
+       \sec@upcase{#5}\par}\endgroup
+   \else \def\@svsechd{#4\hskip #1\relax \sec@upcase{#5}}\fi
+    \@xsect{#3}
+% MM:
+\penalty 0}
+
+
+\def\acknowledgments{\vskip 3ex plus .8ex minus .4ex}
+\let\acknowledgements=\acknowledgments                  % second spelling
+
+
+%  ****************************************
+%  *          APPENDIX                    *
+%  ****************************************
+
+\def\NoApjSectionMarkInTitle#1{\relax}
+\renewenvironment{appendix}[0]{
+        \if\inmulticols\inmulticolstest\end{slocitlum}\fi
+        \vskip 10pt plus 2pt minus 1pt
+        \centerline{\small APPENDIX}
+        \@firstsectionfalse
+          \setcounter{section}{0}
+          \setcounter{subsection}{0}
+          \setcounter{equation}{0}
+%  \setcounter{figure}{0}
+%  \setcounter{table}{0}
+%  \def\fnum@figure{Figure \Alph{section}\thefigure:}
+%  \def\fnum@table{Table \Alph{section}\thetable:}
+          \def\thesection{\Alph{section}}
+% \def\theequation{\hbox{\normalsize\Alph{section}\arabic{equation}}}
+%
+% The following command causes LaTeX 2e to overflow its parameter stack. If
+% TeX is rebuilt with a larger parameter stack, this can be corrected: remove
+% the three lines below and uncomment the line above.
+%
+  \@ifundefined{documentclass}
+     {\def\theequation{\normalsize\hbox{\Alph{section}\arabic{equation}}}}
+     {\def\theequation{\hbox{\Alph{section}\arabic{equation}}}}
+  \def\thefigure{\thesection\@arabic\c@figure}
+  \def\thetable{\thesection\@arabic\c@table}
+%
+% Do not use appendix numbers in the titles
+  \def\ApjSectionMarkInTitle{\NoApjSectionMarkInTitle}
+  \def\section{\setcounter{equation}{0}\@startsection {section}{1}{\z@} 
+    {10pt}{5pt}{\centering\small}}
+}{}
+\BeforeBegin{appendix}{\if\inmulticols\inmulticolstest\end{slocitlum}}
+
+%  ****************************************
+%  *          EQUATION NUMBERING          *
+%  ****************************************
+
+\newcounter{cureqno}
+\newenvironment{mathletters}{\refstepcounter{equation}%
+    \setcounter{cureqno}{\value{equation}}%
+    \let\@curtheeqn\theequation%
+    \edef\cur@eqn{\theequation}%
+    \def\theequation{\cur@eqn\alph{equation}}%
+    \setcounter{equation}{0}}%
+    {\let\theequation\@curtheeqn%
+    \setcounter{equation}{\value{cureqno}}}
+
+\def\eqnum#1{\def\theequation{#1}\let\@currentlabel\theequation
+    \addtocounter{equation}{\m@ne}}
+
+
+%  ****************************************
+%  *          BIBLIOGRAPHY                *
+%  ****************************************
+
+\newenvironment{references}[0]{
+    \vspace{3pt plus 3pt}
+%     \hbox to \textwidth{\centerline{\footnotesize REFERENCES}}
+%     \vspace{-5pt}
+    \begin{multicols}{2}[\hbox to \textwidth{\centerline{\footnotesize
+REFERENCES}} \vspace{-5pt}]
+    \parindent=0cm \parskip=0cm
+    \footnotesize \baselineskip=8pt \interlinepenalty \@M
+    \hyphenpenalty=10000
+    \frenchspacing    % AV - to get right spacing after ``et al.''
+    \def\refpar{\par\hangindent=1.2em\hangafter=1}}
+{\end{multicols}}
+
+% redefine thebibliography
+\renewenvironment{thebibliography}[1]{
+            \vspace{3pt plus 3 pt}                                      % AV
+            \begin{multicols}{2}[\hbox                                  % AV
+                to \textwidth{\centerline{\footnotesize                 % AV
+                REFERENCES}} \vspace{-5pt}]                             % AV
+      \list{
+           \@biblabel{\@arabic\c@enumiv}}%
+           {
+                \@openbib@code
+                \parindent=0pt \parskip=0pt \parsep=0pt % AV
+                \bibindent=0pt                          %
+                \footnotesize \baselineskip=8pt  \interlinepenalty \@M  % AV
+                \frenchspacing    % AV - to get right spacing after ``et al.''
+                \hyphenpenalty=10000
+                \itemindent=-1.0em                      %
+                \itemsep=0pt                            %
+                \listparindent=0pt                      %
+                \settowidth\labelwidth{\@biblabel{#1}}  %
+                \labelsep=0pt                           %
+                \leftmargin=1.0em
+                \advance\leftmargin\labelsep
+                \usecounter{enumiv}%
+                \let\p@enumiv\@empty
+                \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+                \sloppy\clubpenalty4000\widowpenalty4000%
+                \sfcode`\.\@m}
+     {\def\@noitemerr
+       {\@latex@warning{Empty `thebibliography' environment}}%
+      \endlist\if\inmulticols\inmulticolstest\end{multicols}\fi}
+
+% %% AV: 
+\def\inmulticols{0}
+\def\inmulticolstest{1}
+\BeforeBegin{multicols}{\def\inmulticols{1}}
+\AfterEnd{multicols}{\def\inmulticols{0}}
+\BeforeBegin{slocitlum}{\def\inmulticols{1}}
+\AfterEnd{slocitlum}{\def\inmulticols{0}}
+
+
+\BeforeBegin{references}{\if\inmulticols\inmulticolstest\end{slocitlum}%
+                        \else\vspace{10pt}\fi}
+\BeforeBegin{thebibliography}{\if\inmulticols\inmulticolstest\end{slocitlum}%
+                        \else\vspace{10pt}\fi}
+\BeforeEnd{document}{\if\inmulticols\inmulticolstest\end{slocitlum}\fi}
+
+
+%aas \subsection*{\small REFERENCES}
+%aas \list{\null}{\leftmargin 1.2em\labelwidth\z@\labelsep\z@\itemindent -1.2em
+%aas     \usecounter{enumi}}
+%aas     \def\refpar{\relax}
+%aas     \def\newblock{\hskip .11em plus .33em minus .07em}
+%aas     \sloppy\clubpenalty4000\widowpenalty4000
+%aas     \sfcode`\.=1000\relax}
+%aas \def\endthebibliography{\endlist\revtex@pageid}
+
+\def\@biblabel#1{\relax}
+%\def\@cite#1#2{({#1\if@tempswa , #2\fi})}
+\def\@cite#1#2{#1\if@tempswa , #2\fi}
+
+\def\reference{\@ifnextchar\bgroup {\@reference}
+        {\@latexerr{Missing key on reference command}
+        {Each reference command should have a key corresponding to a markcite somewhere in the text}}}
+\def\@reference#1{\relax\refpar}
+
+\def\markcite{\@ifnextchar\bgroup{\@markcite}
+        {\@latexerr{Missing key on markcite command}
+        {Each markcite command should have a key corresponding to a reference somewhere in the references section}}}
+\def\@markcite#1{\relax}
+
+\def\@citex[#1]#2{\if@filesw\immediate\write\@auxout{\string\citation{#2}}\fi
+  \def\@citea{}\@cite{\@for\@citeb:=#2\do
+    {\@citea\def\@citea{,\penalty\@m\ }\@ifundefined
+       {b@\@citeb}{\@warning
+       {Citation `\@citeb' on page \thepage \space undefined}}%
+{\csname b@\@citeb\endcsname}}}{#1}}
+
+
+%% subtitle header:
+\def\submitted#1{\gdef\@submitted{#1}}
+\def\subtitle{
+  \vspace*{-12mm}
+  \noindent
+  {\scriptsize {\sc \@submitted} \\
+        Preprint typeset using \LaTeX\ style emulateapj}
+}
+\let\slugcomment\submitted   % slugcomment == submitted
+\submitted{Draft version \today}
+
+%% AV: allow figures to take the whole page
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+
+
+%%%%
+%%%% the code below is unchanged from aaspp4.sty:
+%%%%
+
+%  ****************************************
+%  *         TABLES AND FIGURES           *
+%  ****************************************
+
+\setcounter{topnumber}{7}
+\def\tablenotemark#1{\rlap{$^{\rm #1}$}}
+\newtoks\@temptokenb
+\def\tblnote@list{}
+
+\def\tablenotetext#1#2{
+    \@temptokena={\vspace{.5ex}{\noindent\llap{$^{#1}$}#2}\par}
+    \@temptokenb=\expandafter{\tblnote@list}
+    \xdef\tblnote@list{\the\@temptokenb\the\@temptokena}}
+
+\def\spew@tblnotes{
+  \ifx\tblnote@list\@empty\relax
+  \else
+    \vspace{3.2ex}
+    \footnoterule
+    \vspace{.4ex}
+    {\footnotesize\tblnote@list}
+    \gdef\tblnote@list{}
+  \fi}
+
+\def\endtable{\spew@tblnotes\end@float}
+\@namedef{endtable*}{\spew@tblnotes\end@dblfloat}
+
+\let\tableline=\hline
+
+\long\def\@makecaption#1#2{\vskip 2ex\noindent #1 #2\par}
+
+\def\tablenum#1{\def\thetable{#1}\let\@currentlabel\thetable
+    \addtocounter{table}{\m@ne}}
+
+\def\figurenum#1{\def\thefigure{#1}\let\@currentlabel\thefigure
+    \addtocounter{figure}{\m@ne}}
+
+\let\placetable=\@gobble
+\let\placefigure=\@gobble
+\let\placeplate=\@gobble
+
+\def\figcaption{\@ifnextchar[{\@xfigcaption}{\@figcaption}}
+% \def\@figcaption#1{{\def\@captype{figure}\caption{#1}}}
+% \def\@xfigcaption[#1]#2{{\def\@captype{figure}\caption{#2}}}
+
+%% suggested by Joern Wilms wilms@astro.uni-tuebingen.de 
+%%                          wilms@rocinante.colorado.edu
+\def\@figcaption#1{{\def\@captype{figure}\caption{\footnotesize #1}}}
+\def\@xfigcaption[#1]#2{{\def\@captype{figure}\caption{\footnotesize #2}}}
+
+
+\def\dummytable{\refstepcounter{table}}
+
+%  ****************************************
+%  *           PLANO TABLES               *
+%  ****************************************
+
+\newbox\pt@box
+\newdimen\pt@width
+\newcount\pt@line
+\newcount\pt@column
+\newcount\pt@nlines
+\newcount\pt@ncol
+\newcount\pt@page
+
+\def\colhead#1{\multicolumn{1}{c}{#1}\pt@addcol}
+\def\tablecolumns#1{\pt@column=#1\pt@ncol=#1\gdef\pt@addcol{\relax}}
+\def\tablecaption#1{\gdef\pt@caption{#1}} \def\pt@caption{\relax}
+\def\tablehead#1{\gdef\pt@head{\hline\hline\relax\\[-1.7ex]
+    #1\hskip\tabcolsep\\[.7ex]\hline\relax\\[-1.5ex]}} \def\pt@head{\relax}
+\def\tabletail#1{\gdef\pt@tail{#1}} \def\pt@tail{\relax}
+\def\tablewidth#1{\pt@width=#1} \pt@width\textwidth
+\def\tableheadfrac#1{\gdef\pt@headfrac{#1}} \def\pt@headfrac{.1}
+\def\tablefontsize#1{\gdef\pt@fontsize{#1}} \def\pt@fontsize{\relax}
+
+\def\pt@calcnlines{\@tempdima\pt@headfrac\textheight
+    \@tempdimb\textheight\advance\@tempdimb by-\@tempdima
+    \@tempdima\arraystretch\baselineskip
+    \divide\@tempdimb by\@tempdima
+    \global\pt@nlines\@tempdimb}
+
+
+\def\pt@tabular{\hbox \bgroup \pt@fontsize $\let\@acol\@ptabacol 
+   \let\@classz\@tabclassz
+   \let\@classiv\@tabclassiv \let\\\@tabularcr\@tabarray}
+
+\def\@ptabacol{\edef\@preamble{\@preamble \hskip \tabcolsep\tabskip\fill}}
+
+\def\fnum@ptable{Table \thetable}
+\def\fnum@ptablecont{Table \thetable---{\it Continued}}
+
+\newdimen\pt@tmpcapwidth
+\def\set@mkcaption{\long\def\@makecaption##1##2{\ifdim\pt@width>\z@%
+    \pt@tmpcapwidth\pt@width\else\pt@tmpcapwidth\textwidth\fi%
+    \center\parbox{\pt@tmpcapwidth}{\center\sc##1\\[.5ex]##2\endcenter}%
+    \endcenter}}
+%\def\set@mkcaption{\long\def\@makecaption##1##2{
+%    \center\sc##1\\[.5ex]##2\endcenter\vskip 1.5ex}}
+\def\set@mkcaptioncont{\long\def\@makecaption##1##2{
+    \center\sc##1\endcenter\vskip 1.5ex}}
+
+\newenvironment{deluxetable}[1]{\def\pt@format{\string#1}%
+    \set@tblnotetext\global\pt@ncol=0\global\pt@column=0\global\pt@page=1%
+    \def\pt@addcol{\global\advance\pt@ncol by\@ne}}%
+    {%\crcr\noalign{\vskip .7ex}\hline\endtabular%
+    \pt@width\wd\pt@box\box\pt@box\spew@ptblnotes%
+    \typeout{Page \the\pt@page\space of table \thetable\space has been set to 
+           width \the\pt@width\space with \the\pt@nlines\space lines per page}%
+    \endcenter\end@dblfloat}
+\let\planotable=\deluxetable
+\let\endplanotable=\enddeluxetable
+
+\def\startdata{\pt@line=0\pt@calcnlines%
+    \ifdim\pt@width>\z@\def\@halignto{to \pt@width}\else\def\@halignto{}\fi%
+    \let\fnum@table=\fnum@ptable\set@mkcaption%
+    \@dblfloat{table}\center\caption{\pt@caption}\leavevmode%
+    \setbox\pt@box=\pt@tabular{\pt@format}\pt@head}
+\def\enddata{\crcr\noalign{\vskip .7ex}\hline\endtabular}
+
+\def\pt@nl{\global\advance\pt@line by\@ne%
+  \ifnum\pt@line=\pt@nlines%
+    \endtabular\pt@width\wd\pt@box\box\pt@box
+    \typeout{Page \the\pt@page\space of table \thetable\space has been set to
+             width \the\pt@width}%
+    \global\advance\pt@page by\@ne%
+    \endcenter\end@dblfloat\clearpage%
+    \addtocounter{table}{\m@ne}%
+    \let\fnum@table=\fnum@ptablecont\set@mkcaptioncont%
+    \@dblfloat{table}\center\caption{\pt@caption}\leavevmode%
+    \global\pt@ncol=\pt@column%  Either 0 or value of \tablecolumns 
+    \global\pt@line=0%
+    \setbox\pt@box=\pt@tabular{\pt@format}\pt@head%
+  \else\\
+  \fi}
+
+\let\nl=\pt@nl
+\let\nextline=\pt@nl
+
+\def\tablevspace#1{\noalign{\vskip#1}}
+\def\tablebreak{\pt@line\pt@nlines\advance\pt@line by\m@ne\pt@nl}
+
+\def\cutinhead#1{\noalign{\vskip 1.5ex}
+    \hline\pt@nl\noalign{\vskip -2.0ex}
+    \multicolumn{\pt@ncol}{c}{#1}\pt@nl
+    \noalign{\vskip .8ex}
+    \hline\pt@nl\noalign{\vskip -2ex}}
+
+\def\sidehead#1{\noalign{\vskip 1.5ex}
+    \multicolumn{\pt@ncol}{@{\hskip\z@}l}{#1}\pt@nl
+    \noalign{\vskip .5ex}}
+
+\def\set@tblnotetext{\def\tablenotetext##1##2{{%
+    \@temptokena={{\parbox{\pt@width}{\hskip1em$^{\rm ##1}$##2}}\par}%
+    \@temptokenb=\expandafter{\tblnote@list}
+    \xdef\tblnote@list{\the\@temptokenb\the\@temptokena}}}}
+
+\def\spew@ptblnotes{
+  \ifx\tblnote@list\@empty\relax
+  \else
+    \par
+    \vspace{2ex}
+    {\parskip=1.5ex%
+    \tblnote@list}
+    \gdef\tblnote@list{}
+  \fi}
+
+\def\tablerefs#1{\@temptokena={\vspace*{3ex}{%
+    \parbox{\pt@width}{\hskip1em{\sc References.---}#1}\par}}%
+    \@temptokenb=\expandafter{\tblnote@list}
+    \xdef\tblnote@list{\the\@temptokenb\the\@temptokena}}
+
+\def\tablecomments#1{\pt@fontsize\@temptokena={\vspace*{3ex}{%
+    \parbox{\pt@width}{\hskip1em{\sc Note.---}#1}\par}}%
+    \@temptokenb=\expandafter{\tblnote@list}
+    \xdef\tblnote@list{\the\@temptokenb\the\@temptokena}}
+
+
+
+%  ****************************************
+%  *   FIGURE, TABLE, PLATE PARAMETERS    *
+%  ****************************************
+
+\newcounter{plate}
+\def\theplate{\@arabic\c@plate}
+
+\def\fps@plate{bp}
+\def\ftype@plate{4}                     % Yes.  This must a power of 2.
+\def\ext@plate{lof}                     % Put plates in LOF.
+\def\fnum@plate{{\bf Plate \theplate.}}
+\def\plate{\@float{plate}}
+\let\endplate\end@float
+\@namedef{plate*}{\@dblfloat{plate}}
+\@namedef{endplate*}{\end@dblfloat}
+\let\platewidth=\tablewidth
+\def\platenum#1{\def\theplate{#1}\let\@currentlabel\theplate
+    \addtocounter{plate}{\m@ne}}
+
+\def\thefigure{\@arabic\c@figure}
+\def\fnum@figure{{\footnotesize\sc ~~Fig.\space\thefigure.---}}
+
+\def\thetable{\@arabic\c@table}
+%%% Table captions without making a floating table
+\def\tabcaption{\@ifnextchar[{\@xtabcaption}{\@tabcaption}}
+\def\@tabcaption#1{{\def\@captype{table}\caption{\small\sc #1}\vskip1.5ex}}
+\def\@xtabcaption[#1]#2{{\def\@captype{table}\caption{\small #2}}}
+\def\fnum@table{{\centerline{\sc Table~\thetable}\vskip0.7ex}}
+
+\def\fps@figure{bp}
+\def\fps@table{bp}
+
+%  ****************************************
+%  *           EPS INCLUSIONS             *
+%  ****************************************
+
+
+\def\eps@scaling{.95}
+\def\epsscale#1{\gdef\eps@scaling{#1}}
+
+\def\plotone#1{\centering \leavevmode
+    \epsfxsize=\eps@scaling\columnwidth \epsfbox{#1}}
+
+\def\plottwo#1#2{\centering \leavevmode
+    \epsfxsize=.45\columnwidth \epsfbox{#1} \hfil
+    \epsfxsize=.45\columnwidth \epsfbox{#2}}
+
+\def\plotfiddle#1#2#3#4#5#6#7{\centering \leavevmode
+    \vbox to#2{\rule{0pt}{#2}}
+    \special{psfile=#1 voffset=#7 hoffset=#6 vscale=#5 hscale=#4 angle=#3}}
+
+%  ****************************************
+%  *            ABBREVIATIONS             *
+%  ****************************************
+
+\let\jnl@style=\rm
+\def\ref@jnl#1{{\jnl@style#1}}
+
+\def\aj{\ref@jnl{AJ}}                   % Astronomical Journal
+\def\araa{\ref@jnl{ARA\&A}}             % Annual Review of Astron and Astrophys
+\def\apj{\ref@jnl{ApJ}}                 % Astrophysical Journal
+\def\apjl{\ref@jnl{ApJ}}                % Astrophysical Journal, Letters
+\def\apjs{\ref@jnl{ApJS}}               % Astrophysical Journal, Supplement
+\def\ao{\ref@jnl{Appl.~Opt.}}           % Applied Optics
+\def\apss{\ref@jnl{Ap\&SS}}             % Astrophysics and Space Science
+\def\aap{\ref@jnl{A\&A}}                % Astronomy and Astrophysics
+\def\aapr{\ref@jnl{A\&A~Rev.}}          % Astronomy and Astrophysics Reviews
+\def\aaps{\ref@jnl{A\&AS}}              % Astronomy and Astrophysics, Supplement
+\def\azh{\ref@jnl{AZh}}                 % Astronomicheskii Zhurnal
+\def\baas{\ref@jnl{BAAS}}               % Bulletin of the AAS
+\def\jrasc{\ref@jnl{JRASC}}             % Journal of the RAS of Canada
+\def\memras{\ref@jnl{MmRAS}}            % Memoirs of the RAS
+\def\mnras{\ref@jnl{MNRAS}}             % Monthly Notices of the RAS
+\def\pra{\ref@jnl{Phys.~Rev.~A}}        % Physical Review A: General Physics
+\def\prb{\ref@jnl{Phys.~Rev.~B}}        % Physical Review B: Solid State
+\def\prc{\ref@jnl{Phys.~Rev.~C}}        % Physical Review C
+\def\prd{\ref@jnl{Phys.~Rev.~D}}        % Physical Review D
+\def\pre{\ref@jnl{Phys.~Rev.~E}}        % Physical Review E
+\def\prl{\ref@jnl{Phys.~Rev.~Lett.}}    % Physical Review Letters
+\def\pasp{\ref@jnl{PASP}}               % Publications of the ASP
+\def\pasj{\ref@jnl{PASJ}}               % Publications of the ASJ
+\def\qjras{\ref@jnl{QJRAS}}             % Quarterly Journal of the RAS
+\def\skytel{\ref@jnl{S\&T}}             % Sky and Telescope
+\def\solphys{\ref@jnl{Sol.~Phys.}}      % Solar Physics
+\def\sovast{\ref@jnl{Soviet~Ast.}}      % Soviet Astronomy
+\def\ssr{\ref@jnl{Space~Sci.~Rev.}}     % Space Science Reviews
+\def\zap{\ref@jnl{ZAp}}                 % Zeitschrift fuer Astrophysik
+\def\nat{\ref@jnl{Nature}}              % Nature
+\def\iaucirc{\ref@jnl{IAU~Circ.}}       % IAU Cirulars
+\def\aplett{\ref@jnl{Astrophys.~Lett.}} % Astrophysics Letters
+\def\apspr{\ref@jnl{Astrophys.~Space~Phys.~Res.}}
+                % Astrophysics Space Physics Research
+\def\bain{\ref@jnl{Bull.~Astron.~Inst.~Netherlands}} 
+                % Bulletin Astronomical Institute of the Netherlands
+\def\fcp{\ref@jnl{Fund.~Cosmic~Phys.}}  % Fundamental Cosmic Physics
+\def\gca{\ref@jnl{Geochim.~Cosmochim.~Acta}}   % Geochimica Cosmochimica Acta
+\def\grl{\ref@jnl{Geophys.~Res.~Lett.}} % Geophysics Research Letters
+\def\jcp{\ref@jnl{J.~Chem.~Phys.}}      % Journal of Chemical Physics
+\def\jgr{\ref@jnl{J.~Geophys.~Res.}}    % Journal of Geophysics Research
+\def\jqsrt{\ref@jnl{J.~Quant.~Spec.~Radiat.~Transf.}}
+                % Journal of Quantitiative Spectroscopy and Radiative Trasfer
+\def\memsai{\ref@jnl{Mem.~Soc.~Astron.~Italiana}}
+                % Mem. Societa Astronomica Italiana
+\def\nphysa{\ref@jnl{Nucl.~Phys.~A}}   % Nuclear Physics A
+\def\physrep{\ref@jnl{Phys.~Rep.}}   % Physics Reports
+\def\physscr{\ref@jnl{Phys.~Scr}}   % Physica Scripta
+\def\planss{\ref@jnl{Planet.~Space~Sci.}}   % Planetary Space Science
+\def\procspie{\ref@jnl{Proc.~SPIE}}   % Proceedings of the SPIE
+
+\let\astap=\aap
+\let\apjlett=\apjl
+\let\apjsupp=\apjs
+\let\applopt=\ao
+
+%  ****************************************
+%  *            MISCELLANEOUS             *
+%  ****************************************
+
+\def\phn{\phantom{0}}       % Phantom numeral for aligning columns in tables
+\def\phd{\phantom{.}}       % Phantom decimal for aligning columns in tables
+\def\phs{\phantom{$-$}}     % Phantom minus sign for aligning columns in tables
+\def\phm#1{\phantom{#1}}    % Generic \phantom command
+\def\sun{\hbox{$\odot$}}
+\def\earth{\hbox{$\oplus$}}
+\def\lesssim{\mathrel{\hbox{\rlap{\hbox{\lower4pt\hbox{$\sim$}}}\hbox{$<$}}}}
+\def\gtrsim{\mathrel{\hbox{\rlap{\hbox{\lower4pt\hbox{$\sim$}}}\hbox{$>$}}}}
+\def\sq{\hbox{\rlap{$\sqcap$}$\sqcup$}}
+\def\arcdeg{\hbox{$^\circ$}}
+\def\arcmin{\hbox{$^\prime$}}
+\def\arcsec{\hbox{$^{\prime\prime}$}}
+\def\fd{\hbox{$.\!\!^{\rm d}$}}
+\def\fh{\hbox{$.\!\!^{\rm h}$}}
+\def\fm{\hbox{$.\!\!^{\rm m}$}}
+\def\fs{\hbox{$.\!\!^{\rm s}$}}
+\def\fdg{\hbox{$.\!\!^\circ$}}
+\def\farcm{\hbox{$.\mkern-4mu^\prime$}}
+\def\farcs{\hbox{$.\!\!^{\prime\prime}$}}
+\def\fp{\hbox{$.\!\!^{\scriptscriptstyle\rm p}$}}
+\def\micron{\hbox{$\mu$m}}
+
+\let\la=\lesssim                        % For Springer A&A compliance...
+\let\ga=\gtrsim
+
+\def\case#1#2{\hbox{$\frac{#1}{#2}$}}
+ 
+\def\slantfrac#1#2{\hbox{$\,^#1\!/_#2$}}
+\def\onehalf{\slantfrac{1}{2}}
+\def\onethird{\slantfrac{1}{3}}
+\def\twothirds{\slantfrac{2}{3}}
+\def\onequarter{\slantfrac{1}{4}}
+\def\threequarters{\slantfrac{3}{4}}
+
+\def\ubvr{\hbox{$U\!BV\!R$}}            % UBVR system
+\def\ub{\hbox{$U\!-\!B$}}               % U-B
+\def\bv{\hbox{$B\!-\!V$}}               % B-V
+\def\vr{\hbox{$V\!-\!R$}}               % V-R
+\def\ur{\hbox{$U\!-\!R$}}               % U-R
+
+\def\ion#1#2{#1$\;${\small\rm\@Roman{#2}}\relax}
+
+%\def\cellipsis{\hfill$\cdots$\hfill}
+%\def\nodata{\multicolumn{1}{c}{$\cdots$}}
+\def\nodata{ ~$\cdots$~ }
+
+\newcount\lecurrentfam
+\def\LaTeX{\lecurrentfam=\the\fam \leavevmode L\raise.42ex
+        \hbox{$\fam\lecurrentfam\scriptstyle\kern-.3em A$}\kern-.15em\TeX}
+
+%  ****************************************
+%  *              DEBUGGING               *
+%  ****************************************
+
+\def\sizrpt{
+    (\fontname\the\font): em=\the\fontdimen6\font, ex=\the\fontdimen5\font
+    \typeout{
+    (\fontname\the\font): em=\the\fontdimen6\font, ex=\the\fontdimen5\font
+}}

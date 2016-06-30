@@ -1,0 +1,618 @@
+%%%%%%%%%%%%%%%
+% +--------------------------------------------------------------------+
+% |                                                                    |
+% |                           TABLES.TEX                               |
+% |                                                                    |
+% |                     Ray F. Cowan  15-Feb-85                        |
+% |                                                                    |
+% |                       Princeton University                         |
+% |                                                                    |
+% |                     Last Revision: 17-Apr-86                       |
+% |                                                                    |
+% |   Macros I find handy for making tables.  See TABLEDOC TEX for     |
+% |   a longer description.  The token-counting macros are straight    |
+% |   from the TeXbook's "Dirty Tricks" appendix.                      |
+% |                                                                    |
+% +--------------------------------------------------------------------+
+%
+\newbox\hdbox%
+\newcount\hdrows%
+\newcount\multispancount%
+\newcount\ncase%
+\newcount\ncols% This is the number of primary text columns in the table.
+\newcount\nrows%
+\newcount\nspan%
+\newcount\ntemp%
+\newdimen\hdsize%
+\newdimen\newhdsize%
+\newdimen\parasize%
+\newdimen\spreadwidth%
+\newdimen\thicksize%
+\newdimen\thinsize%
+\newdimen\tablewidth%
+\newif\ifcentertables%
+\newif\ifendsize%
+\newif\iffirstrow%
+\newif\iftableinfo%
+\newtoks\dbt%
+\newtoks\hdtks%
+\newtoks\savetks%
+\newtoks\tableLETtokens%
+\newtoks\tabletokens%
+\newtoks\widthspec%
+%
+%  Book-keeping stuff--see how often these macros are called.
+%
+\immediate\write15{%
+CP SMSG GJMSINK TEXTABLE --> TABLE MACROS V. 851121 JOB = \jobname%
+}%
+%
+%  Turn on table diagnostics.
+%
+\tableinfotrue%
+\catcode`\@=11%  Allows use of "@" in macro names, like PLAIN.TEX does.
+\def\out#1{\immediate\write16{#1}}%  Debugging aid.  Writes #1 on the
+%                                    user's terminal and in the log file.
+%
+%  Define the \tstrut height, depth in terms of the x_height parameter.
+%
+\def\tstrut{\vrule height3.1ex depth1.2ex width0pt}%
+\def\and{\char`\&}%  Allows us to get an `&' in the text.  This is the
+%                    same as using the PLAIN TeX macro \&.
+\def\tablerule{\noalign{\hrule height\thinsize depth0pt}}%
+\thicksize=1.5pt%  Default thickness for fat rules.  The user should feel
+%                  free to change this to his preference.
+\thinsize=0.6pt%   Default thickness for thin rules.
+\def\thickrule{\noalign{\hrule height\thicksize depth0pt}}%
+\def\hrulefill{\leaders\hrule\hfill}%
+\def\bigrulefill{\leaders\hrule height\thicksize depth0pt \hfill}%
+\def\ctr#1{\hfil\ #1\hfil}%
+\def\altctr#1{\hfil #1\hfil}%
+\def\vctr#1{\hfil\vbox to0pt{\vss\hbox{#1}\vss}\hfil}%
+%
+%  Here are things for controlling the width of the finished table.
+%
+\tablewidth=-\maxdimen%
+\spreadwidth=-\maxdimen%
+\def\tabskipglue{0pt plus 1fil minus 1fil}%
+%
+%  Stuff for centering or not.
+%
+\centertablestrue%
+\def\centeredtables{%
+   \centertablestrue%
+}%
+\def\noncenteredtables{%
+   \centertablesfalse%
+}%
+%
+%  \vctr vertically centers its argument in the row.
+%
+\parasize=4in%
+\long\def\para#1{%  Used to make little paragraphs out of one entry.
+   {%
+      \vtop{%
+         \hsize=\parasize%
+         \baselineskip14pt%
+         \lineskip1pt%
+         \lineskiplimit1pt%
+         \noindent #1%
+         \vrule width0pt depth6pt%
+      }%
+   }%
+}%
+%
+\gdef\ARGS{########}%  Produces the correct number of #'s in the preamble
+%                      by the time eveything is expanded and \halign sees
+%                      it.
+\gdef\headerARGS{####}%  Same as \ARGS, but used in \header macros.
+\def\@mpersand{&}%  Allows us to get alignment tab characters later
+%                   when we have made the character "&" an active macro.
+{\catcode`\|=13%  Make |'s locally active.
+\gdef\letbarzero{\let|0}%  Globally define a macro that allows us to
+%                          keep active |'s from being expanded in edef's.
+\gdef\letbartab{\def|{&&}}%
+\gdef\letvbbar{\let\vb|}%
+%  This \def will cause active |'s read by
+%                            \ruledtable to be converted into double
+%                            alignment tabs.
+}%  End of locally active |'s.
+%
+{\catcode`\&=4%  Make these alignment tabs.
+\def\ampskip{&\omit\hfil&}%  This local macro skips a vertical rule.
+\catcode`\&=13%  Now make &'s into active macros.
+\let&0%  This allows us to expand \ampskip in the next \xdef without
+%        attempting to expand the & and getting an "undefined control
+%        sequence" error.
+\xdef\letampskip{\def&{\ampskip}}%
+\gdef\letnovbamp{\let\novb&\let\tab&}
+%  This will cause active &'s read by
+%                                   \ruledtable to be converted into
+%                                   double tabs and an \omit'ted \vrule.
+}%  End of locally active &'s.
+%
+\def\begintable{%  Here we make |'s and &'s active characters so we can
+%                  interpret them as macros.  Note that this action is
+%                  true only until we encounter the matching \endgroup
+%                  token later at the end of the \ruledtable macro.
+   \begingroup%
+   \catcode`\|=13\letbartab\letvbbar%
+   \catcode`\&=13\letampskip\letnovbamp%
+   \def\multispan##1{%  We must redefine \multispan to count the number
+%                       of primary columns, not physical columns.
+      \omit \mscount##1%
+      \multiply\mscount\tw@\advance\mscount\m@ne%
+      \loop\ifnum\mscount>\@ne \sp@n\repeat%
+   }%  End of \multispan macro.
+   \def\|{%
+      &\omit\widevline&%
+   }%
+   \ruledtable%  Now we call \ruledtable to do the real work.
+}%  End of \begintable macro.
+%
+\long\def\ruledtable#1\endtable{%
+%
+%  This macro reads in the user's data entries
+%  and converts them into a ruled table.
+%
+%  Important note:  Many macros and parameters are re-defined here, and
+%  these must be kept local to the table macros to avoid conflict with
+%  their use outside of tables.  This is done by the \begingroup token
+%  macro \begintable and the \endgroup token at the end of
+%  this macro.
+%
+   \offinterlineskip%  Needed to make rules touch each other.
+   \tabskip 0pt%  Needed for same reason as \offinterlineskip.
+   \def\widevline{\vrule width\thicksize}%  Make outer \vrule's wider.
+   \def\endrow{\@mpersand\omit\hfil\crnorm\@mpersand}%
+   \def\crthick{\@mpersand\crnorm\thickrule\@mpersand}%
+   \def\crthickneg##1{\@mpersand\crnorm\thickrule
+          \noalign{{\skip0=##1\vskip-\skip0}}\@mpersand}%
+   \def\crnorule{\@mpersand\crnorm\@mpersand}%
+   \def\crnoruleneg##1{\@mpersand\crnorm
+          \noalign{{\skip0=##1\vskip-\skip0}}\@mpersand}%
+   \let\nr=\crnorule%  A shorter abbreviation.
+   \def\endtable{\@mpersand\crnorm\thickrule}%
+%
+   \let\crnorm=\cr%  Allows us to use \cr for our own purposes.
+%
+%  Cause user-typed \cr's to follow a row with a \tablerule.
+%
+   \edef\cr{\@mpersand\crnorm\tablerule\@mpersand}%
+   \def\crneg##1{\@mpersand\crnorm\tablerule
+          \noalign{{\skip0=##1\vskip-\skip0}}\@mpersand}%
+   \let\ctneg=\crthickneg
+   \let\nrneg=\crnoruleneg
+%
+   \the\tableLETtokens%  Get the user's extra \let's, if any.
+%
+%  Put the data entries into a token register so we can scan through them
+%  and see what the user is asking us to do.
+%
+   \tabletokens={&#1}%  We add an extra alignment tab to the beginning
+%                       of the first row to allow for the first \vrule.
+%
+%  Now count how many rows are in the table and return the result in
+%  count register \nrows; do the same for columns, and return that
+%  in register \ncols.
+%
+   \countROWS\tabletokens\into\nrows%
+   \countCOLS\tabletokens\into\ncols%
+%
+%  Now do a little arithmetic to convert the number of primary columns
+%  into the number of physical columns that the alignment preamble must
+%  prepare for;  similarly for rows.
+%
+   \advance\ncols by -1%
+   \divide\ncols by 2%
+   \advance\nrows by 1%
+%
+%  Tell the user how many rows and columns we found in his data, if he
+%  wants to know.
+%
+   \iftableinfo %
+      \immediate\write16{[Nrows=\the\nrows, Ncols=\the\ncols]}%
+   \fi%
+%
+%  Now we actually go ahead and produce the table.
+%
+   \ifcentertables
+      \ifhmode \par\fi%  Make sure we are in vertical mode.
+      \line{%  The final table comes out as an \hbox of width the \hsize.
+      \hss%  The final table will be centered left-to-right.
+   \else %
+      \hbox{%
+   \fi
+      \vbox{%
+         \makePREAMBLE{\the\ncols}%  Generate the preamble.
+         \edef\next{\preamble}%  This line and the next line force the
+         \let\preamble=\next%    expansion of all \ARGS tokens into the
+%                                appropriate number of #'s.
+         \makeTABLE{\preamble}{\tabletokens}%  Go do the \halign here.
+      }%  End of \vbox.
+      \ifcentertables \hss}\else }\fi%  Finish the centering effect.
+%                                       It is important that no spaces
+%                                       follow the two `}' here.
+%  }%  End of \line.
+   \endgroup%  Return all local macros and parameters to their outside
+%              values.
+   \tablewidth=-\maxdimen%  Reset \tablewidth to normal.
+   \spreadwidth=-\maxdimen% Same for \spreadwidth.
+}%  End of macro \ruledtable.
+%
+\def\makeTABLE#1#2{%  Does an \halign for the \ruledtable macro.
+   {%  Start of local parameter values.
+%
+   \let\ifmath0%     These macros would cause trouble if they were to be
+   \let\header0%     expanded in the following \xdef; we \let them be
+   \let\multispan0%  equal to a digit, because digits can't be expanded.
+%
+%  Set up the width specification here.
+%
+   \ncase=0%
+   \ifdim\tablewidth>-\maxdimen \ncase=1\fi%
+   \ifdim\spreadwidth>-\maxdimen \ncase=2\fi%
+   \relax%  This \relax is absolutely necessary, without it the following
+%           \ifcase will always take \ncase=0.
+%
+   \ifcase\ncase %
+      \widthspec={}%
+   \or %
+      \widthspec=\expandafter{\expandafter t\expandafter o%
+                 \the\tablewidth}%
+   \else %
+      \widthspec=\expandafter{\expandafter s\expandafter p\expandafter r%
+                 \expandafter e\expandafter a\expandafter d%
+                 \the\spreadwidth}%
+   \fi %
+%\out{Widthspec=[\the\widthspec]}%
+%\out{Preamble=[\preamble]}%
+   \xdef\next{%  We must force the preamble to be expanded BEFORE the
+      \halign\the\widthspec{%
+%        \halign is done;  this \edef\next{...}\next construction
+%                does the trick.
+      #1%  This is the preamble text.
+%
+      \noalign{\hrule height\thicksize depth0pt}%  Makes the top \hrule.
+%
+      \the#2\endtable%  This is the main body.
+%
+%     \noalign{\hrule height0.7pt depth0pt}%  Makes the last \hrule.
+      }%  End of \halign.
+   }%  End of \next.
+   }%  End of local values.
+   \next%  This \next must be outside of the local values, because now
+%          we want those troublesome macros in the \let's above to have
+%          their normal actions.
+}%  End of macro \makeTABLE.
+%
+\def\makePREAMBLE#1{%  This macro generates the necessary preamble for a
+%                      ruled table with #1 primary columns.
+%                      (Primary columns means the number of columns NOT
+%                       counting those used for vertical rules.)
+   \ncols=#1%  Get the number of columns desired.
+   \begingroup%  Start local parameter definitions.
+   \let\ARGS=0%  This is the key to the whole thing; it prevents \ARGS
+%                from being expanded in the following \edef's.
+   \edef\xtp{\widevline\ARGS\tabskip\tabskipglue%
+   &\ctr{\ARGS}\tstrut}%  A 1-column preamble.  Gets the sizing right.
+   \advance\ncols by -1%  One column has been generated; decrement the
+%                         counter.
+   \loop%  Append as many further columns as needed to the preamble.
+      \ifnum\ncols>0 %
+      \advance\ncols by -1%
+      \edef\xtp{\xtp&\vrule width\thinsize\ARGS&\ctr{\ARGS}}%
+   \repeat
+   \xdef\preamble{\xtp&\widevline\ARGS\tabskip0pt%
+   \crnorm}%  Adds the last \vrule.
+   \endgroup%  End of local parameters.
+}%  End of macro \makePREAMBLE.
+%
+\def\countROWS#1\into#2{%  This counts the number of rows in #1 by
+%                          looking for control sequences that end a row,
+%                          e.g., \cr, \crthick, etc., and puts the result
+%                          into count register #2.
+   \let\countREGISTER=#2%
+   \countREGISTER=0%
+%  \out{In countROWS:  tokens are [\the#1]}%
+   \expandafter\ROWcount\the#1\endcount%
+}%
+%
+\def\ROWcount{%
+   \afterassignment\subROWcount\let\next= %
+}%
+\def\subROWcount{%
+%  \out{In subROWcount:  next is [\meaning\next]}%  Debugging aid.
+   \ifx\next\endcount %
+      \let\next=\relax%
+   \else%
+      \ncase=0%
+      \ifx\next\cr %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\endrow %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\crthick %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\crnorule %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\crthickneg %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\crnoruleneg %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\crneg %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\header %
+%     \out{In subROWcount:  next=header, ncase set=1}%
+         \ncase=1%
+      \fi%
+%     \out{In subROWcount:  ncase is [\the\ncase]}%
+      \relax%
+      \ifcase\ncase %
+         \let\next\ROWcount%
+%        \out{subROWcount---> ncase=\the\ncase}%
+      \or %
+         \let\next\argROWskip%
+%        \out{subROWcount---> ncase=\the\ncase}%
+      \else %
+      \fi%
+   \fi%
+%  \out{subROWcount---> NEXT=\meaning\next}%
+   \next%
+}%  End of macro \subROWcount.
+%
+\def\counthdROWS#1\into#2{%
+\dvr{10}%
+   \let\countREGISTER=#2%
+   \countREGISTER=0%
+\dvr{11}%
+%  \out{In counthdROWS:  tokens are [\the#1]}%
+\dvr{13}%
+   \expandafter\hdROWcount\the#1\endcount%
+\dvr{12}%
+}%
+%
+\def\hdROWcount{%
+   \afterassignment\subhdROWcount\let\next= %
+}%
+\def\subhdROWcount{%
+%\out{In subhdROWcount:  next is [\meaning\next]}%
+   \ifx\next\endcount %
+      \let\next=\relax%
+   \else%
+      \ncase=0%
+      \ifx\next\cr %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\endrow %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\crthick %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\crnorule %
+         \global\advance\countREGISTER by 1%
+         \ncase=0%
+      \fi%
+      \ifx\next\header %
+%\out{In subhdROWcount:  next=header, ncase set=1}%
+         \ncase=1%
+      \fi%
+%\out{In subhdROWcount:  ncase is [\the\ncase]}%
+\relax%
+      \ifcase\ncase %
+         \let\next\hdROWcount%
+%\out{subhdROWcount---> ncase=\the\ncase}%
+      \or%
+         \let\next\arghdROWskip%
+%\out{subhdROWcount---> ncase=\the\ncase}%
+      \else %
+      \fi%
+   \fi%
+%\out{subhdROWcount---> NEXT=\meaning\next}%
+   \next%
+}%
+%
+{\catcode`\|=13\letbartab
+\gdef\countCOLS#1\into#2{%
+%  \out{In countCOLS:  tokens are [\the#1]}
+   \let\countREGISTER=#2%
+   \global\countREGISTER=0%
+   \global\multispancount=0%
+   \global\firstrowtrue
+   \expandafter\COLcount\the#1\endcount%
+   \global\advance\countREGISTER by 3%
+   \global\advance\countREGISTER by -\multispancount
+%  \out{countCOLS-->[\the\countREGISTER]}
+}%
+%
+\gdef\COLcount{%
+   \afterassignment\subCOLcount\let\next= %
+}%
+{\catcode`\&=13%
+\gdef\subCOLcount{%
+%\out{In subCOLcount: next is [\meaning\next]}
+   \ifx\next\endcount %
+      \let\next=\relax%
+   \else%
+      \ncase=0%
+      \iffirstrow
+         \ifx\next& %
+            \global\advance\countREGISTER by 2%
+            \ncase=0%
+         \fi%
+         \ifx\next\span %
+            \global\advance\countREGISTER by 1%
+            \ncase=0%
+         \fi%
+         \ifx\next| %
+            \global\advance\countREGISTER by 2%
+            \ncase=0%
+         \fi
+         \ifx\next\|
+            \global\advance\countREGISTER by 2%
+            \ncase=0%
+         \fi
+         \ifx\next\multispan
+            \ncase=1%
+            \global\advance\multispancount by 1%
+         \fi
+         \ifx\next\header
+            \ncase=2%
+         \fi
+         \ifx\next\cr       \global\firstrowfalse \fi
+         \ifx\next\endrow   \global\firstrowfalse \fi
+         \ifx\next\crthick  \global\firstrowfalse \fi
+         \ifx\next\crnorule \global\firstrowfalse \fi
+         \ifx\next\crnoruleneg \global\firstrowfalse \fi
+         \ifx\next\crthickneg  \global\firstrowfalse \fi
+         \ifx\next\crneg       \global\firstrowfalse \fi
+      \fi%  End of \iffirstrow.
+\relax%\out{subCOL-->  ncase=[\the\ncase]}
+% \out{subCOL-->  next=\meaning\next}
+      \ifcase\ncase %
+         \let\next\COLcount%
+      \or %
+         \let\next\spancount%
+      \or %
+         \let\next\argCOLskip%
+      \else %
+      \fi %
+   \fi%
+%  \out{subCOL-->  countREGISTER=[\the\countREGISTER]}
+   \next%
+}%
+\gdef\argROWskip#1{%
+%  Deletes the next balanced, undelimited argument from a
+%                 token list.
+% \out{---> Entering argROWskip <---}
+% \out{In argROWskip:  deleted arg is [#1]}%
+   \let\next\ROWcount \next%
+}%  End of macro \argskip.
+\gdef\arghdROWskip#1{%
+%  Deletes the next balanced, undelimited argument from a
+%                 token list.
+% \out{---> Entering arghdROWskip <---}
+% \out{In arghdROWskip:  deleted arg is [#1]}%
+   \let\next\ROWcount \next%
+}%  End of macro \arghdROWskip.
+\gdef\argCOLskip#1{%
+%  Deletes the next balanced, undelimited argument from a
+%                 token list.
+% \out{---> Entering argCOLskip <---}
+% \out{In argCOLskip:  deleted arg is [#1]}%
+   \let\next\COLcount \next%
+}%  End of macro \argskip.
+}%  End of active &'s.
+}%  End of active |'s.
+\def\spancount#1{%\out{spancount--->\meaning#1}
+   \nspan=#1\multiply\nspan by 2\advance\nspan by -1%
+   \global\advance \countREGISTER by \nspan
+%  \out{number spancount--->\the\nspan; \the\countREGISTER}
+   \let\next\COLcount \next}%
+%
+%\def\dvr#1{\vrule width 1.0pt depth 0pt height 12pt$_{#1}$}
+\def\dvr#1{\relax}%
+% \omit\hfil%
+% \parindent=0pt\hsize=1.1in\valign{%
+% \vfil#\vfil&\vfil#\vfil\cr\hfil\hbox{\ Added to\ }\hfil&%
+% \hfil\hbox{\ empty events\ }\hfil\cr}\hfil%
+\def\header#1{%
+\dvr{1}{\let\cr=\@mpersand%
+\hdtks={#1}%
+%\out{In header:  hdtks=[\the\hdtks]}%
+\counthdROWS\hdtks\into\hdrows%
+\advance\hdrows by 1%
+\ifnum\hdrows=0 \hdrows=1 \fi%
+%\out{In header:  Nhdrows=[\the\hdrows]}%
+\dvr{5}\makehdPREAMBLE{\the\hdrows}%
+%\out{In header:  headerpreamble=[\headerpreamble]}%
+\dvr{6}\getHDdimen{#1}%
+%\out{In header:  hdsize=[\the\hdsize]}%
+%\striplastCR{#1}%
+{\parindent=0pt\hsize=\hdsize{\let\ifmath0%
+\xdef\next{\valign{\headerpreamble #1\crnorm}}}\dvr{7}\next\dvr{8}%
+}%
+}\dvr{2}}%  End of macro \header.
+%\def\striplastCR#1\cr{\xdef\headerbody{#1}}%
+\def\makehdPREAMBLE#1{%This macro generates the necessary preamble for a
+\dvr{3}%
+%                      ruled table with \ncols primary columns.
+%                      (Primary columns means the number of columns NOT
+%                       counting those used for vertical rules.
+\hdrows=#1%  Get the number of columns desired.
+{%  Start local parameter definitions.
+\let\headerARGS=0%
+%  This is the key to the whole thing; it prevents \ARGS
+\let\cr=\crnorm%
+%                from being expanded in the followin \edef's.
+\edef\xtp{\vfil\hfil\hbox{\headerARGS}\hfil\vfil}%
+\advance\hdrows by -1%  One row has been generated; decrement the
+%                         counter.
+\loop%  Append as many further rows as needed to the preamble.
+\ifnum\hdrows>0%
+\advance\hdrows by -1%
+\edef\xtp{\xtp&\vfil\hfil\hbox{\headerARGS}\hfil\vfil}%
+\repeat%
+\xdef\headerpreamble{\xtp\crcr}%
+}%  End of local parameters.
+\dvr{4}}%  End of \makehdPREAMBLE.
+%
+\def\getHDdimen#1{%
+%\out{In getHDdimen:  Arg 1=[#1]}%
+\hdsize=0pt%
+\getsize#1\cr\end\cr%
+}%  End of macro getHDdimen.
+\def\getsize#1\cr{%
+%\out{In getsize:  Arg 1=[#1]}%
+%  Here we have to check arg#1 and see if the first token in #1 is an
+%    \end; if so, we stop, else we check the width of arg#1.
+%  We recall that each arg#1 will be terminated with a \cr token.
+\endsizefalse\savetks={#1}%
+%\out{In getsize:  the savetks = [\the\savetks]}%
+\expandafter\lookend\the\savetks\cr%
+%\out{In getsize:  ifendsize = [\meaning\ifendsize]}%
+\relax \ifendsize \let\next\relax \else%
+\setbox\hdbox=\hbox{#1}\newhdsize=1.0\wd\hdbox%
+\ifdim\newhdsize>\hdsize \hdsize=\newhdsize \fi%
+%\out{In getsize:  hdsize=[\the\hdsize]}%
+%\out{In getsize:  newhdsize=[\the\newhdsize]}%
+\let\next\getsize \fi%
+\next%
+}%
+\def\lookend{\afterassignment\sublookend\let\looknext= }%
+\def\sublookend{\relax%
+%\out{In sublookend:  looknext = [\looknext]}%
+\ifx\looknext\cr %
+%\out{In sublooknext:  looknext=cr}%
+\let\looknext\relax \else %
+%\out{In sublooknext:  looknext/=cr}%
+   \relax
+   \ifx\looknext\end \global\endsizetrue \fi%
+   \let\looknext=\lookend%
+    \fi \looknext%
+}%
+%
+%  Allow the user to make his own names for crthick, etc.
+%
+\def\tablelet#1{%
+   \tableLETtokens=\expandafter{\the\tableLETtokens #1}%
+}%
+\catcode`\@=12%  Change @'s back to their normal category code.
+%

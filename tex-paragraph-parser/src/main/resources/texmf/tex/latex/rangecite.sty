@@ -1,0 +1,76 @@
+% RANGECITE DOCUMENT-STYLE OPTION FOR ANY STYLE WITH NUMERIC CITATIONS
+%
+% This redefines the LaTex \@cite macro to gather consecutive citation numbers
+% i,i+1,...,j into a range i-j
+% 
+% Nachum Dershowitz (nachum@cs.uiuc.edu)
+% Edward M. Reingold (reingold@cs.uiuc.edu)
+%
+% These macros are in the public domain.  You may use them and copy them at
+% will, provided you retain the authorship information.  We wrote these for
+% temporary use in a single paper, so use them at your own risk!
+%
+% Written 12 Apr 1990
+%
+%
+\newif\if@first%
+\newcounter{@@@first}%
+\newcounter{@@@state}%
+%
+%  A simple four-state finite automaton:
+%        State 0:  No references in current range
+%        State 1:  One reference in current range
+%        State 2:  Two references in current range
+%        State 3:  More than two references in current range
+%
+\newcounter{@@@next}%
+\newcounter{@@@cur}%
+\newcounter{@@@curt}%
+\newcommand{\b@@@ENDLIST}{9999}%
+\def\@citex[#1]#2{%
+  \if@filesw\immediate\write\@auxout{\string\citation{#2}}\fi%
+  \def\@citea{}%
+  \@cite{%
+     \@firsttrue%
+     \setcounter{@@@state}{0}%
+     \@for\@citeb:=#2,@@ENDLIST\do{%
+         \@ifundefined{b@\@citeb}%
+            {{\bf ?}%
+             \@warning{Citation `\@citeb' on page \thepage \space undefined}}%
+%        else%
+            {\setcounter{@@@next}{\csname b@\@citeb\endcsname}%
+             \ifcase\the@@@state%
+%                  state 0:
+               \setcounter{@@@state}{1}%
+             \or%  state 1:
+               \ifnum\value{@@@next}=\value{@@@curt}%
+                  \setcounter{@@@state}{2}%
+                  \setcounter{@@@first}{\value{@@@cur}}%
+               \else%
+                  \if@first{}\else{,\ }\fi%
+                  \the@@@cur%
+                  \@firstfalse%
+               \fi%
+             \or%  state 2:
+               \ifnum\value{@@@next}=\value{@@@curt}%
+                  \setcounter{@@@state}{3}%
+               \else%
+                  \setcounter{@@@state}{1}%
+                  \if@first{}\else{,\ }\fi%
+                  \the@@@first,\ \the@@@cur%
+                  \@firstfalse%
+               \fi%
+             \or%  state 3:
+               \ifnum\value{@@@next}=\value{@@@curt}%
+               \else%
+                  \setcounter{@@@state}{1}%
+                  \if@first{}\else{,\ }\fi%
+                  \the@@@first-\the@@@cur%
+                  \@firstfalse%
+               \fi%
+            \fi%
+         \setcounter{@@@cur}{\value{@@@next}}%
+         \setcounter{@@@curt}{\value{@@@cur}}%
+         \addtocounter{@@@curt}{1}}}}%
+  {#1}}%
+                      

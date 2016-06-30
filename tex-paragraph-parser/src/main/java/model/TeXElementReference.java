@@ -182,10 +182,13 @@ public class TeXElementReference {
   // ___________________________________________________________________________
 
   /**
-   * Returns true, if this reference defines the number of groups.
+   * Returns true, if this reference defines the number of groups. Returns 
+   * -1 when an element may or may not contain a group (its not clear if the
+   * element has a group). For example, "\item" may occur with or without a 
+   * group.
    */
   public boolean definesNumberOfGroups() {
-    return getNumberOfGroups() > -1;
+    return getNumberOfGroups() > -2;
   }
 
   /**
