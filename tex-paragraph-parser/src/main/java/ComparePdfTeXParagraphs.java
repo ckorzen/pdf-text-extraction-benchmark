@@ -16,12 +16,10 @@ import drawer.PdfDrawer;
 import drawer.pdfbox.PdfBoxDrawer;
 import identifier.PdfParagraphsIdentifier;
 import identifier.TeXParagraphsIdentifier;
-import model.PdfCharacter;
 import model.PdfDocument;
 import model.PdfPage;
 import model.PdfParagraph;
 import model.PdfTextParagraph;
-import model.SyncTeXBoundingBox;
 import model.TeXFile;
 import model.TeXParagraph;
 import parser.PdfExtendedParser;
@@ -30,7 +28,6 @@ import parser.PdfXYCutParser;
 import parser.pdfbox.PdfBoxParser;
 import revise.PdfRevisor;
 import visualizer.PdfVisualizer;
-import visualizer.PlainPdfVisualizer;
 
 /**
  * Class to compare the paragraphs output from PdfParser with the paragraphs
@@ -94,13 +91,24 @@ public class ComparePdfTeXParagraphs {
       System.err.println("Usage: java ... <TEX-FILE> <PDF-FILE>");
       System.exit(1);
     }
-    int i = 7;
-    String texInputPath = "/home/korzen/Downloads/Trainings_Pdfs_David/" + i + "/" + i + ".tex";
-    String pdfOutputPath = "/home/korzen/Downloads/Trainings_Pdfs_David/" + i + "/" + i + "_comparison.pdf";
-            
-    ComparePdfTeXParagraphs comparator = new ComparePdfTeXParagraphs();
-      
-    comparator.compare(texInputPath, pdfOutputPath);
+    
+    for (int i = 84; i < 85; i++) {
+      System.out.println(i);
+      try {
+        String texInputPath = "/home/korzen/Downloads/Trainings_Pdfs_David/" 
+            + i + "/" + i + ".tex";
+        String pdfOutputPath = "/home/korzen/Downloads/Trainings_Pdfs_David/" 
+            + i + "/" + i + "_comparison.pdf";
+              
+        ComparePdfTeXParagraphs comparator = new ComparePdfTeXParagraphs();
+        
+        comparator.compare(texInputPath, pdfOutputPath);
+      } catch (Exception e) {
+        e.printStackTrace();
+      } catch (Error e) {
+        e.printStackTrace();
+      }
+    }
   }
   
   /**
@@ -145,14 +153,24 @@ public class ComparePdfTeXParagraphs {
     
     for (TeXParagraph texPara : texFile.getTeXParagraphs()) {
       for (PdfParagraph pdfPara : texPara.getPdfParagraphs()) {
-        drawer.drawRectangle(pdfPara.getPdfBoundingBox(), pdfPara.getPdfPageNumber(), Color.RED);
+        drawer.drawRectangle(pdfPara.getPdfBoundingBox(), 
+            pdfPara.getPdfPageNumber(), Color.RED);
       }
     }
     
     for (PdfPage page : document.getPages()) {
       for (PdfTextParagraph pdfPara : page.getParagraphs()) {
-        drawer.drawRectangle(pdfPara.getRectangle(), page.getPageNumber(), Color.BLUE);
+        drawer.drawRectangle(pdfPara.getRectangle(), page.getPageNumber(), 
+            Color.BLUE);
       }
+      
+//      for (PdfElement element : page.getTextCharacters()) {        
+//        drawer.drawRectangle(element.getRectangle(), page.getPageNumber());
+//      }
+      
+//      for (PdfCharacter character : page.getTextCharacters()) {
+//        drawer.drawText("" + (character.getExtractionOrderNumber() % 10), page.getPageNumber(), character.getRectangle().getUpperLeft(), Color.BLACK, 5);
+//      }
     }
     
     OutputStream os = Files.newOutputStream(Paths.get(pdfOutputPath));

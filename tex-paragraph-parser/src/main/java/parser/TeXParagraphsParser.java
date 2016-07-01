@@ -149,9 +149,9 @@ public class TeXParagraphsParser {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
-
+    
     TeXElementReference ref = getTeXElementReference(cmd, role);
-
+    
     if (ref == null) {
       itr.skipTo(guessEndCommand(cmd, role));
       // Do nothing if there is no element reference for the command.
@@ -216,7 +216,7 @@ public class TeXParagraphsParser {
         para = processGroup(option, role, para, paras);
       }
     }
-
+    
     // Check which groups of the command we have to parse.
     if (ref.definesGroupsToParse()) {
       List<Integer> groupsToParse = ref.getGroupsToParse();
