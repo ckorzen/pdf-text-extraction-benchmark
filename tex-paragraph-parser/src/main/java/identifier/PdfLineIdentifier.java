@@ -128,12 +128,25 @@ public class PdfLineIdentifier {
   
   /**
    * Synctex has issues to identify the coordinates of a line on so called
-   * "widows". So we add some (slim) text to end of paragraphs to avoid sucha
+   * "widows". So we add some (slim) text to end of paragraphs to avoid such
    * widows (paragraph bounding boxes aren't affected).
    */
   protected Path prepareTeXFile(TeXFile texFile) {
     affirm(texFile != null, "No tex file given");
 
+    // TODO: Ignore "\epsfig" commands because they can't be processed by 
+    // pdflatex.
+    ListIterator<Element> itr2 = texFile.getTeXElements().listIterator();
+    while (itr2.hasNext()) {
+      Element next = (Element) itr2.next();
+      if (next instanceof Command) {
+        Command cmd = (Command) next;
+        if ("\\epsfig".equals(cmd.getName())) {
+          cmd.setName("%\\epsfig");
+        }
+      }
+    }
+    
     List<TeXParagraph> paragraphs = texFile.getTeXParagraphs();
     
     // Iterate through the paragraphs and identify the end line of each para.
@@ -141,6 +154,7 @@ public class PdfLineIdentifier {
       if (paragraph != null) {
         List<Element> elements = paragraph.getTexElements();                
         int numElements = elements.size();
+                
         ListIterator<Element> itr = elements.listIterator(numElements);
         
         // Iterate through the elements of paragraph until a non-whitespace
