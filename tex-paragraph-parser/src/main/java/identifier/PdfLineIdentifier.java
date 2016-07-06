@@ -52,7 +52,8 @@ public class PdfLineIdentifier {
    * (slim) text to end of paragraphs to avoid such widows and to get reliable
    * positions.
    */
-  protected static final String PARA_ADDENDUM = "~\\hspace{0pt}i";
+  protected static final String PARA_ADDENDUM = 
+      "\\nobreak\\hspace{0pt}{\\tiny \\textbar}";
 //  protected static final String PARA_ADDENDUM = "";
 
   /**
@@ -126,6 +127,20 @@ public class PdfLineIdentifier {
     return pdfFile;
   }
   
+  protected void disableFigureDefinition(Element element) {
+    if (element instanceof Command) {
+      Command cmd = (Command) element;
+      if ("\\epsfig".equals(cmd.getName())) {
+        cmd.setName("%\\epsfig");
+      }
+      for (Group group : cmd.getGroups()) {
+        for (Element el : group.getElements()) {
+          disableFigureDefinition(el);
+        }
+      }
+    }
+  }
+  
   /**
    * Synctex has issues to identify the coordinates of a line on so called
    * "widows". So we add some (slim) text to end of paragraphs to avoid such
@@ -134,18 +149,12 @@ public class PdfLineIdentifier {
   protected Path prepareTeXFile(TeXFile texFile) {
     affirm(texFile != null, "No tex file given");
 
-    // TODO: Ignore "\epsfig" commands because they can't be processed by 
-    // pdflatex.
-    ListIterator<Element> itr2 = texFile.getTeXElements().listIterator();
-    while (itr2.hasNext()) {
-      Element next = (Element) itr2.next();
-      if (next instanceof Command) {
-        Command cmd = (Command) next;
-        if ("\\epsfig".equals(cmd.getName())) {
-          cmd.setName("%\\epsfig");
-        }
-      }
-    }
+//    // TODO: Ignore "\epsfig" commands because they can't be processed by 
+//    // pdflatex.
+//    ListIterator<Element> itr2 = texFile.getTeXElements().listIterator();
+//    while (itr2.hasNext()) {
+//      disableFigureDefinition(itr2.next());
+//    }
     
     List<TeXParagraph> paragraphs = texFile.getTeXParagraphs();
     
@@ -241,7 +250,7 @@ public class PdfLineIdentifier {
       Path outputDir = defineOutputDirectory(texFile);
       Path enrichedFile = Paths.get(outputDir.toString(), filename);
 
-      return enrichedFile;
+      return enrichedFile.toAbsolutePath();
     }
     return null;
   }
@@ -257,7 +266,7 @@ public class PdfLineIdentifier {
       Path outputDir = defineOutputDirectory(texFile);
       Path pdfFile = Paths.get(outputDir.toString(), filename);
 
-      return pdfFile;
+      return pdfFile.toAbsolutePath();
     }
     return null;
   }
@@ -273,7 +282,7 @@ public class PdfLineIdentifier {
       Path outputDir = defineOutputDirectory(texFile);
       Path syncTexFile = Paths.get(outputDir.toString(), filename);
 
-      return syncTexFile;
+      return syncTexFile.toAbsolutePath();
     }
     return null;
   }
