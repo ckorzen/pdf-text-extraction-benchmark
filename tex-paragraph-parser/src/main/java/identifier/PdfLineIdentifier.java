@@ -53,7 +53,7 @@ public class PdfLineIdentifier {
    * positions.
    */
   protected static final String PARA_ADDENDUM = 
-      "\\nobreak\\hspace{0pt}{\\tiny \\textbar}";
+      "\\nobreak\\hspace{0pt}{\\tiny \\textbar}\\hspace{-5pt}";
 //  protected static final String PARA_ADDENDUM = "";
 
   /**
