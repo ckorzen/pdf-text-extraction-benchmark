@@ -19,6 +19,7 @@ import identifier.TeXParagraphsIdentifier;
 import model.PdfDocument;
 import model.PdfPage;
 import model.PdfParagraph;
+import model.PdfTextLine;
 import model.PdfTextParagraph;
 import model.TeXFile;
 import model.TeXParagraph;
@@ -92,7 +93,7 @@ public class ComparePdfTeXParagraphs {
       System.exit(1);
     }
     
-    for (int i = 7; i < 8; i++) {
+    for (int i = 26; i < 27; i++) {
       System.out.println(i);
       try {
         String texInputPath = "/home/korzen/Downloads/Trainings_Pdfs_David/" 
@@ -169,7 +170,7 @@ public class ComparePdfTeXParagraphs {
 //    drawer.drawRectangle(element.getRectangle(), page.getPageNumber());
 //    drawer.drawText("" + line.getAlignment(), page.getPageNumber(), line.getRectangle().getLowerRight(), Color.BLACK, 5);
 //    }
- 
+// 
 //      for (PdfTextLine line : page.getTextLines()) {
 //        drawer.drawLine(line.getColumnXRange(), page.getPageNumber());
 //        drawer.drawRectangle(line.getRectangle(), page.getPageNumber());
