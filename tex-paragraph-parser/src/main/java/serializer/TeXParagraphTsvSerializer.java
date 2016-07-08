@@ -64,7 +64,6 @@ public class TeXParagraphTsvSerializer {
   public void serializeTeXParagraphs(OutputStream stream, List<String> roles) 
       throws IOException {
     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stream));
-    
     serializeTeXParagraphs(writer, roles);
     
     writer.close();
@@ -86,7 +85,7 @@ public class TeXParagraphTsvSerializer {
       if (roles != null && !roles.contains(para.getRole())) {
         continue;
       }
-      
+            
       String feature = para.getRole() != null ? para.getRole() : "text";
       int startLine = para.getTexStartLine();
       int endLine = para.getTexEndLine();

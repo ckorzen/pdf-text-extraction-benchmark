@@ -76,6 +76,8 @@ public class PdfParagraphsIdentifier {
     throws IOException {
     LinkedList<SyncTeXBoundingBox> paraLines = new LinkedList<>();
                       
+//    System.out.println(paragraph.getTexLineNumbers());
+    
     // Obtain the bounding boxes of each line in the given paragraph.
     for (int i : paragraph.getTexLineNumbers()) {
       List<SyncTeXBoundingBox> pdfLines = lineIdentifier.getBoundingBoxes(i);
@@ -168,23 +170,7 @@ public class PdfParagraphsIdentifier {
     if (prevLine.getPageNumber() != line.getPageNumber()) {
       return true;
     }
-    
-    // TODO: Theoretically, formulas, tables and figures could be splitted by
-    // columns, too. But for now, don't allow column splits within formulas.
-    if (para != null) {
-      if ("formula".equals(para.getRole())) {
-        return false;
-      }
-
-      if ("table".equals(para.getRole())) {
-        return false;
-      }
-
-      if ("figure".equals(para.getRole())) {
-        return false;
-      }
-    }
-
+   
     // EXPERIMENTAL: Analyze the vertical distance between the lines.
     Rectangle prevRect = prevLine.getRectangle();
     Rectangle rect = line.getRectangle();
@@ -204,6 +190,27 @@ public class PdfParagraphsIdentifier {
     // Compute the distance between the lines.
     float verticalDistance = Math.abs(prevMinY - maxY);
   
+    // The lines introduce a new paragraph if verticalDistance is "too large".
+    if (verticalDistance > 10 * mostCommonLineHeight) {
+      return true;
+    }
+    
+    // TODO: Theoretically, formulas, tables and figures could be splitted by
+    // columns, too. But for now, don't allow column splits within formulas.
+    if (para != null) {
+      if ("formula".equals(para.getRole())) {
+        return false;
+      }
+
+      if ("table".equals(para.getRole())) {
+        return false;
+      }
+
+      if ("figure".equals(para.getRole())) {
+        return false;
+      }
+    }
+    
     // The lines introduce a new paragraph if verticalDistance is "too large".
     if (verticalDistance > 4 * mostCommonLineHeight) {
       return true;

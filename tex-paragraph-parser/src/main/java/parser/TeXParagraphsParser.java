@@ -149,7 +149,7 @@ public class TeXParagraphsParser {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
-    
+        
     TeXElementReference ref = getTeXElementReference(cmd, role);
     
     if (ref == null) {
@@ -157,7 +157,7 @@ public class TeXParagraphsParser {
       // Do nothing if there is no element reference for the command.
       return para;
     }
-
+    
     // Check if the element introduces a new paragraph.
     para = checkForParagraphStart(cmd, role, para, paras);
 

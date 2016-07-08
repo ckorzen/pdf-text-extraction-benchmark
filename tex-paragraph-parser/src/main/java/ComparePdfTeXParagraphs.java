@@ -19,7 +19,6 @@ import identifier.TeXParagraphsIdentifier;
 import model.PdfDocument;
 import model.PdfPage;
 import model.PdfParagraph;
-import model.PdfTextLine;
 import model.PdfTextParagraph;
 import model.TeXFile;
 import model.TeXParagraph;
