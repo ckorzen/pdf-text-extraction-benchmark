@@ -11,12 +11,15 @@ import java.util.List;
 
 import analyzer.PdfAnalyzer;
 import analyzer.PlainPdfAnalyzer;
+import de.freiburg.iif.model.simple.SimpleRectangle;
 import de.freiburg.iif.path.PathUtils;
 import drawer.PdfDrawer;
 import drawer.pdfbox.PdfBoxDrawer;
 import identifier.PdfParagraphsIdentifier;
 import identifier.TeXParagraphsIdentifier;
+import model.PdfCharacter;
 import model.PdfDocument;
+import model.PdfElement;
 import model.PdfPage;
 import model.PdfParagraph;
 import model.PdfTextLine;
@@ -93,7 +96,7 @@ public class ComparePdfTeXParagraphs {
       System.exit(1);
     }
     
-    for (int i = 26; i < 27; i++) {
+    for (int i = 4; i < 5; i++) {
       System.out.println(i);
       try {
         String texInputPath = "/home/korzen/Downloads/Trainings_Pdfs_David/" 
@@ -152,37 +155,33 @@ public class ComparePdfTeXParagraphs {
       String pdfOutputPath) throws IOException {
     PdfDrawer drawer = new PdfBoxDrawer(texFile.getPdfPath());
     
-    for (TeXParagraph texPara : texFile.getTeXParagraphs()) {
-      for (PdfParagraph pdfPara : texPara.getPdfParagraphs()) {
-        drawer.drawRectangle(pdfPara.getPdfBoundingBox(), 
-            pdfPara.getPdfPageNumber(), Color.RED);
-      }
-    }
-    
-    for (PdfPage page : document.getPages()) {
-      for (PdfTextParagraph pdfPara : page.getParagraphs()) {
-        drawer.drawRectangle(pdfPara.getRectangle(), page.getPageNumber(), 
-            Color.BLUE);
-      }
-      
-//    for (PdfArea element : page.getBlocks()) {
-//    drawer.drawLine(line.getColumnXRange(), page.getPageNumber());
-//    drawer.drawRectangle(element.getRectangle(), page.getPageNumber());
-//    drawer.drawText("" + line.getAlignment(), page.getPageNumber(), line.getRectangle().getLowerRight(), Color.BLACK, 5);
+//    for (TeXParagraph texPara : texFile.getTeXParagraphs()) {
+//      for (PdfParagraph pdfPara : texPara.getPdfParagraphs()) {
+//        drawer.drawRectangle(pdfPara.getPdfBoundingBox(), 
+//            pdfPara.getPdfPageNumber(), Color.RED);
+//      }
 //    }
-// 
-//      for (PdfTextLine line : page.getTextLines()) {
-//        drawer.drawLine(line.getColumnXRange(), page.getPageNumber());
-//        drawer.drawRectangle(line.getRectangle(), page.getPageNumber());
-//        drawer.drawText("" + line.getAlignment(), page.getPageNumber(), line.getRectangle().getLowerRight(), Color.BLACK, 5);
+       
+    for (PdfPage page : document.getPages()) {
+//      for (PdfTextParagraph pdfPara : page.getParagraphs()) {
+//        drawer.drawRectangle(pdfPara.getRectangle(), page.getPageNumber(), 
+//            Color.BLUE);
 //      }
       
-//      for (PdfCharacter character : page.getTextCharacters()) {
-//        drawer.drawRectangle(character.getRectangle(), page.getPageNumber());
-//        drawer.drawText("" + (character.getExtractionOrderNumber() % 10), page.getPageNumber(), character.getRectangle().getUpperLeft(), Color.BLACK, 5);
-//      }
+//    for (PdfCharacter element : page.getTextCharacters()) {
+////    drawer.drawLine(line.getColumnXRange(), page.getPageNumber());
+////      drawer.drawRectangle(element.getRectangle(), page.getPageNumber());
+//      drawer.drawText("" + (element.getRectangle().getMinY()), page.getPageNumber(), element.getRectangle().getLowerRight(), Color.BLACK, 2);
+//    }
+ 
+      for (PdfTextLine line : page.getTextLines()) {
+        System.out.println(line.getPage().getPageNumber() + " " + line.getUnicode());
+//        drawer.drawLine(line.getColumnXRange(), page.getPageNumber());
+        drawer.drawRectangle(line.getRectangle(), page.getPageNumber());
+//        drawer.drawText("" + line.getTextStatistics().getMostCommonFontsize(), page.getPageNumber(), line.getRectangle().getLowerRight(), Color.BLACK, 5);
+      }
     }
-    
+             
     OutputStream os = Files.newOutputStream(Paths.get(pdfOutputPath));
     drawer.writeTo(os);
     os.close();
