@@ -175,7 +175,6 @@ public class ComparePdfTeXParagraphs {
 //    }
  
       for (PdfTextLine line : page.getTextLines()) {
-        System.out.println(line.getPage().getPageNumber() + " " + line.getUnicode());
 //        drawer.drawLine(line.getColumnXRange(), page.getPageNumber());
         drawer.drawRectangle(line.getRectangle(), page.getPageNumber());
 //        drawer.drawText("" + line.getTextStatistics().getMostCommonFontsize(), page.getPageNumber(), line.getRectangle().getLowerRight(), Color.BLACK, 5);
