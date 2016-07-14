@@ -87,7 +87,6 @@ public class TeXParagraphTxtSerializer {
       if (para != null && pdfParas != null && !pdfParas.isEmpty()) {
         // Don't consider the paragraph if there is a list of roles given and
         // it doesn't contain the role of the paragraph.
-        System.out.println(roles);
         
         if (roles != null && !roles.contains(para.getRole())) {
           continue;
