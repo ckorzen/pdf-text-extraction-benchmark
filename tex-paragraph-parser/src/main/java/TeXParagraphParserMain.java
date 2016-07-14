@@ -185,8 +185,6 @@ public class TeXParagraphParserMain {
     isPlainSerialization = hasOption(cmd, TeXParserOptions.PLAIN_SERIALIZATION);
     roles = resolveRoles(getOptionValues(cmd, TeXParserOptions.ROLE, null));
     serialFileSuffix = getOptionValue(cmd, TeXParserOptions.SUFFIX, ".txt");
-    
-    System.out.println(texmfPaths);
   }
 
   /**
