@@ -43,8 +43,8 @@ public class TeXParagraphParserSettings {
     // Also add "formula", "figure" because they can build an own
     // paragraph. Furthermore, a placeholder is added for these roles such that
     // we are able to ignore them on evaluation.
-    profiles.put("body", Arrays.asList("text", "heading", "listing-item", 
-        "formula", "figure"));
+    profiles.put("body", Arrays.asList("title", "heading", "text", 
+        "listing-item", "formula"));
     
     return profiles;
   }
