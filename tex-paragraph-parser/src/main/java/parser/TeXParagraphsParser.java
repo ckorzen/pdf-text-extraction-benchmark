@@ -13,6 +13,8 @@ import model.Document;
 import model.Element;
 import model.Group;
 import model.Iterator;
+import model.NewLine;
+import model.NewParagraph;
 import model.Option;
 import model.TeXElementReference;
 import model.TeXElementReferences;
@@ -247,7 +249,16 @@ public class TeXParagraphsParser {
 
     // Write placeholder, if the command introduces a placeholder.
     if (ref.introducesPlaceholder()) {
-      para.registerText(ref.getPlaceholder());
+      String text = ref.getPlaceholder();
+      // TODO: Handle "simple" formulas.
+      if ("[formula]".equals(text)) {
+        String formulaText = getTextOfSimpleFormula(childElements);
+        if (formulaText != null) {
+          text = formulaText;
+        }
+      }
+      
+      para.registerText(text);
       para.registerTeXElements(childElements);
     } else {
       para = processElements(childElements, roleForChildElements, para, paras);
@@ -263,7 +274,52 @@ public class TeXParagraphsParser {
 
     return para;
   }
-
+  
+  /**
+   * Processes a cross reference command (\cite, \label, \ref).
+   */
+  protected String getTextOfSimpleFormula(List<Element> formulaElements) {
+    // Last element is "end math-mode" command. Ignore it.
+        
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < formulaElements.size() - 1; i++) {
+      Element element = formulaElements.get(i);
+      
+      if (element instanceof NewLine) {
+        sb.append(" ");
+        continue;
+      }
+      
+      if (element instanceof NewParagraph) {
+        sb.append(" ");
+        continue;
+      }
+      
+      if (element instanceof Text) {
+        Text text = (Text) element;
+        sb.append(text.getText());
+        continue;
+      }
+      
+      // Check if the element introduces a placeholder, for example:
+      // \epsilon -> ɛ​
+      TeXElementReference ref = getTeXElementReference(element, null);
+      if (ref != null && ref.introducesPlaceholder()) {
+        sb.append(ref.getPlaceholder());
+        continue;
+      }
+      
+      return null;      
+    }
+    
+    // Need some normalization.
+    String text = sb.toString();
+    text = text.replaceAll("\\^", "");
+    text = text.replaceAll("_", "");
+        
+    return text;
+  }
+  
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
