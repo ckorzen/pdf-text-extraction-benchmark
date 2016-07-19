@@ -302,12 +302,15 @@ public class TeXParagraphsParser {
       }
       
       // Check if the element introduces a placeholder, for example:
-      // \epsilon -> ɛ​
-      TeXElementReference ref = getTeXElementReference(element, null);
-      if (ref != null && ref.introducesPlaceholder()) {
-        sb.append(ref.getPlaceholder());
-        continue;
-      }
+      // \epsilon -> ɛ
+      
+      // TODO: Disabled for now because there are too many encoding issues:
+      // For example, "ϵ" is extracted as "ǫ".​
+//      TeXElementReference ref = getTeXElementReference(element, null);
+//      if (ref != null && ref.introducesPlaceholder()) {
+//        sb.append(ref.getPlaceholder());
+//        continue;
+//      }
       
       return null;      
     }
