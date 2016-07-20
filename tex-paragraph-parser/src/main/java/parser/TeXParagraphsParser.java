@@ -297,6 +297,19 @@ public class TeXParagraphsParser {
       
       if (element instanceof Text) {
         Text text = (Text) element;
+        
+        
+        String textStr = text.getText();
+        
+        if (textStr == null) {
+          continue;
+        }
+        
+        // Don't allow sub- and superscripts for now.
+        if (textStr.contains("_") || textStr.contains("^")) {
+          return null;
+        }
+        
         sb.append(text.getText());
         continue;
       }
