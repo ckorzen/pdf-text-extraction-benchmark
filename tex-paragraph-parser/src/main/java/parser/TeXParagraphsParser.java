@@ -347,9 +347,9 @@ public class TeXParagraphsParser {
     // The group may be separated by whitespace.
     // If next element is a group, take this group as argument.
     if (group == null) {
-      Element next = itr.peek();
+      Element next = itr.peekNonWhitespace();
       if (next instanceof Group) {
-        group = (Group) itr.next();
+        group = (Group) itr.nextNonWhitespace();
       }
     }
 
