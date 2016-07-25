@@ -230,7 +230,10 @@ public class Command extends Element {
     for (Element optionOrGroup : optionsAndGroupsInCorrectOrder) {
       sb.append(optionOrGroup);
     }
-    return sb.toString();
+    // In case of command "\" followed ny a line break, the command is 
+    // "\<linebreak>". To avoid issues on encoding this command in element
+    // references, remove all linebreaks.
+    return sb.toString().replaceAll("\\r?\\n", " ");
   }
   
   /**
