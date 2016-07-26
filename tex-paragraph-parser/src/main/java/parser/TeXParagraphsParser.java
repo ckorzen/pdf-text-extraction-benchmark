@@ -148,7 +148,11 @@ public class TeXParagraphsParser {
   protected TeXParagraph processCommand(Command cmd, String role,
       Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
     // Check, if the command is a cross reference. TODO
-    if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite", "\\onlinecite")) {
+    if (StringUtils.equals(cmd.getName(), "\\onlinecite")) {
+      cmd.setName("\\cite");  
+    }
+    
+    if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
         
