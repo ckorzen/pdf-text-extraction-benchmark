@@ -284,10 +284,15 @@ public class TeXParagraphsParser {
    */
   protected String getTextOfSimpleFormula(List<Element> formulaElements) {
     // Last element is "end math-mode" command. Ignore it.
-        
+          
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < formulaElements.size() - 1; i++) {
       Element element = formulaElements.get(i);
+            
+      if (element instanceof Group) {
+        sb.append(getTextOfSimpleFormula(((Group) element).getElements()));
+        continue;
+      }
       
       if (element instanceof NewLine) {
         sb.append(" ");
@@ -301,20 +306,19 @@ public class TeXParagraphsParser {
       
       if (element instanceof Text) {
         Text text = (Text) element;
-        
-        
+               
         String textStr = text.getText();
         
         if (textStr == null) {
           continue;
         }
         
-        // Don't allow sub- and superscripts for now.
-        if (textStr.contains("_") || textStr.contains("^")) {
-          return null;
-        }
+//        // Don't allow sub- and superscripts for now.
+//        if (textStr.contains("_") || textStr.contains("^")) {
+//          return null;
+//        }
         
-        sb.append(text.getText());
+        sb.append(textStr);
         continue;
       }
       
@@ -323,11 +327,14 @@ public class TeXParagraphsParser {
       
       // TODO: Disabled for now because there are too many encoding issues:
       // For example, "ϵ" is extracted as "ǫ".​
-//      TeXElementReference ref = getTeXElementReference(element, null);
-//      if (ref != null && ref.introducesPlaceholder()) {
-//        sb.append(ref.getPlaceholder());
-//        continue;
-//      }
+      TeXElementReference ref = getTeXElementReference(element, null);
+            
+      if (ref != null) {
+        if (ref.introducesPlaceholder()) {
+          sb.append(ref.getPlaceholder());
+        }
+        continue;
+      }
       
       return null;      
     }
