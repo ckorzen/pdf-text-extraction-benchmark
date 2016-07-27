@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import de.freiburg.iif.text.StringUtils;
+import model.Characters;
 import model.Command;
 import model.Document;
 import model.Element;
@@ -20,6 +21,7 @@ import model.TeXElementReference;
 import model.TeXElementReferences;
 import model.TeXParagraph;
 import model.Text;
+import model.Whitespace;
 
 /**
  * Class to parse Document objects for text paragraphs.
@@ -284,10 +286,12 @@ public class TeXParagraphsParser {
    */
   protected String getTextOfSimpleFormula(List<Element> formulaElements) {
     // Last element is "end math-mode" command. Ignore it.
-          
+            
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < formulaElements.size() - 1; i++) {
+      Element prevElement = i > 0 ? formulaElements.get(i - 1) : null;
       Element element = formulaElements.get(i);
+      Element nextElement = i < formulaElements.size() - 1 ? formulaElements.get(i + 1) : null;
             
       if (element instanceof Group) {
         String text = getTextOfSimpleFormula(((Group) element).getElements());
@@ -304,6 +308,31 @@ public class TeXParagraphsParser {
       
       if (element instanceof NewParagraph) {
         sb.append(" ");
+        continue;
+      }
+      
+      if (element instanceof Whitespace) {
+        // Don't introduce the whitespace, if prev and next element was
+        // alphanumerical text.
+        if (prevElement instanceof Text && nextElement instanceof Text) {
+          Text prevText = (Text) prevElement;
+          Text nextText = (Text) nextElement;
+                    
+          String prevString = prevText.getText();
+          String nextString = nextText.getText();
+          
+          if (!prevString.isEmpty() && !nextString.isEmpty()) {
+            char prevStringLastChar = prevString.charAt(prevString.length() - 1);
+            char nextStringFirstChar = nextString.charAt(0);
+            
+            if (Characters.isLetterOrDigit(prevStringLastChar) 
+                && Characters.isLetterOrDigit(nextStringFirstChar)) {
+              continue;
+            }
+          }
+        }
+        
+        sb.append(((Whitespace) element).getText());
         continue;
       }
       
