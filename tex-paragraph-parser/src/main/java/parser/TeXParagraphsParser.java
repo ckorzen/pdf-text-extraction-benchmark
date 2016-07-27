@@ -290,7 +290,10 @@ public class TeXParagraphsParser {
       Element element = formulaElements.get(i);
             
       if (element instanceof Group) {
-        sb.append(getTextOfSimpleFormula(((Group) element).getElements()));
+        String text = getTextOfSimpleFormula(((Group) element).getElements());
+        if (text != null) {
+          sb.append(text);
+        }
         continue;
       }
       
