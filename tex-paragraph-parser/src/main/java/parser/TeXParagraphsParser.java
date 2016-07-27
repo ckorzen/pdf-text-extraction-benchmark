@@ -290,10 +290,7 @@ public class TeXParagraphsParser {
       Element element = formulaElements.get(i);
             
       if (element instanceof Group) {
-        String text = getTextOfSimpleFormula(((Group) element).getElements());
-        if (text != null) {
-          sb.append(text);
-        }
+        sb.append(getTextOfSimpleFormula(((Group) element).getElements()));
         continue;
       }
       
@@ -316,12 +313,12 @@ public class TeXParagraphsParser {
           continue;
         }
         
-//        // Don't allow sub- and superscripts for now.
-//        if (textStr.contains("_") || textStr.contains("^")) {
-//          return null;
-//        }
+        // Don't allow sub- and superscripts for now.
+        if (textStr.contains("_") || textStr.contains("^")) {
+          return null;
+        }
         
-        sb.append(textStr);
+        sb.append(text.getText());
         continue;
       }
       
