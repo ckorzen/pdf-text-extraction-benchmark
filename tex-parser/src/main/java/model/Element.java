@@ -27,7 +27,7 @@ public class Element implements Serializable {
 
   /** The column where the element ends. */
   protected int endColumn = Integer.MIN_VALUE;
-
+  
   /**
    * Creates a new element with given begin line and end line.
    */

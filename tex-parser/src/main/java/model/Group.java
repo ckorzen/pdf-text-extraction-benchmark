@@ -208,6 +208,26 @@ public class Group extends Element implements Iterable<Element> {
   }
   
   /**
+   * Returns the first element in this group.
+   */
+  public Element getFirstElement() {
+    if (this.elements != null && !this.elements.isEmpty()) {
+      return this.elements.get(0);  
+    }
+    return null;
+  }
+  
+  /**
+   * Returns the last element in this group.
+   */
+  public Element getLastElement() {
+    if (this.elements != null && !this.elements.isEmpty()) {
+      return this.elements.get(this.elements.size() - 1);  
+    }
+    return null;
+  }
+  
+  /**
    * Returns the text of this group.
    */
   public String getText() {
@@ -224,13 +244,17 @@ public class Group extends Element implements Iterable<Element> {
   
   @Override
   public String toString() {
+    return toString(true, true);
+  }
+
+  public String toString(boolean withSuperScripts, boolean withSubscripts) {
     StringBuilder sb = new StringBuilder();
     sb.append("{");
     sb.append(getText());
     sb.append("}");
     return sb.toString();
   }
-
+  
   public Group clone() {
     try {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();

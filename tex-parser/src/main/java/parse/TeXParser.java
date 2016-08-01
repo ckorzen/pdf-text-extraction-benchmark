@@ -233,18 +233,22 @@ public class TeXParser implements TeXParserConstants {
   final protected void Element(Group context) throws ParseException {
   Element element;
     if (jj_2_3(2147483647)) {
-      element = Command();
+      element = FormulaSubScript();
     } else if (jj_2_4(2147483647)) {
-      element = PotentialGroup();
+      element = FormulaSuperScript();
     } else if (jj_2_5(2147483647)) {
-      element = PotentialOption();
+      element = Command();
     } else if (jj_2_6(2147483647)) {
-      element = Text();
+      element = PotentialGroup();
     } else if (jj_2_7(2147483647)) {
-      element = NewParagraph();
+      element = PotentialOption();
     } else if (jj_2_8(2147483647)) {
-      element = Newline();
+      element = Text();
     } else if (jj_2_9(2147483647)) {
+      element = NewParagraph();
+    } else if (jj_2_10(2147483647)) {
+      element = Newline();
+    } else if (jj_2_11(2147483647)) {
       element = Whitespace();
     } else {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -260,18 +264,110 @@ public class TeXParser implements TeXParserConstants {
     context.addElement(element);
   }
 
+  final protected Command FormulaSubScript() throws ParseException {
+  Command command;
+  Token token;
+  Group group;
+  Command subScriptCommand;
+    token = jj_consume_token(UNDERSCORE);
+    command = new Command(token.image, token);
+    label_2:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case WHITESPACE:
+        ;
+        break;
+      default:
+        jj_la1[3] = jj_gen;
+        break label_2;
+      }
+      jj_consume_token(WHITESPACE);
+    }
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case GROUP_START:
+      group = Group();
+      command.addGroup(group);
+      break;
+    case STAR:
+    case DIGIT:
+    case CHAR:
+    case OTHER_SYMBOL:
+      // TextSymbol() returns Token, so we have to create a text element.
+          token = TextSymbol();
+      command.addGroup(new Group(new Text(token.image, token)));
+      break;
+    default:
+      jj_la1[4] = jj_gen;
+      if (jj_2_12(1)) {
+        subScriptCommand = Command();
+      command.addGroup(new Group(subScriptCommand));
+      } else {
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
+    }
+    {if (true) return command;}
+    throw new Error("Missing return statement in function");
+  }
+
+  final protected Command FormulaSuperScript() throws ParseException {
+  Command command;
+  Token token;
+  Group group;
+  Command superScriptCommand;
+    token = jj_consume_token(CIRCUMFLEX);
+    command = new Command(token.image, token);
+    label_3:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case WHITESPACE:
+        ;
+        break;
+      default:
+        jj_la1[5] = jj_gen;
+        break label_3;
+      }
+      jj_consume_token(WHITESPACE);
+    }
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case GROUP_START:
+      group = Group();
+      command.addGroup(group);
+      break;
+    case STAR:
+    case DIGIT:
+    case CHAR:
+    case OTHER_SYMBOL:
+      // TextSymbol() returns Token, so we have to create a text element.
+          token = TextSymbol();
+      command.addGroup(new Group(new Text(token.image, token)));
+      break;
+    default:
+      jj_la1[6] = jj_gen;
+      if (jj_2_13(1)) {
+        superScriptCommand = Command();
+      command.addGroup(new Group(superScriptCommand));
+      } else {
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
+    }
+    {if (true) return command;}
+    throw new Error("Missing return statement in function");
+  }
+
   final protected Command Command() throws ParseException {
   Command command = null;
-    if (jj_2_10(2147483647)) {
+    if (jj_2_14(2147483647)) {
       command = MacroDefinition();
       registerMacroDefinition((MacroDefinition) command);
-    } else if (jj_2_11(2147483647)) {
+    } else if (jj_2_15(2147483647)) {
       command = MacroDefinedCommand();
-    } else if (jj_2_12(2147483647)) {
+    } else if (jj_2_16(2147483647)) {
       command = EscapeCommand();
-    } else if (jj_2_13(2147483647)) {
+    } else if (jj_2_17(2147483647)) {
       command = UsualCommand();
-    } else if (jj_2_14(2147483647)) {
+    } else if (jj_2_18(2147483647)) {
       command = WellDefinedCommand();
     } else {
       jj_consume_token(-1);
@@ -291,7 +387,7 @@ public class TeXParser implements TeXParserConstants {
       definition = NewCommandCommand();
       break;
     default:
-      jj_la1[3] = jj_gen;
+      jj_la1[7] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -307,103 +403,7 @@ public class TeXParser implements TeXParserConstants {
     // Find the identifier ("\def").
       identifier = jj_consume_token(DEF_COMMAND_PREFIX);
     definition = new MacroDefinition(identifier.image, identifier);
-    label_2:
-    while (true) {
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case WHITESPACE:
-      case NEW_LINE:
-        ;
-        break;
-      default:
-        jj_la1[4] = jj_gen;
-        break label_2;
-      }
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case WHITESPACE:
-        jj_consume_token(WHITESPACE);
-        break;
-      case NEW_LINE:
-        jj_consume_token(NEW_LINE);
-        break;
-      default:
-        jj_la1[5] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
-      }
-    }
-    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-    case BEGIN_TABBING:
-    case END_TABBING:
-    case COMMAND_PREFIX:
-    case DEF_COMMAND_PREFIX:
-    case WELL_DEFINED_DEFAULT_COMMAND:
-    case WELL_DEFINED_TABBING_COMMAND:
-    case WELL_DEFINED_COMMON_COMMAND:
-    case ESCAPE_COMMAND_DEFAULT_NAME:
-    case ESCAPE_COMMAND_TABBING_NAME:
-    case ESCAPE_COMMAND_COMMON_NAME:
-      // The macro may be given as a command ...  
-          macroCommand = MacroCommand();
-      definition.setKey(new Group(macroCommand));
-      break;
-    case GROUP_START:
-      jj_consume_token(GROUP_START);
-      // The macro may be given as a command ...  
-            macroCommand = MacroCommand();
-        definition.addValue(new Group(macroCommand));
-      jj_consume_token(GROUP_END);
-      break;
-    default:
-      jj_la1[6] = jj_gen;
-      jj_consume_token(-1);
-      throw new ParseException();
-    }
-    label_3:
-    while (true) {
-      if (jj_2_15(2147483647)) {
-        ;
-      } else {
-        break label_3;
-      }
-      jj_consume_token(WHITESPACE);
-    }
     label_4:
-    while (true) {
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case MARKER:
-        ;
-        break;
-      default:
-        jj_la1[7] = jj_gen;
-        break label_4;
-      }
-      Marker();
-      label_5:
-      while (true) {
-        if (jj_2_16(2147483647)) {
-          ;
-        } else {
-          break label_5;
-        }
-        jj_consume_token(WHITESPACE);
-      }
-    }
-    // Find the group of the macro (including the arguments).
-      macroGroup = Group();
-    definition.addValue(macroGroup);
-    {if (true) return definition;}
-    throw new Error("Missing return statement in function");
-  }
-
-  final protected MacroDefinition NewCommandCommand() throws ParseException {
-  MacroDefinition definition;
-  Token identifier;
-  Command macroCommand;
-  Group macroGroup;
-  Group macro2ndGroup;
-    identifier = jj_consume_token(NEW_COMMAND_PREFIX);
-    definition = new MacroDefinition(identifier.image, identifier);
-    label_6:
     while (true) {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case WHITESPACE:
@@ -412,7 +412,7 @@ public class TeXParser implements TeXParserConstants {
         break;
       default:
         jj_la1[8] = jj_gen;
-        break label_6;
+        break label_4;
       }
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case WHITESPACE:
@@ -443,41 +443,137 @@ public class TeXParser implements TeXParserConstants {
       definition.setKey(new Group(macroCommand));
       break;
     case GROUP_START:
-      // ... or a group.
-          macroGroup = Group();
-      definition.setKey(macroGroup);
+      jj_consume_token(GROUP_START);
+      // The macro may be given as a command ...  
+            macroCommand = MacroCommand();
+        definition.addValue(new Group(macroCommand));
+      jj_consume_token(GROUP_END);
       break;
     default:
       jj_la1[10] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
-    label_7:
+    label_5:
     while (true) {
-      if (jj_2_17(2147483647)) {
+      if (jj_2_19(2147483647)) {
         ;
       } else {
-        break label_7;
+        break label_5;
       }
       jj_consume_token(WHITESPACE);
     }
+    label_6:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case MARKER:
+        ;
+        break;
+      default:
+        jj_la1[11] = jj_gen;
+        break label_6;
+      }
+      Marker();
+      label_7:
+      while (true) {
+        if (jj_2_20(2147483647)) {
+          ;
+        } else {
+          break label_7;
+        }
+        jj_consume_token(WHITESPACE);
+      }
+    }
+    // Find the group of the macro (including the arguments).
+      macroGroup = Group();
+    definition.addValue(macroGroup);
+    {if (true) return definition;}
+    throw new Error("Missing return statement in function");
+  }
+
+  final protected MacroDefinition NewCommandCommand() throws ParseException {
+  MacroDefinition definition;
+  Token identifier;
+  Command macroCommand;
+  Group macroGroup;
+  Group macro2ndGroup;
+    identifier = jj_consume_token(NEW_COMMAND_PREFIX);
+    definition = new MacroDefinition(identifier.image, identifier);
     label_8:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case WHITESPACE:
+      case NEW_LINE:
+        ;
+        break;
+      default:
+        jj_la1[12] = jj_gen;
+        break label_8;
+      }
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case WHITESPACE:
+        jj_consume_token(WHITESPACE);
+        break;
+      case NEW_LINE:
+        jj_consume_token(NEW_LINE);
+        break;
+      default:
+        jj_la1[13] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
+    }
+    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    case BEGIN_TABBING:
+    case END_TABBING:
+    case COMMAND_PREFIX:
+    case DEF_COMMAND_PREFIX:
+    case WELL_DEFINED_DEFAULT_COMMAND:
+    case WELL_DEFINED_TABBING_COMMAND:
+    case WELL_DEFINED_COMMON_COMMAND:
+    case ESCAPE_COMMAND_DEFAULT_NAME:
+    case ESCAPE_COMMAND_TABBING_NAME:
+    case ESCAPE_COMMAND_COMMON_NAME:
+      // The macro may be given as a command ...  
+          macroCommand = MacroCommand();
+      definition.setKey(new Group(macroCommand));
+      break;
+    case GROUP_START:
+      // ... or a group.
+          macroGroup = Group();
+      definition.setKey(macroGroup);
+      break;
+    default:
+      jj_la1[14] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
+    label_9:
+    while (true) {
+      if (jj_2_21(2147483647)) {
+        ;
+      } else {
+        break label_9;
+      }
+      jj_consume_token(WHITESPACE);
+    }
+    label_10:
     while (true) {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case OPTION_START:
         ;
         break;
       default:
-        jj_la1[11] = jj_gen;
-        break label_8;
+        jj_la1[15] = jj_gen;
+        break label_10;
       }
       Option();
-      label_9:
+      label_11:
       while (true) {
-        if (jj_2_18(2147483647)) {
+        if (jj_2_22(2147483647)) {
           ;
         } else {
-          break label_9;
+          break label_11;
         }
         jj_consume_token(WHITESPACE);
       }
@@ -512,7 +608,7 @@ public class TeXParser implements TeXParserConstants {
     endLine = identifier.endLine;
     beginColumn = identifier.beginColumn;
     endColumn = identifier.endColumn;
-    label_10:
+    label_12:
     while (true) {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case DIGIT:
@@ -521,8 +617,8 @@ public class TeXParser implements TeXParserConstants {
         ;
         break;
       default:
-        jj_la1[12] = jj_gen;
-        break label_10;
+        jj_la1[16] = jj_gen;
+        break label_12;
       }
       symbol = MacroCommandSymbol();
       commandName.append(symbol.image);
@@ -558,7 +654,7 @@ public class TeXParser implements TeXParserConstants {
       identifier = EscapeCommandName();
       break;
     default:
-      jj_la1[13] = jj_gen;
+      jj_la1[17] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -579,7 +675,7 @@ public class TeXParser implements TeXParserConstants {
       symbol = jj_consume_token(OTHER_SYMBOL);
       break;
     default:
-      jj_la1[14] = jj_gen;
+      jj_la1[18] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -593,17 +689,17 @@ public class TeXParser implements TeXParserConstants {
   Group group;
     commandName = MacroDefinedCommandName();
     command = new Command(commandName.image, commandName);
-    if (jj_2_19(2147483647)) {
+    if (jj_2_23(2147483647)) {
       Option();
     } else {
       ;
     }
-    label_11:
+    label_13:
     while (true) {
-      if (jj_2_20(2147483647)) {
+      if (jj_2_24(2147483647)) {
         ;
       } else {
-        break label_11;
+        break label_13;
       }
       group = Group();
       command.addGroup(group);
@@ -633,12 +729,12 @@ public class TeXParser implements TeXParserConstants {
     endLine = identifier.endLine;
     beginColumn = identifier.beginColumn;
     endColumn = identifier.endColumn;
-    label_12:
+    label_14:
     while (true) {
       if (belongsToMacroDefinedCommandName()) {
         ;
       } else {
-        break label_12;
+        break label_14;
       }
       symbol = MacroCommandSymbol();
       log("CONSUME TOKEN: " + symbol);
@@ -662,35 +758,35 @@ public class TeXParser implements TeXParserConstants {
   Option option;
     commandName = UsualCommandName();
     command = new Command(commandName.image, commandName);
-    if (jj_2_21(2147483647)) {
+    if (jj_2_25(2147483647)) {
       option = Option();
       command.addOption(option);
     } else {
       ;
     }
-    label_13:
+    label_15:
     while (true) {
-      if (jj_2_22(2147483647)) {
+      if (jj_2_26(2147483647)) {
         ;
       } else {
-        break label_13;
+        break label_15;
       }
-      label_14:
+      label_16:
       while (true) {
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
         case WHITESPACE:
           ;
           break;
         default:
-          jj_la1[15] = jj_gen;
-          break label_14;
+          jj_la1[19] = jj_gen;
+          break label_16;
         }
         jj_consume_token(WHITESPACE);
       }
       group = Group();
       command.addGroup(group);
     }
-    if (jj_2_23(2147483647)) {
+    if (jj_2_27(2147483647)) {
       option = Option();
       command.addOption(option);
     } else {
@@ -714,19 +810,19 @@ public class TeXParser implements TeXParserConstants {
     endLine = identifier.endLine;
     beginColumn = identifier.beginColumn;
     endColumn = identifier.endColumn;
-    label_15:
+    label_17:
     while (true) {
       symbol = UsualCommandSymbol();
       commandName.append(symbol.image);
       endLine = symbol.endLine;
       endColumn = symbol.endColumn;
-      if (jj_2_24(2147483647)) {
+      if (jj_2_28(2147483647)) {
         ;
       } else {
-        break label_15;
+        break label_17;
       }
     }
-    if (jj_2_25(2147483647)) {
+    if (jj_2_29(2147483647)) {
       symbol = jj_consume_token(STAR);
      commandName.append(symbol.image);
      endLine = symbol.endLine;
@@ -754,7 +850,7 @@ public class TeXParser implements TeXParserConstants {
       token = jj_consume_token(DEF_COMMAND_PREFIX);
       break;
     default:
-      jj_la1[16] = jj_gen;
+      jj_la1[20] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -778,7 +874,7 @@ public class TeXParser implements TeXParserConstants {
       token = jj_consume_token(CIRCUMFLEX);
       break;
     default:
-      jj_la1[17] = jj_gen;
+      jj_la1[21] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -812,7 +908,7 @@ public class TeXParser implements TeXParserConstants {
       token = jj_consume_token(END_TABBING);
       break;
     default:
-      jj_la1[18] = jj_gen;
+      jj_la1[22] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -828,15 +924,15 @@ public class TeXParser implements TeXParserConstants {
   Token arg;
     commandName = EscapeCommandName();
     command = new Command(commandName.image, commandName);
-    label_16:
+    label_18:
     while (true) {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case WHITESPACE:
         ;
         break;
       default:
-        jj_la1[19] = jj_gen;
-        break label_16;
+        jj_la1[23] = jj_gen;
+        break label_18;
       }
       jj_consume_token(WHITESPACE);
     }
@@ -854,7 +950,7 @@ public class TeXParser implements TeXParserConstants {
         symbol = jj_consume_token(DIGIT);
         break;
       default:
-        jj_la1[20] = jj_gen;
+        jj_la1[24] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -867,7 +963,7 @@ public class TeXParser implements TeXParserConstants {
       group = new Group(new Command(arg.image, arg));
       break;
     default:
-      jj_la1[21] = jj_gen;
+      jj_la1[25] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -889,7 +985,7 @@ public class TeXParser implements TeXParserConstants {
       token = jj_consume_token(ESCAPE_COMMAND_TABBING_NAME);
       break;
     default:
-      jj_la1[22] = jj_gen;
+      jj_la1[26] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -905,7 +1001,7 @@ public class TeXParser implements TeXParserConstants {
   int beginColumn = 0;
   int endColumn = 0;
   boolean isFirst = true;
-    label_17:
+    label_19:
     while (true) {
       symbol = TextSymbol();
       text.append(symbol.image);
@@ -916,10 +1012,10 @@ public class TeXParser implements TeXParserConstants {
       endLine = symbol.endLine;
       endColumn = symbol.endColumn;
       isFirst = false;
-      if (jj_2_26(2147483647)) {
+      if (jj_2_30(2147483647)) {
         ;
       } else {
-        break label_17;
+        break label_19;
       }
     }
     {if (true) return new Text(text.toString(), beginLine, endLine, beginColumn, endColumn);}
@@ -941,14 +1037,8 @@ public class TeXParser implements TeXParserConstants {
     case OTHER_SYMBOL:
       token = jj_consume_token(OTHER_SYMBOL);
       break;
-    case UNDERSCORE:
-      token = jj_consume_token(UNDERSCORE);
-      break;
-    case CIRCUMFLEX:
-      token = jj_consume_token(CIRCUMFLEX);
-      break;
     default:
-      jj_la1[23] = jj_gen;
+      jj_la1[27] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -959,7 +1049,7 @@ public class TeXParser implements TeXParserConstants {
   final protected Element PotentialGroup() throws ParseException {
   Group group;
   Token token;
-    if (jj_2_27(2147483647)) {
+    if (jj_2_31(2147483647)) {
       group = Group();
     {if (true) return group;}
     } else {
@@ -969,7 +1059,7 @@ public class TeXParser implements TeXParserConstants {
     {if (true) return new Text(token.image, token);}
         break;
       default:
-        jj_la1[24] = jj_gen;
+        jj_la1[28] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -981,14 +1071,14 @@ public class TeXParser implements TeXParserConstants {
   Group group = new Group();
   Token optionEnd;
     jj_consume_token(GROUP_START);
-    label_18:
+    label_20:
     while (true) {
-      if (jj_2_28(1)) {
+      if (jj_2_32(1)) {
         ;
       } else {
-        break label_18;
+        break label_20;
       }
-      if (jj_2_29(2147483647)) {
+      if (jj_2_33(2147483647)) {
         Element(group);
       } else {
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -997,7 +1087,7 @@ public class TeXParser implements TeXParserConstants {
       group.addElement(new Text(optionEnd.image, optionEnd));
           break;
         default:
-          jj_la1[25] = jj_gen;
+          jj_la1[29] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -1011,7 +1101,7 @@ public class TeXParser implements TeXParserConstants {
   final protected Element PotentialOption() throws ParseException {
   Option option;
   Token token;
-    if (jj_2_30(2147483647)) {
+    if (jj_2_34(2147483647)) {
       option = Option();
     {if (true) return option;}
     } else {
@@ -1021,7 +1111,7 @@ public class TeXParser implements TeXParserConstants {
     {if (true) return new Text(token.image, token);}
         break;
       default:
-        jj_la1[26] = jj_gen;
+        jj_la1[30] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -1033,14 +1123,14 @@ public class TeXParser implements TeXParserConstants {
   Option option = new Option();
   Token groupEnd;
     jj_consume_token(OPTION_START);
-    label_19:
+    label_21:
     while (true) {
-      if (jj_2_31(1)) {
+      if (jj_2_35(1)) {
         ;
       } else {
-        break label_19;
+        break label_21;
       }
-      if (jj_2_32(2147483647)) {
+      if (jj_2_36(2147483647)) {
         Element(option);
       } else {
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -1049,7 +1139,7 @@ public class TeXParser implements TeXParserConstants {
       option.addElement(new Text(groupEnd.image, groupEnd));
           break;
         default:
-          jj_la1[27] = jj_gen;
+          jj_la1[31] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -1312,485 +1402,114 @@ public class TeXParser implements TeXParserConstants {
     finally { jj_save(31, xla); }
   }
 
-  private boolean jj_3R_30() {
-    if (jj_3R_62()) return true;
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_63()) jj_scanpos = xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3R_64()) { jj_scanpos = xsp; break; }
-    }
-    return false;
+  private boolean jj_2_33(int xla) {
+    jj_la = xla; jj_lastpos = jj_scanpos = token;
+    try { return !jj_3_33(); }
+    catch(LookaheadSuccess ls) { return true; }
+    finally { jj_save(32, xla); }
   }
 
-  private boolean jj_3_29() {
-    if (jj_3R_21()) return true;
-    return false;
+  private boolean jj_2_34(int xla) {
+    jj_la = xla; jj_lastpos = jj_scanpos = token;
+    try { return !jj_3_34(); }
+    catch(LookaheadSuccess ls) { return true; }
+    finally { jj_save(33, xla); }
   }
 
-  private boolean jj_3R_61() {
-    if (jj_3R_76()) return true;
-    return false;
+  private boolean jj_2_35(int xla) {
+    jj_la = xla; jj_lastpos = jj_scanpos = token;
+    try { return !jj_3_35(); }
+    catch(LookaheadSuccess ls) { return true; }
+    finally { jj_save(34, xla); }
   }
 
-  private boolean jj_3R_60() {
-    if (jj_3R_75()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_29() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_60()) {
-    jj_scanpos = xsp;
-    if (jj_3R_61()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_39() {
-    if (jj_scan_token(OPTION_END)) return true;
-    return false;
-  }
-
-  private boolean jj_3_28() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_38()) {
-    jj_scanpos = xsp;
-    if (jj_3R_39()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_38() {
-    if (jj_3R_21()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_36() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_scan_token(29)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(28)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(10)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(11)) return true;
-    }
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_35() {
-    if (jj_scan_token(GROUP_START)) return true;
-    Token xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3_28()) { jj_scanpos = xsp; break; }
-    }
-    if (jj_scan_token(GROUP_END)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_94() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_scan_token(29)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(28)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(30)) return true;
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3_14() {
-    if (jj_3R_33()) return true;
-    return false;
-  }
-
-  private boolean jj_3_13() {
-    if (jj_3R_32()) return true;
-    return false;
-  }
-
-  private boolean jj_3_12() {
-    if (jj_3R_31()) return true;
-    return false;
-  }
-
-  private boolean jj_3_27() {
-    if (jj_3R_35()) return true;
-    return false;
-  }
-
-  private boolean jj_3_11() {
-    if (jj_3R_30()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_54() {
-    if (jj_3R_33()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_80() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_scan_token(16)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(17)) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_56() {
-    if (jj_scan_token(GROUP_START)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_53() {
-    if (jj_3R_32()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_93() {
-    if (jj_3R_65()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_92() {
-    if (jj_3R_73()) return true;
-    return false;
-  }
-
-  private boolean jj_3_10() {
-    if (jj_3R_29()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_91() {
-    if (jj_3R_80()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_52() {
-    if (jj_3R_31()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_23() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_55()) {
-    jj_scanpos = xsp;
-    if (jj_3R_56()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_55() {
-    if (jj_3R_35()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_78() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_91()) {
-    jj_scanpos = xsp;
-    if (jj_3R_92()) {
-    jj_scanpos = xsp;
-    if (jj_3R_93()) return true;
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_51() {
-    if (jj_3R_30()) return true;
-    return false;
-  }
-
-  private boolean jj_3_25() {
-    if (jj_scan_token(STAR)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_50() {
-    if (jj_3R_29()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_22() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_50()) {
-    jj_scanpos = xsp;
-    if (jj_3R_51()) {
-    jj_scanpos = xsp;
-    if (jj_3R_52()) {
-    jj_scanpos = xsp;
-    if (jj_3R_53()) {
-    jj_scanpos = xsp;
-    if (jj_3R_54()) return true;
-    }
-    }
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_82() {
-    if (jj_scan_token(STAR)) return true;
-    return false;
-  }
-
-  private boolean jj_3_24() {
-    if (jj_3R_36()) return true;
-    return false;
-  }
-
-  private boolean jj_3_9() {
-    if (jj_3R_28()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_37() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_scan_token(29)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(28)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(9)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(30)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(10)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(11)) return true;
-    }
-    }
-    }
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_97() {
-    if (jj_3R_94()) return true;
-    return false;
-  }
-
-  private boolean jj_3_8() {
-    if (jj_3R_27()) return true;
-    return false;
-  }
-
-  private boolean jj_3_7() {
-    if (jj_3R_26()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_49() {
-    if (jj_3R_74()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_81() {
-    if (jj_3R_36()) return true;
-    return false;
-  }
-
-  private boolean jj_3_6() {
-    if (jj_3R_25()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_48() {
-    if (jj_3R_28()) return true;
-    return false;
-  }
-
-  private boolean jj_3_5() {
-    if (jj_3R_24()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_47() {
-    if (jj_3R_27()) return true;
-    return false;
-  }
-
-  private boolean jj_3_26() {
-    if (jj_3R_37()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_96() {
-    if (jj_3R_78()) return true;
-    Token xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3R_97()) { jj_scanpos = xsp; break; }
-    }
-    return false;
-  }
-
-  private boolean jj_3_4() {
-    if (jj_3R_23()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_46() {
-    if (jj_3R_26()) return true;
-    return false;
-  }
-
-  private boolean jj_3_3() {
-    if (jj_3R_22()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_69() {
-    if (jj_3R_80()) return true;
-    Token xsp;
-    if (jj_3R_81()) return true;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3R_81()) { jj_scanpos = xsp; break; }
-    }
-    xsp = jj_scanpos;
-    if (jj_3R_82()) jj_scanpos = xsp;
-    return false;
-  }
-
-  private boolean jj_3R_45() {
-    if (jj_3R_25()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_44() {
-    if (jj_3R_24()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_59() {
-    if (jj_3R_37()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_43() {
-    if (jj_3R_23()) return true;
-    return false;
+  private boolean jj_2_36(int xla) {
+    jj_la = xla; jj_lastpos = jj_scanpos = token;
+    try { return !jj_3_36(); }
+    catch(LookaheadSuccess ls) { return true; }
+    finally { jj_save(35, xla); }
   }
 
   private boolean jj_3R_25() {
-    Token xsp;
-    if (jj_3R_59()) return true;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3R_59()) { jj_scanpos = xsp; break; }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_42() {
-    if (jj_3R_22()) return true;
-    return false;
-  }
-
-  private boolean jj_3_23() {
-    if (jj_3R_34()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_21() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_42()) {
-    jj_scanpos = xsp;
-    if (jj_3R_43()) {
-    jj_scanpos = xsp;
-    if (jj_3R_44()) {
-    jj_scanpos = xsp;
-    if (jj_3R_45()) {
-    jj_scanpos = xsp;
-    if (jj_3R_46()) {
-    jj_scanpos = xsp;
-    if (jj_3R_47()) {
-    jj_scanpos = xsp;
-    if (jj_3R_48()) {
-    jj_scanpos = xsp;
-    if (jj_3R_49()) return true;
-    }
-    }
-    }
-    }
-    }
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_95() {
-    if (jj_3R_96()) return true;
-    return false;
-  }
-
-  private boolean jj_3_22() {
+    if (jj_scan_token(CIRCUMFLEX)) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
       if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
     }
-    if (jj_3R_35()) return true;
+    xsp = jj_scanpos;
+    if (jj_3R_58()) {
+    jj_scanpos = xsp;
+    if (jj_3R_59()) {
+    jj_scanpos = xsp;
+    if (jj_3_13()) return true;
+    }
+    }
     return false;
   }
 
-  private boolean jj_3_18() {
+  private boolean jj_3_27() {
+    if (jj_3R_38()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_105() {
+    if (jj_3R_106()) return true;
+    return false;
+  }
+
+  private boolean jj_3_26() {
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
+    }
+    if (jj_3R_39()) return true;
+    return false;
+  }
+
+  private boolean jj_3_22() {
     if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
-  private boolean jj_3R_72() {
-    if (jj_3R_34()) return true;
+  private boolean jj_3R_82() {
+    if (jj_3R_38()) return true;
     return false;
   }
 
-  private boolean jj_3R_28() {
-    if (jj_scan_token(WHITESPACE)) return true;
-    return false;
-  }
-
-  private boolean jj_3_17() {
+  private boolean jj_3R_32() {
     if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
   private boolean jj_3_21() {
-    if (jj_3R_34()) return true;
+    if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
-  private boolean jj_3R_71() {
+  private boolean jj_3_25() {
+    if (jj_3R_38()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_81() {
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
       if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
     }
-    if (jj_3R_35()) return true;
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3R_90() {
-    if (jj_3R_34()) return true;
+  private boolean jj_3_12() {
+    if (jj_3R_26()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_100() {
+    if (jj_3R_38()) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
@@ -1799,17 +1518,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_20() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_scan_token(13)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(15)) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_65() {
+  private boolean jj_3R_75() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(22)) {
@@ -1822,56 +1531,51 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_2() {
-    if (jj_3R_21()) return true;
+  private boolean jj_3R_57() {
+    if (jj_3R_41()) return true;
     return false;
   }
 
-  private boolean jj_3_1() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3_2()) {
-    jj_scanpos = xsp;
-    if (jj_3R_20()) return true;
-    }
+  private boolean jj_3R_80() {
+    if (jj_3R_38()) return true;
     return false;
   }
 
-  private boolean jj_3R_70() {
-    if (jj_3R_34()) return true;
+  private boolean jj_3R_99() {
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3R_89() {
-    if (jj_3R_35()) return true;
+  private boolean jj_3R_56() {
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3R_27() {
+  private boolean jj_3R_31() {
     if (jj_scan_token(NEW_LINE)) return true;
     return false;
   }
 
-  private boolean jj_3R_88() {
-    if (jj_3R_95()) return true;
+  private boolean jj_3R_98() {
+    if (jj_3R_105()) return true;
     return false;
   }
 
-  private boolean jj_3R_32() {
-    if (jj_3R_69()) return true;
+  private boolean jj_3R_36() {
+    if (jj_3R_79()) return true;
     Token xsp;
     xsp = jj_scanpos;
-    if (jj_3R_70()) jj_scanpos = xsp;
+    if (jj_3R_80()) jj_scanpos = xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_71()) { jj_scanpos = xsp; break; }
+      if (jj_3R_81()) { jj_scanpos = xsp; break; }
     }
     xsp = jj_scanpos;
-    if (jj_3R_72()) jj_scanpos = xsp;
+    if (jj_3R_82()) jj_scanpos = xsp;
     return false;
   }
 
-  private boolean jj_3R_87() {
+  private boolean jj_3R_97() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
@@ -1881,22 +1585,40 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_68() {
-    if (jj_3R_69()) return true;
+  private boolean jj_3R_24() {
+    if (jj_scan_token(UNDERSCORE)) return true;
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
+    }
+    xsp = jj_scanpos;
+    if (jj_3R_56()) {
+    jj_scanpos = xsp;
+    if (jj_3R_57()) {
+    jj_scanpos = xsp;
+    if (jj_3_12()) return true;
+    }
+    }
     return false;
   }
 
-  private boolean jj_3R_76() {
+  private boolean jj_3R_78() {
+    if (jj_3R_79()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_86() {
     if (jj_scan_token(NEW_COMMAND_PREFIX)) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_87()) { jj_scanpos = xsp; break; }
+      if (jj_3R_97()) { jj_scanpos = xsp; break; }
     }
     xsp = jj_scanpos;
-    if (jj_3R_88()) {
+    if (jj_3R_98()) {
     jj_scanpos = xsp;
-    if (jj_3R_89()) return true;
+    if (jj_3R_99()) return true;
     }
     while (true) {
       xsp = jj_scanpos;
@@ -1904,18 +1626,23 @@ public class TeXParser implements TeXParserConstants {
     }
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_90()) { jj_scanpos = xsp; break; }
+      if (jj_3R_100()) { jj_scanpos = xsp; break; }
     }
-    if (jj_3R_35()) return true;
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3R_26() {
+  private boolean jj_3R_30() {
     if (jj_scan_token(NEW_PARAGRAPH)) return true;
     return false;
   }
 
-  private boolean jj_3R_67() {
+  private boolean jj_3_11() {
+    if (jj_3R_32()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_77() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(29)) {
@@ -1925,131 +1652,255 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_66() {
-    if (jj_3R_35()) return true;
+  private boolean jj_3R_76() {
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3_16() {
+  private boolean jj_3_10() {
+    if (jj_3R_31()) return true;
+    return false;
+  }
+
+  private boolean jj_3_20() {
     if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
-  private boolean jj_3_15() {
+  private boolean jj_3_9() {
+    if (jj_3R_30()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_55() {
+    if (jj_3R_84()) return true;
+    return false;
+  }
+
+  private boolean jj_3_19() {
     if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
-  private boolean jj_3R_79() {
-    if (jj_3R_94()) return true;
+  private boolean jj_3R_89() {
+    if (jj_3R_104()) return true;
     return false;
   }
 
-  private boolean jj_3R_74() {
-    if (jj_scan_token(MARKER)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_31() {
-    if (jj_3R_65()) return true;
-    Token xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
-    }
-    xsp = jj_scanpos;
-    if (jj_3R_66()) {
-    jj_scanpos = xsp;
-    if (jj_3R_67()) {
-    jj_scanpos = xsp;
-    if (jj_3R_68()) return true;
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_86() {
-    if (jj_3R_74()) return true;
-    Token xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_77() {
-    return false;
-  }
-
-  private boolean jj_3_32() {
-    if (jj_3R_21()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_62() {
-    jj_lookingAhead = true;
-    jj_semLA = belongsToMacroDefinedCommandName();
-    jj_lookingAhead = false;
-    if (!jj_semLA || jj_3R_77()) return true;
-    if (jj_3R_78()) return true;
-    Token xsp;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3R_79()) { jj_scanpos = xsp; break; }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_41() {
-    if (jj_scan_token(GROUP_END)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_85() {
-    if (jj_scan_token(GROUP_START)) return true;
-    if (jj_3R_95()) return true;
-    if (jj_scan_token(GROUP_END)) return true;
-    return false;
-  }
-
-  private boolean jj_3_31() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_40()) {
-    jj_scanpos = xsp;
-    if (jj_3R_41()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_40() {
-    if (jj_3R_21()) return true;
+  private boolean jj_3_8() {
+    if (jj_3R_29()) return true;
     return false;
   }
 
   private boolean jj_3R_84() {
-    if (jj_3R_95()) return true;
+    if (jj_scan_token(MARKER)) return true;
     return false;
   }
 
-  private boolean jj_3R_34() {
+  private boolean jj_3R_54() {
+    if (jj_3R_32()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_35() {
+    if (jj_3R_75()) return true;
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
+    }
+    xsp = jj_scanpos;
+    if (jj_3R_76()) {
+    jj_scanpos = xsp;
+    if (jj_3R_77()) {
+    jj_scanpos = xsp;
+    if (jj_3R_78()) return true;
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3_7() {
+    if (jj_3R_28()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_53() {
+    if (jj_3R_31()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_96() {
+    if (jj_3R_84()) return true;
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_scan_token(6)) { jj_scanpos = xsp; break; }
+    }
+    return false;
+  }
+
+  private boolean jj_3_6() {
+    if (jj_3R_27()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_52() {
+    if (jj_3R_30()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_87() {
+    return false;
+  }
+
+  private boolean jj_3_5() {
+    if (jj_3R_26()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_51() {
+    if (jj_3R_29()) return true;
+    return false;
+  }
+
+  private boolean jj_3_36() {
+    if (jj_3R_23()) return true;
+    return false;
+  }
+
+  private boolean jj_3_4() {
+    if (jj_3R_25()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_50() {
+    if (jj_3R_28()) return true;
+    return false;
+  }
+
+  private boolean jj_3_3() {
+    if (jj_3R_24()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_49() {
+    if (jj_3R_27()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_72() {
+    jj_lookingAhead = true;
+    jj_semLA = belongsToMacroDefinedCommandName();
+    jj_lookingAhead = false;
+    if (!jj_semLA || jj_3R_87()) return true;
+    if (jj_3R_88()) return true;
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3R_89()) { jj_scanpos = xsp; break; }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_48() {
+    if (jj_3R_26()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_45() {
+    if (jj_scan_token(GROUP_END)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_95() {
+    if (jj_scan_token(GROUP_START)) return true;
+    if (jj_3R_105()) return true;
+    if (jj_scan_token(GROUP_END)) return true;
+    return false;
+  }
+
+  private boolean jj_3_35() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_44()) {
+    jj_scanpos = xsp;
+    if (jj_3R_45()) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_44() {
+    if (jj_3R_23()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_47() {
+    if (jj_3R_25()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_94() {
+    if (jj_3R_105()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_46() {
+    if (jj_3R_24()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_38() {
     if (jj_scan_token(OPTION_START)) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3_31()) { jj_scanpos = xsp; break; }
+      if (jj_3_35()) { jj_scanpos = xsp; break; }
     }
     if (jj_scan_token(OPTION_END)) return true;
     return false;
   }
 
-  private boolean jj_3_20() {
-    if (jj_3R_35()) return true;
+  private boolean jj_3_24() {
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3R_83() {
+  private boolean jj_3R_23() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_46()) {
+    jj_scanpos = xsp;
+    if (jj_3R_47()) {
+    jj_scanpos = xsp;
+    if (jj_3R_48()) {
+    jj_scanpos = xsp;
+    if (jj_3R_49()) {
+    jj_scanpos = xsp;
+    if (jj_3R_50()) {
+    jj_scanpos = xsp;
+    if (jj_3R_51()) {
+    jj_scanpos = xsp;
+    if (jj_3R_52()) {
+    jj_scanpos = xsp;
+    if (jj_3R_53()) {
+    jj_scanpos = xsp;
+    if (jj_3R_54()) {
+    jj_scanpos = xsp;
+    if (jj_3R_55()) return true;
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_93() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
@@ -2059,7 +1910,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_73() {
+  private boolean jj_3R_83() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(19)) {
@@ -2078,27 +1929,27 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_19() {
-    if (jj_3R_34()) return true;
+  private boolean jj_3_23() {
+    if (jj_3R_38()) return true;
     return false;
   }
 
-  private boolean jj_3_30() {
-    if (jj_3R_34()) return true;
+  private boolean jj_3_34() {
+    if (jj_3R_38()) return true;
     return false;
   }
 
-  private boolean jj_3R_75() {
+  private boolean jj_3R_85() {
     if (jj_scan_token(DEF_COMMAND_PREFIX)) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_83()) { jj_scanpos = xsp; break; }
+      if (jj_3R_93()) { jj_scanpos = xsp; break; }
     }
     xsp = jj_scanpos;
-    if (jj_3R_84()) {
+    if (jj_3R_94()) {
     jj_scanpos = xsp;
-    if (jj_3R_85()) return true;
+    if (jj_3R_95()) return true;
     }
     while (true) {
       xsp = jj_scanpos;
@@ -2106,44 +1957,397 @@ public class TeXParser implements TeXParserConstants {
     }
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_86()) { jj_scanpos = xsp; break; }
+      if (jj_3R_96()) { jj_scanpos = xsp; break; }
     }
-    if (jj_3R_35()) return true;
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3R_64() {
-    if (jj_3R_35()) return true;
+  private boolean jj_3R_74() {
+    if (jj_3R_39()) return true;
     return false;
   }
 
-  private boolean jj_3R_58() {
+  private boolean jj_3R_68() {
     if (jj_scan_token(OPTION_START)) return true;
     return false;
   }
 
-  private boolean jj_3R_63() {
-    if (jj_3R_34()) return true;
+  private boolean jj_3R_73() {
+    if (jj_3R_38()) return true;
     return false;
   }
 
-  private boolean jj_3R_33() {
-    if (jj_3R_73()) return true;
+  private boolean jj_3R_67() {
+    if (jj_3R_38()) return true;
     return false;
   }
 
-  private boolean jj_3R_24() {
+  private boolean jj_3R_37() {
+    if (jj_3R_83()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_28() {
     Token xsp;
     xsp = jj_scanpos;
-    if (jj_3R_57()) {
+    if (jj_3R_67()) {
     jj_scanpos = xsp;
-    if (jj_3R_58()) return true;
+    if (jj_3R_68()) return true;
     }
     return false;
   }
 
-  private boolean jj_3R_57() {
+  private boolean jj_3R_22() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(13)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(15)) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_34() {
+    if (jj_3R_72()) return true;
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_73()) jj_scanpos = xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3R_74()) { jj_scanpos = xsp; break; }
+    }
+    return false;
+  }
+
+  private boolean jj_3_2() {
+    if (jj_3R_23()) return true;
+    return false;
+  }
+
+  private boolean jj_3_1() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3_2()) {
+    jj_scanpos = xsp;
+    if (jj_3R_22()) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3_33() {
+    if (jj_3R_23()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_71() {
+    if (jj_3R_86()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_70() {
+    if (jj_3R_85()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_33() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_70()) {
+    jj_scanpos = xsp;
+    if (jj_3R_71()) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_43() {
+    if (jj_scan_token(OPTION_END)) return true;
+    return false;
+  }
+
+  private boolean jj_3_32() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_42()) {
+    jj_scanpos = xsp;
+    if (jj_3R_43()) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_42() {
+    if (jj_3R_23()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_40() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(29)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(28)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(10)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(11)) return true;
+    }
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_39() {
+    if (jj_scan_token(GROUP_START)) return true;
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3_32()) { jj_scanpos = xsp; break; }
+    }
+    if (jj_scan_token(GROUP_END)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_104() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(29)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(28)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(30)) return true;
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3_18() {
+    if (jj_3R_37()) return true;
+    return false;
+  }
+
+  private boolean jj_3_17() {
+    if (jj_3R_36()) return true;
+    return false;
+  }
+
+  private boolean jj_3_16() {
+    if (jj_3R_35()) return true;
+    return false;
+  }
+
+  private boolean jj_3_31() {
+    if (jj_3R_39()) return true;
+    return false;
+  }
+
+  private boolean jj_3_15() {
     if (jj_3R_34()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_64() {
+    if (jj_3R_37()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_90() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(16)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(17)) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_66() {
+    if (jj_scan_token(GROUP_START)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_63() {
+    if (jj_3R_36()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_103() {
+    if (jj_3R_75()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_102() {
+    if (jj_3R_83()) return true;
+    return false;
+  }
+
+  private boolean jj_3_14() {
+    if (jj_3R_33()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_101() {
+    if (jj_3R_90()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_62() {
+    if (jj_3R_35()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_65() {
+    if (jj_3R_39()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_27() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_65()) {
+    jj_scanpos = xsp;
+    if (jj_3R_66()) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_88() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_101()) {
+    jj_scanpos = xsp;
+    if (jj_3R_102()) {
+    jj_scanpos = xsp;
+    if (jj_3R_103()) return true;
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_61() {
+    if (jj_3R_34()) return true;
+    return false;
+  }
+
+  private boolean jj_3_29() {
+    if (jj_scan_token(STAR)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_60() {
+    if (jj_3R_33()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_26() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_60()) {
+    jj_scanpos = xsp;
+    if (jj_3R_61()) {
+    jj_scanpos = xsp;
+    if (jj_3R_62()) {
+    jj_scanpos = xsp;
+    if (jj_3R_63()) {
+    jj_scanpos = xsp;
+    if (jj_3R_64()) return true;
+    }
+    }
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_92() {
+    if (jj_scan_token(STAR)) return true;
+    return false;
+  }
+
+  private boolean jj_3_28() {
+    if (jj_3R_40()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_41() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(29)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(28)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(9)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(30)) return true;
+    }
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_107() {
+    if (jj_3R_104()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_91() {
+    if (jj_3R_40()) return true;
+    return false;
+  }
+
+  private boolean jj_3_13() {
+    if (jj_3R_26()) return true;
+    return false;
+  }
+
+  private boolean jj_3_30() {
+    if (jj_3R_41()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_106() {
+    if (jj_3R_88()) return true;
+    Token xsp;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3R_107()) { jj_scanpos = xsp; break; }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_59() {
+    if (jj_3R_41()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_79() {
+    if (jj_3R_90()) return true;
+    Token xsp;
+    if (jj_3R_91()) return true;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3R_91()) { jj_scanpos = xsp; break; }
+    }
+    xsp = jj_scanpos;
+    if (jj_3R_92()) jj_scanpos = xsp;
+    return false;
+  }
+
+  private boolean jj_3R_58() {
+    if (jj_3R_39()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_69() {
+    if (jj_3R_41()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_29() {
+    Token xsp;
+    if (jj_3R_69()) return true;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3R_69()) { jj_scanpos = xsp; break; }
+    }
     return false;
   }
 
@@ -2161,15 +2365,15 @@ public class TeXParser implements TeXParserConstants {
   private boolean jj_lookingAhead = false;
   private boolean jj_semLA;
   private int jj_gen;
-  final private int[] jj_la1 = new int[28];
+  final private int[] jj_la1 = new int[32];
   static private int[] jj_la1_0;
   static {
       jj_la1_init_0();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0xa000,0xa000,0x2000000,0x60000,0xc0,0xc0,0x1fb1030,0x2000000,0xc0,0xc0,0x1fb1030,0x4000,0x70000000,0x1fb0030,0x70000000,0x40,0x30000,0x30000c00,0x380030,0x40,0x30000000,0x30031000,0x1c00000,0x70000e00,0x1000,0x8000,0x4000,0x2000,};
+      jj_la1_0 = new int[] {0xa000,0xa000,0x2000000,0x40,0x70001200,0x40,0x70001200,0x60000,0xc0,0xc0,0x1fb1030,0x2000000,0xc0,0xc0,0x1fb1030,0x4000,0x70000000,0x1fb0030,0x70000000,0x40,0x30000,0x30000c00,0x380030,0x40,0x30000000,0x30031000,0x1c00000,0x70000200,0x1000,0x8000,0x4000,0x2000,};
    }
-  final private JJCalls[] jj_2_rtns = new JJCalls[32];
+  final private JJCalls[] jj_2_rtns = new JJCalls[36];
   private boolean jj_rescan = false;
   private int jj_gc = 0;
 
@@ -2184,7 +2388,7 @@ public class TeXParser implements TeXParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 32; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -2199,7 +2403,7 @@ public class TeXParser implements TeXParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 32; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -2210,7 +2414,7 @@ public class TeXParser implements TeXParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 32; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -2221,7 +2425,7 @@ public class TeXParser implements TeXParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 32; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -2231,7 +2435,7 @@ public class TeXParser implements TeXParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 32; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -2241,7 +2445,7 @@ public class TeXParser implements TeXParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 32; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -2358,7 +2562,7 @@ public class TeXParser implements TeXParserConstants {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 28; i++) {
+    for (int i = 0; i < 32; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {
@@ -2394,7 +2598,7 @@ public class TeXParser implements TeXParserConstants {
 
   private void jj_rescan_token() {
     jj_rescan = true;
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 36; i++) {
     try {
       JJCalls p = jj_2_rtns[i];
       do {
@@ -2433,6 +2637,10 @@ public class TeXParser implements TeXParserConstants {
             case 29: jj_3_30(); break;
             case 30: jj_3_31(); break;
             case 31: jj_3_32(); break;
+            case 32: jj_3_33(); break;
+            case 33: jj_3_34(); break;
+            case 34: jj_3_35(); break;
+            case 35: jj_3_36(); break;
           }
         }
         p = p.next;

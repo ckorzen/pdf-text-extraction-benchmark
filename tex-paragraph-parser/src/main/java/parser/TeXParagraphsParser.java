@@ -151,21 +151,21 @@ public class TeXParagraphsParser {
       Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
     // Check, if the command is a cross reference. TODO
     if (StringUtils.equals(cmd.getName(), "\\onlinecite")) {
-      cmd.setName("\\cite");  
+      cmd.setName("\\cite");
     }
-    
+
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
-        
+
     TeXElementReference ref = getTeXElementReference(cmd, role);
-    
+
     if (ref == null) {
       itr.skipTo(guessEndCommand(cmd, role));
       // Do nothing if there is no element reference for the command.
       return para;
     }
-    
+
     // Check if the element introduces a new paragraph.
     para = checkForParagraphStart(cmd, role, para, paras);
 
@@ -224,7 +224,7 @@ public class TeXParagraphsParser {
         para = processGroup(option, role, para, paras);
       }
     }
-    
+
     // Check which groups of the command we have to parse.
     if (ref.definesGroupsToParse()) {
       List<Integer> groupsToParse = ref.getGroupsToParse();
@@ -239,7 +239,7 @@ public class TeXParagraphsParser {
         // Process the group that are defined by groupsToParse.
         for (int id : groupsToParse) {
           Group group = cmd.hasGroups(id + 1) ? cmd.getGroup(id + 1) : null;
-  
+
           if (group != null) {
             para = processGroup(group, role, para, paras);
           }
@@ -263,7 +263,7 @@ public class TeXParagraphsParser {
           text = formulaText;
         }
       }
-      
+
       para.registerText(text);
       para.registerTeXElements(childElements);
     } else {
@@ -280,105 +280,115 @@ public class TeXParagraphsParser {
 
     return para;
   }
-  
+
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
-  protected String getTextOfSimpleFormula(List<Element> formulaElements) {
-    // Last element is "end math-mode" command. Ignore it.
-            
+  protected String getTextOfSimpleFormula(List<Element> elements) {
+    int numElements = elements.size();
     StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < formulaElements.size() - 1; i++) {
-      Element prevElement = i > 0 ? formulaElements.get(i - 1) : null;
-      Element element = formulaElements.get(i);
-      Element nextElement = i < formulaElements.size() - 1 ? formulaElements.get(i + 1) : null;
-            
-      if (element instanceof Group) {
-        String text = getTextOfSimpleFormula(((Group) element).getElements());
-        if (text != null) {
-          sb.append(text);
-        }
+
+    // Only iterate until numElements - 1, because last element is
+    // "end math-mode" command. Ignore it.
+    for (int i = 0; i < numElements; i++) {
+      Element prevElement = i > 0 ? elements.get(i - 1) : null;
+      Element element = elements.get(i);
+      Element nextElement = i < numElements - 1 ? elements.get(i + 1) : null;
+
+      String prevString = getTextOfFormulaElement(prevElement);
+      String string = getTextOfFormulaElement(element);
+      String nextString = getTextOfFormulaElement(nextElement);
+
+      if (string == null) {
+        return null;
+      }
+
+      String trimmed = string.trim();
+      if (trimmed.isEmpty()) {
         continue;
       }
       
-      if (element instanceof NewLine) {
-        sb.append(" ");
-        continue;
-      }
-      
-      if (element instanceof NewParagraph) {
-        sb.append(" ");
-        continue;
-      }
-      
-      if (element instanceof Whitespace) {
-        // Don't introduce the whitespace, if prev and next element was
-        // alphanumerical text.
-        if (prevElement instanceof Text && nextElement instanceof Text) {
-          Text prevText = (Text) prevElement;
-          Text nextText = (Text) nextElement;
-                    
-          String prevString = prevText.getText();
-          String nextString = nextText.getText();
-          
-          if (!prevString.isEmpty() && !nextString.isEmpty()) {
-            char prevStringLastChar = prevString.charAt(prevString.length() - 1);
-            char nextStringFirstChar = nextString.charAt(0);
-            
-            if (Characters.isLetterOrDigit(prevStringLastChar) 
-                && Characters.isLetterOrDigit(nextStringFirstChar)) {
-              continue;
-            }
-          }
-        }
-        
-        sb.append(((Whitespace) element).getText());
-        continue;
-      }
-      
-      if (element instanceof Text) {
-        Text text = (Text) element;
-               
-        String textStr = text.getText();
-        
-        if (textStr == null) {
+      char[] chars = string.toCharArray();
+      for (char character : chars) {
+        // Ignore whitespaces per default.
+        if (character == ' ') {
           continue;
         }
         
-        // Don't allow sub- and superscripts for now.
-        if (textStr.contains("_") || textStr.contains("^")) {
-          return null;
-        }
-        
-        sb.append(text.getText());
-        continue;
+        // Surround specific math symbols with whitespaces.
+        if (Characters.MATH_OPERATORS.contains(String.valueOf(character))) {
+          sb.append(" " + character + " ");
+          continue;
+        } 
+        sb.append(character);  
       }
-      
+    }
+
+    return sb.length() > 0 ? sb.toString() : null;
+  }
+
+  /**
+   * Processes a cross reference command (\cite, \label, \ref).
+   */
+  protected String getTextOfFormulaElement(Element element) {
+    StringBuilder sb = new StringBuilder();
+
+    if (element == null) {
+      return null;
+    }
+
+    if (element instanceof NewLine) {
+      sb.append(" ");
+    } else if (element instanceof NewParagraph) {
+      sb.append(" ");
+    } else if (element instanceof Group) {
+      Group group = (Group) element;
+      String text = getTextOfSimpleFormula(group.getElements());
+      if (text == null) {
+        return null;
+      }
+      sb.append(text);
+    } else if (element instanceof Command) {
       // Check if the element introduces a placeholder, for example:
       // \epsilon -> ɛ
-      
-      // TODO: Disabled for now because there are too many encoding issues:
-      // For example, "ϵ" is extracted as "ǫ".​
-//      TeXElementReference ref = getTeXElementReference(element, null);
-//            
-//      if (ref != null) {
-//        if (ref.introducesPlaceholder()) {
-//          sb.append(ref.getPlaceholder());
-//        }
-//        continue;
-//      }
-      
-      return null;      
+
+      Command cmd = (Command) element;
+
+      if ("^".equals(cmd.getName())) {
+        // TODO: superscripts
+        return getTextOfFormulaElement(cmd.getGroup());
+      }
+
+      if ("_".equals(cmd.getName())) {
+        // TODO: subscripts
+        return getTextOfFormulaElement(cmd.getGroup());
+      }
+
+      TeXElementReference ref = getTeXElementReference(cmd, null);
+
+      if (ref == null) {
+        return null;
+      }
+
+      if (ref.getPlaceholder() == null) {
+        return null;
+      }
+
+      if ("[formula]".equals(ref.getPlaceholder())) {
+        return "";
+      }
+
+      sb.append(ref.getPlaceholder());
+    } else if (element instanceof Text) {
+      String text = ((Text) element).toString(false, false);
+      if (text != null) {
+        sb.append(text);
+      }
     }
-    
-    // Need some normalization.
-    String text = sb.toString();
-    text = text.replaceAll("\\^", "");
-    text = text.replaceAll("_", "");
-        
-    return text;
+
+    return sb.toString();
   }
-  
+
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */

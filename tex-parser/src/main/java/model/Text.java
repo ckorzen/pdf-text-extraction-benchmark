@@ -46,6 +46,10 @@ public class Text extends Element {
     return text.toString();
   }
   
+  public String toString(boolean withSuperScripts, boolean withSubscripts) {
+    return text.toString();
+  }
+
   /**
    * Returns true, if this text only contains whitespaces.
    */

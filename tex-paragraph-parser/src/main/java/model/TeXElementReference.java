@@ -251,7 +251,7 @@ public class TeXElementReference {
    * Returns the value of the i-th field in the reference.
    */
   protected String getString(int index) {
-    if (index >= 0 && index < fields.length) {
+    if (index >= 0 && index < fields.length) {      
       String value = "".equals(fields[index]) ? null : fields[index];
       if (value != null) {
         return StringEscapeUtils.unescapeCsv(value);
