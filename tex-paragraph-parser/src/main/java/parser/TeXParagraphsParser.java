@@ -288,45 +288,90 @@ public class TeXParagraphsParser {
     int numElements = elements.size();
     StringBuilder sb = new StringBuilder();
 
+    Iterator<Element> itr = new Iterator<>(elements);
+    
     // Only iterate until numElements - 1, because last element is
     // "end math-mode" command. Ignore it.
-    for (int i = 0; i < numElements; i++) {
-      Element prevElement = i > 0 ? elements.get(i - 1) : null;
-      Element element = elements.get(i);
-      Element nextElement = i < numElements - 1 ? elements.get(i + 1) : null;
-
-      String prevString = getTextOfFormulaElement(prevElement);
-      String string = getTextOfFormulaElement(element);
-      String nextString = getTextOfFormulaElement(nextElement);
-
-      if (string == null) {
-        return null;
-      }
-
-      String trimmed = string.trim();
-      if (trimmed.isEmpty()) {
-        continue;
-      }
+    while (itr.hasNext()) {
+      Element element = itr.next();
       
-      char[] chars = string.toCharArray();
-      for (char character : chars) {
-        // Ignore whitespaces per default.
-        if (character == ' ') {
+      // If there is a run of "_x^y" we want to proceed with superscript first.
+      if (isSubscriptCommand(element)) {
+        Element next = itr.peekNonWhitespace();
+        if (isSuperscriptCommand(next)) {
+          next = itr.nextNonWhitespace();
+                    
+          if (!getTextOfFormulaElement(next, sb)) {
+            return null;
+          }
+          if (!getTextOfFormulaElement(element, sb)) {
+            return null;
+          }
+          
           continue;
         }
-        
-        // Surround specific math symbols with whitespaces.
-        if (Characters.MATH_OPERATORS.contains(String.valueOf(character))) {
-          sb.append(" " + character + " ");
-          continue;
-        } 
-        sb.append(character);  
+      }
+      
+      if (!getTextOfFormulaElement(element, sb)) {
+        return null;
       }
     }
 
     return sb.length() > 0 ? sb.toString() : null;
   }
 
+  protected boolean isSubscriptCommand(Element element) {
+    if (!(element instanceof Command)) {
+      return false;
+    }
+    
+    Command cmd = (Command) element;
+    
+    return "_".equals(cmd.getName());
+  }
+  
+  protected boolean isSuperscriptCommand(Element element) {
+    if (!(element instanceof Command)) {
+      return false;
+    }
+    
+    Command cmd = (Command) element;
+    
+    return "^".equals(cmd.getName());
+  }
+  
+  /**
+   * Returns true if the formula could be parsed, false otherwise.
+   */
+  protected boolean getTextOfFormulaElement(Element element, StringBuilder sb) {
+    String string = getTextOfFormulaElement(element);
+
+    if (string == null) {
+      return false;
+    }
+
+    String trimmed = string.trim();
+    if (trimmed.isEmpty()) {
+      return true;
+    }
+    
+    char[] chars = string.toCharArray();
+    for (char character : chars) {
+      // Ignore whitespaces per default.
+      if (character == ' ') {
+        continue;
+      }
+      
+      // Surround specific math symbols with whitespaces.
+      if (Characters.MATH_OPERATORS.contains(String.valueOf(character))) {
+        sb.append(" " + character + " ");
+        continue;
+      } 
+      sb.append(character);  
+    }
+    return true;
+  }
+  
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */

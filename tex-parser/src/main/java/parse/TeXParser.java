@@ -270,7 +270,7 @@ public class TeXParser implements TeXParserConstants {
   Group group;
   Command subScriptCommand;
     token = jj_consume_token(UNDERSCORE);
-    command = new Command(token.image, token);
+        command = new Command(token.image, token);
     label_2:
     while (true) {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
