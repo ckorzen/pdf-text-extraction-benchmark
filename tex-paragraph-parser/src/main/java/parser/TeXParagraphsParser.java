@@ -296,7 +296,7 @@ public class TeXParagraphsParser {
       
       // TODO: Decide: With or without sub/superscripts?
       if (isSubscriptCommand(element) || isSuperscriptCommand(element)) {
-        continue;
+        return null;
       }
       
       // If there is a run of "_x^y" we want to proceed with superscript first.
