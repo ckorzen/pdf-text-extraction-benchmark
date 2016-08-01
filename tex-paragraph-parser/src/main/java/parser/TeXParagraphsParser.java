@@ -285,7 +285,6 @@ public class TeXParagraphsParser {
    * Processes a cross reference command (\cite, \label, \ref).
    */
   protected String getTextOfSimpleFormula(List<Element> elements) {
-    int numElements = elements.size();
     StringBuilder sb = new StringBuilder();
 
     Iterator<Element> itr = new Iterator<>(elements);
@@ -294,6 +293,11 @@ public class TeXParagraphsParser {
     // "end math-mode" command. Ignore it.
     while (itr.hasNext()) {
       Element element = itr.next();
+      
+      // TODO: Decide: With or without sub/superscripts?
+      if (isSubscriptCommand(element) || isSuperscriptCommand(element)) {
+        continue;
+      }
       
       // If there is a run of "_x^y" we want to proceed with superscript first.
       if (isSubscriptCommand(element)) {
