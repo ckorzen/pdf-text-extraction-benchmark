@@ -413,21 +413,22 @@ public class TeXParagraphsParser {
         return getTextOfFormulaElement(cmd.getGroup());
       }
 
-      TeXElementReference ref = getTeXElementReference(cmd, null);
-
-      if (ref == null) {
-        return null;
-      }
-
-      if (ref.getPlaceholder() == null) {
-        return null;
-      }
-
-      if ("[formula]".equals(ref.getPlaceholder())) {
-        return "";
-      }
-
-      sb.append(ref.getPlaceholder());
+      return null;
+//      TeXElementReference ref = getTeXElementReference(cmd, null);
+//
+//      if (ref == null) {
+//        return null;
+//      }
+//
+//      if (ref.getPlaceholder() == null) {
+//        return null;
+//      }
+//
+//      if ("[formula]".equals(ref.getPlaceholder())) {
+//        return "";
+//      }
+//
+//      sb.append(ref.getPlaceholder());
     } else if (element instanceof Text) {
       String text = ((Text) element).toString(false, false);
       if (text != null) {
