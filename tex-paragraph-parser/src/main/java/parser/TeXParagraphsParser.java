@@ -294,10 +294,10 @@ public class TeXParagraphsParser {
     while (itr.hasNext()) {
       Element element = itr.next();
       
-      // TODO: Decide: With or without sub/superscripts?
-      if (isSubscriptCommand(element) || isSuperscriptCommand(element)) {
-        return null;
-      }
+//      // TODO: Decide: With or without sub/superscripts?
+//      if (isSubscriptCommand(element) || isSuperscriptCommand(element)) {
+//        return null;
+//      }
       
       // If there is a run of "_x^y" we want to proceed with superscript first.
       if (isSubscriptCommand(element)) {
