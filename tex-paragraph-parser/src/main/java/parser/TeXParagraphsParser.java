@@ -349,7 +349,7 @@ public class TeXParagraphsParser {
    */
   protected boolean getTextOfFormulaElement(Element element, StringBuilder sb) {
     String string = getTextOfFormulaElement(element);
-
+    
     if (string == null) {
       return false;
     }
@@ -358,7 +358,13 @@ public class TeXParagraphsParser {
     if (trimmed.isEmpty()) {
       return true;
     }
-    
+
+    // Surround specific math words (e.g. "sin") with whitespaces.
+    boolean surroundWithWhitespaces = Characters.MATH_OPERATORS.contains(string);
+    if (surroundWithWhitespaces) {
+      sb.append(" ");
+    }
+        
     char[] chars = string.toCharArray();
     for (char character : chars) {
       // Ignore whitespaces per default.
@@ -373,6 +379,12 @@ public class TeXParagraphsParser {
       } 
       sb.append(character);  
     }
+    
+    // Surround specific math words (e.g. "sin") with whitespaces.
+    if (surroundWithWhitespaces) {
+      sb.append(" ");
+    }
+    
     return true;
   }
   
