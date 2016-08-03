@@ -286,7 +286,7 @@ public class TeXParagraphsParser {
    */
   protected String getTextOfSimpleFormula(List<Element> elements) {
     StringBuilder sb = new StringBuilder();
-
+    
     Iterator<Element> itr = new Iterator<>(elements);
     
     // Only iterate until numElements - 1, because last element is
@@ -385,11 +385,21 @@ public class TeXParagraphsParser {
     if (element == null) {
       return null;
     }
-
+    
     if (element instanceof NewLine) {
       sb.append(" ");
     } else if (element instanceof NewParagraph) {
       sb.append(" ");
+    } else if (element instanceof Option) {
+      // TODO: This is a workaround for formulas with brackets ("[", "]")
+      // Elements like "[...]" are identified as options but aren't options, 
+      // because we are in math mode. Identify this in TeX-Parser.
+      Option option = (Option) element;
+      String text = getTextOfSimpleFormula(option.getElements());
+      if (text == null) {
+        return null;
+      }
+      sb.append("[" + text + "]");
     } else if (element instanceof Group) {
       Group group = (Group) element;
       String text = getTextOfSimpleFormula(group.getElements());
