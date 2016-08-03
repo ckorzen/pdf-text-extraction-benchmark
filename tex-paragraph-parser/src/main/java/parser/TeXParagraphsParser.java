@@ -256,8 +256,8 @@ public class TeXParagraphsParser {
     // Write placeholder, if the command introduces a placeholder.
     if (ref.introducesPlaceholder()) {
       String text = ref.getPlaceholder();
-      // TODO: Handle "simple" formulas.
-      if ("[formula]".equals(text)) {
+      // TODO: Handle "simple" formulas. Don't resolve separated formulas.
+      if ("[formula]".equals(text) && !ref.startsParagraph()) {
         String formulaText = getTextOfSimpleFormula(childElements);
         if (formulaText != null) {
           text = formulaText;
