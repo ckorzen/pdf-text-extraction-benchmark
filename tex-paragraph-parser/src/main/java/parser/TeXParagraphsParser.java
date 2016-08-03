@@ -288,16 +288,12 @@ public class TeXParagraphsParser {
     StringBuilder sb = new StringBuilder();
     
     Iterator<Element> itr = new Iterator<>(elements);
-    
-    System.out.println(elements);
-    
+        
     // Only iterate until numElements - 1, because last element is
     // "end math-mode" command. Ignore it.
     while (itr.hasNext()) {
       Element element = itr.next();
-    
-      System.out.println("  " + element);
-      
+          
 //      // TODO: Decide: With or without sub/superscripts?
 //      if (isSubscriptCommand(element) || isSuperscriptCommand(element)) {
 //        return null;
@@ -310,11 +306,9 @@ public class TeXParagraphsParser {
           next = itr.nextNonWhitespace();
                     
           if (!getTextOfFormulaElement(next, sb)) {
-            System.out.println("  111");
             return null;
           }
           if (!getTextOfFormulaElement(element, sb)) {
-            System.out.println("  222");
             return null;
           }
           
@@ -323,7 +317,6 @@ public class TeXParagraphsParser {
       }
       
       if (!getTextOfFormulaElement(element, sb)) {
-        System.out.println("  333");
         return null;
       }
     }
