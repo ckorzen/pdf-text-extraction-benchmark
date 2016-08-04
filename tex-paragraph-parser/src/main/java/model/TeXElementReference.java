@@ -119,7 +119,7 @@ public class TeXElementReference {
    * Returns the defined outline level.
    */
   public int getIntroduceParagraphType() {
-    return getInteger(4);
+    return getInteger(4, -1);
   }
 
   // ___________________________________________________________________________
@@ -144,7 +144,7 @@ public class TeXElementReference {
    * Returns the defined outline level.
    */
   public int getOutlineLevel() {
-    return getInteger(6);
+    return getInteger(6, -1);
   }
 
   // ___________________________________________________________________________
@@ -195,7 +195,7 @@ public class TeXElementReference {
    * Returns the defined number of groups.
    */
   public int getNumberOfGroups() {
-    return getInteger(9);
+    return getInteger(9, -2);
   }
 
   // ___________________________________________________________________________
@@ -235,7 +235,7 @@ public class TeXElementReference {
    * Returns true, if this reference defines the parsing of options.
    */
   public boolean definesOptionsToParse() {
-    return getInteger(11) > 0;
+    return getInteger(11, -1) > 0;
   }
 
   // ___________________________________________________________________________
@@ -279,9 +279,9 @@ public class TeXElementReference {
   /**
    * Returns the value of the i-th field as an integer.
    */
-  protected int getInteger(int index) {
+  protected int getInteger(int index, int defaultValue) {
     String value = getString(index);
-    return value != null ? Integer.parseInt(value) : -1;
+    return value != null ? Integer.parseInt(value) : defaultValue;
   }
 
   /**
@@ -304,7 +304,7 @@ public class TeXElementReference {
    * Returns the value of the i-th field as an booleanb.
    */
   protected boolean getBoolean(int index) {
-    int value = getInteger(index);
+    int value = getInteger(index, -1);
     return value == 1;
   }
 }

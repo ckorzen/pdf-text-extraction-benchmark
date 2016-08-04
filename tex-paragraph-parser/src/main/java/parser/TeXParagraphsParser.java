@@ -159,7 +159,7 @@ public class TeXParagraphsParser {
     }
 
     TeXElementReference ref = getTeXElementReference(cmd, role);
-
+    
     if (ref == null) {
       itr.skipTo(guessEndCommand(cmd, role));
       // Do nothing if there is no element reference for the command.
@@ -202,7 +202,7 @@ public class TeXParagraphsParser {
             Group nextGroup = (Group) nextElement;
             // context.elements.set(context.curIndex - 1, null);
             // Simply add the group to the command.
-            cmd.addVirtualGroup(nextGroup);
+            cmd.addGroup(nextGroup);
           } else if (nextElement instanceof Text) {
             itr.nextNonWhitespace();
             Text textElement = (Text) nextElement;
@@ -210,7 +210,7 @@ public class TeXParagraphsParser {
             String text = textElement.toString();
             if (!text.trim().isEmpty()) {
               // Create new Group and add it to the command.
-              cmd.addVirtualGroup(new Group(textElement));
+              cmd.addGroup(new Group(textElement));
             }
           }
         }
@@ -305,10 +305,10 @@ public class TeXParagraphsParser {
         if (isSuperscriptCommand(next)) {
           next = itr.nextNonWhitespace();
                     
-          if (!getTextOfFormulaElement(next, sb)) {
+          if (!getTextOfFormulaElement(next, itr, sb)) {
             return null;
           }
-          if (!getTextOfFormulaElement(element, sb)) {
+          if (!getTextOfFormulaElement(element, itr, sb)) {
             return null;
           }
           
@@ -316,7 +316,7 @@ public class TeXParagraphsParser {
         }
       }
       
-      if (!getTextOfFormulaElement(element, sb)) {
+      if (!getTextOfFormulaElement(element, itr, sb)) {
         return null;
       }
     }
@@ -347,8 +347,9 @@ public class TeXParagraphsParser {
   /**
    * Returns true if the formula could be parsed, false otherwise.
    */
-  protected boolean getTextOfFormulaElement(Element element, StringBuilder sb) {
-    String string = getTextOfFormulaElement(element);
+  protected boolean getTextOfFormulaElement(Element element, 
+      Iterator<Element> itr, StringBuilder sb) {
+    String string = getTextOfFormulaElement(element, itr);
     
     if (string == null) {
       return false;
@@ -391,7 +392,8 @@ public class TeXParagraphsParser {
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
-  protected String getTextOfFormulaElement(Element element) {
+  protected String getTextOfFormulaElement(Element element, 
+      Iterator<Element> itr) {
     StringBuilder sb = new StringBuilder();
 
     if (element == null) {
@@ -424,43 +426,98 @@ public class TeXParagraphsParser {
       // \epsilon -> ɛ
 
       Command cmd = (Command) element;
-
+      
       if ("^".equals(cmd.getName())) {
         // TODO: superscripts
-        return getTextOfFormulaElement(cmd.getGroup());
+        return getTextOfFormulaElement(cmd.getGroup(), itr);
       }
 
       if ("_".equals(cmd.getName())) {
         // TODO: subscripts
-        return getTextOfFormulaElement(cmd.getGroup());
+        return getTextOfFormulaElement(cmd.getGroup(), itr);
       }
 
       TeXElementReference ref = getTeXElementReference(cmd, null);
-
+      
       if (ref == null) {
         return null;
       }
 
+      // Some arguments of some commands won't be defined within a group but as
+      // a consecutive string, e.g. "\vksip 5pt".
+      // So check, if the command has the expected number of groups. If not,
+      // consider the appropriated number of consecutive string as the command's
+      // arguments. Example: $\acute e$
+      if (ref.definesNumberOfGroups()) {
+        int expectedNumGroups = ref.getNumberOfGroups();
+        int actualNumGroups = cmd.getGroups().size();
+
+        // Because the context may be a new object after resolving, adjust
+        // the current position in the context.
+        // context.reposition(cmd);
+
+        if (expectedNumGroups > actualNumGroups) {
+          // The actual number of groups is smaller than the expected number.
+          // Add the appropriate number of following elements as groups to the
+          // command.
+          for (int i = 0; i < expectedNumGroups - actualNumGroups; i++) {
+            Element nextElement = itr.peekNonWhitespace();
+            if (nextElement instanceof Group) {
+              itr.nextNonWhitespace();
+              Group nextGroup = (Group) nextElement;
+              // context.elements.set(context.curIndex - 1, null);
+              // Simply add the group to the command.
+              cmd.addGroup(nextGroup);
+            } else if (nextElement instanceof Text) {
+              itr.nextNonWhitespace();
+              Text textElement = (Text) nextElement;
+              // context.elements.set(context.curIndex - 1, null);
+              String text = textElement.toString();
+              if (!text.trim().isEmpty()) {
+                // Create new Group and add it to the command.
+                cmd.addGroup(new Group(textElement));
+              }
+            }
+          }
+        }
+                
+        // Update the tex element reference.
+        ref = getTeXElementReference(cmd, null);
+      }
+      
+      
       if (ref.getPlaceholder() == null) {
         return null;
       }
 
+      // Last element could be "$" that resolves to "[formula]"
       if ("[formula]".equals(ref.getPlaceholder())) {
         return "";
       }
       
       sb.append(ref.getPlaceholder());
       
-      // Strip existing groups.
-      if (cmd.hasGroups()) {
-        for (Group group : cmd.getGroups()) {
-          String text = getTextOfSimpleFormula(group.getElements());
-          if (text == null) {
-            return null;
+      if (ref.definesNumberOfGroups()) {
+        int expectedNumGroups = ref.getNumberOfGroups();
+        int actualNumGroups = cmd.getGroups().size();
+
+        // In rare cases, the expected number of groups could be smaller than 
+        // the actual number of groups. For example, in formulas, a text
+        // like "\langle{\bf n}" would be considered as a command with one 
+        // group by the parser. In fact, this is a command and a discrete group.
+        // In this case, handle all "superfluous groups" individually.
+        if (expectedNumGroups < actualNumGroups) {
+          for (int i = expectedNumGroups; i < actualNumGroups; i++) {
+            Group group = cmd.getGroup(i + 1); // 1-based.
+            String text = getTextOfSimpleFormula(group.getElements());
+            if (text == null) {
+              return null;
+            }
+            sb.append(text);
           }
-          sb.append(text);
         }
       }
+     
     } else if (element instanceof Text) {
       String text = ((Text) element).toString(false, false);
       if (text != null) {

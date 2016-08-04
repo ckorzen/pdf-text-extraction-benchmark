@@ -300,6 +300,7 @@ public class TeXMacroResolver extends TeXParser {
         
     TeXElementReference prevRef = refs.getElementReference(prevNonWhitespace);
     TeXElementReference ref = refs.getElementReference(element);
+        
     boolean prevEndsParagraph = prevRef != null && prevRef.endsParagraph();
     boolean startsParagraph = ref != null && ref.startsParagraph();
     int lineNum = element.getBeginLineNumber();
