@@ -349,41 +349,47 @@ public class TeXParagraphsParser {
    */
   protected boolean getTextOfFormulaElement(Element element, 
       Iterator<Element> itr, StringBuilder sb) {
-    String string = getTextOfFormulaElement(element, itr);
+    List<String> strings = getTextOfFormulaElement(element, itr);
     
-    if (string == null) {
+    if (strings == null) {
       return false;
     }
-
-    String trimmed = string.trim();
-    if (trimmed.isEmpty()) {
-      return true;
-    }
-
-    // Surround specific math words (e.g. "sin") with whitespaces.
-    boolean surroundWithWhitespaces = Characters.MATH_OPERATORS.contains(string);
-    if (surroundWithWhitespaces) {
-      sb.append(" ");
-    }
-        
-    char[] chars = string.toCharArray();
-    for (char character : chars) {
-      // Ignore whitespaces per default.
-      if (character == ' ') {
-        continue;
+    
+    for (String string : strings) {
+      if (string == null) {
+        return false;
+      }
+  
+      String trimmed = string.trim();
+      if (trimmed.isEmpty()) {
+        return true;
       }
       
-      // Surround specific math symbols with whitespaces.
-      if (Characters.MATH_OPERATORS.contains(String.valueOf(character))) {
-        sb.append(" " + character + " ");
-        continue;
-      } 
-      sb.append(character);  
-    }
-    
-    // Surround specific math words (e.g. "sin") with whitespaces.
-    if (surroundWithWhitespaces) {
-      sb.append(" ");
+      // Surround specific math words (e.g. "sin") with whitespaces.
+      boolean surroundWithWhitespaces = Characters.MATH_OPERATORS.contains(string);
+      if (surroundWithWhitespaces) {
+        sb.append(" ");
+      }
+          
+      char[] chars = string.toCharArray();
+      for (char character : chars) {
+        // Ignore whitespaces per default.
+        if (character == ' ') {
+          continue;
+        }
+        
+        // Surround specific math symbols with whitespaces.
+        if (Characters.MATH_OPERATORS.contains(String.valueOf(character))) {
+          sb.append(" " + character + " ");
+          continue;
+        } 
+        sb.append(character);  
+      }
+      
+      // Surround specific math words (e.g. "sin") with whitespaces.
+      if (surroundWithWhitespaces) {
+        sb.append(" ");
+      }
     }
     
     return true;
@@ -392,18 +398,18 @@ public class TeXParagraphsParser {
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
-  protected String getTextOfFormulaElement(Element element, 
+  protected List<String> getTextOfFormulaElement(Element element, 
       Iterator<Element> itr) {
-    StringBuilder sb = new StringBuilder();
+    ArrayList<String> result = new ArrayList<>();
 
     if (element == null) {
       return null;
     }
     
     if (element instanceof NewLine) {
-      sb.append(" ");
+      result.add(" ");
     } else if (element instanceof NewParagraph) {
-      sb.append(" ");
+      result.add(" ");
     } else if (element instanceof Option) {
       // TODO: This is a workaround for formulas with brackets ("[", "]")
       // Elements like "[...]" are identified as options but aren't options, 
@@ -413,14 +419,14 @@ public class TeXParagraphsParser {
       if (text == null) {
         return null;
       }
-      sb.append("[" + text + "]");
+      result.add("[" + text + "]");
     } else if (element instanceof Group) {
       Group group = (Group) element;
       String text = getTextOfSimpleFormula(group.getElements());
       if (text == null) {
         return null;
       }
-      sb.append(text);
+      result.add(text);
     } else if (element instanceof Command) {
       // Check if the element introduces a placeholder, for example:
       // \epsilon -> ɛ
@@ -492,10 +498,10 @@ public class TeXParagraphsParser {
 
       // Last element could be "$" that resolves to "[formula]"
       if ("[formula]".equals(ref.getPlaceholder())) {
-        return "";
+        return result;
       }
       
-      sb.append(ref.getPlaceholder());
+      result.add(ref.getPlaceholder());
       
       if (ref.definesNumberOfGroups()) {
         int expectedNumGroups = ref.getNumberOfGroups();
@@ -513,7 +519,7 @@ public class TeXParagraphsParser {
             if (text == null) {
               return null;
             }
-            sb.append(text);
+            result.add(text);
           }
         }
       }
@@ -521,11 +527,11 @@ public class TeXParagraphsParser {
     } else if (element instanceof Text) {
       String text = ((Text) element).toString(false, false);
       if (text != null) {
-        sb.append(text);
+        result.add(text);
       }
     }
 
-    return sb.toString();
+    return result;
   }
 
   /**
