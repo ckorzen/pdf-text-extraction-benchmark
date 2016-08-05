@@ -407,9 +407,11 @@ public class TeXParagraphsParser {
     }
     
     if (element instanceof NewLine) {
-      result.add(" ");
+      // Do nothing
     } else if (element instanceof NewParagraph) {
-      result.add(" ");
+      // Do nothing
+    } else if (element instanceof Whitespace) {
+      // Do nothing. Ignore.
     } else if (element instanceof Option) {
       // TODO: This is a workaround for formulas with brackets ("[", "]")
       // Elements like "[...]" are identified as options but aren't options, 
