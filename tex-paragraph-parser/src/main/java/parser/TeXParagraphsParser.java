@@ -153,7 +153,7 @@ public class TeXParagraphsParser {
     if (StringUtils.equals(cmd.getName(), "\\onlinecite")) {
       cmd.setName("\\cite");
     }
-
+    
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
@@ -166,6 +166,10 @@ public class TeXParagraphsParser {
       return para;
     }
 
+    if ("\\,".equals(cmd.toString())) {
+      System.out.println(cmd + " " + ref + " " + ref.introducesPlaceholder());
+    }
+    
     // Check if the element introduces a new paragraph.
     para = checkForParagraphStart(cmd, role, para, paras);
 
@@ -288,7 +292,7 @@ public class TeXParagraphsParser {
     StringBuilder sb = new StringBuilder();
     
     Iterator<Element> itr = new Iterator<>(elements);
-        
+            
     // Only iterate until numElements - 1, because last element is
     // "end math-mode" command. Ignore it.
     while (itr.hasNext()) {
@@ -442,7 +446,7 @@ public class TeXParagraphsParser {
         // TODO: subscripts
         return getTextOfFormulaElement(cmd.getGroup(), itr);
       }
-
+       
       TeXElementReference ref = getTeXElementReference(cmd, null);
       
       if (ref == null) {

@@ -11,6 +11,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
 /**
  * The available references for tex elements.
  *
@@ -155,17 +157,24 @@ public class TeXElementReferences {
       if (line.trim().isEmpty()) {
         continue;
       }
-
-      String[] fields = line.split(ELEMENT_REFERENCES_SEPARATOR, -1);
+      
+      // Split the line at given separator, except if it is preceded by "\".
+      String[] fields = line.split("(?<!\\\\)" + ELEMENT_REFERENCES_SEPARATOR, -1);
+      
+      // Need to unescape each field.
+      for (int i = 0; i < fields.length; i++) {
+        fields[i] = StringEscapeUtils.unescapeCsv(fields[i]);
+      }
+            
       TeXElementReference ref = new TeXElementReference(fields);
       String name = ref.getCommandName();
       if (!references.containsKey(name)) {
         references.put(name, new ArrayList<TeXElementReference>());
       }
-      
+            
       references.get(name).add(ref);
     }
-
+    
     reader.close();
 
     return references;
