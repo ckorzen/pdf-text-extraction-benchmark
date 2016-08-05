@@ -360,11 +360,11 @@ public class TeXParagraphsParser {
         return false;
       }
   
-      String trimmed = string.trim();
-      if (trimmed.isEmpty()) {
+//      String trimmed = string.trim();
+      if (string.isEmpty()) {
         return true;
       }
-      
+            
       // Surround specific math words (e.g. "sin") with whitespaces.
       boolean surroundWithWhitespaces = Characters.MATH_OPERATORS.contains(string);
       if (surroundWithWhitespaces) {
@@ -374,9 +374,9 @@ public class TeXParagraphsParser {
       char[] chars = string.toCharArray();
       for (char character : chars) {
         // Ignore whitespaces per default.
-        if (character == ' ') {
-          continue;
-        }
+//        if (character == ' ') {
+//          continue;
+//        }
         
         // Surround specific math symbols with whitespaces.
         if (Characters.MATH_OPERATORS.contains(String.valueOf(character))) {
@@ -448,7 +448,7 @@ public class TeXParagraphsParser {
       if (ref == null) {
         return null;
       }
-
+      
       // Some arguments of some commands won't be defined within a group but as
       // a consecutive string, e.g. "\vksip 5pt".
       // So check, if the command has the expected number of groups. If not,
@@ -500,7 +500,7 @@ public class TeXParagraphsParser {
       if ("[formula]".equals(ref.getPlaceholder())) {
         return result;
       }
-      
+            
       result.add(ref.getPlaceholder());
       
       if (ref.definesNumberOfGroups()) {
@@ -530,7 +530,7 @@ public class TeXParagraphsParser {
         result.add(text);
       }
     }
-
+    
     return result;
   }
 
