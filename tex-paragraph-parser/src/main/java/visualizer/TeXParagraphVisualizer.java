@@ -38,8 +38,8 @@ public class TeXParagraphVisualizer {
    */
   public void visualize(Path target, List<String> roles) throws IOException {
     PdfDrawer drawer = new PdfBoxDrawer(texFile.getPdfPath());
-    
-    for (TeXParagraph p : texFile.getTeXParagraphs()) {
+        
+    for (TeXParagraph p : texFile.getTeXParagraphs()) {      
       // Don't consider the paragraph if there is a list of roles given and
       // it doesn't contain the role of the paragraph.
       if (roles != null && !roles.contains(p.getRole())) {

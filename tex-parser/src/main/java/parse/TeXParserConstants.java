@@ -56,17 +56,19 @@ public interface TeXParserConstants {
   /** RegularExpression Id. */
   int ESCAPE_COMMAND_COMMON_NAME = 24;
   /** RegularExpression Id. */
-  int MARKER = 25;
+  int INPUT_COMMAND_NAME = 25;
   /** RegularExpression Id. */
-  int UPPERCASE_CHAR = 26;
+  int MARKER = 26;
   /** RegularExpression Id. */
-  int LOWERCASE_CHAR = 27;
+  int UPPERCASE_CHAR = 27;
   /** RegularExpression Id. */
-  int DIGIT = 28;
+  int LOWERCASE_CHAR = 28;
   /** RegularExpression Id. */
-  int CHAR = 29;
+  int DIGIT = 29;
   /** RegularExpression Id. */
-  int OTHER_SYMBOL = 30;
+  int CHAR = 30;
+  /** RegularExpression Id. */
+  int OTHER_SYMBOL = 31;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -102,6 +104,7 @@ public interface TeXParserConstants {
     "<ESCAPE_COMMAND_DEFAULT_NAME>",
     "<ESCAPE_COMMAND_TABBING_NAME>",
     "<ESCAPE_COMMAND_COMMON_NAME>",
+    "\"\\\\input\"",
     "<MARKER>",
     "<UPPERCASE_CHAR>",
     "<LOWERCASE_CHAR>",
