@@ -11,7 +11,7 @@ import java.util.List;
  */
 public class Iterator<T> implements java.util.Iterator<T> {
   /** The elements to iterate. */
-  protected List<T> elements;
+  public List<T> elements;
   /** The location where to start. */
   protected String start;
   /** The location where to end. */
@@ -118,5 +118,13 @@ public class Iterator<T> implements java.util.Iterator<T> {
         }
       }
     }
+  }
+  
+  public void setCurrentIndex(int index) {
+    this.currentIndex = index;
+  }
+  
+  public int getCurrentIndex() {
+    return currentIndex;
   }
 }

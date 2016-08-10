@@ -286,7 +286,15 @@ public class TeXParagraphParserMain {
    */
   protected void processTexFiles() throws IOException {
     for (Path file : this.inputFiles) {
-      processTexFile(file);
+      try {
+        processTexFile(file);
+      } catch (Exception e) {
+        System.out.println("WARN: File " + file + " couldn't be processed.");
+        e.printStackTrace();
+      } catch (Error e) {
+        System.out.println("WARN: File " + file + " couldn't be processed.");
+        e.printStackTrace();
+      }
     }
   }
 

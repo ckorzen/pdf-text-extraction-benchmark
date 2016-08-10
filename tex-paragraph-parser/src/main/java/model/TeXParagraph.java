@@ -16,6 +16,8 @@ public class TeXParagraph {
    */
   protected String role;
 
+  protected int outlineLevel = -1;
+  
   /**
    * The text of this paragraph.
    */
@@ -267,6 +269,14 @@ public class TeXParagraph {
       return lineNums.get(lineNums.size() - 1);
     }
     return -1;
+  }
+  
+  public int getOutlineLevel() {
+    return outlineLevel;
+  }
+
+  public void setOutlineLevel(int outlineLevel) {
+    this.outlineLevel = outlineLevel;
   }
 
   @Override

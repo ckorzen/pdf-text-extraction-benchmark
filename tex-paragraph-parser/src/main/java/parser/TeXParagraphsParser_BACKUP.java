@@ -31,7 +31,7 @@ import model.Whitespace;
  * 
  * @author Claudius Korzen
  */
-public class TeXParagraphsParser {
+public class TeXParagraphsParser_BACKUP {
   /**
    * The document to parse.
    */
@@ -276,7 +276,9 @@ public class TeXParagraphsParser {
         }
       }
     }
-        
+    
+    System.out.println(cmd + " " + role);
+    
     List<Element> childElements = getChildElements(cmd, itr, role);
     
     String roleForChildElements = ref.getRoleForChildElements();
@@ -634,13 +636,13 @@ public class TeXParagraphsParser {
       Iterator<Element> i, String role) {
     List<Element> elements = new ArrayList<>();
 
-//    TeXElementReference startCmdRef = getTeXElementReference(cmd, null);
-//    int outline = startCmdRef != null && startCmdRef.definesOutlineLevel() 
-//        ? startCmdRef.getOutlineLevel() : Integer.MAX_VALUE;
+    TeXElementReference startCmdRef = getTeXElementReference(cmd, null);
+    int outline = startCmdRef != null && startCmdRef.definesOutlineLevel() 
+        ? startCmdRef.getOutlineLevel() : Integer.MAX_VALUE;
 
     String endCommand = guessEndCommand(cmd, role);
     
-    if (endCommand != null /*|| outline < Integer.MAX_VALUE*/) {
+    if (endCommand != null || outline < Integer.MAX_VALUE) {
       while (i.hasNext()) {
         Element element = i.next();
         
@@ -650,21 +652,82 @@ public class TeXParagraphsParser {
           break;
         }
 
-//        // Check the outline level of the next element.
-//        if (i.hasNext()) {
-//          Element el = i.peek();
-//          if (el instanceof Command) {
-//            TeXElementReference cmdRef =
-//                getTeXElementReference((Command) el, null);
-//            if (cmdRef != null && cmdRef.definesOutlineLevel()) {
-//              if (cmdRef.getOutlineLevel() == outline) {
-//                break;
-//              }
-//            }
-//          }
-//        }
+        // Check the outline level of the next element.
+        if (i.hasNext()) {
+          Element el = i.peek();
+          if (el instanceof Command) {
+            TeXElementReference cmdRef =
+                getTeXElementReference((Command) el, null);
+            if (cmdRef != null && cmdRef.definesOutlineLevel()) {
+              if (cmdRef.getOutlineLevel() == outline) {
+                break;
+              }
+            }
+          }
+        }
       }
     }
+    
+    int outlineChilds = getOutlineLevel(elements);
+           
+    if (outlineChilds < outline) {
+      
+      while (i.hasNext()) {
+        int currentIndex = i.getCurrentIndex();
+        
+        Element element = i.next();
+        
+        if (element instanceof Command) {
+          Command command = (Command) element;
+
+          int elementOutlineLevel = getOutlineLevel(command);
+          if (elementOutlineLevel <= outlineChilds) {
+            break;
+          }
+          
+          List<Element> childElements = getChildElements(command, i, role);
+          int childElementsOutlineLevel = getOutlineLevel(childElements);
+          
+          if (childElementsOutlineLevel <= outlineChilds) {
+            i.setCurrentIndex(currentIndex);
+            break;
+          } else {
+            elements.add(element);
+            elements.addAll(childElements);
+          }
+        } else {
+          elements.add(element);
+        }
+      }
+    }
+
+    //
+    // TeXElementReference childElementRef = getTeXElementReference(element,
+    // null);
+    // int elementOutline = childElementRef != null &&
+    // childElementRef.definesOutlineLevel() ? childElementRef.getOutlineLevel()
+    // : Integer.MAX_VALUE;
+    // if (elementOutline <= childOutline) {
+    // break;
+    // }
+    //
+    // if (element instanceof Group) {
+    // Group group = (Group) element;
+    // for (Element groupElement : group.getElements()) {
+    // childElementRef = getTeXElementReference(groupElement, null);
+    // elementOutline = childElementRef != null &&
+    // childElementRef.definesOutlineLevel() ? childElementRef.getOutlineLevel()
+    // : Integer.MAX_VALUE;
+    // if (elementOutline <= childOutline) {
+    // break outerloop;
+    // }
+    // }
+    // }
+    //
+    // elements.add(element);
+    // }
+    // }
+
     return elements;
   }
 
@@ -749,13 +812,14 @@ public class TeXParagraphsParser {
       role = ref != null && ref.definesRole() ? ref.getRole() : role;
       role = role == null ? DEFAULT_PARAGRAPH_ROLE : role; 
     }
-    
+
     if (startsParagraph) {
       if (!para.isEmpty()) {
         paras.add(para);
         // Introduce a new paragraph.
+        para = new TeXParagraph(role);
       }
-      para = new TeXParagraph(role);
+      para.setOutlineLevel(ref.getOutlineLevel());
     }
 
     return para;
@@ -780,8 +844,9 @@ public class TeXParagraphsParser {
     if (endsParagraph) {
       if (!para.isEmpty()) {
         paras.add(para);
+
+        para = new TeXParagraph(DEFAULT_PARAGRAPH_ROLE);
       }
-      para = new TeXParagraph(DEFAULT_PARAGRAPH_ROLE);
     }
 
     return para;
