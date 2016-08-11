@@ -220,8 +220,22 @@ public class Command extends Element {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append(getName());
-    for (Element optionOrGroup : optionsAndGroupsInCorrectOrder) {
-      sb.append(optionOrGroup);
+    
+    // FIXME: Paper cond-mat0001200 isn't compilable because of the command
+    // \bibitem[{\dag}]{aff} E-mail: {\tt foo bar}. 
+    // (Error is: "TeX capacity exceeded, sorry [input stack size=5000]").
+    // The reason is the option of bibitem, without the option, the file is 
+    // compilable.
+    boolean ignoreOptions = "\\bibitem".equals(getName());
+    
+    if (ignoreOptions) {
+      for (Element group : getGroups()) {        
+        sb.append(group);
+      } 
+    } else {
+      for (Element optionOrGroup : optionsAndGroupsInCorrectOrder) {
+        sb.append(optionOrGroup);
+      }
     }
     // In case of command "\" followed by a line break, the command is 
     // "\<linebreak>". To avoid issues on encoding this command in element

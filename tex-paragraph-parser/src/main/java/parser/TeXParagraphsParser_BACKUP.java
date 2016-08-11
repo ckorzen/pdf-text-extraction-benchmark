@@ -45,7 +45,7 @@ public class TeXParagraphsParser_BACKUP {
   /**
    * Creates a new paragraph parser for the given document.
    */
-  public TeXParagraphsParser(Document document) throws IOException {
+  public TeXParagraphsParser_BACKUP(Document document) throws IOException {
     this.texElementRefs = new TeXElementReferences(TEX_ELEMENT_REFERENCES_PATH);
     this.document = document;
   }

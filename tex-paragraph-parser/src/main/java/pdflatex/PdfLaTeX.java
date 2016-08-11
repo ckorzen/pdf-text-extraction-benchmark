@@ -2,6 +2,8 @@ package pdflatex;
 
 import static de.freiburg.iif.affirm.Affirm.affirm;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -76,7 +78,7 @@ public class PdfLaTeX extends ExternalProgram {
   public PdfLaTeX(Path texFile, List<String> texmfPaths, boolean withSyncTex,
       Path outputDir) {
     this(texFile, texmfPaths, withSyncTex);
-
+    
     if (outputDir != null) {
       addOption("-output-directory", outputDir.toAbsolutePath().toString());
     }

@@ -57,14 +57,13 @@ public class PdfParagraphsIdentifier {
   /**
    * Identifies the positions of paragraphs of given tex file.
    */
-  public void identify() throws IOException {
+  public void identify() throws IOException {    
     // Iterate through the (already obtained!) paragraphs.
     for (TeXParagraph para : this.texFile.getTeXParagraphs()) {
       // Identify the position of lines belonging to the current paragraph.
       List<SyncTeXBoundingBox> pdfLines = identifyPdfLines(para);
       // Compose the bounding boxes of paragraphs from given lines.
       List<PdfParagraph> pdfParagraphs = identifyPdfParagraphs(para, pdfLines);
-      
       para.setPdfParagraphs(pdfParagraphs);
     }
   }
@@ -91,7 +90,6 @@ public class PdfParagraphsIdentifier {
             alreadySeenLines.add(line);
           }
         }
-
         // TODO: Do we still need to obtain the "reading order"?
         for (SyncTeXBoundingBox line : unknownPdfLines) {
           // Clean up the lines a bit: let "climb up" the line to the "correct" 
