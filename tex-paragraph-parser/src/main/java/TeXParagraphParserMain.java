@@ -51,7 +51,7 @@ public class TeXParagraphParserMain {
   /**
    * The prefix to consider on parsing the input directory for input files.
    */
-  protected String inputPrefix;
+  protected List<String> inputPrefixes;
 
   /**
    * The suffix to use on creating serialization target file.
@@ -179,7 +179,7 @@ public class TeXParagraphParserMain {
     input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
     visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);
-    inputPrefix = getOptionValue(cmd, TeXParserOptions.PREFIX, "");
+    inputPrefixes = getOptionValues(cmd, TeXParserOptions.PREFIX, null);
     identifyPdfParagraphs = hasOption(cmd, TeXParserOptions.BOUNDING_BOXES);
     texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
     isPlainSerialization = hasOption(cmd, TeXParserOptions.PLAIN_SERIALIZATION);
@@ -513,15 +513,22 @@ public class TeXParagraphParserMain {
     // Obtain the name of the file.
     String fileName = file.getFileName().toString().toLowerCase();
 
-    // Process only those files, which are located in a directory, which
-    // contains the given prefix.
-    if (StringUtils.startsWith(dirName, inputPrefix)) {
-      // Furthermore, process only those files, which end with one of the
-      // predefined extension, but don't end with a file extension of a
-      // preprocessing file.
-      if (StringUtils.endsWith(fileName, TEX_EXTENSIONS)
-          && !StringUtils.endsWith(fileName, TMP_TEX_EXTENSIONS)) {
-        return true;
+    // Consider the path if no prefix(es) are given.
+    if (this.inputPrefixes == null || this.inputPrefixes.isEmpty()) {
+      return true;
+    }
+    
+    for (String inputPrefix : this.inputPrefixes) {
+      // Process only those files, which are located in a directory, which
+      // contains the given prefix.
+      if (StringUtils.startsWith(dirName, inputPrefix)) {
+        // Furthermore, process only those files, which end with one of the
+        // predefined extension, but don't end with a file extension of a
+        // preprocessing file.
+        if (StringUtils.endsWith(fileName, TEX_EXTENSIONS)
+            && !StringUtils.endsWith(fileName, TMP_TEX_EXTENSIONS)) {
+          return true;
+        }
       }
     }
     return false;

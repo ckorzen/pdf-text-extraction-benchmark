@@ -119,7 +119,7 @@ public class PdfLineIdentifier {
 
     Path syncTexFile = defineSynctexPath(texFile);
     affirm(syncTexFile != null, "No syncTeX file produced.");
-    affirm(Files.isRegularFile(syncTexFile), "No syncTeX file produced.");
+    affirm(Files.isRegularFile(syncTexFile), "No syncTeX file produced."  +syncTexFile);
 
     this.texFile.setPdfPath(pdfFile);
     this.texFile.setSynctexPath(syncTexFile);
@@ -165,7 +165,7 @@ public class PdfLineIdentifier {
         int numElements = elements.size();
                 
         ListIterator<Element> itr = elements.listIterator(numElements);
-        
+                
         // Iterate through the elements of paragraph until a non-whitespace
         // is found.
         while (itr.hasPrevious()) {

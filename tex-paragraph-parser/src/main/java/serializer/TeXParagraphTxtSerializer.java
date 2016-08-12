@@ -84,21 +84,26 @@ public class TeXParagraphTxtSerializer {
     for (TeXParagraph para : paragraphs) {
       // Don't serialize any paragraphs that don't have any pdf paragraphs. 
       List<PdfParagraph> pdfParas = para.getPdfParagraphs();
-      if (para != null && pdfParas != null && !pdfParas.isEmpty()) {
-        // Don't consider the paragraph if there is a list of roles given and
-        // it doesn't contain the role of the paragraph.
+      if (para != null && pdfParas != null) {
+        boolean serialize = !pdfParas.isEmpty() 
+            || "title".equals(para.getRole());
         
-        if (roles != null && !roles.contains(para.getRole())) {
-          continue;
-        }
-        
-        String text = para.getText();
-        
-        if (text != null) {
-          text = text.trim();
+        if (serialize) {
+          // Don't consider the paragraph if there is a list of roles given and
+          // it doesn't contain the role of the paragraph.
           
-          if (!text.isEmpty()) {
-            paraTexts.add(text);
+          if (roles != null && !roles.contains(para.getRole())) {
+            continue;
+          }
+          
+          String text = para.getText();
+          
+          if (text != null) {
+            text = text.trim();
+            
+            if (!text.isEmpty()) {
+              paraTexts.add(text);
+            }
           }
         }
       }

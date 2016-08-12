@@ -135,7 +135,7 @@ public class TeXParagraphsParser {
       Iterator<Element> itr, TeXParagraph para, 
       List<TeXParagraph> paras) {
     String text = textElement.toString().trim();
-
+    
     // Don't allow text that starts with '@' to ignore commands like
     // "\twocolumn[\csname @twocolumnfalse\endcsname]"
     // FIXME: Check, if this is doesn't ignore regular words.
@@ -156,7 +156,7 @@ public class TeXParagraphsParser {
     text = text.replaceAll("--", "-");
     // Replace all variant of a dash by the simple one.
     text = text.replaceAll("---", "-");
-
+    
     if (text.isEmpty()) {
       // Replace all whitespaces and newlines by a single whitespace.
       para.registerWhitespace();
@@ -180,13 +180,13 @@ public class TeXParagraphsParser {
     if (StringUtils.equals(cmd.getName(), "\\onlinecite")) {
       cmd.setName("\\cite");
     }
-
+    
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
-
+    
     TeXElementReference ref = getTeXElementReference(cmd, role);
-
+    
     if (ref == null) {
       itr.skipTo(guessEndCommand(cmd, role));
       // Do nothing if there is no element reference for the command.

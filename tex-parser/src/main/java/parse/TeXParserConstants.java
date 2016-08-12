@@ -50,25 +50,29 @@ public interface TeXParserConstants {
   /** RegularExpression Id. */
   int WELL_DEFINED_COMMON_COMMAND = 21;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_DEFAULT_NAME = 22;
+  int COMMAND_WITH_SINGLE_CHAR_OPTIONAL_WHITESPACE_DEFAULT = 22;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_TABBING_NAME = 23;
+  int COMMAND_WITH_SINGLE_CHAR_OPTIONAL_WHITESPACE_TABBING = 23;
   /** RegularExpression Id. */
-  int ESCAPE_COMMAND_COMMON_NAME = 24;
+  int COMMAND_WITH_SINGLE_CHAR_OPTIONAL_WHITESPACE_COMMON = 24;
   /** RegularExpression Id. */
-  int INPUT_COMMAND_NAME = 25;
+  int COMMAND_WITH_SINGLE_CHAR_MANDATORY_WHITESPACE = 25;
   /** RegularExpression Id. */
-  int MARKER = 26;
+  int COMMAND_WITH_MULTIPLE_CHAR_OPTIONAL_WHITESPACE = 26;
   /** RegularExpression Id. */
-  int UPPERCASE_CHAR = 27;
+  int COMMAND_WITH_MULTIPLE_CHAR_MANDATORY_WHITESPACE = 27;
   /** RegularExpression Id. */
-  int LOWERCASE_CHAR = 28;
+  int MARKER = 28;
   /** RegularExpression Id. */
-  int DIGIT = 29;
+  int UPPERCASE_CHAR = 29;
   /** RegularExpression Id. */
-  int CHAR = 30;
+  int LOWERCASE_CHAR = 30;
   /** RegularExpression Id. */
-  int OTHER_SYMBOL = 31;
+  int DIGIT = 31;
+  /** RegularExpression Id. */
+  int CHAR = 32;
+  /** RegularExpression Id. */
+  int OTHER_SYMBOL = 33;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -101,10 +105,12 @@ public interface TeXParserConstants {
     "<WELL_DEFINED_DEFAULT_COMMAND>",
     "<WELL_DEFINED_TABBING_COMMAND>",
     "<WELL_DEFINED_COMMON_COMMAND>",
-    "<ESCAPE_COMMAND_DEFAULT_NAME>",
-    "<ESCAPE_COMMAND_TABBING_NAME>",
-    "<ESCAPE_COMMAND_COMMON_NAME>",
-    "\"\\\\input\"",
+    "<COMMAND_WITH_SINGLE_CHAR_OPTIONAL_WHITESPACE_DEFAULT>",
+    "<COMMAND_WITH_SINGLE_CHAR_OPTIONAL_WHITESPACE_TABBING>",
+    "<COMMAND_WITH_SINGLE_CHAR_OPTIONAL_WHITESPACE_COMMON>",
+    "<COMMAND_WITH_SINGLE_CHAR_MANDATORY_WHITESPACE>",
+    "<COMMAND_WITH_MULTIPLE_CHAR_OPTIONAL_WHITESPACE>",
+    "<COMMAND_WITH_MULTIPLE_CHAR_MANDATORY_WHITESPACE>",
     "<MARKER>",
     "<UPPERCASE_CHAR>",
     "<LOWERCASE_CHAR>",
