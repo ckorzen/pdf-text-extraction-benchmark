@@ -701,33 +701,6 @@ public class TeXParagraphsParser_BACKUP {
       }
     }
 
-    //
-    // TeXElementReference childElementRef = getTeXElementReference(element,
-    // null);
-    // int elementOutline = childElementRef != null &&
-    // childElementRef.definesOutlineLevel() ? childElementRef.getOutlineLevel()
-    // : Integer.MAX_VALUE;
-    // if (elementOutline <= childOutline) {
-    // break;
-    // }
-    //
-    // if (element instanceof Group) {
-    // Group group = (Group) element;
-    // for (Element groupElement : group.getElements()) {
-    // childElementRef = getTeXElementReference(groupElement, null);
-    // elementOutline = childElementRef != null &&
-    // childElementRef.definesOutlineLevel() ? childElementRef.getOutlineLevel()
-    // : Integer.MAX_VALUE;
-    // if (elementOutline <= childOutline) {
-    // break outerloop;
-    // }
-    // }
-    // }
-    //
-    // elements.add(element);
-    // }
-    // }
-
     return elements;
   }
 

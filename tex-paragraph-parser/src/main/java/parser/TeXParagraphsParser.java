@@ -19,6 +19,7 @@ import model.Iterator;
 import model.NewLine;
 import model.NewParagraph;
 import model.Option;
+import model.PdfDocument;
 import model.PdfElement;
 import model.TeXElementReference;
 import model.TeXElementReferences;
@@ -54,9 +55,24 @@ public class TeXParagraphsParser {
    * Identifies the paragraphs in the given document.
    */
   public List<TeXParagraph> identifyParagraphs() {
-    return processDocument(document);
+    List<OutlineElement> outline = identifyOutline(document);
+    return processOutline(outline);
   }
-
+  
+  /**
+   * Identifies the paragraphs in the given document.
+   */
+  public List<TeXParagraph> processOutline(List<OutlineElement> outline) {
+    List<TeXParagraph> paragraphs = new ArrayList<>();
+    TeXParagraph para = new TeXParagraph();
+    
+    for (OutlineElement element : outline) {      
+      processElements(element.elements, element.defaultRole, element.defaultRole, para, paragraphs);
+    }
+    
+    return paragraphs;
+  }
+  
   // ===========================================================================
 
   /**
@@ -66,7 +82,7 @@ public class TeXParagraphsParser {
     List<TeXParagraph> paragraphs = new ArrayList<>();
     TeXParagraph para = new TeXParagraph();
 
-    processGroup(document, DEFAULT_PARAGRAPH_ROLE, para, paragraphs);
+    processGroup(document, DEFAULT_PARAGRAPH_ROLE, DEFAULT_PARAGRAPH_ROLE, para, paragraphs);
 
     return paragraphs;
   }
@@ -82,9 +98,9 @@ public class TeXParagraphsParser {
    * 
    */
   protected TeXParagraph processOption(Option option, String role, 
-      TeXParagraph para, List<TeXParagraph> paras) {
+      String defaultRole, TeXParagraph para, List<TeXParagraph> paras) {
     para.registerText("[");
-    para = processElements(option.getElements(), role, para, paras);
+    para = processElements(option.getElements(), role, defaultRole, para, paras);
     para.registerText("]");
     return para;
   }
@@ -95,8 +111,8 @@ public class TeXParagraphsParser {
    * list of paragraphs where to put identified paragraphs into.
    */
   protected TeXParagraph processGroup(Group group, String role, 
-      TeXParagraph para, List<TeXParagraph> paras) {
-    return processElements(group.getElements(), role, para, paras);
+      String defaultRole, TeXParagraph para, List<TeXParagraph> paras) {
+    return processElements(group.getElements(), role, defaultRole, para, paras);
   }
 
   /**
@@ -105,7 +121,7 @@ public class TeXParagraphsParser {
    * list of paragraphs where to put identified paragraphs into.
    */
   protected TeXParagraph processElements(List<Element> elements, String role, 
-      TeXParagraph para, List<TeXParagraph> paras) {
+      String defaultRole, TeXParagraph para, List<TeXParagraph> paras) {
 
     Iterator<Element> itr = new Iterator<>(elements);
     while (itr.hasNext()) {
@@ -114,14 +130,14 @@ public class TeXParagraphsParser {
       if (element instanceof Option) {
         // There may be (valid) text like "foo bar [2]", see cond-mat0001200.
         // So, if the element is a standalone option, handle it as text.
-        para = processOption(((Option) element), role, para, paras);
+        para = processOption(((Option) element), role, defaultRole, para, paras);
         // TODO
       } else if (element instanceof Group) {
-        para = processGroup(((Group) element), role, para, paras);
+        para = processGroup(((Group) element), role, defaultRole, para, paras);
       } else if (element instanceof Command) {
-        para = processCommand(((Command) element), role, itr, para, paras);
+        para = processCommand(((Command) element), role, defaultRole, itr, para, paras);
       } else if (element instanceof Text) {
-        para = processText((Text) element, role, itr, para, paras);
+        para = processText((Text) element, role, defaultRole, itr, para, paras);
       }
     }
 
@@ -131,8 +147,8 @@ public class TeXParagraphsParser {
   /**
    * Processes the given text element.
    */
-  protected TeXParagraph processText(Text textElement, String role,
-      Iterator<Element> itr, TeXParagraph para, 
+  protected TeXParagraph processText(Text textElement, String role, 
+      String defaultRole, Iterator<Element> itr, TeXParagraph para, 
       List<TeXParagraph> paras) {
     String text = textElement.toString().trim();
     
@@ -144,7 +160,7 @@ public class TeXParagraphsParser {
     }
 
     // Check if the element introduces a new paragraph.
-    para = checkForParagraphStart(textElement, role, para, paras);
+    para = checkForParagraphStart(textElement, role, defaultRole, para, paras);
 
     // TODO: Move the normalization to an extra method.
     text = text.replaceAll("~", " ");
@@ -166,7 +182,7 @@ public class TeXParagraphsParser {
     }
 
     // Check if the element ends a paragraph.
-    para = checkForParagraphEnd(textElement, role, para, paras);
+    para = checkForParagraphEnd(textElement, role, defaultRole, para, paras);
 
     return para;
   }
@@ -174,7 +190,7 @@ public class TeXParagraphsParser {
   /**
    * Process the given command.
    */
-  protected TeXParagraph processCommand(Command cmd, String role,
+  protected TeXParagraph processCommand(Command cmd, String role, String defaultRole, 
       Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
     // Check, if the command is a cross reference. TODO
     if (StringUtils.equals(cmd.getName(), "\\onlinecite")) {
@@ -194,10 +210,7 @@ public class TeXParagraphsParser {
     }
 
     // Check if the element introduces a new paragraph.
-    para = checkForParagraphStart(cmd, role, para, paras);
-
-    // System.out.println("2 " + cmd + " " + para.hashCode() + " " +
-    // para.getOutlineLevel());
+    para = checkForParagraphStart(cmd, role, defaultRole, para, paras);
 
     // Role may have changed.
     role = para.getRole();
@@ -251,7 +264,7 @@ public class TeXParagraphsParser {
     if (ref.definesOptionsToParse()) {
       List<Option> options = cmd.getOptions();
       for (Option option : options) {
-        para = processGroup(option, role, para, paras);
+        para = processGroup(option, role, defaultRole, para, paras);
       }
     }
 
@@ -263,7 +276,7 @@ public class TeXParagraphsParser {
         // groupsToParse may contain "-1", that means is not definitely clear
         // how many groups the command contains. So process all groups.
         for (Group group : cmd.getGroups()) {
-          para = processGroup(group, role, para, paras);
+          para = processGroup(group, role, defaultRole, para, paras);
         }
       } else {
         // Process the group that are defined by groupsToParse.
@@ -271,7 +284,7 @@ public class TeXParagraphsParser {
           Group group = cmd.hasGroups(id + 1) ? cmd.getGroup(id + 1) : null;
 
           if (group != null) {
-            para = processGroup(group, role, para, paras);
+            para = processGroup(group, role, defaultRole, para, paras);
           }
         }
       }
@@ -283,7 +296,7 @@ public class TeXParagraphsParser {
     if (roleForChildElements == null) {
       roleForChildElements = role;
     }
-
+    
     // Write placeholder, if the command introduces a placeholder.
     if (ref.introducesPlaceholder()) {
       String text = ref.getPlaceholder();
@@ -298,7 +311,7 @@ public class TeXParagraphsParser {
       para.registerText(text);
       para.registerTeXElements(childElements);
     } else {
-      para = processElements(childElements, roleForChildElements, para, paras);
+      para = processElements(childElements, roleForChildElements, defaultRole, para, paras);
     }
     
     Element lastElement = cmd;
@@ -307,7 +320,7 @@ public class TeXParagraphsParser {
     }
 
     // Check if the element ends a paragraph.
-    para = checkForParagraphEnd(lastElement, role, para, paras);
+    para = checkForParagraphEnd(lastElement, role, defaultRole, para, paras);
 
     return para;
   }
@@ -668,6 +681,82 @@ public class TeXParagraphsParser {
     return elements;
   }
 
+//  /**
+//   * Collects all elements of the environment, that is introduced by the given
+//   * command.
+//   */
+//  protected List<Element> getChildElements(Command cmd, 
+//      Iterator<Element> i, String role) {
+//    List<Element> elements = new ArrayList<>();
+//
+//    TeXElementReference startCmdRef = getTeXElementReference(cmd, null);
+//    int outline = startCmdRef != null && startCmdRef.definesOutlineLevel() 
+//        ? startCmdRef.getOutlineLevel() : Integer.MAX_VALUE;
+//
+//    String endCommand = guessEndCommand(cmd, role);
+//    
+//    if (endCommand != null || outline < Integer.MAX_VALUE) {
+//      while (i.hasNext()) {
+//        Element element = i.next();
+//        
+//        elements.add(element);
+//        
+//        if (element.toString().equals(endCommand)) {
+//          break;
+//        }
+//
+//        // Check the outline level of the next element.
+//        if (i.hasNext()) {
+//          Element el = i.peek();
+//          if (el instanceof Command) {
+//            TeXElementReference cmdRef =
+//                getTeXElementReference((Command) el, null);
+//            if (cmdRef != null && cmdRef.definesOutlineLevel()) {
+//              if (cmdRef.getOutlineLevel() == outline) {
+//                break;
+//              }
+//            }
+//          }
+//        }
+//      }
+//    }
+//    
+//    int outlineChilds = getOutlineLevel(elements);
+//           
+//    if (outlineChilds < outline) {
+//      
+//      while (i.hasNext()) {
+//        int currentIndex = i.getCurrentIndex();
+//        
+//        Element element = i.next();
+//        
+//        if (element instanceof Command) {
+//          Command command = (Command) element;
+//
+//          int elementOutlineLevel = getOutlineLevel(command);
+//          if (elementOutlineLevel <= outlineChilds) {
+//            break;
+//          }
+//          
+//          List<Element> childElements = getChildElements(command, i, role);
+//          int childElementsOutlineLevel = getOutlineLevel(childElements);
+//          
+//          if (childElementsOutlineLevel <= outlineChilds) {
+//            i.setCurrentIndex(currentIndex);
+//            break;
+//          } else {
+//            elements.add(element);
+//            elements.addAll(childElements);
+//          }
+//        } else {
+//          elements.add(element);
+//        }
+//      }
+//    }
+//
+//    return elements;
+//  }
+  
   protected int getOutlineLevel(List<Element> childElements) {
     int outlineLevel = Integer.MAX_VALUE;
     
@@ -735,7 +824,7 @@ public class TeXParagraphsParser {
    * paragraph was introduced.
    */
   protected TeXParagraph checkForParagraphStart(Element element, String role, 
-      TeXParagraph para, List<TeXParagraph> paras) {
+      String defaultRole, TeXParagraph para, List<TeXParagraph> paras) {
     TeXElementReference ref = getTeXElementReference(element, role);
     // Obtain if the current element starts a paragraph.
     boolean startsParagraph = ref != null && ref.startsParagraph();
@@ -747,7 +836,9 @@ public class TeXParagraphsParser {
     // with "\item" elements within itemizes.
     if (role == null || role == DEFAULT_PARAGRAPH_ROLE) {
       role = ref != null && ref.definesRole() ? ref.getRole() : role;
-      role = role == null ? DEFAULT_PARAGRAPH_ROLE : role; 
+      if (role == null || role == DEFAULT_PARAGRAPH_ROLE) {
+        role = defaultRole != null ? defaultRole : DEFAULT_PARAGRAPH_ROLE;
+      } 
     }
     
     if (startsParagraph) {
@@ -771,7 +862,7 @@ public class TeXParagraphsParser {
    * paragraph was introduced.
    */
   protected TeXParagraph checkForParagraphEnd(Element element, String role,
-      TeXParagraph para, List<TeXParagraph> paras) {
+      String defaultRole, TeXParagraph para, List<TeXParagraph> paras) {
     TeXElementReference ref = getTeXElementReference(element, role);
 
     // Obtain if the current element starts a paragraph.
@@ -781,7 +872,7 @@ public class TeXParagraphsParser {
       if (!para.isEmpty()) {
         paras.add(para);
       }
-      para = new TeXParagraph(DEFAULT_PARAGRAPH_ROLE);
+      para = new TeXParagraph(defaultRole != null ? defaultRole : DEFAULT_PARAGRAPH_ROLE);
     }
 
     return para;
@@ -790,5 +881,84 @@ public class TeXParagraphsParser {
   protected TeXElementReference getTeXElementReference(Element element,
       String role) {
     return this.texElementRefs.getElementReference(element, role);
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  // ===========================================================================
+  
+  public void identifyOutline() {
+    identifyOutline(document);
+  }
+  
+  public List<OutlineElement> identifyOutline(Document document) {
+    return identifyOutline(document.getElements());
+  }
+  
+  public List<OutlineElement> identifyOutline(List<Element> elements) {
+    List<OutlineElement> outline = new ArrayList<>();
+    OutlineElement outlineElement = new OutlineElement();
+    
+    for (int i = 0; i < elements.size(); i++) {
+      Element element = elements.get(i);
+      TeXElementReference ref = getTeXElementReference(element, null);
+      
+      if (ref != null) {
+        if (ref.definesOutlineLevel()) {
+          if (!outlineElement.elements.isEmpty()) {
+            outline.add(outlineElement);
+            outlineElement = new OutlineElement();
+          }
+          
+          if (ref.definesRoleForChildElements()) {
+            outlineElement.defaultRole = ref.getRoleForChildElements();
+          }
+          
+          // If there is an end command defined, proceed to it and return.
+          if (ref.definesEndCommand()) {
+            String endCommand = ref.getEndCommand();
+                        
+            while(i < elements.size()) {
+              outlineElement.elements.add(elements.get(i));
+                            
+              if (endCommand.equals(elements.get(i).toString())) {
+                break;
+              }
+              
+              i++;
+            }
+            
+            outline.add(outlineElement);
+            outlineElement = new OutlineElement();
+            
+            continue;
+          }
+        }
+      }
+       
+      outlineElement.elements.add(element);  
+    }
+    
+    if (!outlineElement.elements.isEmpty()) {
+      outline.add(outlineElement);
+    }
+    
+    return outline;
+  }
+  
+}
+
+class OutlineElement {
+  public String defaultRole;
+  public List<Element> elements;
+  
+  public OutlineElement() {
+    this.defaultRole = "text";
+    this.elements = new ArrayList<>();
   }
 }
