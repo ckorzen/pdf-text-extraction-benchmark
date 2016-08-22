@@ -232,7 +232,7 @@ public class TeXParagraphParserMain {
       this.inputDirectory = inPath.getParent();
       // Add the file to the files to process.
       this.inputFiles.add(inPath);
-
+      
       // Check, if there is an serialization path given.
       if (serPath != null) {
         if (Files.isDirectory(serPath)) {
@@ -297,6 +297,7 @@ public class TeXParagraphParserMain {
     ExecutorService executor = Executors.newSingleThreadExecutor();
 
     int i = 1;
+    List<Path> faultyFiles = new ArrayList<>();
     for (final Path file : this.inputFiles) {
       final Future<Void> handler = executor.submit(new Callable<Void>() {
         @Override
@@ -312,16 +313,24 @@ public class TeXParagraphParserMain {
       } catch (TimeoutException e) {
         handler.cancel(true);
         System.out.println("WARN: Timeout on processing file " + file + ".");
+        faultyFiles.add(file);
       } catch (Exception e) {
         System.out.println("WARN: File " + file + " couldn't be processed.");
+        faultyFiles.add(file);
         e.printStackTrace();
       } catch (Error e) {
         System.out.println("WARN: File " + file + " couldn't be processed.");
         e.printStackTrace();
+        faultyFiles.add(file);
       }
     }
     
     executor.shutdownNow();
+    
+    System.out.println(faultyFiles.size() + " files couldn't be processed:");
+    for (Path faultyFile : faultyFiles) {
+      System.out.println(faultyFile);
+    }
   }
 
   /**
@@ -539,44 +548,32 @@ public class TeXParagraphParserMain {
         return true;
       }
       
-      for (String inputPrefix : this.inputPrefixes) {
-        // Process only those files, which are located in a directory, which
-        // contains the given prefix.
-        if (StringUtils.startsWith(file.getFileName().toString().toLowerCase(), inputPrefix)) {
-          // Furthermore, process only those files, which end with one of the
-          // predefined extension, but don't end with a file extension of a
-          // preprocessing file.
-          return true;
-        }
-      }
-      
-      return false;
+      String dirName = file.getFileName().toString().toLowerCase();
+            
+      return StringUtils.startsWith(dirName, this.inputPrefixes);
     }
     
     // Obtain the name of file's parent directory.
     String dirName = file.getParent().getFileName().toString();
     // Obtain the name of the file.
     String fileName = file.getFileName().toString().toLowerCase();
-
+    
+    // Process only those files, which end with one of the
+    // predefined extension, but don't end with a file extension of a
+    // preprocessing file.
+    if (!StringUtils.endsWith(fileName, TEX_EXTENSIONS)
+        || StringUtils.endsWith(fileName, TMP_TEX_EXTENSIONS)) {
+      return false;
+    }
+    
     // Consider the path if no prefix(es) are given.
     if (this.inputPrefixes == null || this.inputPrefixes.isEmpty()) {
       return true;
     }
     
-    for (String inputPrefix : this.inputPrefixes) {
-      // Process only those files, which are located in a directory, which
-      // contains the given prefix.
-      if (StringUtils.startsWith(dirName, inputPrefix)) {
-        // Furthermore, process only those files, which end with one of the
-        // predefined extension, but don't end with a file extension of a
-        // preprocessing file.
-        if (StringUtils.endsWith(fileName, TEX_EXTENSIONS)
-            && !StringUtils.endsWith(fileName, TMP_TEX_EXTENSIONS)) {
-          return true;
-        }
-      }
-    }
-    return false;
+    // Process only those files, which are located in a directory, which
+    // contains the given prefix.
+    return StringUtils.startsWith(dirName, this.inputPrefixes);
   }
 
   /**
