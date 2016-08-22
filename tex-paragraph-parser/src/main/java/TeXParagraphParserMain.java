@@ -294,11 +294,11 @@ public class TeXParagraphParserMain {
   protected void processTexFiles() throws IOException {
     // TODO: Handle simple timeout.
     final Duration timeout = Duration.ofSeconds(30);
-    ExecutorService executor = Executors.newSingleThreadExecutor();
 
     int i = 1;
     List<Path> faultyFiles = new ArrayList<>();
     for (final Path file : this.inputFiles) {
+      ExecutorService executor = Executors.newSingleThreadExecutor();
       final Future<Void> handler = executor.submit(new Callable<Void>() {
         @Override
         public Void call() throws Exception {
@@ -323,9 +323,9 @@ public class TeXParagraphParserMain {
         e.printStackTrace();
         faultyFiles.add(file);
       }
+      
+      executor.shutdownNow();
     }
-    
-    executor.shutdownNow();
     
     System.out.println(faultyFiles.size() + " files couldn't be processed:");
     for (Path faultyFile : faultyFiles) {
