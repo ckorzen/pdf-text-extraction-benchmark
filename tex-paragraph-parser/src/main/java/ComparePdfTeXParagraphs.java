@@ -19,7 +19,6 @@ import identifier.TeXParagraphsIdentifier;
 import model.PdfDocument;
 import model.PdfPage;
 import model.PdfParagraph;
-import model.PdfTextLine;
 import model.PdfTextParagraph;
 import model.TeXFile;
 import model.TeXParagraph;
@@ -46,11 +45,6 @@ public class ComparePdfTeXParagraphs {
    * The extended pdf parser to extract paragraphs from pdf.
    */
   protected PdfExtendedParser extendedPdfParser;
-
-  /**
-   * The pdf analyzer to identify the roles of paragraphs.
-   */
-  protected PdfAnalyzer pdfAnalyzer;
   
   /**
    * The pdf revisor.
@@ -118,7 +112,7 @@ public class ComparePdfTeXParagraphs {
   public ComparePdfTeXParagraphs() {
     this.pdfParser = new PdfBoxParser();
     this.extendedPdfParser = new PdfXYCutParser();
-    this.pdfAnalyzer = new PlainPdfAnalyzer();
+//    this.pdfAnalyzer = new PlainPdfAnalyzer();
     this.pdfRevisor = new PdfRevisor();
   }
 
@@ -139,7 +133,7 @@ public class ComparePdfTeXParagraphs {
     PdfDocument document = pdfParser.parse(texFile.getPdfPath());
     // Extract words, lines and paragraphs.
     document = extendedPdfParser.parse(document);  
-    pdfAnalyzer.analyze(document);
+    new PlainPdfAnalyzer(document).analyze();
 //    pdfRevisor.revise(document);
     end = System.currentTimeMillis();
     

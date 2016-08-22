@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import de.freiburg.iif.text.StringUtils;
 import model.Characters;
 import model.Command;
@@ -19,7 +17,6 @@ import model.Iterator;
 import model.NewLine;
 import model.NewParagraph;
 import model.Option;
-import model.PdfElement;
 import model.TeXElementReference;
 import model.TeXElementReferences;
 import model.TeXParagraph;
@@ -827,6 +824,6 @@ public class TeXParagraphsParser_BACKUP {
   
   protected TeXElementReference getTeXElementReference(Element element,
       String role) {
-    return this.texElementRefs.getElementReference(element, role);
+    return this.texElementRefs.getElementReference(element, null, role);
   }
 }
