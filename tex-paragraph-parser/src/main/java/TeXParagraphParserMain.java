@@ -8,11 +8,18 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -285,9 +292,26 @@ public class TeXParagraphParserMain {
    * Processes the tex files found from users input.
    */
   protected void processTexFiles() throws IOException {
-    for (Path file : this.inputFiles) {
+    // TODO: Handle simple timeout.
+    final Duration timeout = Duration.ofSeconds(30);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    int i = 1;
+    for (final Path file : this.inputFiles) {
+      final Future<Void> handler = executor.submit(new Callable<Void>() {
+        @Override
+        public Void call() throws Exception {
+          processTexFile(file);
+          return null;
+        }
+      });
+      
       try {
-        processTexFile(file);
+        System.out.print(i++ + "/" + this.inputFiles.size() + " ");
+        handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      } catch (TimeoutException e) {
+        handler.cancel(true);
+        System.out.println("WARN: Timeout on processing file " + file + ".");
       } catch (Exception e) {
         System.out.println("WARN: File " + file + " couldn't be processed.");
         e.printStackTrace();
@@ -296,6 +320,8 @@ public class TeXParagraphParserMain {
         e.printStackTrace();
       }
     }
+    
+    executor.shutdownNow();
   }
 
   /**
