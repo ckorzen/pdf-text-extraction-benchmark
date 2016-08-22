@@ -53,17 +53,10 @@ public class TeXElementReferences {
   }
   
   /**
-   * Returns true, if the given element with given contextRole has a reference.
-   */
-  public boolean hasElementReference(Element element, String contextRole) {
-    return getElementReference(element, contextRole) != null;
-  }
-
-  /**
    * Returns true, if the given element has a reference.
    */
   public TeXElementReference getElementReference(Element element) {
-    return getElementReference(element, null);
+    return getElementReference(element, null, null);
   }
   
   /**
@@ -71,7 +64,7 @@ public class TeXElementReferences {
    * such reference.
    */
   public TeXElementReference getElementReference(Element element, 
-      String contextRole) {
+      String documentStyle, String contextRole) {
     if (element == null) {
       return null;
     }
@@ -113,23 +106,43 @@ public class TeXElementReferences {
       }
     }
     
-    TeXElementReference refWithoutContextRole = null;
-    
+    TeXElementReference defaultRef = null;
+        
     if (candidates != null) {      
       // Iterate through the various reference variants for the element and 
       // check if there is a reference with same context role.
       for (TeXElementReference ref : candidates) {
-        if (ref.getContextRole() == null) {
-          refWithoutContextRole = ref;
+        if (!ref.definesContextRole() && !ref.definesDocumentStyle()) {
+          defaultRef = ref;
         } else {
-          if (ref.getContextRole().equals(contextRole)) {
+          String refDocStyle = ref.getDocumentStyle();
+          boolean documentStyleMatch = false;
+          
+          // Decide, if the document style matches.
+          if (refDocStyle == null && documentStyle == null) {
+            documentStyleMatch = true;
+          } else if (refDocStyle != null && refDocStyle.equals(documentStyle)) {
+            documentStyleMatch = true;
+          }
+          
+          String refConRole = ref.getContextRole();
+          boolean contextRoleMatch = false;
+          
+          // Decide, if the context role matches.
+          if (refConRole == null && (contextRole == null || "text".equals(contextRole))) { // TODO: Default role is text. Change it to null.
+            contextRoleMatch = true;
+          } else if (refConRole != null && refConRole.equals(contextRole)) {
+            contextRoleMatch = true;
+          }
+          
+          if (documentStyleMatch && contextRoleMatch) {
             return ref;
           }
         }
       }
     }
         
-    return refWithoutContextRole;
+    return defaultRef;
   }
 
   // ---------------------------------------------------------------------------

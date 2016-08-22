@@ -43,6 +43,8 @@ public class TeXParagraphsParser {
    */
   protected TeXElementReferences texElementRefs;
 
+  protected String documentStyle;
+  
   /**
    * Creates a new paragraph parser for the given document.
    */
@@ -67,7 +69,12 @@ public class TeXParagraphsParser {
     TeXParagraph para = new TeXParagraph();
     
     for (OutlineElement element : outline) {      
-      processElements(element.elements, element.defaultRole, element.defaultRole, para, paragraphs);
+      para = processElements(element.elements, element.defaultRole, element.defaultRole, para, paragraphs);
+    }
+    
+    // Add the last paragraph.
+    if (!para.getText().isEmpty()) {
+      paragraphs.add(para);
     }
     
     return paragraphs;
@@ -172,7 +179,7 @@ public class TeXParagraphsParser {
     text = text.replaceAll("--", "-");
     // Replace all variant of a dash by the simple one.
     text = text.replaceAll("---", "-");
-    
+        
     if (text.isEmpty()) {
       // Replace all whitespaces and newlines by a single whitespace.
       para.registerWhitespace();
@@ -180,7 +187,7 @@ public class TeXParagraphsParser {
       para.registerText(text);
       para.registerTeXElement(textElement);
     }
-
+    
     // Check if the element ends a paragraph.
     para = checkForParagraphEnd(textElement, role, defaultRole, para, paras);
 
@@ -197,18 +204,29 @@ public class TeXParagraphsParser {
       cmd.setName("\\cite");
     }
     
+    // Check, if the command is a cross reference. TODO
+    if (StringUtils.equals(cmd.getName(), "\\documentstyle")) {
+      this.documentStyle = cmd.getGroup().getText();
+    }
+    
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
     
     TeXElementReference ref = getTeXElementReference(cmd, role);
-    
+        
     if (ref == null) {
       itr.skipTo(guessEndCommand(cmd, role));
       // Do nothing if there is no element reference for the command.
       return para;
     }
 
+    // FIXME: Don't ignore floatings, but handle them separately.
+    if (ref.isFloating()) {
+      itr.skipTo(guessEndCommand(cmd, role));
+      return para;
+    }
+    
     // Check if the element introduces a new paragraph.
     para = checkForParagraphStart(cmd, role, defaultRole, para, paras);
 
@@ -297,6 +315,8 @@ public class TeXParagraphsParser {
       roleForChildElements = role;
     }
     
+    Element lastElement = cmd;
+        
     // Write placeholder, if the command introduces a placeholder.
     if (ref.introducesPlaceholder()) {
       String text = ref.getPlaceholder();
@@ -307,14 +327,12 @@ public class TeXParagraphsParser {
           text = formulaText;
         }
       }
-
       para.registerText(text);
       para.registerTeXElements(childElements);
     } else {
       para = processElements(childElements, roleForChildElements, defaultRole, para, paras);
     }
     
-    Element lastElement = cmd;
     if (childElements != null && !childElements.isEmpty()) {
       lastElement = childElements.get(childElements.size() - 1);
     }
@@ -828,7 +846,7 @@ public class TeXParagraphsParser {
     TeXElementReference ref = getTeXElementReference(element, role);
     // Obtain if the current element starts a paragraph.
     boolean startsParagraph = ref != null && ref.startsParagraph();
-    
+      
     // Role may be predefined, for example if the element is a child element
     // of aanother element.
     // For example, in \begin{thebibliography} \item ... \end{thebibliography}
@@ -880,7 +898,8 @@ public class TeXParagraphsParser {
   
   protected TeXElementReference getTeXElementReference(Element element,
       String role) {
-    return this.texElementRefs.getElementReference(element, role);
+    return this.texElementRefs.getElementReference(element, this.documentStyle, 
+        role);
   }
   
   

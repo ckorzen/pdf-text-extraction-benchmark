@@ -5,7 +5,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 import de.freiburg.iif.collection.ConstantLookupList;
 
@@ -22,18 +24,26 @@ public class Group extends Element implements Iterable<Element> {
    * The elements of this group.
    */
   public ConstantLookupList<Element> elements;
+  /**
+   * The elements without leading and trailing whitespaces.
+   */
+  public ConstantLookupList<Element> trimmedElements;
+  
+  public List<Element> whitespaceQueue;
   
   /**
    * The current element on iteration.
    */
   public int curIndex = 0;
-    
+     
   /**
    * Creates a new group.
    */
   public Group() {
     super(null);
     this.elements = new ConstantLookupList<>();
+    this.trimmedElements = new ConstantLookupList<>();
+    this.whitespaceQueue = new ArrayList<>();
   }
   
   /**
@@ -50,10 +60,28 @@ public class Group extends Element implements Iterable<Element> {
    * Adds the given element to this group.
    */
   public void addElement(Element element) {
-    if (element != null) {
+    if (element != null) {      
       this.elements.add(element);
+      
       this.beginLine = Math.min(this.beginLine, element.beginLine);
       this.endLine = Math.max(this.endLine, element.endLine);
+      
+      // Get rid of leading and trialing whitespaces.
+      if (element instanceof Whitespace
+          || element instanceof NewLine
+          || element instanceof NewParagraph) {
+        if (this.trimmedElements.isEmpty()) {
+          return;
+        } else {
+          whitespaceQueue.add(element);
+          return;
+        }
+      }
+      // The element is non-whitespace, so the elements in whitespace queue 
+      // can't be trailing. Append them to elements. 
+      trimmedElements.addAll(whitespaceQueue);
+      whitespaceQueue.clear();
+      trimmedElements.add(element);
     }
   }
     
@@ -208,6 +236,14 @@ public class Group extends Element implements Iterable<Element> {
   }
   
   /**
+   * Returns the elements of this group without leading and trailing 
+   * whitespaces.
+   */
+  public List<Element> getTrimmedElements() {
+    return this.trimmedElements;
+  }
+  
+  /**
    * Returns the first element in this group.
    */
   public Element getFirstElement() {
@@ -262,7 +298,12 @@ public class Group extends Element implements Iterable<Element> {
       oos.writeObject(this);
       ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
       ObjectInputStream ois = new ObjectInputStream(bais);
-      return (Group) ois.readObject();
+      Group group = (Group) ois.readObject();
+      
+      ois.close();
+      oos.close();
+      
+      return group;
     } catch (Exception e) {
       e.printStackTrace();
       return null;

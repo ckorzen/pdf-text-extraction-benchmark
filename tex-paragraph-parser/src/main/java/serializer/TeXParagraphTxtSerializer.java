@@ -83,8 +83,9 @@ public class TeXParagraphTxtSerializer {
     List<String> paraTexts = new ArrayList<>();
     for (TeXParagraph para : paragraphs) {
       // Don't serialize any paragraphs that don't have any pdf paragraphs. 
+      
       List<PdfParagraph> pdfParas = para.getPdfParagraphs();
-      if (para != null && pdfParas != null) {
+      if (para != null && pdfParas != null) {        
         boolean serialize = !pdfParas.isEmpty() 
             || "title".equals(para.getRole());
         

@@ -204,12 +204,12 @@ public class TeXPreprocessor extends TeXParser {
     if (command == null) {
       return;
     }
-
+    
     // Check, if the command was defined via a macro.
-    if (isDefinedByMacro(command)) {      
+    if (isDefinedByMacro(command)) {
       // Resolve the macro.
       Group macro = getMacro(command).clone();
-         
+      
       // Plug in the arguments (replace the markers by arguments).
       List<Marker> markers = macro.get(Marker.class, true);
       for (Marker marker : markers) {

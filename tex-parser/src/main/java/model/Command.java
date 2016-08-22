@@ -229,7 +229,7 @@ public class Command extends Element {
     boolean ignoreOptions = "\\bibitem".equals(getName());
     
     if (ignoreOptions) {
-      for (Element group : getGroups()) {        
+      for (Element group : getGroups()) {
         sb.append(group);
       } 
     } else {

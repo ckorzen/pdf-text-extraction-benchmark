@@ -258,7 +258,7 @@ public class TeXParagraphParserMain {
       this.inputDirectory = inPath;
       // Read the directory recursively to get all files to process.
       readDirectory(inPath, this.inputFiles);
-
+      
       // Check, if there is an output given.
       if (serPath != null) {
         affirm(!Files.isRegularFile(serPath),
@@ -470,10 +470,13 @@ public class TeXParagraphParserMain {
       Iterator<Path> itr = ds.iterator();
       while (itr.hasNext()) {
         Path next = itr.next();
-        if (Files.isDirectory(next)) {
-          readDirectory(next, res);
-        } else if (considerPath(next)) {
-          res.add(next);
+        
+        if (considerPath(next)) {
+          if (Files.isDirectory(next)) {
+            readDirectory(next, res);
+          } else {
+            res.add(next);
+          }
         }
       }
       ds.close();
@@ -500,14 +503,30 @@ public class TeXParagraphParserMain {
       return false;
     }
 
-    if (Files.isDirectory(file)) {
-      return false;
-    }
-
     if (!Files.isReadable(file)) {
       return false;
     }
 
+    if (Files.isDirectory(file)) {
+      // Consider the path if no prefix(es) are given.
+      if (this.inputPrefixes == null || this.inputPrefixes.isEmpty()) {
+        return true;
+      }
+      
+      for (String inputPrefix : this.inputPrefixes) {
+        // Process only those files, which are located in a directory, which
+        // contains the given prefix.
+        if (StringUtils.startsWith(file.getFileName().toString().toLowerCase(), inputPrefix)) {
+          // Furthermore, process only those files, which end with one of the
+          // predefined extension, but don't end with a file extension of a
+          // preprocessing file.
+          return true;
+        }
+      }
+      
+      return false;
+    }
+    
     // Obtain the name of file's parent directory.
     String dirName = file.getParent().getFileName().toString();
     // Obtain the name of the file.

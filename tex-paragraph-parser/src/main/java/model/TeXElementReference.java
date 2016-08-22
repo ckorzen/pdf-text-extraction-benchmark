@@ -52,6 +52,23 @@ public class TeXElementReference {
   // ___________________________________________________________________________
 
   /**
+   * Returns true, if this reference defines a document style in which this ref
+   * is valid.
+   */
+  public boolean definesDocumentStyle() {
+    return getDocumentStyle() != null;
+  }
+  
+  /**
+   * Returns the document style in which this ref is valid.
+   */
+  public String getDocumentStyle() {
+    return getString(2);
+  }
+  
+  // ___________________________________________________________________________
+  
+  /**
    * Returns true, if this reference defines a context role.
    */
   public boolean definesContextRole() {
@@ -72,7 +89,7 @@ public class TeXElementReference {
    * given context role (or context role is null). 
    */
   public String getContextRole() {
-    return getString(2);
+    return getString(3);
   }
 
   // ___________________________________________________________________________
@@ -88,7 +105,7 @@ public class TeXElementReference {
    * Returns the defined placeholder.
    */
   public String getPlaceholder() {
-    return getString(3);
+    return getString(4);
   }
 
   // ___________________________________________________________________________
@@ -119,7 +136,7 @@ public class TeXElementReference {
    * Returns the defined outline level.
    */
   public int getIntroduceParagraphType() {
-    return getInteger(4, -1);
+    return getInteger(5, -1);
   }
 
   // ___________________________________________________________________________
@@ -128,7 +145,7 @@ public class TeXElementReference {
    * Returns true, if this reference defines the end of a paragraph.
    */
   public boolean endsParagraph() {
-    return getBoolean(5);
+    return getBoolean(6);
   }
 
   // ___________________________________________________________________________
@@ -144,9 +161,18 @@ public class TeXElementReference {
    * Returns the defined outline level.
    */
   public int getOutlineLevel() {
-    return getInteger(6, -1);
+    return getInteger(7, -1);
   }
 
+  // ___________________________________________________________________________
+  
+  /**
+   * Returns true if the given element is a floating.
+   */
+  public boolean isFloating() {
+    return getBoolean(8);
+  }
+  
   // ___________________________________________________________________________
 
   /**
@@ -160,7 +186,7 @@ public class TeXElementReference {
    * Returns the defined role.
    */
   public String getRole() {
-    return getString(7);
+    return getString(9);
   }
 
   // ___________________________________________________________________________
@@ -176,7 +202,7 @@ public class TeXElementReference {
    * Returns the defined role for the child elements.
    */
   public String getRoleForChildElements() {
-    return getString(8);
+    return getString(10);
   }
 
   // ___________________________________________________________________________
@@ -195,7 +221,7 @@ public class TeXElementReference {
    * Returns the defined number of groups.
    */
   public int getNumberOfGroups() {
-    return getInteger(9, -2);
+    return getInteger(11, -2);
   }
 
   // ___________________________________________________________________________
@@ -211,14 +237,14 @@ public class TeXElementReference {
    * Returns the defined groups to parse.
    */
   public List<Integer> getGroupsToParse() {
-    return getIntegerList(10, ";");
+    return getIntegerList(12, ";");
   }
 
   /**
    * Returns the index of the given group id in the list of groups to parse.
    */
   protected int getIndexOfGroupIdInGroupsToParse(int groupId) {
-    List<Integer> groupsToParse = getIntegerList(10, ";");
+    List<Integer> groupsToParse = getIntegerList(12, ";");
     if (groupsToParse != null) {
       for (int i = 0; i < groupsToParse.size(); i++) {
         if (groupsToParse.get(i) == groupId) {
@@ -235,7 +261,7 @@ public class TeXElementReference {
    * Returns true, if this reference defines the parsing of options.
    */
   public boolean definesOptionsToParse() {
-    return getInteger(11, -1) > 0;
+    return getInteger(13, -1) > 0;
   }
 
   // ___________________________________________________________________________

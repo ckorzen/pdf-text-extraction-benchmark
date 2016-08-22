@@ -219,14 +219,14 @@ public class TeXMacroResolver extends TeXParser {
     if (isDefinedByMacro(command)) {      
       // Resolve the macro.
       Group macro = getMacro(command).clone();
-         
+      
       // Plug in the arguments (replace the markers by arguments).
       List<Marker> markers = macro.get(Marker.class, true);
       for (Marker marker : markers) {
         if (marker != null && command.hasGroups(marker.getId())) {
           Group arg = command.getGroup(marker.getId());
           if (arg != null) {
-            macro.replace(marker, arg.elements);
+            macro.replace(marker, arg.trimmedElements);
           }
         }
       }
@@ -246,6 +246,7 @@ public class TeXMacroResolver extends TeXParser {
 //          command.getEndLineNumber(),
 //          command.getBeginColumnNumber(),
 //          command.getEndColumnNumber()));
+      
     } else {
       // Command is not a macro, resolve its groups.
       for (Group group : command.getGroups()) {
