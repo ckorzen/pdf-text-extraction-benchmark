@@ -25,6 +25,12 @@ public class Command extends Element {
   protected String name;
   
   /**
+   * The list of options and groups of this command. The order in list 
+   * corresponds to the order in tex file.
+   */
+  protected List<Element> arguments;
+  
+  /**
    * The options of this command.
    */
   protected List<Option> options;
@@ -33,13 +39,7 @@ public class Command extends Element {
    * The groups of this command.
    */
   protected List<Group> groups;
-        
-  /**
-   * The list of options and groups of this command. The order in list 
-   * corresponds to the order in tex file.
-   */
-  protected List<Group> optionsAndGroupsInCorrectOrder;
-  
+          
   /**
    * Flag to indicate whether this command is a macro.
    */
@@ -54,41 +54,58 @@ public class Command extends Element {
     super(token);
     this.groups = new ArrayList<>();
     this.options = new ArrayList<>();
-    this.optionsAndGroupsInCorrectOrder = new ArrayList<>();
+    this.arguments = new ArrayList<>();
     this.name = name;
   }
   
   // ___________________________________________________________________________
   
-  /**
-   * Adds the given option to this command.
-   */
-  public void addOption(Option option) {
-    this.options.add(option);
-    this.optionsAndGroupsInCorrectOrder.add(option);
-    this.beginLine = Math.min(this.beginLine, option.beginLine);
-    this.endLine = Math.max(this.endLine, option.endLine);
-    this.beginColumn = Math.min(this.beginColumn, option.beginColumn);
-    this.endColumn = Math.max(this.endColumn, option.endColumn);
+  public void addArgument(Element element) {
+    this.arguments.add(element);
+    
+    this.beginLine = Math.min(this.beginLine, element.beginLine);
+    this.endLine = Math.max(this.endLine, element.endLine);
+    this.beginColumn = Math.min(this.beginColumn, element.beginColumn);
+    this.endColumn = Math.max(this.endColumn, element.endColumn);
+    
+    if (element instanceof Option) {
+      this.options.add((Option) element);
+    } else if (element instanceof Group) {
+      this.groups.add((Group) element);
+    } else {
+      this.groups.add(new Group(element));
+    }
   }
   
-  /**
-   * Adds the given group to this command.
-   */
-  public void addGroup(Group group) {
-    this.groups.add(group);
-    this.optionsAndGroupsInCorrectOrder.add(group);
-    this.beginLine = Math.min(this.beginLine, group.beginLine);
-    this.endLine = Math.max(this.endLine, group.endLine);
-    this.beginColumn = Math.min(this.beginColumn, group.beginColumn);
-    this.endColumn = Math.max(this.endColumn, group.endColumn);
-  }
+//  /**
+//   * Adds the given option to this command.
+//   */
+//  protected void addOption(Option option) {
+//    this.options.add(option);
+//    this.arguments.add(option);
+//    this.beginLine = Math.min(this.beginLine, option.beginLine);
+//    this.endLine = Math.max(this.endLine, option.endLine);
+//    this.beginColumn = Math.min(this.beginColumn, option.beginColumn);
+//    this.endColumn = Math.max(this.endColumn, option.endColumn);
+//  }
+//  
+//  /**
+//   * Adds the given group to this command.
+//   */
+//  public void addGroup(Group group) {
+//    this.groups.add(group);
+//    this.arguments.add(group);
+//    this.beginLine = Math.min(this.beginLine, group.beginLine);
+//    this.endLine = Math.max(this.endLine, group.endLine);
+//    this.beginColumn = Math.min(this.beginColumn, group.beginColumn);
+//    this.endColumn = Math.max(this.endColumn, group.endColumn);
+//  }
    
   /**
    * Returns the list of options and groups in correct order.
    */
-  public List<Group> getOptionsAndGroupsInCorrectOrder() {
-    return this.optionsAndGroupsInCorrectOrder;
+  public List<Element> getArguments() {
+    return this.arguments;
   }
   
   /**
@@ -228,15 +245,12 @@ public class Command extends Element {
     // compilable.
     boolean ignoreOptions = "\\bibitem".equals(getName());
     
-    if (ignoreOptions) {
-      for (Element group : getGroups()) {
-        sb.append(group);
-      } 
-    } else {
-      for (Element optionOrGroup : optionsAndGroupsInCorrectOrder) {
-        sb.append(optionOrGroup);
+    for (Element arg : arguments) {
+      if (!ignoreOptions || !(arg instanceof Option)) {
+        sb.append(arg);
       }
     }
+   
     // In case of command "\" followed by a line break, the command is 
     // "\<linebreak>". To avoid issues on encoding this command in element
     // references, remove all linebreaks.

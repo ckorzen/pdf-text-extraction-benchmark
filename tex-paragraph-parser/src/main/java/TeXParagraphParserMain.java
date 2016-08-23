@@ -298,22 +298,23 @@ public class TeXParagraphParserMain {
     int i = 1;
     List<Path> faultyFiles = new ArrayList<>();
     for (final Path file : this.inputFiles) {
-      ExecutorService executor = Executors.newSingleThreadExecutor();
-      final Future<Void> handler = executor.submit(new Callable<Void>() {
-        @Override
-        public Void call() throws Exception {
-          processTexFile(file);
-          return null;
-        }
-      });
+//      ExecutorService executor = Executors.newSingleThreadExecutor();
+//      final Future<Void> handler = executor.submit(new Callable<Void>() {
+//        @Override
+//        public Void call() throws Exception {
+//          processTexFile(file);
+//          return null;
+//        }
+//      });
       
       try {
-        System.out.print(i++ + "/" + this.inputFiles.size() + " ");
-        handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-      } catch (TimeoutException e) {
-        handler.cancel(true);
-        System.out.println("WARN: Timeout on processing file " + file + ".");
-        faultyFiles.add(file);
+//        System.out.print(i++ + "/" + this.inputFiles.size() + " ");
+//        handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        processTexFile(file);
+//      } catch (TimeoutException e) {
+//        handler.cancel(true);
+//        System.out.println("WARN: Timeout on processing file " + file + ".");
+//        faultyFiles.add(file);
       } catch (Exception e) {
         System.out.println("WARN: File " + file + " couldn't be processed.");
         faultyFiles.add(file);
@@ -324,7 +325,7 @@ public class TeXParagraphParserMain {
         faultyFiles.add(file);
       }
       
-      executor.shutdownNow();
+//      executor.shutdownNow();
     }
     
     System.out.println(faultyFiles.size() + " files couldn't be processed:");
@@ -347,9 +348,19 @@ public class TeXParagraphParserMain {
     
     System.out.println(file + " -> " + serializationTargetFile);
     
+    if (serializationTargetFile == null) {
+      return;
+    }
+    
+    // Abort if file already exists.
+//    if (Files.exists(serializationTargetFile) 
+//        && Files.size(serializationTargetFile) > 0) {
+//      return;
+//    }
+    
     // Identify the paragraphs in the given tex file.
     identifyTexParagraphs(texFile);
-
+    
     // Identify the postions of tex paragraphs in tex file.
     if (this.identifyPdfParagraphs) {
       identifyPdfParagraphs(texFile, this.texmfPaths);
@@ -402,7 +413,11 @@ public class TeXParagraphParserMain {
    */
   protected void visualize(TeXFile texFile, List<String> roles, Path target) 
       throws IOException {
-    new TeXParagraphVisualizer(texFile).visualize(target, roles);
+    try {
+      new TeXParagraphVisualizer(texFile).visualize(target, roles);
+    } catch (Exception e) {
+      System.out.println("WARN: Couldn't create visualization.");
+    }
   }
 
   // ---------------------------------------------------------------------------

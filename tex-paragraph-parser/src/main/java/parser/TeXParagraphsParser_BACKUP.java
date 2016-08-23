@@ -229,7 +229,7 @@ public class TeXParagraphsParser_BACKUP {
             Group nextGroup = (Group) nextElement;
             // context.elements.set(context.curIndex - 1, null);
             // Simply add the group to the command.
-            cmd.addGroup(nextGroup);
+            cmd.addArgument(nextGroup);
           } else if (nextElement instanceof Text) {
             itr.nextNonWhitespace();
             Text textElement = (Text) nextElement;
@@ -237,7 +237,7 @@ public class TeXParagraphsParser_BACKUP {
             String text = textElement.toString();
             if (!text.trim().isEmpty()) {
               // Create new Group and add it to the command.
-              cmd.addGroup(new Group(textElement));
+              cmd.addArgument(new Group(textElement));
             }
           }
         }
@@ -521,7 +521,7 @@ public class TeXParagraphsParser_BACKUP {
               Group nextGroup = (Group) nextElement;
               // context.elements.set(context.curIndex - 1, null);
               // Simply add the group to the command.
-              cmd.addGroup(nextGroup);
+              cmd.addArgument(nextGroup);
             } else if (nextElement instanceof Text) {
               itr.nextNonWhitespace();
               Text textElement = (Text) nextElement;
@@ -529,7 +529,7 @@ public class TeXParagraphsParser_BACKUP {
               String text = textElement.toString();
               if (!text.trim().isEmpty()) {
                 // Create new Group and add it to the command.
-                cmd.addGroup(new Group(textElement));
+                cmd.addArgument(new Group(textElement));
               }
             }
           }

@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import de.freiburg.iif.text.StringUtils;
 import model.Characters;
 import model.Command;
@@ -19,8 +17,6 @@ import model.Iterator;
 import model.NewLine;
 import model.NewParagraph;
 import model.Option;
-import model.PdfDocument;
-import model.PdfElement;
 import model.TeXElementReference;
 import model.TeXElementReferences;
 import model.TeXParagraph;
@@ -68,7 +64,12 @@ public class TeXParagraphsParser {
     List<TeXParagraph> paragraphs = new ArrayList<>();
     TeXParagraph para = new TeXParagraph();
     
-    for (OutlineElement element : outline) {      
+    for (OutlineElement element : outline) {  
+      // Introduce new paragraph for every new outline element.
+      if (!para.getText().isEmpty()) {
+        paragraphs.add(para);
+      }
+      para = new TeXParagraph(element.defaultRole);
       para = processElements(element.elements, element.defaultRole, element.defaultRole, para, paragraphs);
     }
     
@@ -179,7 +180,7 @@ public class TeXParagraphsParser {
     text = text.replaceAll("--", "-");
     // Replace all variant of a dash by the simple one.
     text = text.replaceAll("---", "-");
-        
+            
     if (text.isEmpty()) {
       // Replace all whitespaces and newlines by a single whitespace.
       para.registerWhitespace();
@@ -203,7 +204,7 @@ public class TeXParagraphsParser {
     if (StringUtils.equals(cmd.getName(), "\\onlinecite")) {
       cmd.setName("\\cite");
     }
-    
+        
     // Check, if the command is a cross reference. TODO
     if (StringUtils.equals(cmd.getName(), "\\documentstyle")) {
       this.documentStyle = cmd.getGroup().getText();
@@ -263,7 +264,7 @@ public class TeXParagraphsParser {
             Group nextGroup = (Group) nextElement;
             // context.elements.set(context.curIndex - 1, null);
             // Simply add the group to the command.
-            cmd.addGroup(nextGroup);
+            cmd.addArgument(nextGroup);
           } else if (nextElement instanceof Text) {
             itr.nextNonWhitespace();
             Text textElement = (Text) nextElement;
@@ -271,7 +272,7 @@ public class TeXParagraphsParser {
             String text = textElement.toString();
             if (!text.trim().isEmpty()) {
               // Create new Group and add it to the command.
-              cmd.addGroup(new Group(textElement));
+              cmd.addArgument(textElement);
             }
           }
         }
@@ -346,7 +347,7 @@ public class TeXParagraphsParser {
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
-  protected String getTextOfSimpleFormula(List<Element> elements) {
+  protected String getTextOfSimpleFormula(List<Element> elements) {    
     StringBuilder sb = new StringBuilder();
     Iterator<Element> itr = new Iterator<>(elements);
 
@@ -354,11 +355,6 @@ public class TeXParagraphsParser {
     // "end math-mode" command. Ignore it.
     while (itr.hasNext()) {
       Element element = itr.next();
-
-      // // TODO: Decide: With or without sub/superscripts?
-      // if (isSubscriptCommand(element) || isSuperscriptCommand(element)) {
-      // return null;
-      // }
 
       // If there is a run of "_x^y" we want to proceed with superscript first.
       if (isSubscriptCommand(element)) {
@@ -553,7 +549,7 @@ public class TeXParagraphsParser {
               Group nextGroup = (Group) nextElement;
               // context.elements.set(context.curIndex - 1, null);
               // Simply add the group to the command.
-              cmd.addGroup(nextGroup);
+              cmd.addArgument(nextGroup);
             } else if (nextElement instanceof Text) {
               itr.nextNonWhitespace();
               Text textElement = (Text) nextElement;
@@ -561,7 +557,7 @@ public class TeXParagraphsParser {
               String text = textElement.toString();
               if (!text.trim().isEmpty()) {
                 // Create new Group and add it to the command.
-                cmd.addGroup(new Group(textElement));
+                cmd.addArgument(textElement);
               }
             }
           }
@@ -926,8 +922,8 @@ public class TeXParagraphsParser {
     for (int i = 0; i < elements.size(); i++) {
       Element element = elements.get(i);
       TeXElementReference ref = getTeXElementReference(element, null);
-      
-      if (ref != null) {
+                  
+      if (ref != null) { 
         if (ref.definesOutlineLevel()) {
           if (!outlineElement.elements.isEmpty()) {
             outline.add(outlineElement);
@@ -966,7 +962,7 @@ public class TeXParagraphsParser {
     if (!outlineElement.elements.isEmpty()) {
       outline.add(outlineElement);
     }
-    
+        
     return outline;
   }
   

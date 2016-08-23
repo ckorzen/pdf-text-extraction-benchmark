@@ -72,7 +72,9 @@ public interface TeXParserConstants {
   /** RegularExpression Id. */
   int CHAR = 32;
   /** RegularExpression Id. */
-  int OTHER_SYMBOL = 33;
+  int AT = 33;
+  /** RegularExpression Id. */
+  int OTHER_SYMBOL = 34;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -110,12 +112,13 @@ public interface TeXParserConstants {
     "<COMMAND_WITH_CHAR_ARG_OPTIONAL_WHITESPACE_COMMON>",
     "<COMMAND_WITH_CHAR_ARG_MANDATORY_WHITESPACE>",
     "<COMMAND_WITH_WORD_ARG_OPTIONAL_WHITESPACE>",
-    "<COMMAND_WITH_WORD_ARG_MANDATORY_WHITESPACE>",
+    "\"\\\\input\"",
     "<MARKER>",
     "<UPPERCASE_CHAR>",
     "<LOWERCASE_CHAR>",
     "<DIGIT>",
     "<CHAR>",
+    "\"@\"",
     "<OTHER_SYMBOL>",
   };
 
