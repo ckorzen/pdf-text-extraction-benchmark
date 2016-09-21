@@ -65,9 +65,9 @@ public class TeXPreprocessor extends TeXParser {
    */
   public void preprocess(Path target) throws IOException, ParseException {
     ensureFileExistency(target);
-    BufferedWriter w = Files.newBufferedWriter(target, StandardCharsets.UTF_8); 
-    preprocess(w);   
-    w.close();
+    try (BufferedWriter w = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) { 
+      preprocess(w);
+    }
   }
   
   /**

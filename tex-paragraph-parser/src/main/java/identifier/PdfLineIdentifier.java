@@ -215,17 +215,13 @@ public class PdfLineIdentifier {
 
     // Write the enriched tex file.
     Path enriched = defineTmpTexPath(texFile);
-    try {
-      BufferedWriter writer =
-          Files.newBufferedWriter(enriched, StandardCharsets.UTF_8);
+    try (BufferedWriter w = Files.newBufferedWriter(enriched, StandardCharsets.UTF_8)) {
       try {
         for (Element element : texFile.getTeXElements()) { // 1-based.
-          writer.write(element.toString());
+          w.write(element.toString());
         }
       } catch (IOException e) {
         throw new IllegalStateException("Couldn't write enriched tex file.");
-      } finally {
-        writer.close();
       }
     } catch (IOException e) {
       throw new IllegalStateException("Couldn't write enriched tex file.");

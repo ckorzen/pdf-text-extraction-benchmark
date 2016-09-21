@@ -1,9 +1,12 @@
 package preprocess;
+
 import static model.TeXParagraphParserSettings.TEX_ELEMENT_REFERENCES_PATH;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Writer;
+import java.nio.Buffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,72 +33,74 @@ import parse.TeXParser;
  *
  * @author Claudius Korzen
  */
-public class TeXMacroResolver extends TeXParser {          
-  /** 
-   * The number of consecutive whitespaces in front of the current element to 
+public class TeXMacroResolver extends TeXParser {
+  /**
+   * The number of consecutive whitespaces in front of the current element to
    * output.
    */
   protected int numConsecutiveWhitespaces;
-  
-  /** 
-   * The number of consecutive newlines in front of the current element to 
+
+  /**
+   * The number of consecutive newlines in front of the current element to
    * output.
    */
   protected int numConsecutiveNewlines;
-  
+
   /**
    * Flag that indicates, if the command "\end{document}" was already seen.
    */
   protected boolean isEndDocument;
-  
+
   /**
    * The path to the command references file.
    */
   static final String COMMAND_REFERENCES_PATH = "/command-references.csv";
-  
+
   /**
    * The field separator on command references file.
    */
   static final String COMMAND_REFERENCES_SEPARATOR = ",";
-    
+
   protected TeXElementReferences refs;
-  
+
   /**
    * Creates a macro resolver for the given tex file.
-   * @throws IOException 
+   * 
+   * @throws IOException
    */
   public TeXMacroResolver(InputStream stream) throws IOException {
     super(stream);
     this.refs = new TeXElementReferences(TEX_ELEMENT_REFERENCES_PATH);
   }
-  
+
   /**
-   * Resolves the macros for the tex file and writes the result to given 
-   * target path.
+   * Resolves the macros for the tex file and writes the result to given target
+   * path.
    */
   public void resolveMacros(Path target) throws IOException, ParseException {
     ensureFileExistency(target);
-    BufferedWriter w = Files.newBufferedWriter(target, StandardCharsets.UTF_8); 
-    preprocess(w);   
-    w.close();
+    try (BufferedWriter w =
+        Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+      preprocess(w);
+    }
   }
-  
+
   /**
    * Starts the preprocessing for the given tex file and writes the result to
    * the given writer.
    */
-  public void preprocess(BufferedWriter writer) throws IOException, 
-      ParseException {
+  public void preprocess(BufferedWriter writer) throws IOException,
+    ParseException {
     Document document = parse();
     while (document.hasNext()) {
       handleElement(document.next(), writer);
     }
   }
-  
+
   /**
    * Handles the given element from parsed tex document.
    */
-  protected void handleElement(Element element, BufferedWriter writer) {    
+  protected void handleElement(Element element, BufferedWriter writer) {
     if (element instanceof MacroDefinition) {
       handleMacroDefinition((MacroDefinition) element, writer);
     } else if (element instanceof NewLine) {
@@ -112,14 +117,14 @@ public class TeXMacroResolver extends TeXParser {
       handleMarker((Marker) element, writer);
     }
   }
-    
+
   /**
    * Handles the given macro definition.
    */
   public void handleMacroDefinition(Command command, BufferedWriter writer) {
     outputElement(command, writer);
   }
-  
+
   /**
    * Handles the given command.
    */
@@ -129,7 +134,7 @@ public class TeXMacroResolver extends TeXParser {
       isEndDocument = true;
     }
   }
-  
+
   /**
    * Handles the given group.
    */
@@ -143,7 +148,7 @@ public class TeXMacroResolver extends TeXParser {
   public void handleText(Text text, BufferedWriter writer) {
     outputElements(resolve(text), writer);
   }
-  
+
   /**
    * Handles the given newline.
    */
@@ -157,26 +162,27 @@ public class TeXMacroResolver extends TeXParser {
   public void handleWhitespace(Whitespace command, BufferedWriter writer) {
     outputElements(resolve(command), writer);
   }
-  
+
   /**
    * Handles the given marker.
    */
   public void handleMarker(Marker marker, BufferedWriter writer) {
     // Nothing to do.
   }
-   
+
   // ___________________________________________________________________________
-    
+
   /**
    * Resolves the given element.
-   * @throws IOException 
+   * 
+   * @throws IOException
    */
   protected ConstantLookupList<Element> resolve(Element element) {
     Group group = new Group();
     resolveElement(element, group);
     return group.elements;
   }
-  
+
   /**
    * Resolves the given command recursively.
    */
@@ -190,23 +196,25 @@ public class TeXMacroResolver extends TeXParser {
       result.addElement(element);
     }
   }
-  
+
   /**
    * Resolves the given group.
-   * @throws IOException 
+   * 
+   * @throws IOException
    */
   protected void resolveGroup(Group group, Group result) {
     if (group != null && group.elements != null) {
       // Resolve the elements of the group in own context.
       Group resolvedGroup = new Group();
-      for (Element element : group.elements) {        resolveElement(element, resolvedGroup);
+      for (Element element : group.elements) {
+        resolveElement(element, resolvedGroup);
       }
       // Update the elements of the group to the resolved ones.
       group.elements = resolvedGroup.elements;
     }
     result.addElement(group);
   }
-  
+
   /**
    * Resolves the given command.
    */
@@ -214,12 +222,12 @@ public class TeXMacroResolver extends TeXParser {
     if (command == null) {
       return;
     }
-    
+
     // Check, if the command was defined via a macro.
-    if (isDefinedByMacro(command)) {      
+    if (isDefinedByMacro(command)) {
       // Resolve the macro.
       Group macro = getMacro(command).clone();
-      
+
       // Plug in the arguments (replace the markers by arguments).
       List<Marker> markers = macro.get(Marker.class, true);
       for (Marker marker : markers) {
@@ -230,23 +238,23 @@ public class TeXMacroResolver extends TeXParser {
           }
         }
       }
-      
+
       // Resolve the elements of the macro.
       for (Element element : macro.elements) {
         element.setBeginColumnNumber(command.getBeginColumnNumber());
         element.setEndColumnNumber(command.getEndColumnNumber());
         element.setBeginLineNumber(command.getBeginLineNumber());
         element.setEndLineNumber(command.getEndLineNumber());
-        
-        resolveElement(element, result);  
+
+        resolveElement(element, result);
       }
       // Append a whitespace after a macro.
-//      result.addElement(new Whitespace(
-//          command.getBeginLineNumber(), 
-//          command.getEndLineNumber(),
-//          command.getBeginColumnNumber(),
-//          command.getEndColumnNumber()));
-      
+      // result.addElement(new Whitespace(
+      // command.getBeginLineNumber(),
+      // command.getEndLineNumber(),
+      // command.getBeginColumnNumber(),
+      // command.getEndColumnNumber()));
+
     } else {
       // Command is not a macro, resolve its groups.
       for (Group group : command.getGroups()) {
@@ -255,9 +263,9 @@ public class TeXMacroResolver extends TeXParser {
       result.addElement(command);
     }
   }
-  
+
   // ___________________________________________________________________________
-     
+
   /**
    * Outputs the given list of elements to the given writer.
    */
@@ -266,9 +274,9 @@ public class TeXMacroResolver extends TeXParser {
       outputElement(element, w);
     }
   }
-  
+
   protected Element prevNonWhitespace = null;
-  
+
   /**
    * Outputs the given element to the given writer.
    */
@@ -276,32 +284,32 @@ public class TeXMacroResolver extends TeXParser {
     if (element == null) {
       return;
     }
-    
+
     // Don't output any elements, if the end of documents was reached.
     if (isEndDocument) {
       return;
     }
-    
+
     if (element instanceof Whitespace) {
-      // Register the whitespace and output it to the writer only if a 
+      // Register the whitespace and output it to the writer only if a
       // non-whitespace element follows.
       numConsecutiveWhitespaces++;
       return;
     } else if (element instanceof NewLine) {
       // On newline, we don't have to output any registered whitespace anymore.
-      numConsecutiveWhitespaces = 0; 
+      numConsecutiveWhitespaces = 0;
       numConsecutiveNewlines++;
       return;
     } else if (element instanceof NewParagraph) {
       // On newline, we don't have to output any registered whitespace anymore.
-      numConsecutiveWhitespaces = 0; 
+      numConsecutiveWhitespaces = 0;
       numConsecutiveNewlines += 2;
       return;
     }
-        
+
     TeXElementReference prevRef = refs.getElementReference(prevNonWhitespace);
     TeXElementReference ref = refs.getElementReference(element);
-        
+
     boolean prevEndsParagraph = prevRef != null && prevRef.endsParagraph();
     boolean startsParagraph = ref != null && ref.startsParagraph();
     int lineNum = element.getBeginLineNumber();
@@ -309,17 +317,17 @@ public class TeXMacroResolver extends TeXParser {
     if (prevNonWhitespace != null) {
       prevLineNum = prevNonWhitespace.getBeginLineNumber();
     }
-    
+
     try {
       // Make sure that new paragraphs starts in a new line.
       if ((prevEndsParagraph || startsParagraph) && (prevLineNum == lineNum)) {
-        writer.write(new NewLine(null).toString());  
+        writer.write(new NewLine(null).toString());
       }
-            
+
       // Check, if we have to introduce a whitespace.
       if (numConsecutiveWhitespaces > 0) {
         writer.write(new Whitespace(
-            element.getBeginLineNumber(), 
+            element.getBeginLineNumber(),
             element.getEndLineNumber(),
             element.getBeginColumnNumber(),
             element.getEndColumnNumber()).toString());
@@ -340,12 +348,12 @@ public class TeXMacroResolver extends TeXParser {
       numConsecutiveWhitespaces = 0;
       numConsecutiveNewlines = 0;
     }
-    
+
     prevNonWhitespace = element;
   }
-  
+
   // ___________________________________________________________________________
-  
+
   /**
    * Creates the given file if it doesn't exist yet.
    */
@@ -355,14 +363,14 @@ public class TeXMacroResolver extends TeXParser {
       Files.createFile(file);
     }
   }
-    
+
   /**
    * Returns true, if the given command is defined by a macro.
    */
   protected boolean isDefinedByMacro(Command command) {
     return macros.containsKey(command.getName());
   }
-  
+
   /**
    * Returns the macro definition for the given command.
    */
