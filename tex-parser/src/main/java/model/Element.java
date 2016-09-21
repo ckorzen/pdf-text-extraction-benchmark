@@ -120,4 +120,15 @@ public class Element implements Serializable {
   public String getElementReferenceIdentifier() {
     return this.toString();
   }
+  
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Returns true, if the string representation of this element or of one the
+   * associated elements is equal to the given string (Needed to search for 
+   * child elements).
+   */
+  public boolean equalsOrContainsStr(String string) {
+    return toString().equals(string);
+  }
 }

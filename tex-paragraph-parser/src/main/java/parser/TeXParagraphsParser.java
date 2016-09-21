@@ -130,7 +130,7 @@ public class TeXParagraphsParser {
    */
   protected TeXParagraph processElements(List<Element> elements, String role, 
       String defaultRole, TeXParagraph para, List<TeXParagraph> paras) {
-
+    
     Iterator<Element> itr = new Iterator<>(elements);
     while (itr.hasNext()) {
       Element element = itr.next();
@@ -344,18 +344,19 @@ public class TeXParagraphsParser {
     return para;
   }
 
+  int i = 0;
   /**
    * Processes a cross reference command (\cite, \label, \ref).
    */
   protected String getTextOfSimpleFormula(List<Element> elements) {    
     StringBuilder sb = new StringBuilder();
     Iterator<Element> itr = new Iterator<>(elements);
-
+    
     // Only iterate until numElements - 1, because last element is
     // "end math-mode" command. Ignore it.
     while (itr.hasNext()) {
       Element element = itr.next();
-
+      
       // If there is a run of "_x^y" we want to proceed with superscript first.
       if (isSubscriptCommand(element)) {
         Element next = itr.peekNonWhitespace();
@@ -473,7 +474,7 @@ public class TeXParagraphsParser {
     if (element == null) {
       return null;
     }
-
+    
     if (element instanceof NewLine) {
       // result.add(" ");
     } else if (element instanceof NewParagraph) {
@@ -502,7 +503,7 @@ public class TeXParagraphsParser {
       // \epsilon -> ɛ
 
       Command cmd = (Command) element;
-
+            
       if ("^".equals(cmd.getName())) {
         // TODO: superscripts
         return getTextOfFormulaElement(cmd.getGroup(), itr);
@@ -575,6 +576,15 @@ public class TeXParagraphsParser {
       if (ref.getPlaceholder() != null) {
         result.add(ref.getPlaceholder());
       }
+      
+      // TODO: There are no "options" in formulas, but they could be constructs
+      // like $\beta[...]$ where "[...]" is identified as option by the parser,
+      // although they denote the characters "[" and "]". 
+      if (cmd.hasOptions()) {
+        for (Option option : cmd.getOptions()) {
+          result.add("[" + getTextOfSimpleFormula(option.getElements()) + "]");
+        }
+      }
 
       if (ref.definesNumberOfGroups()) {
         int expectedNumGroups = ref.getNumberOfGroups();
@@ -588,7 +598,12 @@ public class TeXParagraphsParser {
         if (expectedNumGroups < actualNumGroups) {
           for (int i = expectedNumGroups; i < actualNumGroups; i++) {
             Group group = cmd.getGroup(i + 1); // 1-based.
-            String text = getTextOfSimpleFormula(group.getElements());
+            String text = null;
+            
+            if (group != null) {
+              text = getTextOfSimpleFormula(group.getElements());
+            }
+            
             if (text == null) {
               return null;
             }
@@ -661,10 +676,6 @@ public class TeXParagraphsParser {
       Iterator<Element> i, String role) {
     List<Element> elements = new ArrayList<>();
 
-//    TeXElementReference startCmdRef = getTeXElementReference(cmd, null);
-//    int outline = startCmdRef != null && startCmdRef.definesOutlineLevel() 
-//        ? startCmdRef.getOutlineLevel() : Integer.MAX_VALUE;
-
     String endCommand = guessEndCommand(cmd, role);
     
     if (endCommand != null /*|| outline < Integer.MAX_VALUE*/) {
@@ -673,23 +684,16 @@ public class TeXParagraphsParser {
         
         elements.add(element);
         
+        // TODO: There could be a formula like $ \beta [ ... $].
+        // [...] is identified as option by the parser (and hence, we have to
+        // analyze all child elements to find the ending $.
+        // TODO: Refactor the parser, such that [...] isn't identified as 
+        // option.
+//        if (element.equalsOrContainsStr(endCommand)) {
+                
         if (element.toString().equals(endCommand)) {
           break;
         }
-
-//        // Check the outline level of the next element.
-//        if (i.hasNext()) {
-//          Element el = i.peek();
-//          if (el instanceof Command) {
-//            TeXElementReference cmdRef =
-//                getTeXElementReference((Command) el, null);
-//            if (cmdRef != null && cmdRef.definesOutlineLevel()) {
-//              if (cmdRef.getOutlineLevel() == outline) {
-//                break;
-//              }
-//            }
-//          }
-//        }
       }
     }
     return elements;

@@ -126,7 +126,7 @@ public class Command extends Element {
    * Returns true, if this command contains at least i options.
    */
   public boolean hasOptions(int i) {
-    return this.groups.size() >= i;
+    return this.options.size() >= i;
   }
   
   /**
@@ -266,4 +266,21 @@ public class Command extends Element {
    * The \end{document} command.
    */
   public static final String END_DOCUMENT = "\\end{document}";
+  
+  @Override
+  public boolean equalsOrContainsStr(String string) {
+    boolean equalsOrContainsStr = super.equalsOrContainsStr(string);
+    if (equalsOrContainsStr) {
+      return true;
+    }
+    
+    for (Element arg : arguments) {
+      equalsOrContainsStr = arg.equalsOrContainsStr(string);
+      if (equalsOrContainsStr) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
 }

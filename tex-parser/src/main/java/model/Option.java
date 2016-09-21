@@ -22,4 +22,24 @@ public class Option extends Group {
     sb.append("]");
     return sb.toString();
   }
+  
+  @Override
+  // FIXME: This method is needed to find the ending $ in $\beta[...$].
+  // This method is only overridden in Option, but not in Group. That's a 
+  // little bit of cheating.
+  public boolean equalsOrContainsStr(String string) {
+    boolean equalsOrContainsStr = super.equalsOrContainsStr(string);
+    if (equalsOrContainsStr) {
+      return true;
+    }
+    
+    for (Element element : elements) {
+      equalsOrContainsStr = element.equalsOrContainsStr(string);
+      if (equalsOrContainsStr) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
 }
