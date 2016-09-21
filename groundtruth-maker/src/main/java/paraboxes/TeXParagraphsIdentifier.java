@@ -55,10 +55,10 @@ public class TeXParagraphsIdentifier {
    * Parses the given tex file.
    */
   protected Document parse() throws Exception {
-    InputStream is = Files.newInputStream(this.texFile.getPath());
-    Document document = new TeXParser(is).parse();
-    is.close();
-    return document;
+    try (InputStream is = Files.newInputStream(this.texFile.getPath())) {
+      Document document = new TeXParser(is).parse();
+      return document;
+    }
   }
 
   // ___________________________________________________________________________

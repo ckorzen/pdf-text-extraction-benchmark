@@ -29,9 +29,10 @@ public class TeXPreprocessorTest {
     Path groundtruthFile = outputPath.resolve("preprocessor-groundtruth-1.tex");
     
     // Preprocess the input file.
-    InputStream inputStream = Files.newInputStream(inputFile);
-    TeXPreprocessor preprocessor = new TeXPreprocessor(inputStream);
-    preprocessor.preprocess(outputFile);
+    try (InputStream inputStream = Files.newInputStream(inputFile)) {
+      TeXPreprocessor preprocessor = new TeXPreprocessor(inputStream);
+      preprocessor.preprocess(outputFile);
+    }
 
     // Compare the output with the groundtruth.
     String output = new String(Files.readAllBytes(outputFile));
@@ -51,9 +52,10 @@ public class TeXPreprocessorTest {
     Path groundtruthFile = outputPath.resolve("preprocessor-groundtruth-2.tex");
     
     // Preprocess the input file.
-    InputStream inputStream = Files.newInputStream(inputFile);
-    TeXPreprocessor preprocessor = new TeXPreprocessor(inputStream);
-    preprocessor.preprocess(outputFile);
+    try (InputStream inputStream = Files.newInputStream(inputFile)) {
+      TeXPreprocessor preprocessor = new TeXPreprocessor(inputStream);
+      preprocessor.preprocess(outputFile);  
+    }
 
     // Compare the output with the groundtruth.
     String output = new String(Files.readAllBytes(outputFile));

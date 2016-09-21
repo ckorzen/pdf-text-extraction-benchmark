@@ -172,8 +172,8 @@ public class ComparePdfTeXParagraphs {
 //      }
     }
              
-    OutputStream os = Files.newOutputStream(Paths.get(pdfOutputPath));
-    drawer.writeTo(os);
-    os.close();
+    try (OutputStream os = Files.newOutputStream(Paths.get(pdfOutputPath))) {
+      drawer.writeTo(os);  
+    }
   }
 }

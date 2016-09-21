@@ -57,8 +57,8 @@ public class TeXParagraphVisualizer {
       }
     }
 
-    OutputStream os = Files.newOutputStream(target);
-    drawer.writeTo(os);
-    os.close();
+    try (OutputStream os = Files.newOutputStream(target)) {
+      drawer.writeTo(os);
+    }
   }
 }

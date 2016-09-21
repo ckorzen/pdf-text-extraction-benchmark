@@ -68,15 +68,15 @@ public class ArxivUnpacker {
   protected static List<Path> unpackSrcChunks(Path target) throws Exception {
     List<Path> unpackedFiles = new ArrayList<>();
     // Iterate over all src chunks in the base directory.
-    DirectoryStream<Path> dir = 
-        Files.newDirectoryStream(BASE_DIR, SRC_CHUNKS_FILTER);
-    Iterator<Path> dirItr = dir.iterator();
-    while (dirItr.hasNext()) {
-      // Untar the chunk without deleting it.
-      List<Path> files = untar(dirItr.next(), target, false);
-      unpackedFiles.addAll(files);
+    try (DirectoryStream<Path> dir = 
+        Files.newDirectoryStream(BASE_DIR, SRC_CHUNKS_FILTER)) {
+      Iterator<Path> dirItr = dir.iterator();
+      while (dirItr.hasNext()) {
+        // Untar the chunk without deleting it.
+        List<Path> files = untar(dirItr.next(), target, false);
+        unpackedFiles.addAll(files);
+      }
     }
-    dir.close();
     return unpackedFiles;
   }
   
@@ -184,12 +184,13 @@ public class ArxivUnpacker {
    */
   protected static List<Path> untar(Path archive, Path outputDir, 
       boolean deleteInput) throws Exception {    
-    InputStream is = Files.newInputStream(archive);
-    TarArchiveInputStream tar = new TarArchiveInputStream(is);
-    List<Path> unpackedFiles = unpack(tar, outputDir);
-    tar.close();
-    if (deleteInput) {
-      Files.delete(archive);
+    try (InputStream is = Files.newInputStream(archive)) {
+      TarArchiveInputStream tar = new TarArchiveInputStream(is);
+      List<Path> unpackedFiles = unpack(tar, outputDir);
+      tar.close();
+      if (deleteInput) {
+        Files.delete(archive);
+      }
     }
     return unpackedFiles; 
   }
@@ -210,12 +211,13 @@ public class ArxivUnpacker {
    */
   protected static List<Path> gunzipAndUntar(Path archive, Path outputDir, 
       boolean deleteInput) throws Exception {
-    GZIPInputStream gzip = new GZIPInputStream(Files.newInputStream(archive));
-    TarArchiveInputStream tar = new TarArchiveInputStream(gzip);
-    List<Path> unpackedFiles = unpack(tar, outputDir);
-    tar.close();
-    if (deleteInput) {
-      Files.delete(archive);
+    try (GZIPInputStream gzip = new GZIPInputStream(Files.newInputStream(archive)) {
+      TarArchiveInputStream tar = new TarArchiveInputStream(gzip);
+      List<Path> unpackedFiles = unpack(tar, outputDir);
+      tar.close();
+      if (deleteInput) {
+        Files.delete(archive);
+      }
     }
     return unpackedFiles;
   }
@@ -226,18 +228,18 @@ public class ArxivUnpacker {
    */
   protected static void gunzip(Path archive, Path outputFile, 
       boolean deleteArchive) throws Exception {
-    GZIPInputStream gzip = new GZIPInputStream(Files.newInputStream(archive));
-    // Make sure, that the output file exists.
-    if (!Files.exists(outputFile)) {
-      Files.createDirectories(outputFile.getParent());
-      Files.createFile(outputFile);
-    }
-    OutputStream out = Files.newOutputStream(outputFile);
-    IOUtils.copy(gzip, out);
-    gzip.close();
-    out.close();
-    if (deleteArchive) {
-      Files.delete(archive);
+    try (GZIPInputStream gzip = new GZIPInputStream(Files.newInputStream(archive))) {
+      // Make sure, that the output file exists.
+      if (!Files.exists(outputFile)) {
+        Files.createDirectories(outputFile.getParent());
+        Files.createFile(outputFile);
+      }
+      try (OutputStream out = Files.newOutputStream(outputFile)) {
+        IOUtils.copy(gzip, out);
+      }
+      if (deleteArchive) {
+        Files.delete(archive);
+      }
     }
   }
   
@@ -263,9 +265,9 @@ public class ArxivUnpacker {
         }
         
         // Write the content to file.
-        OutputStream outputFileStream = Files.newOutputStream(outputFile);
-        IOUtils.copy(is, outputFileStream);
-        outputFileStream.close();
+        try (OutputStream outputFileStream = Files.newOutputStream(outputFile)) {
+          IOUtils.copy(is, outputFileStream);
+        }
         unpackedFiles.add(outputFile);
       }
     }

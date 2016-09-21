@@ -155,39 +155,38 @@ public class TeXElementReferences {
     Map<String, List<TeXElementReference>> references = new HashMap<>();
     InputStream is = getClass().getResourceAsStream(path);
     InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
-    BufferedReader reader = new BufferedReader(isr);
+    try (BufferedReader reader = new BufferedReader(isr)) {
 
-    String line;
-
-    while ((line = reader.readLine()) != null) {
-      // Ignore comment lines.
-      if (line.startsWith("#")) {
-        continue;
+      String line;
+  
+      while ((line = reader.readLine()) != null) {
+        // Ignore comment lines.
+        if (line.startsWith("#")) {
+          continue;
+        }
+  
+        // Ignore empty lines.
+        if (line.trim().isEmpty()) {
+          continue;
+        }
+        
+        // Split the line at given separator, except if it is preceded by "\".
+        String[] fields = line.split("(?<!\\\\)" + ELEMENT_REFERENCES_SEPARATOR, -1);
+        
+        // Need to unescape each field.
+        for (int i = 0; i < fields.length; i++) {
+          fields[i] = StringEscapeUtils.unescapeCsv(fields[i]);
+        }
+              
+        TeXElementReference ref = new TeXElementReference(fields);
+        String name = ref.getCommandName();
+        if (!references.containsKey(name)) {
+          references.put(name, new ArrayList<TeXElementReference>());
+        }
+              
+        references.get(name).add(ref);
       }
-
-      // Ignore empty lines.
-      if (line.trim().isEmpty()) {
-        continue;
-      }
-      
-      // Split the line at given separator, except if it is preceded by "\".
-      String[] fields = line.split("(?<!\\\\)" + ELEMENT_REFERENCES_SEPARATOR, -1);
-      
-      // Need to unescape each field.
-      for (int i = 0; i < fields.length; i++) {
-        fields[i] = StringEscapeUtils.unescapeCsv(fields[i]);
-      }
-            
-      TeXElementReference ref = new TeXElementReference(fields);
-      String name = ref.getCommandName();
-      if (!references.containsKey(name)) {
-        references.put(name, new ArrayList<TeXElementReference>());
-      }
-            
-      references.get(name).add(ref);
     }
-    
-    reader.close();
 
     return references;
   }

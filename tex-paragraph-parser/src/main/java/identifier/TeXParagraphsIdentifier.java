@@ -73,13 +73,10 @@ public class TeXParagraphsIdentifier {
     affirm(Files.isRegularFile(file), "The given tex file doesn't exist.");
     affirm(targetPath != null, "No target path given");
     
-    InputStream stream = Files.newInputStream(file);
-    try {
+    try (InputStream stream = Files.newInputStream(file)) {
       new TeXMacroResolver(stream).resolveMacros(targetPath);
     } catch (ParseException e) {
       throw new IOException(e);
-    } finally {
-      stream.close();
     }
   }
 
@@ -134,19 +131,16 @@ public class TeXParagraphsIdentifier {
     throws IOException, ParseException {
     affirm(Files.isRegularFile(texPath), "The given tex file doesn't exist.");
     
-    InputStream input = Files.newInputStream(texPath);
-
-    Document document;
-    try {
-      TeXParser parser = new TeXParser(input);
-      document = parser.parse();
-    } catch (Exception e) {
-      throw e;
-    } finally {
-      input.close();
+    try (InputStream input = Files.newInputStream(texPath)) {
+      Document document;
+      try {
+        TeXParser parser = new TeXParser(input);
+        document = parser.parse();
+      } catch (Exception e) {
+        throw e;
+      }
+      return document;
     }
-
-    return document;
   }
 
   // ===========================================================================

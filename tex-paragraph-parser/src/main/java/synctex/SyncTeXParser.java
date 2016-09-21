@@ -153,17 +153,10 @@ public class SyncTeXParser {
    * Parses the given synctex file.
    */
   protected void parse() throws IOException {
-    BufferedReader reader = null;
-
-    try {
-      reader = Files.newBufferedReader(syncTexPath, StandardCharsets.UTF_8);
+    try (BufferedReader reader = Files.newBufferedReader(syncTexPath, StandardCharsets.UTF_8)) {
       parse(reader);
     } catch (Exception e) {
       throw new IOException(e);
-    } finally {
-      if (reader != null) {
-        reader.close();
-      }
     }
   }
 

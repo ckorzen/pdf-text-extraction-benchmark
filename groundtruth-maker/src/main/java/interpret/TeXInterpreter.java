@@ -145,7 +145,6 @@ public class TeXInterpreter {
   protected void processCommand(Command cmd, Iterator<Element> itr, 
       TeXHierarchy context) {    
     
-    System.out.println("command: " + cmd);
     // Check, if the command is a cross reference.
     // if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite", "\\label")) {
     if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
@@ -181,7 +180,7 @@ public class TeXInterpreter {
             Group nextGroup = (Group) nextElement;
             // context.elements.set(context.curIndex - 1, null);
             // Simply add the group to the command.
-            cmd.addGroup(nextGroup);
+            cmd.addArgument(nextGroup);
           } else if (nextElement instanceof Text) {
             itr.nextNonWhitespace();
             Text textElement = (Text) nextElement;
@@ -189,7 +188,7 @@ public class TeXInterpreter {
             String text = textElement.toString();
             if (!text.trim().isEmpty()) {
               // Create new Group and add it to the command.
-              cmd.addGroup(new Group(textElement));
+              cmd.addArgument(new Group(textElement));
             }
           }
         }

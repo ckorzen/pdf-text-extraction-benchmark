@@ -51,11 +51,9 @@ public class TeXParagraphTsvSerializer {
       Files.createFile(target);
     }
     
-    OutputStream stream = Files.newOutputStream(target);
-    
-    serializeTeXParagraphs(stream, roles);
-    
-    stream.close();
+    try (OutputStream stream = Files.newOutputStream(target)) {
+      serializeTeXParagraphs(stream, roles);
+    }
   }
   
   /**
@@ -63,10 +61,9 @@ public class TeXParagraphTsvSerializer {
    */
   public void serializeTeXParagraphs(OutputStream stream, List<String> roles) 
       throws IOException {
-    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stream));
-    serializeTeXParagraphs(writer, roles);
-    
-    writer.close();
+    try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stream))) {
+      serializeTeXParagraphs(writer, roles);  
+    }
   }
   
   /**

@@ -111,9 +111,8 @@ public class LineBoundingBoxesIdentifier {
 
     // Write the enriched tex file.
     Path enriched = getEnrichedTexFile(texFile);
-    try {
-      BufferedWriter writer =
-          Files.newBufferedWriter(enriched, StandardCharsets.UTF_8);
+    try (BufferedWriter writer =
+          Files.newBufferedWriter(enriched, StandardCharsets.UTF_8)) {
       try {
         for (int i = 1; i < texLines.size(); i++) { // 1-based.
           writer.write(texLines.get(i));
@@ -121,8 +120,6 @@ public class LineBoundingBoxesIdentifier {
         }
       } catch (IOException e) {
         throw new IllegalStateException("Couldn't write enriched tex file.");
-      } finally {
-        writer.close();
       }
     } catch (IOException e) {
       throw new IllegalStateException("Couldn't write enriched tex file.");
@@ -141,9 +138,8 @@ public class LineBoundingBoxesIdentifier {
     affirm(Files.isRegularFile(texFile), "Given tex file doesn't exist.");
 
     List<String> texLines = new ArrayList<>();
-    try {
-      BufferedReader reader =
-          Files.newBufferedReader(texFile, StandardCharsets.UTF_8);
+    try (BufferedReader reader =
+          Files.newBufferedReader(texFile, StandardCharsets.UTF_8)) {
 
       try {
         // Add dummy to have 1-based indices.
@@ -153,8 +149,8 @@ public class LineBoundingBoxesIdentifier {
         while ((line = reader.readLine()) != null) {
           texLines.add(line);
         }
-      } finally {
-        reader.close();
+      } catch (Exception e) {
+        throw new IllegalStateException("Couldn't read the tex file.", e);
       }
     } catch (Exception e) {
       throw new IllegalStateException("Couldn't read the tex file.", e);
@@ -239,73 +235,72 @@ public class LineBoundingBoxesIdentifier {
 
     List<PdfLine> pairs = new ArrayList<>();
 
-    BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
 
-    String line;
-    float minX = Float.MAX_VALUE;
-    float minY = Float.MAX_VALUE;
-    float maxX = Float.MIN_VALUE;
-    float maxY = Float.MIN_VALUE;
-
-    int currentPageNumber = -1;
-    float currentMinX = -1;
-    float currentMaxX = -1;
-    float currentMinY = -1;
-    float currentMaxY = -1;
-    while ((line = reader.readLine()) != null) {
-      if (line.startsWith("Page:")) {
-        currentPageNumber = Integer.parseInt(line.substring(5));
-      }
-
-      if (line.startsWith("after:")) { // The last line of an entry.
-        if (currentMinX < Float.MAX_VALUE && currentMinY < Float.MAX_VALUE
-            && currentMaxX > Float.MIN_VALUE && currentMaxY > Float.MIN_VALUE) {
-          Rectangle boundingBox = new SimpleRectangle(currentMinX, currentMinY,
-              currentMaxX, currentMaxY);
-          pairs.add(new PdfLine(lineNumber, currentPageNumber, boundingBox));
+      String line;
+      float minX = Float.MAX_VALUE;
+      float minY = Float.MAX_VALUE;
+      float maxX = Float.MIN_VALUE;
+      float maxY = Float.MIN_VALUE;
+  
+      int currentPageNumber = -1;
+      float currentMinX = -1;
+      float currentMaxX = -1;
+      float currentMinY = -1;
+      float currentMaxY = -1;
+      while ((line = reader.readLine()) != null) {
+        if (line.startsWith("Page:")) {
+          currentPageNumber = Integer.parseInt(line.substring(5));
+        }
+  
+        if (line.startsWith("after:")) { // The last line of an entry.
+          if (currentMinX < Float.MAX_VALUE && currentMinY < Float.MAX_VALUE
+              && currentMaxX > Float.MIN_VALUE && currentMaxY > Float.MIN_VALUE) {
+            Rectangle boundingBox = new SimpleRectangle(currentMinX, currentMinY,
+                currentMaxX, currentMaxY);
+            pairs.add(new PdfLine(lineNumber, currentPageNumber, boundingBox));
+          }
+        }
+  
+        if (line.startsWith("h:")) {
+          currentMinX = Float.parseFloat(line.substring(2));
+          if (currentMinX < minX) {
+            minX = currentMinX;
+          }
+        }
+  
+        if (line.startsWith("v:")) {
+          float y = Float.parseFloat(line.substring(2));
+          currentMinY = getBoundingBoxOfPage(currentPageNumber).getMaxY() - y;
+          if (currentMinY < minY) {
+            minY = currentMinY;
+          }
+        }
+  
+        if (line.startsWith("W:")) {
+          float width = Float.parseFloat(line.substring(2));
+          currentMaxX = currentMinX + width;
+          if (currentMaxX > maxX) {
+            maxX = currentMaxX;
+          }
+        }
+  
+        if (line.startsWith("H:")) {
+          float height = Float.parseFloat(line.substring(2));
+          currentMaxY = currentMinY + height;
+          if (currentMaxY > maxY) {
+            maxY = currentMaxY;
+          }
         }
       }
-
-      if (line.startsWith("h:")) {
-        currentMinX = Float.parseFloat(line.substring(2));
-        if (currentMinX < minX) {
-          minX = currentMinX;
-        }
-      }
-
-      if (line.startsWith("v:")) {
-        float y = Float.parseFloat(line.substring(2));
-        currentMinY = getBoundingBoxOfPage(currentPageNumber).getMaxY() - y;
-        if (currentMinY < minY) {
-          minY = currentMinY;
-        }
-      }
-
-      if (line.startsWith("W:")) {
-        float width = Float.parseFloat(line.substring(2));
-        currentMaxX = currentMinX + width;
-        if (currentMaxX > maxX) {
-          maxX = currentMaxX;
-        }
-      }
-
-      if (line.startsWith("H:")) {
-        float height = Float.parseFloat(line.substring(2));
-        currentMaxY = currentMinY + height;
-        if (currentMaxY > maxY) {
-          maxY = currentMaxY;
-        }
+  
+      if (currentMinX < Float.MAX_VALUE && currentMinY < Float.MAX_VALUE
+          && currentMaxX > Float.MIN_VALUE && currentMaxY > Float.MIN_VALUE) {
+        Rectangle boundingBox = new SimpleRectangle(currentMinX, currentMinY,
+            currentMaxX, currentMaxY);
+        pairs.add(new PdfLine(lineNumber, currentPageNumber, boundingBox));
       }
     }
-
-    if (currentMinX < Float.MAX_VALUE && currentMinY < Float.MAX_VALUE
-        && currentMaxX > Float.MIN_VALUE && currentMaxY > Float.MIN_VALUE) {
-      Rectangle boundingBox = new SimpleRectangle(currentMinX, currentMinY,
-          currentMaxX, currentMaxY);
-      pairs.add(new PdfLine(lineNumber, currentPageNumber, boundingBox));
-    }
-
-    reader.close();
 
     // Collections.sort(pairs);
     //

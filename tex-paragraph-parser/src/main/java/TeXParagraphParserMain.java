@@ -325,11 +325,7 @@ public class TeXParagraphParserMain {
    * tex files.
    */
   protected void readDirectory(Path directory, List<Path> res) {
-    DirectoryStream<Path> ds = null;
-
-    try {
-      // Process all elements in the directory.
-      ds = Files.newDirectoryStream(directory);
+    try (DirectoryStream<Path> ds = Files.newDirectoryStream(directory)) {
       Iterator<Path> itr = ds.iterator();
       while (itr.hasNext()) {
         Path next = itr.next();
@@ -347,14 +343,6 @@ public class TeXParagraphParserMain {
       System.out.println("Error on reading directory " + e.getMessage());
       e.printStackTrace();
       return;
-    } finally {
-      try {
-        if (ds != null) {
-          ds.close();
-        }
-      } catch (Exception e) {
-        return;
-      }
     }
   }
 

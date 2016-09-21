@@ -380,15 +380,14 @@ public class GroundtruthMakerMain {
    * intermediate file.
    */
   protected Path preprocessTexFile(Path texFile) throws Exception {
-    InputStream input = Files.newInputStream(texFile);
-    // Obtain the target file for the preprocessing step.
-    Path output = getPreprocessTargetFile(texFile);
+    try (InputStream input = Files.newInputStream(texFile)) {
+      // Obtain the target file for the preprocessing step.
+      Path output = getPreprocessTargetFile(texFile);
 
-    TeXPreprocessor preprocessor = new TeXPreprocessor(input);
-    preprocessor.preprocess(output);
-    input.close();
-
-    return output;
+      TeXPreprocessor preprocessor = new TeXPreprocessor(input);
+      preprocessor.preprocess(output);
+      return output;
+    }
   }
 
   /**
@@ -396,13 +395,12 @@ public class GroundtruthMakerMain {
    * returns the parsed Document object.
    */
   protected Document parseTexFile(Path texFile) throws Exception {
-    InputStream input = Files.newInputStream(texFile);
+    try (InputStream input = Files.newInputStream(texFile)) {
+      TeXParser parser = new TeXParser(input);
+      Document document = parser.parse();
 
-    TeXParser parser = new TeXParser(input);
-    Document document = parser.parse();
-    input.close();
-
-    return document;
+      return document;
+    }
   }
 
   /**
@@ -423,9 +421,9 @@ public class GroundtruthMakerMain {
       Files.createFile(file);
     }
 
-    BufferedWriter w = Files.newBufferedWriter(file, StandardCharsets.UTF_8);
-    serializeObject(gt, features, w);
-    w.close();
+    try (BufferedWriter w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+      serializeObject(gt, features, w);  
+    }
   }
 
   /**
@@ -451,7 +449,8 @@ public class GroundtruthMakerMain {
    * Serializes the given hierarchy.
    */
   protected void serializeTeXHierarchy(TeXHierarchy hierarchy,
-      List<String> features, Writer w) throws IOException {
+      List<String> features, Writer w)
+    throws IOException {
     if (hierarchy == null) {
       return;
     }
@@ -469,7 +468,8 @@ public class GroundtruthMakerMain {
    * Serializes the given list of objects.
    */
   protected void serializeList(List<Object> list, List<String> features,
-      Writer w) throws IOException {
+      Writer w)
+    throws IOException {
     if (list == null) {
       return;
     }
@@ -501,20 +501,20 @@ public class GroundtruthMakerMain {
       Files.createFile(target);
     }
 
-    BufferedWriter w = Files.newBufferedWriter(target, StandardCharsets.UTF_8);
-    w.write(String.format("%s\t%s\t%s\t%s\t%s", "page", "minX", "minY", "maxX",
-        "maxY"));
-    w.newLine();
-    for (TexParagraph paragraph : texFile.getTeXParagraphs()) {
-      for (PdfParagraph p : paragraph.getPdfParagraphs()) {
-        Rectangle boundingBox = p.getRectangle();
-        w.write(String.format("%d\t%f\t%f\t%f\t%f", p.getPdfPageNumber(),
-            boundingBox.getMinX(), boundingBox.getMinY(),
-            boundingBox.getMaxX(), boundingBox.getMaxY()));
-        w.newLine();
-      }
+    try (BufferedWriter w = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+      w.write(String.format("%s\t%s\t%s\t%s\t%s", "page", "minX", "minY", "maxX",
+          "maxY"));
+      w.newLine();
+      for (TexParagraph paragraph : texFile.getTeXParagraphs()) {
+        for (PdfParagraph p : paragraph.getPdfParagraphs()) {
+          Rectangle boundingBox = p.getRectangle();
+          w.write(String.format("%d\t%f\t%f\t%f\t%f", p.getPdfPageNumber(),
+              boundingBox.getMinX(), boundingBox.getMinY(),
+              boundingBox.getMaxX(), boundingBox.getMaxY()));
+          w.newLine();
+        }
+      }  
     }
-    w.close();
   }
 
   // ___________________________________________________________________________
@@ -621,11 +621,7 @@ public class GroundtruthMakerMain {
    * tex files.
    */
   protected void readDirectory(Path directory, List<Path> res) {
-    DirectoryStream<Path> ds = null;
-
-    try {
-      // Process all elements in the directory.
-      ds = Files.newDirectoryStream(directory);
+    try (DirectoryStream<Path> ds = Files.newDirectoryStream(directory)) {
       Iterator<Path> itr = ds.iterator();
       while (itr.hasNext()) {
         Path next = itr.next();
@@ -640,14 +636,6 @@ public class GroundtruthMakerMain {
       System.out.println("Error on reading directory " + e.getMessage());
       e.printStackTrace();
       return;
-    } finally {
-      try {
-        if (ds != null) {
-          ds.close();
-        }
-      } catch (Exception e) {
-        return;
-      }
     }
   }
 
