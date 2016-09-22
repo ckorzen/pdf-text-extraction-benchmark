@@ -134,7 +134,7 @@ public class TeXParagraphsParser {
     Iterator<Element> itr = new Iterator<>(elements);
     while (itr.hasNext()) {
       Element element = itr.next();
-
+      
       if (element instanceof Option) {
         // There may be (valid) text like "foo bar [2]", see cond-mat0001200.
         // So, if the element is a standalone option, handle it as text.

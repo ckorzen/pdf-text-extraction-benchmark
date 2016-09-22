@@ -90,14 +90,14 @@ public class TeXParagraphsIdentifier {
     
     // Parse the tex file.
     Document document;
-    
+        
     try {
       document = parseTexFile(texFile);
       texFile.setDocument(document);
     } catch (ParseException e) {
       throw new IOException(e);
     }
-
+    
     // Identify the paragraphs in parsed document.
     texFile.setTeXParagraphs(identifyTeXParagraphs(document));
   }
