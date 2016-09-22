@@ -295,7 +295,7 @@ public class TeXParagraphParserMain {
    * Processes the tex files found from users input.
    */
   protected void processTexFiles() throws IOException {
-    ExecutorService executor = Executors.newCachedThreadPool();
+    ExecutorService executor = Executors.newFixedThreadPool(12);
 
     long start = System.currentTimeMillis();
     for (Path file : this.inputFiles) {
@@ -661,6 +661,8 @@ class TexFileProcessor implements Runnable {
 
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
     Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
+
+    System.out.println(file + " -> " + serializationTargetFile);
     
     if (serializationTargetFile == null) {
       return;

@@ -5,9 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 
 import de.freiburg.iif.collection.ConstantLookupList;
 
@@ -298,7 +296,7 @@ public class Group extends Element implements Iterable<Element> {
         oos.writeObject(this);
         try (ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
             ObjectInputStream ois = new ObjectInputStream(bais)) {
-          Group group = (Group) ois.readObject();
+          Group group = (Group) ois.readObject();          
           return group;
         }
       }
