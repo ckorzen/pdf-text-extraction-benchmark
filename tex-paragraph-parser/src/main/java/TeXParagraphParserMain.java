@@ -661,8 +661,6 @@ class TexFileProcessor implements Runnable {
 
     Path serializationTargetFile = defineSerializationTargetFile(texFile);
     Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
-
-    System.out.println(file + " -> " + serializationTargetFile);
     
     if (serializationTargetFile == null) {
       return;

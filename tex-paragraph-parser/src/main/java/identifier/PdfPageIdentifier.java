@@ -63,37 +63,40 @@ public class PdfPageIdentifier {
    * Reads the bounding boxes of pages in given pdf file.
    */
   protected List<Rectangle> loadPageBoundingBoxes(TeXFile texFile) {
-    List<Rectangle> pageBoundingBoxes = new ArrayList<>();
+    List<Rectangle> pageBoundBoxes = new ArrayList<>();
 
     try {
       Path pdfPath = texFile.getPdfPath();
       PDDocument pdDocument = PDDocument.load(pdfPath.toFile());
-      PDPageTree pages = pdDocument.getDocumentCatalog().getPages();
-      pageBoundingBoxes = new ArrayList<>();
-      pageBoundingBoxes.add(null); // add dummy because pages are 1-based.
-
-      // Compute the bounding boxes.
-      for (PDPage page : pages) {
-        Rectangle boundingBox = new SimpleRectangle();
-
-        PDRectangle box = page.getCropBox();
-        if (box == null) {
-          box = page.getMediaBox();
+      try {
+        PDPageTree pages = pdDocument.getDocumentCatalog().getPages();
+        pageBoundBoxes = new ArrayList<>();
+        pageBoundBoxes.add(null); // add dummy because pages are 1-based.
+  
+        // Compute the bounding boxes.
+        for (PDPage page : pages) {
+          Rectangle boundingBox = new SimpleRectangle();
+  
+          PDRectangle box = page.getCropBox();
+          if (box == null) {
+            box = page.getMediaBox();
+          }
+          if (box != null) {
+            boundingBox.setMinX(box.getLowerLeftX());
+            boundingBox.setMinY(box.getLowerLeftY());
+            boundingBox.setMaxX(box.getUpperRightX());
+            boundingBox.setMaxY(box.getUpperRightY());
+          }
+  
+          pageBoundBoxes.add(boundingBox);
         }
-        if (box != null) {
-          boundingBox.setMinX(box.getLowerLeftX());
-          boundingBox.setMinY(box.getLowerLeftY());
-          boundingBox.setMaxX(box.getUpperRightX());
-          boundingBox.setMaxY(box.getUpperRightY());
-        }
-
-        pageBoundingBoxes.add(boundingBox);
+      } finally {
+        pdDocument.close();
       }
-      pdDocument.close();
     } catch (IOException e) {
       throw new IllegalStateException("Couldn't load the pdf file.", e);
     }
 
-    return pageBoundingBoxes;
+    return pageBoundBoxes;
   }
 }

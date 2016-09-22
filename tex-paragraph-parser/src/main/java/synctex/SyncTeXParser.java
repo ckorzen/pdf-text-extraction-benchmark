@@ -191,7 +191,7 @@ public class SyncTeXParser {
       }
 
       if (line.startsWith("Magnification")) {
-        this.magnification = value != Float.NaN ? value : this.magnification;
+        this.magnification = !Float.isNaN(value) ? value : this.magnification;
       } else if (line.startsWith("X Offset")) {
         this.xoffset = value != Float.NaN ? value : this.xoffset;
       } else if (line.startsWith("Y Offset")) {

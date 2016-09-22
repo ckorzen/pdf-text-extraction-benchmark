@@ -293,17 +293,15 @@ public class Group extends Element implements Iterable<Element> {
   
   public Group clone() {
     try {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      ObjectOutputStream oos = new ObjectOutputStream(baos);
-      oos.writeObject(this);
-      ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-      ObjectInputStream ois = new ObjectInputStream(bais);
-      Group group = (Group) ois.readObject();
-      
-      ois.close();
-      oos.close();
-      
-      return group;
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+          ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        oos.writeObject(this);
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+            ObjectInputStream ois = new ObjectInputStream(bais)) {
+          Group group = (Group) ois.readObject();
+          return group;
+        }
+      }
     } catch (Exception e) {
       e.printStackTrace();
       return null;

@@ -184,8 +184,8 @@ public class ArxivUnpacker {
    */
   protected static List<Path> untar(Path archive, Path outputDir, 
       boolean deleteInput) throws Exception {    
-    try (InputStream is = Files.newInputStream(archive)) {
-      TarArchiveInputStream tar = new TarArchiveInputStream(is);
+    try (InputStream is = Files.newInputStream(archive);
+        TarArchiveInputStream tar = new TarArchiveInputStream(is)) {
       List<Path> unpackedFiles = unpack(tar, outputDir);
       tar.close();
       if (deleteInput) {
@@ -211,8 +211,8 @@ public class ArxivUnpacker {
    */
   protected static List<Path> gunzipAndUntar(Path archive, Path outputDir, 
       boolean deleteInput) throws Exception {
-    try (GZIPInputStream gzip = new GZIPInputStream(Files.newInputStream(archive)) {
-      TarArchiveInputStream tar = new TarArchiveInputStream(gzip);
+    try (GZIPInputStream gzip = new GZIPInputStream(Files.newInputStream(archive);
+        TarArchiveInputStream tar = new TarArchiveInputStream(gzip)) {
       List<Path> unpackedFiles = unpack(tar, outputDir);
       tar.close();
       if (deleteInput) {

@@ -5,16 +5,10 @@ import static model.TeXParagraphParserSettings.TEX_ELEMENT_REFERENCES_PATH;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Writer;
-import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
-import java.nio.Buffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-
-import org.apache.fontbox.util.autodetect.UnixFontDirFinder;
 
 import de.freiburg.iif.collection.ConstantLookupList;
 import model.Command;

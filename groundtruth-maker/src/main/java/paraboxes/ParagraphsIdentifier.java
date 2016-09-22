@@ -94,8 +94,8 @@ public class ParagraphsIdentifier {
 
     File output = new File("/home/korzen/Downloads/paraboxes.pdf");
 
-    FileOutputStream fos = new FileOutputStream(output);
-    drawer.writeTo(fos);
-    fos.close();
+    try (FileOutputStream fos = new FileOutputStream(output)) {
+      drawer.writeTo(fos);
+    }
   }
 }

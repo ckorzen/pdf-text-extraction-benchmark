@@ -153,10 +153,9 @@ public class TeXElementReferences {
   protected Map<String, List<TeXElementReference>> readReferences(String path)
     throws IOException {
     Map<String, List<TeXElementReference>> references = new HashMap<>();
-    InputStream is = getClass().getResourceAsStream(path);
-    InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
-    try (BufferedReader reader = new BufferedReader(isr)) {
-
+    try (InputStream is = getClass().getResourceAsStream(path);
+        InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
+        BufferedReader reader = new BufferedReader(isr)) {
       String line;
   
       while ((line = reader.readLine()) != null) {

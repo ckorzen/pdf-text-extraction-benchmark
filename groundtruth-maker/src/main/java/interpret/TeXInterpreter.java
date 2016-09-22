@@ -377,15 +377,12 @@ public class TeXInterpreter {
       }
     };
     
-    InputStream is = getClass().getResourceAsStream(COMMAND_REFERENCES_PATH);
-    reader.read(is);
-    
-    try {
-      is.close();
+    try (InputStream is = getClass().getResourceAsStream(COMMAND_REFERENCES_PATH)) {
+      reader.read(is);
     } catch (IOException e) {
       return references;
     }
-    
+        
     return references;
   }
 
