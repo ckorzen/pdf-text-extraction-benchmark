@@ -8,6 +8,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.spi.NumberFormatProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -146,6 +147,8 @@ public class TeXParagraphParserMain {
    */
   protected List<String> roles;
 
+  protected int numProcessedFiles;
+  
   /**
    * The main method to start the paragraphs parser.
    */
@@ -663,7 +666,8 @@ public class TeXParagraphParserMain {
       Path serializationTargetFile = defineSerializationTargetFile(texFile);
       Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
 
-      System.out.println(file + " -> " + serializationTargetFile);
+      System.out.println(++numProcessedFiles + "/" + inputFiles.size() + " " 
+          + file + " -> " + serializationTargetFile);
       
       if (serializationTargetFile == null) {
         return;
@@ -730,7 +734,7 @@ public class TeXParagraphParserMain {
       }
     }
 
-    // ---------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Some util methods.
 
     /**
