@@ -1,11 +1,15 @@
+import diff
 import para_diff
+import para_diff_rearrange as rearr
 import util
 from collections import Counter
 
 # The multiplication factor on computing the costs for paragraph operations. 
-COST_FACTOR_PARA_OPS = 2
+COST_FACTOR_PARA_OPS = 5
 # The multiplication factor on computing the costs of word operations.
 COST_FACTOR_WORD_OPS = 1
+
+# ------------------------------------------------------------------------------
 
 def doc_diff(actual, target, junk=[]):
     """ Aligns the given string 'actual' against the given string 'target'.
@@ -22,482 +26,428 @@ def doc_diff(actual, target, junk=[]):
     * Rearrange word. 
     """
 
-    # Format both strings and split them into paragraphs.
-    actual_paras = util.to_formatted_paragraphs(actual, to_protect=junk)
-    target_paras = util.to_formatted_paragraphs(target, to_protect=junk)
+    # 'actual' and 'target' are strings and may be arranged in paragraphs 
+    # which are denoted by two newlines.
 
-    diff_result = para_diff.para_diff(actual_paras, target_paras, junk)
+    # Extract the paragraphs from 'actual' and 'target' and format them (remove
+    # special characters and transform all letters to lowercase letters). 
+    actual_paras = util.to_formatted_paragraphs(actual, excludes=junk)
+    target_paras = util.to_formatted_paragraphs(target, excludes=junk)
+               
+    # 'actual_paras' and 'target_paras' are lists of lists of words, where each
+    # inner list includes the (normalized) words of a paragraph.
+    # example: 'actual_paras' = [['words', 'of', 'first', 'paragraph], [...]] 
 
-    return merge(apply_insert_delete_replace_rearrange(diff_result, junk))
+    # Run para diff to get the basic paragraph operations to perform to 
+    # transform 'actual' into 'target'.
+    return para_diff.para_diff(actual_paras, target_paras, junk)
 
-# ______________________________________________________________________________
+    # Filter junk from phrases
+    #return [item for item in diff_result if not ignore_diff_item(item, junk)]
 
-def apply_insert_delete_replace_rearrange(diff_result, junk=[]):
-    """ Iterates through 'actual_phrases' and decides which operations to apply 
-    to transform 'actual' into 'target'. 'actual_phrases' is a list of list of 
-    phrases per paragraph, 'insert_phrases' is a dictionary of dictionary of 
-    phrases to insert. The outer dictionary maps to the paragraph number, the 
-    inner dictionary maps to the position within the paragraph.""" 
+# ------------------------------------------------------------------------------
+
+def count_num_ops(diff_phrases, junk=[]):
+    """ Counts the num of operations to apply for given phrases. """
     
-    result = []
+    counter = Counter()
+    for phrase in diff_phrases: 
+        if ignore_diff_item(phrase, junk):
+            num_ops, vis_instructs = apply_ignored_phrase(phrase) 
+            counter.update(num_ops)     
+        elif isinstance(phrase, diff.DiffCommonPhrase):
+            num_ops, vis_instructs = apply_common_phrase(phrase) 
+            counter.update(num_ops)
+        elif isinstance(phrase, diff.DiffReplacePhrase):
+            num_ops, vis_instructs = apply_replace_phrase(phrase) 
+            counter.update(num_ops)
+        elif isinstance(phrase, rearr.DiffRearrangePhrase):
+            num_ops, vis_instructs = apply_rearrange_phrase(phrase) 
+            counter.update(num_ops)
+        elif isinstance(phrase, para_diff.SplitParagraph):
+            num_ops, vis_instructs = apply_split_para(phrase) 
+            counter.update(num_ops)
+        elif isinstance(phrase, para_diff.MergeParagraph):
+            num_ops, vis_instructs = apply_merge_para(phrase) 
+            counter.update(num_ops) 
+            
+    # Remove zero and negative counts.
+    counter += Counter()                  
+            
+    return counter 
+  
+# ------------------------------------------------------------------------------
 
-    diff_result = [x for x in diff_result if not util.ignore(x, junk)]
+def visualize_diff_phrases(diff_phrases, junk=[]):
+    """ Visualizes the given diff phrases. """
+        
+    vis_instructions = []
+      
+    # Collect the visualization instructions per phrase.
+    for phrase in diff_phrases:      
+        if ignore_diff_item(phrase, junk):
+            num_ops, vis_instructs = apply_ignored_phrase(phrase) 
+            vis_instructions.extend(vis_instructs)                           
+        elif isinstance(phrase, diff.DiffCommonPhrase):
+            num_ops, vis_instructs = apply_common_phrase(phrase) 
+            vis_instructions.extend(vis_instructs)
+        elif isinstance(phrase, diff.DiffReplacePhrase):
+            num_ops, vis_instructs = apply_replace_phrase(phrase) 
+            vis_instructions.extend(vis_instructs)
+        elif isinstance(phrase, rearr.DiffRearrangePhrase):
+            num_ops, vis_instructs = apply_rearrange_phrase(phrase)
+            vis_instructions.extend(vis_instructs)
+        elif isinstance(phrase, para_diff.SplitParagraph):
+            num_ops, vis_instructs = apply_split_para(phrase)
+            vis_instructions.extend(vis_instructs)
+        elif isinstance(phrase, para_diff.MergeParagraph):
+            num_ops, vis_instructs = apply_merge_para(phrase)
+            vis_instructions.extend(vis_instructs)
+        
+    # Sort the instructions by defined positions.
+    vis_instructions.sort(key=lambda instr: instr[1])
     
-    for i in range(0, len(diff_result)):
-        prev_item = diff_result[i - 1] if i > 0 else None
-        item = diff_result[i]
-        next_item = diff_result[i + 1] if i < len(diff_result) - 1 else None
-
-        # Handle commons, rearranges, deletes individually.
-        if isinstance(item, para_diff.Commons):
-            result.extend(commons(prev_item, item, next_item))
-        elif isinstance(item, para_diff.Rearranges):
-            result.extend(rearranges(prev_item, item, next_item))
-        elif isinstance(item, para_diff.Replaces):
-            result.extend(replaces(prev_item, item, next_item))
-
-    return result
-
-def merge(diff_result):
-    """ Iterates through the operations and merge them where necessary . """ 
-
-    # Sort the diff_result by position in target.
-    diff_result = sorted(diff_result, key=lambda x: x.pos_target)
-
-    for i in range(0, len(diff_result)):
-        prev_item = diff_result[i - 1] if i > 0 else None
-        item = diff_result[i]
-        next_item = diff_result[i + 1] if i < len(diff_result) - 1 else None
-
-        if type(item) in [InsertParagraph, RearrangeParagraph, ReplaceParagraph]:
-            if prev_item and not has_diff_para_target(prev_item, item) and not prev_item.has_merge_behind():
-                item.merge_ahead()
-            if next_item and not has_diff_para_target(item, next_item) and not next_item.has_merge_ahead():
-                item.merge_behind()
-        elif type(prev_item) in [DeleteParagraph]:
-            prev_prev_item = diff_result[i - 2] if i > 1 else None
-            if prev_prev_item and not has_diff_para_target(prev_prev_item, item) and not prev_prev_item.has_merge_behind():
-                item.merge_ahead()
-
-    return diff_result
-
-# ______________________________________________________________________________
-
-def commons(prev_item, commons, next_item):
-    """ Processes the given diff common item. """
-    return [Common(phrase) for phrase in commons.phrases]
-
-def rearranges(prev_item, rearranges, next_item):
-    """ Processes the given diff rearrange item. """
+    return apply_visualization_instructions(vis_instructions)
     
-    ops = []
-
-    for i in range(0, len(rearranges.phrases)):
-        prev_phrase = None
-        if i > 0:
-            prev_phrase = rearranges.phrases[i - 1]
-        elif prev_item and prev_item.phrases:
-            prev_phrase = prev_item.phrases[-1]
-
-        next_phrase = None
-        if i < len(rearranges.phrases) - 1:
-            next_phrase = rearranges.phrases[i + 1]
-        elif next_item and next_item.phrases:
-            next_phrase = next_item.phrases[0]
-
-        phrase = rearranges.phrases[i]
-
-        items_actual = phrase.items_actual
-        items_target = phrase.items_target
-
-        is_first = has_diff_para_actual(prev_phrase, phrase)
-        is_last = has_diff_para_actual(phrase, next_phrase)
-
-        if is_first and is_last:
-            ops.append(RearrangeParagraph(phrase))
-        else:
-            need_split_ahead = (not is_first and not phrase.has_split_ahead()) or rearranges.needs_split_ahead_on_para_rearrange
-            need_split_behind = not is_last and not phrase.has_split_behind() or rearranges.needs_split_behind_on_para_rearrange
-
-            # Variant 1: Paragraph operations. Cut off the phrase from context 
-            # and rearrange the phrase.
-            para_ops = {
-                "num_para_splits": need_split_ahead + need_split_behind,
-                "num_para_rearranges": 1
-            }
-            costs_para_ops = get_costs_para_ops(para_ops)
-
-            # Variant 2: Word operations.
-            #word_ops = {
-            #    "num_word_rearranges": len(phrase.items_actual)
-            #}
-            #costs_word_ops = get_costs_word_ops(word_ops)
-
-            #if costs_para_ops < costs_word_ops:
-            ops.append(RearrangeParagraph(phrase, need_split_ahead, need_split_behind))
-            #else:
-            #    ops.append(RearrangeWords(phrase))
-    return ops
-
-def replaces(prev_item, replaces, next_item):
-    """ Processes the given diff replace item. """
-
-    ops = []
-
-    for i in range(0, len(replaces.phrases)):
-        prev_phrase = None
-        if i > 0:
-            prev_phrase = replaces.phrases[i - 1]
-        elif prev_item and prev_item.phrases:
-            prev_phrase = prev_item.phrases[-1]
-
-        next_phrase = None
-        if i < len(replaces.phrases) - 1:
-            next_phrase = replaces.phrases[i + 1]
-        elif next_item and next_item.phrases:
-            next_phrase = next_item.phrases[0]
-
-        phrase = replaces.phrases[i]
-
-        if isinstance(phrase, para_diff.Replace):
-            ops.append(replace(prev_phrase, phrase, next_phrase))
-        elif isinstance(phrase, para_diff.Insert):
-            ops.append(insert(prev_phrase, phrase, next_phrase))
-        elif isinstance(phrase, para_diff.Delete):
-            ops.append(delete(prev_phrase, phrase, next_phrase))
-    return ops
-
-def replace(prev_phrase, phrase, next_phrase):
-    items_actual = phrase.items_actual
-    items_target = phrase.items_target
-
-    para_ops = { "num_para_replaces": 1 }
+def apply_visualization_instructions(vis_instructions):
+    """ Applies the given visualization instructions."""
+    
+    visualization_parts = []
+        
+    prev_instr = None
+    for instr in vis_instructions:
+        # Obtain the words to visualize and the visualization function.
+        words, pos, vis_function = instr
+        # Compose the text to show from given words.
+        text = get_unnormalized_text(words)
+                
+        # Apply the visualization function, if any.
+        vis = vis_function(text) if vis_function else text
+                
+        # TODO
+        #vis = vis_function(str(pos) + " " + text) if vis_function else str(pos) + " " + text
+       
+        visualization_parts.append(vis)
+                
+        prev_instr = instr
+      
+    # Compose the whole visualization string.  
+    return "".join(visualization_parts) + "\n"
+    
+# ------------------------------------------------------------------------------
+  
+def apply_split_para(split):
+    """ Decides which kind of operations to perform on applying the given split 
+    paragraph operation. Returns the number of operations and a list of 
+    instructions to visualize the operation. Each instruction consists of a 
+    list of words to display, the position where to place the words in 
+    visualization and a visualization function to apply to mark the words. 
+    """
+    
+    # Place the split at position defined by the pos. stack (split.wrapped[2])
+        
+    return Counter({ "num_para_splits": 1 }), [([split], split.pos, red)]
+    
+def apply_merge_para(merge):
+    """ Decides which kind of operations to perform on applying the given merge 
+    paragraph operation. Returns the number of operations and a list of 
+    instructions to visualize the operation. Each instruction consists of a 
+    list of words to display, the position where to place the words in 
+    visualization and a visualization function to apply to mark the words. 
+    """
+        
+    # Place the merge at position defined by the pos. stack (merge.wrapped[2])
+    return Counter({ "num_para_merges": 1 }), [([merge], merge.pos, red)]
+  
+def apply_ignored_phrase(phrase):
+    """ Decides which kind of operations to perform on applying the given 
+    ignored phrase. Returns the number of operations and a list of instructions 
+    to visualize the phrase. Each instruction consists of a list of words to 
+    display, the position where to place the words in visualization and a 
+    visualization function to apply to mark the words. 
+    """
+    # Place the phrase at position defined by pos. stack of first actual word.
+        
+    instr = []
+    if phrase.num_words_actual() > 0:
+        instr = [(phrase.words_actual, phrase.pos, gray)]
+         
+    return Counter(), instr
+  
+def apply_common_phrase(phrase):
+    """ Decides which kind of operations to perform on applying the given 
+    common phrase. Returns the number of operations and a list of instructions 
+    to visualize the phrase. Each instruction consists of a list of words to 
+    display, the position where to place the words in visualization and a 
+    visualization function to apply to mark the words. 
+    """        
+    return Counter(), [(phrase.words_target, phrase.pos, None)]
+        
+def apply_rearrange_phrase(phrase):
+    """ Decides which kind of operations to perform on applying the given 
+    rearrange phrase. Returns the number of operations and a list of 
+    instructions to visualize the phrase. Each instruction consists of a list 
+    of words to display, the position where to place the words in 
+    visualization and a visualization function to apply to mark the words. 
+    """
+    
+    # Compute the number of operations if we would choose paragraph operations.
+    para_ops = { 
+        "num_para_rearranges": 1 
+    }
     costs_para_ops = get_costs_para_ops(para_ops)
 
-    word_ops = { "num_word_replaces": len(items_actual) }
+    # Compute the number of operations if we would choose word operations.
+    word_ops = { 
+        "num_word_deletes": phrase.num_words_actual(),
+        "num_word_inserts": phrase.num_words_target() 
+    }
     costs_word_ops = get_costs_word_ops(word_ops)
-
-    if costs_para_ops < costs_word_ops:
-        return ReplaceParagraph(phrase)
+        
+    if costs_word_ops < costs_para_ops:    
+        return Counter(word_ops), [
+            (phrase.words_actual, phrase.pos, red), 
+            (phrase.words_target, phrase.pos + [0], green)]
     else:
-        return ReplaceWords(phrase)
-
-def insert(prev_phrase, phrase, next_phrase):
-    """ Processes the given diff insert item. """
+        return Counter(para_ops), [
+            (phrase.words_actual, phrase.pos, blue_bg)]
+        
+def apply_replace_phrase(phrase):
+    """ Decides which kind of operations to perform on applying the given 
+    replace phrase. Returns the number of operations and a list of instructions 
+    to visualize the phrase. Each instruction consists of a list of words to 
+    display, the position where to place the words in visualization and a 
+    visualization function to apply to mark the words. 
+    """
     
-    items_target = phrase.items_target
+    if phrase is None:
+        # Nothing to do.
+        return Counter(), None, []
+    elif phrase.is_empty():
+        # Nothing to do.
+        return Counter(), None, []
+    elif phrase.num_words_actual() == 0:
+        # The replace phrase represents an insertion.
+        return apply_insert_phrase(phrase)
+    elif phrase.num_words_target() == 0:
+        # The replace phrase represents a deletion.
+        return apply_delete_phrase(phrase)
+    else:
+        # The replace phrase represents indeed a 'real' substitution.
+        return apply_substitute_phrase(phrase)
 
-    is_first = has_diff_para_target(prev_phrase, phrase)
-    is_last = has_diff_para_target(phrase, next_phrase)
-
-    if is_first and is_last:
-        return InsertParagraph(phrase)
-
-    # Variant 1: Paragraph operations.
-    para_ops = { "num_para_deletes": 1 }
+def apply_insert_phrase(phrase):
+    """ Decides which kind of operations to perform on applying the given 
+    replace phrase that represents indeed an insertion. Returns the number of 
+    operations and a list of instructions to visualize the phrase. Each 
+    instruction consists of a list of words to display, the position where to 
+    place the words in visualization and a visualization function to apply to 
+    mark the words. 
+    """
+    
+    # Compute the number of operations if we would choose paragraph operations.
+    para_ops = { 
+        "num_para_inserts": 1 
+    }
     costs_para_ops = get_costs_para_ops(para_ops)
 
-    # Variant 2: Word operations.
-    word_ops = { "num_word_deletes": len(items_target) }
+    # Compute the number of operations if we would choose word operations.
+    word_ops = { 
+        "num_word_inserts": phrase.num_words_target()
+    }
     costs_word_ops = get_costs_word_ops(word_ops)
-
-    if costs_para_ops < costs_word_ops:
-        return InsertParagraph(phrase)
+                    
+    if costs_word_ops < costs_para_ops:    
+        return Counter(word_ops), [(phrase.words_target, phrase.pos, green)]
     else:
-        return InsertWords(phrase)
-
-def delete(prev_phrase, phrase, next_phrase):
-    """ Processes the given diff delete item. """
+        return Counter(para_ops), [(phrase.words_target, phrase.pos, green_bg)]
+       
+def apply_delete_phrase(phrase):
+    """ Decides which kind of operations to perform on applying the given 
+    replace phrase that represents indeed a deletion. Returns the number of 
+    operations and a list of instructions to visualize the phrase. Each 
+    instruction consists of a list of words to display, the position where to 
+    place the words in visualization and a visualization function to apply to 
+    mark the words. 
+    """
     
-    items_actual = phrase.items_actual
+    # Compute the number of operations if we would choose paragraph operations.
+    para_ops = { 
+        "num_para_deletes": 1 
+    }
+    costs_para_ops = get_costs_para_ops(para_ops)
 
-    is_first = has_diff_para_actual(prev_phrase, phrase)
-    is_last = has_diff_para_actual(phrase, next_phrase)
-
-    if is_first and is_last:
-        return DeleteParagraph(phrase)
+    # Compute the number of operations if we would choose word operations.
+    word_ops = { 
+        "num_word_deletes": phrase.num_words_actual()
+    }
+    costs_word_ops = get_costs_word_ops(word_ops)
+               
+    if costs_word_ops < costs_para_ops:
+        return Counter(word_ops), [(phrase.words_actual, phrase.pos, red)]
     else:
-        need_split_ahead = not is_first and not phrase.has_split_ahead()
-        need_split_behind = not is_last and not phrase.has_split_behind()
-
-        # Variant 1: Paragraph operations. Cut off the item from context 
-        # and rearrange the item.
-        para_ops = {
-            "num_para_splits": need_split_ahead + need_split_behind,
-            "num_para_deletes": 1
-        }
-        costs_para_ops = get_costs_para_ops(para_ops)
-
-        # Variant 2: Word operations.
-        word_ops = {
-            "num_word_deletes": len(items_actual)
-        }
-        costs_word_ops = get_costs_word_ops(word_ops)
-
-        if costs_para_ops < costs_word_ops:
-            return DeleteParagraph(phrase, need_split_ahead, need_split_behind)
-        else:
-            return DeleteWords(phrase)
-
+        return Counter(para_ops), [(phrase.words_actual, phrase.pos, red_bg)]
+    
+def apply_substitute_phrase(phrase):
+    """ Decides which kind of operations to perform on applying the given 
+    replace phrase that represents indeed an substitution. Returns the number 
+    of operations and a list of instructions to visualize the phrase. Each 
+    instruction consists of a list of words to display and a visualization 
+    function to apply to mark the words. 
+    """
+    
+    # TODO: Should we consider paragraph operations here?
+    num_words_actual = phrase.num_words_actual()
+    num_words_target = phrase.num_words_target()
+    min_num_words = min(num_words_actual, num_words_target)
+    
+    word_ops = {
+        "num_word_replaces": min_num_words,
+        "num_word_inserts":  num_words_target - min_num_words,
+        "num_word_deletes":  num_words_actual - min_num_words
+    }
+    costs_word_ops = get_costs_word_ops(word_ops)
+                                     
+    return Counter(word_ops), [
+        (phrase.words_actual, phrase.pos, red), 
+        (phrase.words_target, phrase.pos + [0], green)]
+       
+# ------------------------------------------------------------------------------
+# Some util methods.
+       
 def get_costs_para_ops(para_ops):
+    """ Returns the total costs for the given operations. """ 
     return COST_FACTOR_PARA_OPS * sum(para_ops[op] for op in para_ops)
 
 def get_costs_word_ops(word_ops):
+    """ Returns the total costs for the given operations. """
     return COST_FACTOR_WORD_OPS * sum(word_ops[op] for op in word_ops)
 
-def has_diff_para_actual(prev_item, item):
-    if prev_item and item and prev_item.items_actual and item.items_actual:
-        return item.items_actual[0].para != prev_item.items_actual[-1].para
-    return True
-
-def has_diff_para_target(prev_item, item):
-    if prev_item and item and prev_item.items_target and item.items_target:
-        return item.items_target[0].para != prev_item.items_target[-1].para
-    return True
-
-# ==============================================================================
-
-def count_diff_items(diff_result):
-    counter = Counter()
-
-    for item in diff_result:
-        for prefix_item in item.prefix:
-            if isinstance(prefix_item, para_diff.SplitParagraph):
-                counter["num_para_splits"] += 1
-            if isinstance(prefix_item, para_diff.MergeParagraph):
-                counter["num_para_merges"] += 1
-        for suffix_item in item.suffix:
-            if isinstance(suffix_item, para_diff.SplitParagraph):
-                counter["num_para_splits"] += 1
-            if isinstance(suffix_item, para_diff.MergeParagraph):
-                counter["num_para_merges"] += 1
-
-        if isinstance(item, InsertWords):
-            counter["num_word_inserts"] += len(item.items_target)
-        if isinstance(item, InsertParagraph):
-            counter["num_para_inserts"] += 1
-        if isinstance(item, DeleteWords): 
-            counter["num_word_deletes"] += len(item.items_actual)
-        if isinstance(item, DeleteParagraph):
-            counter["num_para_deletes"] += 1
-        if isinstance(item, ReplaceWords): 
-            counter["num_word_replaces"] += len(item.items_actual)
-        if isinstance(item, ReplaceParagraph):
-            counter["num_para_replaces"] += 1
-        if isinstance(item, RearrangeWords):
-            counter["num_word_rearranges"] += len(item.items_actual)
-        if isinstance(item, RearrangeParagraph):
-            counter["num_para_rearranges"] += 1
+def get_unnormalized_text(words):
+    """ Returns the (unnormalized) text composed from the given words."""    
+    return "".join([x.wrapped[0][1] for x in words])
+ 
+def ignore_diff_item(item, junk):
+    """ Checks if we have to ignore the given diff item, which may be a 
+    DiffPhrase, a SplitParagraph or a MergeParagraph. """
+    
+    # Ignore the item if it is a phrase and it contains junk.
+    return isinstance(item, diff.DiffPhrase) and util.ignore_phrase(item, junk)
+    
+def is_para_break(prev_instr, instr):
+    """ Checks if there is a paragraph break between the two given 
+    visualiation instructions. Returns True if there is a paragraph break, 
+    False otherwise.
+    """
+    
+    # Abort if one of the lists is None
+    if prev_instr is None or instr is None:
+        return False
         
-    counter += Counter() # remove zero and negative counts
-    return counter
+    # Obtain the paragraph numbers of both words.
+    prev_para_num = prev_instr[1][0]
+    para_num      = instr[1][0]
+    
+    if prev_para_num is not None and para_num is not None:
+        return prev_para_num != para_num
+        
+# ------------------------------------------------------------------------------
+# Methods to colorize.
 
-def visualize_diff_result(diff_result):
-    def red_font(text):
-        return "\033[31m%s\033[0m" % text
+def red(text):
+    return colorize(text, "\033[31m%s\033[0m")
 
-    def green_font(text):
-        return "\033[32m%s\033[0m" % text
+def green(text):
+    return colorize(text, "\033[32m%s\033[0m")
 
-    def blue_font(text):
-        return "\033[34m%s\033[0m" % text
+def blue(text):
+    return colorize(text, "\033[34m%s\033[0m")
 
-    def red_background(text):
-        return "\033[41m%s\033[0m" % text
+def gray(text):
+    return colorize(text, "\033[90m%s\033[0m")
 
-    def green_background(text):
-        return "\033[42m%s\033[0m" % text
+def red_bg(text):
+    return colorize(text, "\033[41m%s\033[0m")
 
-    def blue_background(text):
-        return "\033[44m%s\033[0m" % text
+def green_bg(text):
+    return colorize(text, "\033[42m%s\033[0m")
 
-    paras = []
-    para = []
-    prev_item = None
-    for item in diff_result:
-        if prev_item and has_diff_para_target(prev_item, item):
-            if para:
-                paras.append(" ".join(para))
-            para = []
+def blue_bg(text):
+    return colorize(text, "\033[44m%s\033[0m")
 
-        if any([isinstance(x, para_diff.SplitParagraph) for x in item.prefix]):
-            para.append(red_font("‖"))
-        if any([isinstance(x, para_diff.MergeParagraph) for x in item.prefix]):
-            para.append(red_font("=="))
+def gray_bg(text):
+    return colorize(text, "\033[100m%s\033[0m")
 
-        #words_actual = " ".join([x.item.string for x in item.items_actual])
-        #words_target = " ".join([x.item.string for x in item.items_target])
-        words_actual = " ".join([x.string for x in item.items_actual])
-        words_target = " ".join([x.string for x in item.items_target])
+def colorize(text, color_pattern):
+    """ Applies the given color_pattern to the *trunk* of the given text, that
+    is the stripped version of the text. All leading and trailing whitespaces
+    won't be colorized."""
+    
+    if len(text) == 0:
+        return ""
+                
+    # less has issues on displaying color codes if wrapped text contains 
+    # newlines ("\n"): Only the first line is colored. As a workaround, wrap
+    # each line with color_pattern.
+    lines = text.split("\n")
+    colored_lines = []
+    for line in lines:
+        colored_lines.append(color_pattern % line if len(line) > 0 else "")
+        
+    return "\n".join(colored_lines)
 
-        if isinstance(item, Common):
-            para.append(words_target)
-        if isinstance(item, InsertWords):
-            para.append(green_font(words_target))
-        if isinstance(item, InsertParagraph):
-            para.append(green_background(words_target))
-        if isinstance(item, DeleteWords): 
-            para.append(red_font(words_actual))
-        if isinstance(item, DeleteParagraph):
-            para.append(red_background(words_actual))
-        if isinstance(item, ReplaceWords): 
-            para.append("%s %s" % (red_font(words_actual), green_font(words_target)))
-        if isinstance(item, ReplaceParagraph):
-            para.append("%s %s" % (red_background(words_actual), green_background(words_target)))
-        if isinstance(item, RearrangeWords):
-            para.append(blue_font(words_target))
-        if isinstance(item, RearrangeParagraph):
-            para.append(blue_background(words_target))
-
-        if any([isinstance(x, para_diff.SplitParagraph) for x in item.suffix]):
-            para.append(red_font("‖"))
-        if any([isinstance(x, para_diff.MergeParagraph) for x in item.suffix]):
-            para.append(red_font("=="))
-
-        prev_item = item
-
-    if para:
-        paras.append(" ".join(para))
-
-    return "\n\n".join(paras) + "\n"
-
-def visualize_diff_result_debug(diff_result):
-    paras = []
-    para = []
-    prev_item = None
-    for item in diff_result:
-        if prev_item and has_diff_para_target(prev_item, item):
-            if para:
-                paras.append(" ".join(para))
-            para = []
-
-        para.extend([str(x) for x in reversed(item.prefix)])
-
-        #words_actual = " ".join([x.item.string for x in item.items_actual])
-        #words_target = " ".join([x.item.string for x in item.items_target])
-        words_actual = " ".join([x.string for x in item.items_actual])
-        words_target = " ".join([x.string for x in item.items_target])
-
-        if isinstance(item, Common):
-            para.append(words_target)
-        if isinstance(item, InsertWords):
-            para.append("[+ %s]" % words_target)
-        if isinstance(item, InsertParagraph):
-            para.append("[++ %s]" % words_target)
-        if isinstance(item, DeleteWords): 
-            para.append("[- %s]" % words_actual)
-        if isinstance(item, DeleteParagraph):
-            para.append("[-- %s]" % words_actual)
-        if isinstance(item, ReplaceWords): 
-            para.append("[/ %s, %s]" % (words_actual, words_target))
-        if isinstance(item, ReplaceParagraph):
-            para.append("[// %s, %s]" % (words_actual, words_target))
-        if isinstance(item, RearrangeWords):
-            para.append("[<> %s, %s]" % (words_actual, words_target))
-        if isinstance(item, RearrangeParagraph):
-            para.append("[<><> %s, %s]" % (words_actual, words_target))
-
-        para.extend([str(x) for x in item.suffix])
-
-        prev_item = item
-
-    if para:
-        paras.append(" ".join(para))
-
-    return "\n\n".join(paras)
-
-# ==============================================================================
-
-class Diff:
-    def __init__(self, sign, item, split_ahead=False, split_behind=False):
-        self.sign = sign
-        self.items_actual = item.items_actual
-        self.items_target = item.items_target
-        self.pos_actual = self.items_actual[0].pos if self.items_actual else []
-        self.pos_target = self.items_target[0].pos if self.items_target else []
-        self.prefix = item.prefix
-        self.suffix = item.suffix
-        if split_ahead and not self.has_split_ahead():
-            self.split_ahead()
-        if split_behind and not self.has_split_behind():
-            self.split_behind()
-
-    def split_ahead(self):
-        self.prefix.append(para_diff.SplitParagraph())
-
-    def split_behind(self):
-        self.suffix.append(para_diff.SplitParagraph())
-
-    def merge_ahead(self):
-        self.prefix.append(para_diff.MergeParagraph())
-
-    def merge_behind(self):
-        self.suffix.append(para_diff.MergeParagraph())
-
-    def has_split_ahead(self):
-        return any(isinstance(x, para_diff.SplitParagraph) for x in self.prefix)
-
-    def has_split_behind(self):
-        return any(isinstance(x, para_diff.SplitParagraph) for x in self.suffix)
-
-    def has_merge_ahead(self):
-        return any(isinstance(x, para_diff.MergeParagraph) for x in self.prefix)
-
-    def has_merge_behind(self):
-        return any(isinstance(x, para_diff.MergeParagraph) for x in self.suffix)
-
-    def __str__(self):
-        text = "(%s %s, %s)" % (self.sign, self.items_actual, self.items_target)
-
-        parts = []
-        parts.extend([str(x) for x in self.prefix])
-        parts.append(text)
-        parts.extend([str(x) for x in self.suffix])
-        return ", ".join(parts)
-
-    def __repr__(self):
-        return self.__str__()
-
-class Common(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(Common, self).__init__("=", item, split_ahead, split_behind)
-
-class InsertWords(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(InsertWords, self).__init__("+", item, split_ahead, split_behind)
-
-class InsertParagraph(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(InsertParagraph, self).__init__("++", item, split_ahead, split_behind)
-
-class DeleteWords(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(DeleteWords, self).__init__("-", item, split_ahead, split_behind)
-
-class DeleteParagraph(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(DeleteParagraph, self).__init__("--", item, split_ahead, split_behind)
-
-class ReplaceWords(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(ReplaceWords, self).__init__("/", item, split_ahead, split_behind)
-
-class ReplaceParagraph(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(ReplaceParagraph, self).__init__("//", item, split_ahead, split_behind)
-
-class RearrangeWords(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(RearrangeWords, self).__init__("<>", item, split_ahead, split_behind)
-
-class RearrangeParagraph(Diff):
-    def __init__(self, item, split_ahead=False, split_behind=False):
-        super(RearrangeParagraph, self).__init__("<><>", item, split_ahead, split_behind)
-
+# ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    diff_result = doc_diff("", "")
-    vis = visualize_diff_result(diff_result)
+    a = """
+arXiv:cond-mat/0001220v1 [cond-mat.stat-mech] 17 Jan 2000
 
-    print(diff_result)
-    print(vis)
+Reducing quasi-ergodicity in a double well potential
+by Tsallis Monte Carlo simulation
+Masao Iwamatsu†∗and Yutaka Okabe†
+∗
+Department of Computer Engineering, Hiroshima City University
+Hiroshima 731-3194, Japan
+and
+†
+Department of Physics, Tokyo Metropolitan University
+Hachioji, Tokyo 192-0397, Japan
+
+Abstract
+A new Monte Carlo scheme based on the system of Tsallis’s generalized statistical mechanics is applied to a simple double well potential
+to calculate the canonical thermal average of potential energy. Although we observed serious quasi-ergodicity when using the standard
+Metropolis Monte Carlo algorithm, this problem is largely reduced by
+the use of the new Monte Carlo algorithm. Therefore the ergodicity is
+guaranteed even for short Monte Carlo steps if we use this new canonical Monte Carlo scheme.
+PACS: 02.70.Lq; 05.70.-a
+Key words: Monte Carlo; Tsallis statistics; double well potential
+
+∗
+
+Permanent address. E-mail:iwamatsu@ce.hiroshima-cu.ac.jp
+
+1
+
+^L1
+
+Introduction
+
+The ergodic hypothesis
+"""
+
+    b = """    
+Reducing quasi-ergodicity in a double well potential by Tsallis Monte Carlo simulation
+
+and Yutaka Okabe[formula] *Department of Computer Engineering, Hiroshima City University Hiroshima 731-3194, Japan and [formula]Department of Physics, Tokyo Metropolitan University Hachioji, Tokyo 192-0397, Japan
+
+Introduction
+
+XXX YYY ZZZ AAA BBB CCC DDD
+
+The ergodic hypothesis
+"""
+
+result = doc_diff(a, b, junk=["\[formula\]"])
+
+print(visualize_diff_phrases(result, junk=["\[formula\]"]))
+

@@ -1,13 +1,24 @@
 from collections import Iterable
-from itertools import zip_longest
 
 def diff(actual, target):
-    """ Compares the given lists of elements (strings or any iterables where 
-    the first element is a string) and outputs a sequence of operations to 
-    perform to transform 'actual' into 'target'. An operation is either a 
-    'Common'-object, that identifies common phrases (sequence of strings) 
-    between the two lists and 'Replace'-objects that identifies phrases to
-    replace, to insert or to delete."""
+    """ Compares the given lists of words (strings or any iterables where 
+    the first element is a string) and outputs a list of DiffPhrase objects 
+    wheer each of them represents either a sequence of common words in actual 
+    and target or a sequence of words to replace. 
+    Note: This diff version doesn't know any paragraph boundaries. If you need
+    diff phrases per paragraph you need to setup them from the given result on
+    your own.
+    
+    >>> diff(["foo", "bar"], ["foo", "bar"]) 
+    [[= [foo, bar], [foo, bar]]]
+    
+    >>> diff(["foo", "bar"], ["foo"])
+    [[= [foo], [foo]], [/ [bar], []]]
+    
+    >>> diff(["foo"], ["foo", "bar"])
+    [[= [foo], [foo]], [/ [], [bar]]]
+    """
+    
     result = []
     _diff(actual, target, result)
     return result
@@ -17,11 +28,11 @@ def _diff(actual, target, result, pos1=0, pos2=0):
     operation of this run into the result list. 'pos1' denotes the position in
     'actual' and 'pos2' denotes the position in 'target'. Both values have no
     special meaning but can be used for sorting purposes for example."""
-
+    
     # Create an index of all positions of an string in 'actual'.
     actual_dict = dict()  
-    for i, actual_item in enumerate(actual):
-        actual_dict.setdefault(get_string(actual_item), []).append(i)
+    for i, actual_word in enumerate(actual):
+        actual_dict.setdefault(get_text(actual_word), []).append(i)
 
     # Find the largest substring common to 'actual' and 'target'.
     # 
@@ -46,9 +57,9 @@ def _diff(actual, target, result, pos1=0, pos2=0):
     target_start = 0
     length = 0
 
-    for i, target_item in enumerate(target):
+    for i, target_word in enumerate(target):
         _overlap = {}
-        for j in actual_dict.get(get_string(target_item), []):
+        for j in actual_dict.get(get_text(target_word), []):
             # now we are considering all values of i such that
             # actual[i] == target[j].
             _overlap[j] = (j and overlap.get(j - 1, 0)) + 1
@@ -60,9 +71,12 @@ def _diff(actual, target, result, pos1=0, pos2=0):
         overlap = _overlap
 
     if length == 0:
-        # No common substring found. Create a diff replace.
         if actual or target:
-            result.append(Replace(actual, target, pos1, pos2))
+            # No common substring found. Create a replace phrase.
+            actual_words = create_actual_diff_words(actual, pos1, pos2)
+            target_words = create_target_diff_words(target, pos1, pos2)
+            result.append(DiffReplacePhrase(actual_words, target_words))
+            
             pos1 += len(actual)
             pos2 += len(target)
     else:
@@ -74,96 +88,111 @@ def _diff(actual, target, result, pos1=0, pos2=0):
         
         actual_middle = actual[actual_start : actual_start + length]
         target_middle = target[target_start : target_start + length]
-        result.append(Common(actual_middle, target_middle, pos1, pos2))
+        
+        # Create the common phrase.
+        actual_words = create_actual_diff_words(actual_middle, pos1, pos2)
+        target_words = create_target_diff_words(target_middle, pos1, pos2)
+        result.append(DiffCommonPhrase(actual_words, target_words))
+        
         pos1 += length
         pos2 += length
         
         actual_right = actual[actual_start + length : ]
         target_right = target[target_start + length : ]
         pos1, pos2 = _diff(actual_right, target_right, result, pos1, pos2)
+
     return pos1, pos2
 
-# ==============================================================================
+# ------------------------------------------------------------------------------
+# Some util methods.
 
-def get_string(element):
-    """ Returns the string of the given element. This may be the element itself
-    (if it is of type 'str') or the first item within the element if the element
-    is an iterable and non-empty. Returns 'None' if the element is neither a 
-    string nor an iterbable and non-empty."""
-    string = None
-    if isinstance(element, str):
-        return element
-    elif isinstance(element, Iterable) and len(element) > 0:
-        return element[0]
+def get_text(word):
+    """ Returns the text of the given word. The word may be a indeed a string or
+    any iterable where the first element is a string representing the word. 
+    Returns 'None' if the element is neither a string nor an iterable and 
+    non-empty."""
+    if isinstance(word, str):
+        return word
+    elif isinstance(word, Iterable) and len(word) > 0:
+        return get_text(word[0])
 
-# ==============================================================================
+def create_actual_diff_words(words, pos_a, pos_t):
+    """ Transforms the given list of words into list of diff words. """
+    return [DiffWord(word, pos_a + i, pos_t) for i, word in enumerate(words)]
+        
+def create_target_diff_words(words, pos_a, pos_t):
+    """ Transforms the given list of words into list of diff words. """
+    return [DiffWord(word, pos_a, pos_t + i) for i, word in enumerate(words)]
 
-class Diff:
-    """ The super class for a diff phrase (sequence of diff items). """
+# ------------------------------------------------------------------------------
+# Some util classes.
 
-    def __init__(self, sign, items_actual=[], items_target=[], pos_actual=[], 
-            pos_target=[]):
-        """ Creates a new diff phrase. """
-        self.sign = sign
+class DiffWord:
+    """ A wrapper for a single word, used to be able to enrich a word with some
+    diff metadata (positions, etc.). """
 
-        self.items_actual = []
-        for i, item in enumerate(items_actual):
-            if not isinstance(item, DiffItem):
-                item = DiffItem(self, item, pos_actual + i, pos_target)
-            if self.items_actual:
-                prev_item = self.items_actual[-1]
-                prev_item.next = item 
-                item.prev = prev_item
-            self.items_actual.append(item) 
-
-        self.items_target = []
-        for i, item in enumerate(items_target):
-            if not isinstance(item, DiffItem):
-                item = DiffItem(self, item, pos_actual, pos_target + i)
-            if self.items_target:
-                prev_item = self.items_target[-1]
-                prev_item.next = item 
-                item.prev = prev_item
-            self.items_target.append(item)
-
+    def __init__(self, word, pos_actual, pos_target):
+        """ Creates a new word wrapper for given word. pos_actual and 
+        pos_target are the current positions in actual and target on creating 
+        this wrapper. """
+        self.wrapped = word
+        self.text    = get_text(self.wrapped)
+        self.pos     = [pos_actual, pos_target]
+    
     def __str__(self):
-        return "(%s %s, %s)" % (self.sign, self.items_actual, self.items_target)
+        return self.text
 
     def __repr__(self):
-        return self.__str__()
+        return str(self.wrapped)
 
-class DiffItem:
-    """ The super class for a diff item. """
+class DiffPhrase:
+    """ A wrapper for a sequence of DiffWords. It represents the super class
+    for DiffCommonPhrase and DiffReplacePhrase. """
 
-    def __init__(self, parent, item, pos_actual, pos_target):
-        """ Creates a new diff item. """
-        self.pos = [pos_actual, pos_target]
-        self.item = item
-        self.parent = parent
-        self.prev = None
-        self.next = None
+    def __init__(self, words_actual=[], words_target=[]):
+        """ Creates a new wrapper for given lists of words. """
+        self.words_actual = words_actual
+        self.words_target = words_target
+        self.pos = [-1, -1]
+        if len(words_actual) > 0:
+            self.pos = words_actual[0].pos
+        elif len(words_target) > 0:
+            self.pos = words_target[0].pos
 
-    @property
-    def string(self):
-        """ Returns the string of this diff item. """
-        return get_string(self.item)
+    def num_words_actual(self):
+        return len(self.words_actual)
 
+    def num_words_target(self):
+        return len(self.words_target)
+
+    def is_empty(self):
+        return self.num_words_actual() == 0 and self.num_words_target() == 0
+    
+    def get_str_pattern(self):
+        """ Returns the pattern to use on formatting the string representation
+        of this phrase."""
+        return "[? %s, %s]"
+    
     def __str__(self):
-        return str(self.item)
-
+        actual_word_texts = [x.text for x in self.words_actual]
+        target_word_texts = [x.text for x in self.words_target]
+        return self.get_str_pattern() % (actual_word_texts, target_word_texts)
+        
     def __repr__(self):
-        return self.__str__()
+        return self.get_str_pattern() % (self.words_actual, self.words_target)
 
-# ______________________________________________________________________________
+class DiffCommonPhrase(DiffPhrase):
+    """ A phrase of words, that are common in actual and target. """ 
+    def __init__(self, words_actual, words_target):
+        super(DiffCommonPhrase, self).__init__(words_actual, words_target)
 
-class Common(Diff):
-    """ A phrase of diff common items. """ 
-    def __init__(self, items_actual, items_target, pos_actual, pos_target):
-        super(Common, self).__init__("=", items_actual, items_target, 
-            pos_actual, pos_target)
-
-class Replace(Diff):
-    """ A phrase of diff replace items. """ 
-    def __init__(self, items_actual, items_target, pos_actual, pos_target):
-        super(Replace, self).__init__("/", items_actual, items_target, 
-            pos_actual, pos_target)
+    def get_str_pattern(self):
+        return "[= %s, %s]"
+    
+class DiffReplacePhrase(DiffPhrase):
+    """ A phrase of words which need to replace between actual and target. """ 
+    def __init__(self, words_actual, words_target):
+        super(DiffReplacePhrase, self).__init__(words_actual, words_target)
+        
+    def get_str_pattern(self):
+        return "[/ %s, %s]"

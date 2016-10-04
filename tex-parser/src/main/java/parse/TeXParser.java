@@ -969,6 +969,11 @@ public class TeXParser implements TeXParserConstants {
   final protected Command WellDefinedCommand() throws ParseException {
   Token commandName;
     commandName = WellDefinedCommandName();
+    if (jj_2_35(2147483647)) {
+      Option();
+    } else {
+      ;
+    }
     {if (true) return new Command(commandName.image, commandName);}
     throw new Error("Missing return statement in function");
   }
@@ -1256,8 +1261,8 @@ public class TeXParser implements TeXParserConstants {
       break;
     default:
       jj_la1[41] = jj_gen;
-      if (jj_2_36(1)) {
-        if (jj_2_35(1)) {
+      if (jj_2_37(1)) {
+        if (jj_2_36(1)) {
           argCommand = Command();
           command.addArgument(argCommand);
         } else {
@@ -1322,8 +1327,8 @@ public class TeXParser implements TeXParserConstants {
           break label_22;
         }
       }
-      if (jj_2_38(1)) {
-        if (jj_2_37(1)) {
+      if (jj_2_39(1)) {
+        if (jj_2_38(1)) {
           argCommand = Command();
               command.addArgument(argCommand);
         } else {
@@ -1380,7 +1385,7 @@ public class TeXParser implements TeXParserConstants {
       endLine = symbol.endLine;
       endColumn = symbol.endColumn;
       isFirst = false;
-      if (jj_2_39(2147483647)) {
+      if (jj_2_40(2147483647)) {
         ;
       } else {
         break label_23;
@@ -1420,7 +1425,7 @@ public class TeXParser implements TeXParserConstants {
   final protected Element PotentialGroup() throws ParseException {
   Group group;
   Token token;
-    if (jj_2_40(2147483647)) {
+    if (jj_2_41(2147483647)) {
       group = Group();
     {if (true) return group;}
     } else {
@@ -1444,12 +1449,12 @@ public class TeXParser implements TeXParserConstants {
     jj_consume_token(GROUP_START);
     label_24:
     while (true) {
-      if (jj_2_41(1)) {
+      if (jj_2_42(1)) {
         ;
       } else {
         break label_24;
       }
-      if (jj_2_42(2147483647)) {
+      if (jj_2_43(2147483647)) {
         Element(group);
       } else {
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -1472,7 +1477,7 @@ public class TeXParser implements TeXParserConstants {
   final protected Element PotentialOption() throws ParseException {
   Option option;
   Token token;
-    if (jj_2_43(2147483647)) {
+    if (jj_2_44(2147483647)) {
       option = Option();
     {if (true) return option;}
     } else {
@@ -1496,12 +1501,12 @@ public class TeXParser implements TeXParserConstants {
     jj_consume_token(OPTION_START);
     label_25:
     while (true) {
-      if (jj_2_44(1)) {
+      if (jj_2_45(1)) {
         ;
       } else {
         break label_25;
       }
-      if (jj_2_45(2147483647)) {
+      if (jj_2_46(2147483647)) {
         Element(option);
       } else {
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -1547,7 +1552,7 @@ public class TeXParser implements TeXParserConstants {
     label_26:
     while (true) {
       token = jj_consume_token(WHITESPACE);
-      if (jj_2_46(2147483647)) {
+      if (jj_2_47(2147483647)) {
         ;
       } else {
         break label_26;
@@ -1879,6 +1884,13 @@ public class TeXParser implements TeXParserConstants {
     finally { jj_save(45, xla); }
   }
 
+  private boolean jj_2_47(int xla) {
+    jj_la = xla; jj_lastpos = jj_scanpos = token;
+    try { return !jj_3_47(); }
+    catch(LookaheadSuccess ls) { return true; }
+    finally { jj_save(46, xla); }
+  }
+
   private boolean jj_3R_104() {
     Token xsp;
     while (true) {
@@ -1941,7 +1953,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_120() {
+  private boolean jj_3R_121() {
     if (jj_3R_47()) return true;
     return false;
   }
@@ -1951,7 +1963,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_37() {
+  private boolean jj_3_38() {
     if (jj_3R_31()) return true;
     return false;
   }
@@ -1961,10 +1973,10 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_38() {
+  private boolean jj_3_39() {
     Token xsp;
     xsp = jj_scanpos;
-    if (jj_3_37()) jj_scanpos = xsp;
+    if (jj_3_38()) jj_scanpos = xsp;
     if (jj_3R_34()) return true;
     return false;
   }
@@ -1979,12 +1991,27 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_119() {
+  private boolean jj_3R_120() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
     jj_scanpos = xsp;
     if (jj_scan_token(7)) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_101() {
+    Token xsp;
+    if (jj_3R_120()) return true;
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3R_120()) { jj_scanpos = xsp; break; }
+    }
+    xsp = jj_scanpos;
+    if (jj_3_39()) {
+    jj_scanpos = xsp;
+    if (jj_3R_121()) return true;
     }
     return false;
   }
@@ -2007,28 +2034,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_101() {
-    Token xsp;
-    if (jj_3R_119()) return true;
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3R_119()) { jj_scanpos = xsp; break; }
-    }
-    xsp = jj_scanpos;
-    if (jj_3_38()) {
-    jj_scanpos = xsp;
-    if (jj_3R_120()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_112() {
-    if (jj_3R_135()) return true;
-    return false;
-  }
-
   private boolean jj_3R_100() {
     if (jj_3R_47()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_113() {
+    if (jj_3R_136()) return true;
     return false;
   }
 
@@ -2048,7 +2060,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_110() {
+  private boolean jj_3R_111() {
     return false;
   }
 
@@ -2063,7 +2075,7 @@ public class TeXParser implements TeXParserConstants {
   }
 
   private boolean jj_3R_63() {
-    if (jj_3R_107()) return true;
+    if (jj_3R_108()) return true;
     return false;
   }
 
@@ -2081,12 +2093,12 @@ public class TeXParser implements TeXParserConstants {
     jj_lookingAhead = true;
     jj_semLA = belongsToMacroDefinedCommandName();
     jj_lookingAhead = false;
-    if (!jj_semLA || jj_3R_110()) return true;
-    if (jj_3R_111()) return true;
+    if (!jj_semLA || jj_3R_111()) return true;
+    if (jj_3R_112()) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_112()) { jj_scanpos = xsp; break; }
+      if (jj_3R_113()) { jj_scanpos = xsp; break; }
     }
     return false;
   }
@@ -2126,13 +2138,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_4() {
-    if (jj_3R_30()) return true;
+  private boolean jj_3R_96() {
+    if (jj_scan_token(COMMAND_WITH_WORD_ARG_OPTIONAL_WHITESPACE)) return true;
     return false;
   }
 
-  private boolean jj_3R_96() {
-    if (jj_scan_token(COMMAND_WITH_WORD_ARG_OPTIONAL_WHITESPACE)) return true;
+  private boolean jj_3_4() {
+    if (jj_3R_30()) return true;
     return false;
   }
 
@@ -2181,7 +2193,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_35() {
+  private boolean jj_3_36() {
     if (jj_3R_31()) return true;
     return false;
   }
@@ -2232,10 +2244,10 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_36() {
+  private boolean jj_3_37() {
     Token xsp;
     xsp = jj_scanpos;
-    if (jj_3_35()) jj_scanpos = xsp;
+    if (jj_3_36()) jj_scanpos = xsp;
     if (jj_3R_34()) return true;
     return false;
   }
@@ -2265,7 +2277,7 @@ public class TeXParser implements TeXParserConstants {
     xsp = jj_scanpos;
     if (jj_3R_98()) {
     jj_scanpos = xsp;
-    if (jj_3_36()) return true;
+    if (jj_3_37()) return true;
     }
     return false;
   }
@@ -2280,7 +2292,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_135() {
+  private boolean jj_3R_136() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(32)) {
@@ -2308,23 +2320,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_134() {
+  private boolean jj_3R_135() {
     if (jj_3R_106()) return true;
     return false;
   }
 
-  private boolean jj_3R_133() {
-    if (jj_3R_121()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_111() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_133()) {
-    jj_scanpos = xsp;
-    if (jj_3R_134()) return true;
-    }
+  private boolean jj_3R_134() {
+    if (jj_3R_122()) return true;
     return false;
   }
 
@@ -2333,8 +2335,33 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_118() {
+  private boolean jj_3R_112() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_134()) {
+    jj_scanpos = xsp;
+    if (jj_3R_135()) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3R_119() {
     if (jj_3R_102()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_118() {
+    if (jj_3R_47()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_95() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_118()) {
+    jj_scanpos = xsp;
+    if (jj_3R_119()) return true;
+    }
     return false;
   }
 
@@ -2343,32 +2370,17 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_95() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3R_117()) {
-    jj_scanpos = xsp;
-    if (jj_3R_118()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3R_143() {
-    if (jj_3R_135()) return true;
+  private boolean jj_3R_144() {
+    if (jj_3R_136()) return true;
     return false;
   }
 
   private boolean jj_3R_116() {
-    if (jj_3R_47()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_115() {
     if (jj_3R_102()) return true;
     return false;
   }
 
-  private boolean jj_3R_114() {
+  private boolean jj_3R_115() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(32)) {
@@ -2378,7 +2390,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_113() {
+  private boolean jj_3R_114() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
@@ -2388,29 +2400,29 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_142() {
-    if (jj_3R_111()) return true;
+  private boolean jj_3R_143() {
+    if (jj_3R_112()) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_143()) { jj_scanpos = xsp; break; }
+      if (jj_3R_144()) { jj_scanpos = xsp; break; }
     }
     return false;
   }
 
   private boolean jj_3R_94() {
     Token xsp;
-    if (jj_3R_113()) return true;
+    if (jj_3R_114()) return true;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_113()) { jj_scanpos = xsp; break; }
+      if (jj_3R_114()) { jj_scanpos = xsp; break; }
     }
     xsp = jj_scanpos;
-    if (jj_3R_114()) {
-    jj_scanpos = xsp;
     if (jj_3R_115()) {
     jj_scanpos = xsp;
-    if (jj_3R_116()) return true;
+    if (jj_3R_116()) {
+    jj_scanpos = xsp;
+    if (jj_3R_117()) return true;
     }
     }
     return false;
@@ -2427,18 +2439,18 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_140() {
-    if (jj_3R_142()) return true;
+  private boolean jj_3R_141() {
+    if (jj_3R_143()) return true;
+    return false;
+  }
+
+  private boolean jj_3_47() {
+    if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
   private boolean jj_3_27() {
     if (jj_scan_token(NEW_LINE)) return true;
-    return false;
-  }
-
-  private boolean jj_3_46() {
-    if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
@@ -2465,18 +2477,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_141() {
+  private boolean jj_3R_142() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
     jj_scanpos = xsp;
     if (jj_scan_token(7)) return true;
     }
-    return false;
-  }
-
-  private boolean jj_3_24() {
-    if (jj_scan_token(WHITESPACE)) return true;
     return false;
   }
 
@@ -2490,17 +2497,22 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_132() {
+  private boolean jj_3_24() {
+    if (jj_scan_token(WHITESPACE)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_133() {
     if (jj_3R_46()) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_141()) { jj_scanpos = xsp; break; }
+      if (jj_3R_142()) { jj_scanpos = xsp; break; }
     }
     return false;
   }
 
-  private boolean jj_3R_131() {
+  private boolean jj_3R_132() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
@@ -2515,13 +2527,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_130() {
-    if (jj_3R_47()) return true;
+  private boolean jj_3R_91() {
+    if (jj_3R_102()) return true;
     return false;
   }
 
-  private boolean jj_3R_91() {
-    if (jj_3R_102()) return true;
+  private boolean jj_3R_131() {
+    if (jj_3R_47()) return true;
     return false;
   }
 
@@ -2530,8 +2542,8 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_129() {
-    if (jj_3R_140()) return true;
+  private boolean jj_3R_130() {
+    if (jj_3R_141()) return true;
     return false;
   }
 
@@ -2545,7 +2557,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_128() {
+  private boolean jj_3R_129() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
@@ -2565,25 +2577,25 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_109() {
+  private boolean jj_3R_110() {
     if (jj_scan_token(NEW_COMMAND_PREFIX)) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_128()) { jj_scanpos = xsp; break; }
+      if (jj_3R_129()) { jj_scanpos = xsp; break; }
     }
     xsp = jj_scanpos;
-    if (jj_3R_129()) {
+    if (jj_3R_130()) {
     jj_scanpos = xsp;
-    if (jj_3R_130()) return true;
-    }
-    while (true) {
-      xsp = jj_scanpos;
-      if (jj_3R_131()) { jj_scanpos = xsp; break; }
+    if (jj_3R_131()) return true;
     }
     while (true) {
       xsp = jj_scanpos;
       if (jj_3R_132()) { jj_scanpos = xsp; break; }
+    }
+    while (true) {
+      xsp = jj_scanpos;
+      if (jj_3R_133()) { jj_scanpos = xsp; break; }
     }
     if (jj_3R_47()) return true;
     return false;
@@ -2622,13 +2634,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_107() {
+  private boolean jj_3R_108() {
     if (jj_scan_token(MARKER)) return true;
     return false;
   }
 
-  private boolean jj_3R_127() {
-    if (jj_3R_107()) return true;
+  private boolean jj_3R_128() {
+    if (jj_3R_108()) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
@@ -2637,7 +2649,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_45() {
+  private boolean jj_3_46() {
     if (jj_3R_28()) return true;
     return false;
   }
@@ -2666,14 +2678,19 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_126() {
+  private boolean jj_3R_127() {
     if (jj_scan_token(GROUP_START)) return true;
-    if (jj_3R_140()) return true;
+    if (jj_3R_141()) return true;
     if (jj_scan_token(GROUP_END)) return true;
     return false;
   }
 
-  private boolean jj_3_44() {
+  private boolean jj_3_35() {
+    if (jj_3R_46()) return true;
+    return false;
+  }
+
+  private boolean jj_3_45() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_3R_52()) {
@@ -2688,8 +2705,8 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_125() {
-    if (jj_3R_140()) return true;
+  private boolean jj_3R_126() {
+    if (jj_3R_141()) return true;
     return false;
   }
 
@@ -2698,13 +2715,13 @@ public class TeXParser implements TeXParserConstants {
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3_44()) { jj_scanpos = xsp; break; }
+      if (jj_3_45()) { jj_scanpos = xsp; break; }
     }
     if (jj_scan_token(OPTION_END)) return true;
     return false;
   }
 
-  private boolean jj_3R_124() {
+  private boolean jj_3R_125() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(6)) {
@@ -2714,27 +2731,35 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_45() {
-    if (jj_3R_106()) return true;
-    return false;
-  }
-
-  private boolean jj_3_43() {
+  private boolean jj_3R_107() {
     if (jj_3R_46()) return true;
     return false;
   }
 
-  private boolean jj_3R_108() {
+  private boolean jj_3R_45() {
+    if (jj_3R_106()) return true;
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3R_107()) jj_scanpos = xsp;
+    return false;
+  }
+
+  private boolean jj_3_44() {
+    if (jj_3R_46()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_109() {
     if (jj_scan_token(DEF_COMMAND_PREFIX)) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_124()) { jj_scanpos = xsp; break; }
+      if (jj_3R_125()) { jj_scanpos = xsp; break; }
     }
     xsp = jj_scanpos;
-    if (jj_3R_125()) {
+    if (jj_3R_126()) {
     jj_scanpos = xsp;
-    if (jj_3R_126()) return true;
+    if (jj_3R_127()) return true;
     }
     while (true) {
       xsp = jj_scanpos;
@@ -2742,7 +2767,7 @@ public class TeXParser implements TeXParserConstants {
     }
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_127()) { jj_scanpos = xsp; break; }
+      if (jj_3R_128()) { jj_scanpos = xsp; break; }
     }
     if (jj_3R_47()) return true;
     return false;
@@ -2768,7 +2793,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_42() {
+  private boolean jj_3_43() {
     if (jj_3R_28()) return true;
     return false;
   }
@@ -2787,12 +2812,17 @@ public class TeXParser implements TeXParserConstants {
   }
 
   private boolean jj_3R_84() {
-    if (jj_3R_109()) return true;
+    if (jj_3R_110()) return true;
     return false;
   }
 
   private boolean jj_3R_83() {
-    if (jj_3R_108()) return true;
+    if (jj_3R_109()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_51() {
+    if (jj_scan_token(OPTION_END)) return true;
     return false;
   }
 
@@ -2806,17 +2836,12 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_51() {
-    if (jj_scan_token(OPTION_END)) return true;
-    return false;
-  }
-
   private boolean jj_3R_50() {
     if (jj_3R_28()) return true;
     return false;
   }
 
-  private boolean jj_3_41() {
+  private boolean jj_3_42() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_3R_50()) {
@@ -2826,23 +2851,18 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_139() {
+  private boolean jj_3R_140() {
     if (jj_3R_96()) return true;
     return false;
   }
 
-  private boolean jj_3R_138() {
+  private boolean jj_3R_139() {
     if (jj_3R_99()) return true;
     return false;
   }
 
-  private boolean jj_3R_137() {
+  private boolean jj_3R_138() {
     if (jj_3R_93()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_136() {
-    if (jj_3R_88()) return true;
     return false;
   }
 
@@ -2851,9 +2871,14 @@ public class TeXParser implements TeXParserConstants {
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3_41()) { jj_scanpos = xsp; break; }
+      if (jj_3_42()) { jj_scanpos = xsp; break; }
     }
     if (jj_scan_token(GROUP_END)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_137() {
+    if (jj_3R_88()) return true;
     return false;
   }
 
@@ -2867,20 +2892,20 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_121() {
+  private boolean jj_3R_122() {
     Token xsp;
     xsp = jj_scanpos;
     if (jj_scan_token(16)) {
     jj_scanpos = xsp;
     if (jj_scan_token(17)) {
     jj_scanpos = xsp;
-    if (jj_3R_136()) {
-    jj_scanpos = xsp;
     if (jj_3R_137()) {
     jj_scanpos = xsp;
     if (jj_3R_138()) {
     jj_scanpos = xsp;
-    if (jj_3R_139()) return true;
+    if (jj_3R_139()) {
+    jj_scanpos = xsp;
+    if (jj_3R_140()) return true;
     }
     }
     }
@@ -2889,7 +2914,7 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_40() {
+  private boolean jj_3_41() {
     if (jj_3R_47()) return true;
     return false;
   }
@@ -2924,11 +2949,6 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3_34() {
-    if (jj_scan_token(STAR)) return true;
-    return false;
-  }
-
   private boolean jj_3R_32() {
     Token xsp;
     xsp = jj_scanpos;
@@ -2941,6 +2961,11 @@ public class TeXParser implements TeXParserConstants {
 
   private boolean jj_3R_78() {
     if (jj_3R_47()) return true;
+    return false;
+  }
+
+  private boolean jj_3_34() {
+    if (jj_scan_token(STAR)) return true;
     return false;
   }
 
@@ -2969,6 +2994,11 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
+  private boolean jj_3R_124() {
+    if (jj_scan_token(STAR)) return true;
+    return false;
+  }
+
   private boolean jj_3_14() {
     if (jj_3R_38()) return true;
     return false;
@@ -2976,11 +3006,6 @@ public class TeXParser implements TeXParserConstants {
 
   private boolean jj_3_33() {
     if (jj_3R_48()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_123() {
-    if (jj_scan_token(STAR)) return true;
     return false;
   }
 
@@ -2994,13 +3019,13 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_70() {
-    if (jj_3R_38()) return true;
+  private boolean jj_3R_123() {
+    if (jj_3R_48()) return true;
     return false;
   }
 
-  private boolean jj_3R_122() {
-    if (jj_3R_48()) return true;
+  private boolean jj_3R_70() {
+    if (jj_3R_38()) return true;
     return false;
   }
 
@@ -3052,18 +3077,18 @@ public class TeXParser implements TeXParserConstants {
   }
 
   private boolean jj_3R_102() {
-    if (jj_3R_121()) return true;
+    if (jj_3R_122()) return true;
     Token xsp;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_122()) { jj_scanpos = xsp; break; }
+      if (jj_3R_123()) { jj_scanpos = xsp; break; }
     }
     xsp = jj_scanpos;
-    if (jj_3R_123()) jj_scanpos = xsp;
+    if (jj_3R_124()) jj_scanpos = xsp;
     return false;
   }
 
-  private boolean jj_3_39() {
+  private boolean jj_3_40() {
     if (jj_3R_49()) return true;
     return false;
   }
@@ -3083,11 +3108,6 @@ public class TeXParser implements TeXParserConstants {
     return false;
   }
 
-  private boolean jj_3R_69() {
-    if (jj_3R_49()) return true;
-    return false;
-  }
-
   private boolean jj_3R_34() {
     Token xsp;
     if (jj_3R_82()) return true;
@@ -3095,6 +3115,11 @@ public class TeXParser implements TeXParserConstants {
       xsp = jj_scanpos;
       if (jj_3R_82()) { jj_scanpos = xsp; break; }
     }
+    return false;
+  }
+
+  private boolean jj_3R_69() {
+    if (jj_3R_49()) return true;
     return false;
   }
 
@@ -3165,7 +3190,7 @@ public class TeXParser implements TeXParserConstants {
    private static void jj_la1_init_1() {
       jj_la1_1 = new int[] {0x0,0x0,0x0,0x0,0x0,0x7,0x0,0x0,0x7,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x5,0x0,0x5,0x0,0x0,0x0,0x3,0x0,0x0,0x0,0x1,0x1,0x0,0x0,0x0,0x1,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x7,0x0,0x0,0x0,0x0,};
    }
-  final private JJCalls[] jj_2_rtns = new JJCalls[46];
+  final private JJCalls[] jj_2_rtns = new JJCalls[47];
   private boolean jj_rescan = false;
   private int jj_gc = 0;
 
@@ -3393,7 +3418,7 @@ public class TeXParser implements TeXParserConstants {
 
   private void jj_rescan_token() {
     jj_rescan = true;
-    for (int i = 0; i < 46; i++) {
+    for (int i = 0; i < 47; i++) {
     try {
       JJCalls p = jj_2_rtns[i];
       do {
@@ -3446,6 +3471,7 @@ public class TeXParser implements TeXParserConstants {
             case 43: jj_3_44(); break;
             case 44: jj_3_45(); break;
             case 45: jj_3_46(); break;
+            case 46: jj_3_47(); break;
           }
         }
         p = p.next;

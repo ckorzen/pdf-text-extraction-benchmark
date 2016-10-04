@@ -3,126 +3,323 @@ import doc_diff
 
 class DocDiffTest(unittest.TestCase):
     
-    def evaluate(self, str1, str2, expected, junk=[]):
-        actual = doc_diff.doc_diff(str1, str2, junk)
-        actual = doc_diff.visualize_diff_result_debug(actual)
-        self.assertEqual(actual, str(expected))
-
+    def assert_equal(self, input1, input2, expected):
+        diff_phrases = doc_diff.doc_diff(input1, input2)
+        num_ops      = doc_diff.count_num_ops(diff_phrases)
+        self.assertDictEqual(dict(num_ops), expected)
+    
     def test_common(self):
-        self.evaluate("", "", "")
+        input1 = ""
+        input2 = ""
+        expected = {}
+        self.assert_equal(input1, input2, expected)
         
-        self.evaluate("foo bar", "foo bar", 
-            "foo bar")
-
-        self.evaluate("foo bar\n\nbaz boo", 
-            "foo bar\n\nbaz boo", "foo bar\n\nbaz boo")
-
+        input1 = "foo bar"
+        input2 = "foo bar"
+        expected = {}
+        self.assert_equal(input1, input2, expected)
+        
+        input1 = """
+        foo bar
+        
+        baz boo
+        """
+        input2 = """
+        foo bar
+        
+        baz boo
+        """
+        expected = {}
+        self.assert_equal(input1, input2, expected)
+        
     def test_rearranges(self):
-        # Test word rearrange within single paragraph.
-        self.evaluate("foo bar", "bar foo", 
-            "bar (==) [<><> foo, foo] (‖)")
-
-        # Test paragraph rearrange within single paragraph.
-        self.evaluate("foo bar baz boo doo goo gol bol koi foi hul xxx", "gol bol koi foi hul xxx foo bar baz boo doo goo", 
-            "gol bol koi foi hul xxx (==) [<><> foo bar baz boo doo goo, foo bar baz boo doo goo] (‖)")
-
-        # Test paragraph rearrange within two (short) paragraphs.
-        self.evaluate("foo bar\n\nbaz boo", "baz boo\n\nfoo bar", 
-            "baz boo\n\n[<><> foo bar, foo bar]")
+        # Test rearrange with single paragraph and *word* operations.
+        input1 = "foo bar"
+        input2 = "bar foo"
+        expected = { 'num_word_inserts': 1, 'num_word_deletes': 1 }
+        self.assert_equal(input1, input2, expected)
+    
+        # Test rearrange with single paragraph and *paragraph* operations.
+        input1 = "foo bar baz boo doo goo gol bol koi foi hul xxx"
+        input2 = "gol bol koi foi hul xxx foo bar baz boo doo goo"
+        expected = { 'num_para_rearranges': 1 }
+        self.assert_equal(input1, input2, expected)
+    
+        # Test rearrange with 2 paragraphs and *word* operations.
+        input1 = """
+        foo bar
         
-        # Test paragraph rearrange within two (longer) paragraphs.
-        self.evaluate("foo bar baz boo doo goo\n\ngol bol koi foi hul xxx", "gol bol koi foi hul xxx\n\nfoo bar baz boo doo goo", 
-            "gol bol koi foi hul xxx\n\n[<><> foo bar baz boo doo goo, foo bar baz boo doo goo]")
-
-        # Test paragraph rearrange whithin single paragraph where the rearrange is a short inner string.
-        self.evaluate("foo bar baz boo doo koo", "foo bar doo koo baz boo", 
-            "foo bar doo koo (==) (‖) [<><> baz boo, baz boo] (‖)")
-
+        baz boo
+        """
+        input2 = """
+        baz boo
+        
+        foo bar
+        """
+        expected = { 'num_word_inserts': 2, 'num_word_deletes': 2 }
+        self.assert_equal(input1, input2, expected)
+            
+        # Test rearrange with 2 paragraphs and *paragraph* operations.
+        input1 = """
+        foo bar baz boo doo goo
+        
+        goo gol bol koi foi hul xxx
+        """
+        input2 = """
+        goo gol bol koi foi hul xxx
+        
+        foo bar baz boo doo goo
+        """
+        expected = { 'num_para_rearranges': 1 }
+        self.assert_equal(input1, input2, expected)
+        
+        # Test rearrange whithin single paragraph where the rearrange is a short inner string.    
+        input1 = "foo bar baz boo doo koo"
+        input2 = "foo bar doo koo baz boo"
+        expected = { 'num_word_inserts': 2, 'num_word_deletes': 2 }
+        self.assert_equal(input1, input2, expected)
+        
         # Test paragraph rearrange whithin single paragraph where the rearrange is a long inner string.
-        self.evaluate("foo bar baz jojo hoko baw kli blu glu doo koo doo koo doo koo doo", "foo bar doo koo doo koo doo koo doo baz jojo hoko baw kli blu glu", 
-            "foo bar doo koo doo koo doo koo doo (==) (‖) [<><> baz jojo hoko baw kli blu glu, baz jojo hoko baw kli blu glu] (‖)")
-
-    def test_replaces(self):
+        input1 = "foo bar baz jojo hoko baw kli blu glu doo koo doo koo doo koo doo"
+        input2 = "foo bar doo koo doo koo doo koo doo baz jojo hoko baw kli blu glu"
+        expected = { 'num_para_rearranges': 1 }
+        self.assert_equal(input1, input2, expected)
+        
+    def test_substitutes(self):
         # Test short replace within single paragraph.
-        self.evaluate("foo bar", "foo bal", "foo [/ bar, bal]")
+        input1 = "foo bar"
+        input2 = "foo bal"
+        expected = { 'num_word_replaces': 1 }
+        self.assert_equal(input1, input2, expected)
 
         # Test long replace within single paragraph.
-        self.evaluate("foo xxx yyy zzz aaa bbb ccc ddd", "foo 111 222 333 444 555 666 777", 
-            "foo (==) [// xxx yyy zzz aaa bbb ccc ddd, 111 222 333 444 555 666 777]")
+        input1 = "foo xxx yyy zzz aaa bbb ccc ddd"
+        input2 = "foo 111 222 333 444 555 666 777"
+        expected = { 'num_word_replaces': 7 }
+        self.assert_equal(input1, input2, expected)
+        
+        # Test replaces with different lengths.
+        input1 = "foo xxx"
+        input2 = "foo 111 222 333 444 555 666 777"
+        expected = { 'num_word_replaces': 1, 'num_word_inserts': 6 }
+        self.assert_equal(input1, input2, expected)
+
+        # Test replaces with different lengths.
+        input1 = "foo 111 222 333 444 555 666 777"
+        input2 = "foo xxx"
+        expected = { 'num_word_replaces': 1, 'num_word_deletes': 6 }
+        self.assert_equal(input1, input2, expected)
 
         # Test replace across paragraphs boundaries.
-        self.evaluate("Hello World\n\nHow are you", "Hello Word\n\nHuw are you", 
-            "hello [/ world, word]\n\n[/ how, huw] are you")
-
-        # Test replace and insert.
-        self.evaluate("Hello World", "Hello Word How are you", 
-            "hello [/ world, word how are you]")
-
-        # Test replace and delete.
-        self.evaluate("foo bar baz", "foo bal", 
-            "foo [/ bar baz, bal]")
-
-    def test_deletes(self):
-        # Test short delete within single paragraph.
-        self.evaluate("foo bar", "foo", 
-            "[- bar]\n\nfoo")
-
-        # Test long delete within single paragraph.
-        self.evaluate("foo bar baz boo goo loo hoo too", "foo", 
-            "(‖) [-- bar baz boo goo loo hoo too]\n\nfoo")
-
-        # Test single delete within two paragraph.
-        self.evaluate("foo bar\n\nbaz boo", "foo bar", 
-            "[-- baz boo]\n\nfoo bar")
+        input1 = """
+        Hello World
+        
+        How are you
+        """
+        input2 = """
+        Hello Word
+        
+        Huw are you
+        """
+        expected = { 'num_word_replaces': 2 }
+        self.assert_equal(input1, input2, expected)
+     
+    def test_deletes(self):        
+        # Test long delete within two paragraphs.
+        input1 = """
+        foo bar 
+        
+        baz boo baz boo baz boo baz boo
+        """
+        input2 = """foo bar"""
+        expected = { 'num_para_deletes': 1 }
+        self.assert_equal(input1, input2, expected)
 
         # Test two deletes within paragraphs.
-        self.evaluate("foo bar\n\nbaz boo\n\ndoo goo", "foo bar", 
-            "[-- baz boo]\n\n[-- doo goo]\n\nfoo bar")
+        input1 = """
+        foo bar 
+        
+        baz boo
+        
+        doo goo
+        """
+        input2 = """foo bar"""
+        expected = { 'num_word_deletes': 4 }
+        self.assert_equal(input1, input2, expected)
+        
+        # Test two deletes within paragraphs.
+        input1 = """
+        foo bar 
+        
+        baz boo baz boo baz boo baz boo
+        
+        doo goo
+        """
+        input2 = """foo bar"""
+        expected = { 'num_word_deletes': 2, 'num_para_deletes': 1 }
+        self.assert_equal(input1, input2, expected)
+        
 
         # Test short inner delete.
-        self.evaluate("foo bar baz", "foo baz", 
-            "[- bar]\n\nfoo baz")
-
+        input1 = "foo bar baz"
+        input2 = "foo baz"
+        expected = { 'num_word_deletes': 1 }
+        self.assert_equal(input1, input2, expected)
+        
         # Test long inner delete.
-        self.evaluate("foo bar gar koo roo woo tul bol baz", "foo baz", 
-            "(‖) [-- bar gar koo roo woo tul bol] (‖)\n\nfoo baz")
-
+        input1 = "foo bar gar koo roo woo tul bol baz"
+        input2 = "foo baz"
+        expected = { 'num_para_deletes': 1 }
+        self.assert_equal(input1, input2, expected)
+        
         # Test delete across paragraph boundaries.
-        self.evaluate("foo bar baz\n\ngoo koo loo", "foo bar\n\nkoo loo", 
-            "[- baz]\n\n[- goo]\n\nfoo bar\n\nkoo loo")
-
-    def test_insert(self):
+        input1 = """
+        foo bar baz 
+        
+        goo koo loo
+        """
+        input2 = """
+        foo bar
+        
+        koo loo
+        """
+        expected = { 'num_word_deletes': 2 }
+        self.assert_equal(input1, input2, expected)
+    
+        # Test delete across paragraph boundaries.
+        input1 = """
+        foo bar baz baz baz
+        
+        goo goo goo koo loo
+        """
+        input2 = """
+        foo bar
+        
+        koo loo
+        """
+        expected = { 'num_word_deletes': 6 }
+        self.assert_equal(input1, input2, expected)
+               
+    def test_inserts(self):
         # Test short insert within single paragraph.
-        self.evaluate("foo", "foo bar", 
-            "foo [+ bar]")
-
+        input1 = "foo"
+        input2 = "foo bar baz"
+        expected = { 'num_word_inserts': 2 }
+        self.assert_equal(input1, input2, expected)
+        
         # Test long insert within single paragraph.
-        self.evaluate("foo", "foo  bar baz boo goo loo hoo too", 
-            "foo (==) [++ bar baz boo goo loo hoo too]")
-
-         # Test single insert within two paragraph.
-        self.evaluate("foo bar", "foo bar\n\nbaz boo", 
-            "foo bar\n\n[++ baz boo]")
+        input1 = "foo"
+        input2 = "foo bar baz boo goo loo hoo too"
+        expected = { 'num_para_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
+        
+        # Test short insert within two paragraphs.
+        input1 = """foo bar"""
+        input2 = """
+        foo bar 
+        
+        baz boo
+        """
+        expected = { 'num_word_inserts': 2 }
+        self.assert_equal(input1, input2, expected)
+        
+        # Test long insert within two paragraphs.
+        input1 = """foo bar"""
+        input2 = """
+        foo bar 
+        
+        baz boo baz boo baz boo baz boo
+        """
+        expected = { 'num_para_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
 
         # Test two inserts within paragraphs.
-        self.evaluate("foo bar", "foo bar\n\nbaz boo\n\ndoo goo", 
-            "foo bar\n\n[++ baz boo]\n\n[++ doo goo]")
-
+        input1 = """foo bar"""
+        input2 = """
+        foo bar 
+        
+        baz boo
+        
+        doo goo
+        """
+        expected = { 'num_word_inserts': 4 }
+        self.assert_equal(input1, input2, expected)
+        
+        # Test two inserts within paragraphs.
+        input1 = """foo bar"""
+        input2 = """
+        foo bar 
+        
+        baz boo baz boo baz boo baz boo
+        
+        doo goo
+        """
+        expected = { 'num_word_inserts': 2, 'num_para_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
+        
         # Test short inner insert.
-        self.evaluate("foo baz", "foo bar baz", 
-            "foo [+ bar] baz")
-
+        input1 = "foo baz"
+        input2 = "foo bar baz"
+        expected = { 'num_word_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
+        
         # Test long inner insert.
-        self.evaluate("foo baz", "foo bar gar koo roo woo tul bol baz",
-            "foo (==) [++ bar gar koo roo woo tul bol] (==) baz")
-
-        # Test insert across paragraph boundaries.
-        self.evaluate("foo bar\n\nkoo loo", "foo bar baz\n\ngoo koo loo", 
-            "foo bar [+ baz]\n\n[+ goo] koo loo")
-
-    def test_junk(self):
-        self.evaluate("foo bar baz goo hoo\n\nzoo koo loo 1 2 3 4 zar to tei 4 zaz", "zoo koo loo [formula] zar to tei [formula] zaz\n\nfoo bar baz goo hoo",
-            "[<><> zoo koo loo zar to tei zaz, zoo koo loo zar to tei zaz]\n\nfoo bar baz goo hoo", ["\[formula\]"])
-
+        input1 = "foo baz"
+        input2 = "foo bar gar koo roo woo tul bol baz"
+        expected = { 'num_para_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
+                
+        # Test delete across paragraph boundaries.
+        input1 = """
+        foo bar
+        
+        koo loo
+        """
+        input2 = """
+        foo bar baz 
+        
+        goo koo loo
+        """
+        expected = { 'num_word_inserts': 2 }
+        self.assert_equal(input1, input2, expected)
+    
+        # Test delete across paragraph boundaries.
+        input1 = """
+        foo bar
+        
+        koo loo
+        """
+        input2 = """
+        foo bar baz baz baz
+        
+        goo goo goo koo loo
+        """
+        expected = { 'num_word_inserts': 6 }
+        self.assert_equal(input1, input2, expected)
+                   
+        # Test insert of a short paragraph.
+        input1 = """
+        bar
+        """
+        input2 = """
+        foo
+                
+        bar
+        """
+        expected = { 'num_word_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
+                        
+        # Test insert of a long paragraph.
+        input1 = """
+        bar
+        """
+        input2 = """
+        foo foo foo foo foo foo foo
+                
+        bar
+        """
+        expected = { 'num_para_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
+                                
 if __name__ == '__main__':
     unittest.main()

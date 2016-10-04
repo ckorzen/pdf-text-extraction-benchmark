@@ -155,7 +155,7 @@ public class TeXParagraphParserMain {
   public static void main(String[] args) {
     // Create command line options.
     Options options = buildOptions();
-
+       
     // Try to parse the given command line arguments.
     CommandLine cmd = null;
     try {
@@ -184,7 +184,7 @@ public class TeXParagraphParserMain {
    */
   public TeXParagraphParserMain(CommandLine cmd) {
     inputFiles = new ArrayList<>();
-
+    
     input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
     visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);

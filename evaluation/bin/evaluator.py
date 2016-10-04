@@ -1,122 +1,177 @@
 import sys
 import argparse
-import logging
 import os
 import os.path
 import util
 
 from datetime import datetime
+from collections import Counter
+from multiprocessing import Pool
+
+#from doc_diff import doc_diff
+#from doc_diff import count_diff_items
+#from doc_diff import visualize_diff_result
 
 from doc_diff import doc_diff
-from doc_diff import count_diff_items
-from doc_diff import visualize_diff_result
+from doc_diff import count_num_ops
+from doc_diff import visualize_diff_phrases
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s : %(levelname)s : %(module)s : %(message)s',
-)
-logger = logging.getLogger(__name__)
+table_width = 138
+first_column_width = 27
+other_column_width = 14
+
+# Sometimes, multiprocessing throws "maximum recursion depth exceeded" errors.
+sys.setrecursionlimit(10000)
+
+# TODO: Put all the arguments, computed result into self.args
 
 class Evaluator:
-    ''' The base class of our evaluation that can be used to evaluate the 
-    accuracy of the features defined above. '''
+    """ 
+    Evaluates the quality of text extraction of a given PDF extraction tool.
+    """
     
     def __init__(self, args):
-        ''' Creates a new evaluator with the given args. '''
+        """ 
+        Creates a new evaluator based on the given args.
+        """
         self.args = args
-        
+        # Read some infos from external file and append it to the args.
+        self.read_external_info(self.args)
+                
+        # The junk tokens are given as string. Split it to get a list of tokens.
         self.args.junk = self.args.junk.split()
-
+        
+    def read_external_info(self, args):
+        """ Reads some informations from external file to display in output. """
+        external_info_file_path = self.get_external_info_file_path()
+        
+        if not self.is_missing_or_empty(external_info_file_path):
+            with open(external_info_file_path) as external_info_file:
+                for line in external_info_file:
+                    fields = line.strip().split("\t")
+                    if len(fields) == 2:
+                        setattr(args, fields[0], fields[1])
+                     
+    # --------------------------------------------------------------------------
+        
     def evaluate(self):
-        '''
-        Starts the evaluation. Scans the root of groundtruth files given in 
-        args for groundtruth files that matches the given prefix and suffix. 
-        Tries to identify the actual file that belongs to the groundtruth file. 
-        Computes the precision/recall values that result from both files and 
-        compares them to previous results.
-        '''
-        # The root directory to scan for groundtruth files. 
-        groundtruth_root = self.args.gt_path
+        """ 
+        Starts the evaluation.
+        """
         
-        # The prefix of files to consider on evaluation. 
-        prefix = self.args.prefix
-        # The suffix of files to consider on evaluation (depends on feature).
-        suffix = self.get_groundtruth_files_suffix()
+        # Obtain the evaluation files. 
+        files = self.collect_files()
+                       
+        # Handle the evaluation start.  
+        self.handle_evaluation_start(files)
         
-        latest_values = []
-        best_values = []
-        current_values = []
-
-        print("{:<23}{:>14}{:>14}{:>14}{:>14}{:>14}{:>14}{:>14}{:>14}"
-            .format("filename", "#p. splits", "#p. merges", "#p. rearranges", 
-            "#p. inserts", "#p. deletes", "#w. inserts", "#w. deletes", 
-            "#w. rearranges"))
-        print("-" * 137)
-
-        # Scan the given root directory for groundtruth files to evaluate.
-        for current_dir, dirs, files in os.walk(groundtruth_root):
-            # Only consider the files that matches the given prefix and suffix.
-            files = [fi for fi in files if fi.startswith(prefix) \
-                                       and fi.endswith(suffix)]
-            for file in files:
-                # Compose the absolute path of the groundtruth file.
-                gt_path = os.path.join(current_dir, file)
-                # Compose the absolute path of the actual file.
-                actual_path = self.get_actual_path(gt_path)
-                
-                serialization_path = self.get_serialization_path(actual_path)
-                latest, best = self.deserialize(serialization_path)
-                
-                latest_values.append(latest)
-                best_values.append(best)
-
-                if self.args.recap:
-                    self.recap(actual_path, latest)
-                else:
-                    # Evaluate.
-                    result = self.evaluate_by_paths(gt_path, actual_path)
-                    
-                    num_ops = count_diff_items(result)
-
-                    current_values.append(num_ops)
-
-                    comparison_string = self.create_comparison_string(
-                        num_ops, latest, best)
-
-                    # logger.info("Result for %s: %s" % (actual_path, comparison_string))
-                    print("%-22s %s" % (os.path.basename(actual_path), comparison_string))
-
-                    # print("Result for %s: %s" % (actual_path, comparison_string))
-                    self.visualize(result, self.get_visualization_path(actual_path))
-                    #self.serialize(num_ops, serialization_path)
-
-        if self.args.recap:
-            logger.info("Total: %s" % self.create_recap_string(
-                latest_values))
+        # Evaluate with given groundtruth files.
+        evaluation_results = []
+        if self.args.processing_type == "sequential":
+            # Process the groundtruth files *sequentially*.
+            for f in files:
+                evaluation_results.append(self.evaluate_file(f))
         else:
-            print("-" * 137)
-            print("%-22s %s" % ("Total: ", self.create_comparison_string(
-                   current_values, latest_values, best_values)))
-            print("-" * 137)
-            # logger.info("Total: %s" % self.create_comparison_string(
-            #    current_values, latest_values, best_values))
-
-    def recap(self, actual_path, values):
-        ''' Recaps the evaluation results for given files.'''
-        recap = self.create_recap_string(values)
-        logger.info("Result for %s: %s" % (actual_path, recap))
-
-    def evaluate_by_paths(self, gt_path, actual_path):
-        ''' Evaluates the files given by the paths.'''              
+            # Process the groundtruth files *in parallel*. 
+            pool = Pool()
+            evaluation_results = pool.map(self.evaluate_file, files)
+            
+        # Handle the evaluation results.
+        self.handle_evaluation_end(evaluation_results)
+       
+    # --------------------------------------------------------------------------
+    # Handler methods.
+    
+    def handle_evaluation_start(self, files):
+        """ 
+        Handles the start of the evaluation.
+        """  
+        
+        self.args.files      = files
+        self.args.start_time = datetime.now()
+              
+        self.print_overview_table_header()
+        
+    def handle_evaluation_result(self, result):    
+        """ 
+        Handles a single evaluation result.
+        """               
+                
+        # Don't proceed if there is no result or if the tool output is corrupt.
+        if (result
+            and not result.get("missing_gt_file", False)
+            and not result.get("missing_pdf_file", False)
+            and not result.get("missing_tool_file", False)):
+            
+            # Add row for the result in overview table.
+            self.print_overview_table_row(result) 
+            
+            # Visualize the evaluation result.
+            self.visualize(result)
+            
+            # Serialize the evaluation result.            
+            self.serialize(result)
+                
+    def handle_evaluation_end(self, results):
+        """ 
+        Handles the end of evaluation.
+        """
+        
+        self.args.end_time = datetime.now()
+        
+        self.print_overview_table_footer(results)
+        
+    # --------------------------------------------------------------------------
+        
+    def evaluate_file(self, f):
+        """ 
+        Evaluates the given file and returns the result.
+        """
+        
+        gt_path   = f["gt_path"]
+        pdf_path  = f["pdf_path"]
+        tool_path = f["tool_path"]
+        
+        res = dict()
+        res["file"] = f
+               
+        # Don't proceed, if the gt file doesn't exist.
+        if self.is_missing_or_empty(gt_path):
+            res["missing_gt_file"] = True
+            return res
+            
+        # Don't proceed, if the pdf file doesn't exist.
+        if self.is_missing_or_empty(pdf_path):
+            res["missing_pdf_file"] = True
+            return res
+                
         # Read and format the groundtruth file.
-        gt = self.format_groundtruth_file(gt_path)
-        # Read and format the actual file.
-        actual = self.format_actual_file(actual_path)
-
-        # Evaluate.
-        return self.evaluate_by_strings(gt_path, gt, actual_path, actual)
-
-    def evaluate_by_strings(self, gt_path, gt, actual_path, actual):
+        gt = self.format_gt_file(gt_path)
+        # Read and format the tool's output.
+        tool_output = self.format_tool_file(tool_path)
+                
+        # Don't proceed, if the gt is empty.                        
+        if not gt:
+            res["missing_gt_file"] = True
+            return res
+                  
+        # Don't proceed, if the tool output is empty.
+        if not tool_output:
+            res["missing_tool_file"] = True
+            return res
+                                         
+        # Compute evaluation result.
+        res["evaluation_result"] = self.evaluate_strings(gt, tool_output)
+        res["num_ops"]           = count_num_ops(res["evaluation_result"], self.args.junk)
+        res["prev_num_ops"]      = self.deserialize(res)
+                
+        # Trigger the event here to interact with user immediately, even in 
+        # case of parallel processing.
+        self.handle_evaluation_result(res)
+                        
+        return res
+                    
+    def evaluate_strings(self, gt, actual):
         """
         Computes precision and recall of words extraction. For that, run diff 
         on the set of words of groundtruth (gt) and the actual extraction 
@@ -137,322 +192,605 @@ class Evaluator:
 
         return doc_diff(actual, gt, self.args.junk)
 
-    def format_actual_file(self, file_path):
-        ''' Reads the given actual file. Override it if you have to do more 
-        advanced stuff, like removing semantic markups, etc.'''
-        
-        # Make sure, that the file exists.
-        if os.path.isfile(file_path):
-            file = open(file_path)
-            str = file.read()
-            file.close()
-            return str
-        else:
-            return ""
-
-    def format_groundtruth_file(self, file_path):
-        ''' Reads the given actual file. Override it if you have to do more 
-        advanced stuff, like removing semantic markups, etc.'''
-        
-        # Make sure, that the file exists.
-        if os.path.isfile(file_path):
-            file = open(file_path)
-            str = file.read()
-            file.close()
-            return str
-        else:
-            return ""
-
-    def deserialize(self, path):
-        ''' Deserializes the related results file for the given file/feature-
-        pair. Computes (a) the latest precision/recall and (b) the best 
-        precision and best recall achieved so far for the actual path and 
-        feature.'''
-        
-        best_para_splits     = sys.maxsize
-        best_para_merges     = sys.maxsize
-        best_para_rearranges   = sys.maxsize
-        best_para_inserts    = sys.maxsize
-        best_para_deletes    = sys.maxsize
-        best_word_rearranges   = sys.maxsize
-        best_word_inserts    = sys.maxsize
-        best_word_deletes    = sys.maxsize
-        latest_para_splits   = sys.maxsize
-        latest_para_merges   = sys.maxsize
-        latest_para_rearranges = sys.maxsize
-        latest_para_inserts  = sys.maxsize
-        latest_para_deletes  = sys.maxsize
-        latest_word_rearranges = sys.maxsize
-        latest_word_inserts  = sys.maxsize
-        latest_word_deletes  = sys.maxsize
-
-        if os.path.isfile(path):
-            with open(path, "r") as f:
-                for line in f:
-                    # Each line is of form: time <TAB> precision <TAB> recall
-                    fields = line.rstrip().split("\t")
-                      
-                    para_splits   = int(fields[1])
-                    para_merges   = int(fields[2])
-                    para_rearranges = int(fields[3])
-                    para_inserts  = int(fields[4])
-                    para_deletes  = int(fields[5])
-                    word_inserts  = int(fields[6])
-                    word_deletes  = int(fields[7])
-                    word_rearranges = int(fields[8])
-
-                    # Update the values.
-                    best_para_splits   = max(para_splits, best_para_splits)
-                    best_para_merges   = max(para_merges, best_para_merges)
-                    best_para_rearranges = max(para_rearranges, best_para_rearranges)
-                    best_para_inserts  = max(para_inserts, best_para_inserts)
-                    best_para_deletes  = max(para_deletes, best_para_deletes)
-                    best_word_inserts  = max(word_inserts, best_word_inserts)
-                    best_word_deletes  = max(word_deletes, best_word_deletes)
-                    best_word_rearranges = max(word_rearranges, best_word_rearranges)
-
-                    latest_para_splits   = para_splits
-                    latest_para_merges   = para_merges
-                    latest_para_rearranges = para_rearranges
-                    latest_para_inserts  = para_inserts
-                    latest_para_deletes  = para_deletes
-                    latest_word_inserts  = word_inserts
-                    latest_word_deletes  = word_deletes
-                    latest_word_rearranges = word_rearranges
-            
-        best   = (best_para_splits, best_para_merges, best_para_rearranges, 
-                  best_para_inserts, best_para_deletes, best_word_inserts, 
-                  best_word_deletes, best_word_rearranges)
-        latest = (latest_para_splits, latest_para_merges, latest_para_rearranges, 
-                  latest_para_inserts, latest_para_deletes, latest_word_inserts,
-                  latest_word_deletes, latest_word_rearranges)
-        return (latest, best)
-
-    def visualize(self, result, path):
-        ''' Serializes the given result to the related results file. '''
-        with open(path, "w") as f:
-            f.write(visualize_diff_result(result)) 
-
-    def serialize(self, values, path):
-        ''' Serializes the given result to the related results file. '''
-        with open(path, "a") as f:
-            values_str = []
-            values_str.append(str(values.get('num_para_splits', 0)))
-            values_str.append(str(values.get('num_para_merges', 0)))
-            values_str.append(str(values.get('num_para_rearranges', 0)))
-            values_str.append(str(values.get('num_para_inserts', 0)))
-            values_str.append(str(values.get('num_para_deletes', 0)))
-            values_str.append(str(values.get('num_word_inserts', 0)))
-            values_str.append(str(values.get('num_word_deletes', 0)))
-            values_str.append(str(values.get('num_word_rearranges', 0)))
-
-            f.write("%s\t%s\n" % (datetime.now(), "\t".join(values_str))) 
-
-    def create_comparison_string(self, current, latest, best):
-        ''' Returns a string where the current precision/recall values are 
-        compared to the latest and the best values. '''
+    # --------------------------------------------------------------------------
+    # Serialization / Deserialization.
     
-        if current and isinstance(current, list):
-            # If 'current' is a list, compute p/r by average values.
-            para_splits   = round(sum(x['num_para_splits'] for x in current) / len(current), 1)
-            para_merges   = round(sum(x['num_para_merges'] for x in current) / len(current), 1)
-            para_rearranges = round(sum(x['num_para_rearranges'] for x in current) / len(current), 1)
-            para_inserts  = round(sum(x['num_para_inserts'] for x in current) / len(current), 1)
-            para_deletes  = round(sum(x['num_para_deletes'] for x in current) / len(current), 1)
-            word_inserts  = round(sum(x['num_word_inserts'] for x in current) / len(current), 1)
-            word_deletes  = round(sum(x['num_word_deletes'] for x in current) / len(current), 1)
-            word_rearranges = round(sum(x['num_word_rearranges'] for x in current) / len(current), 1)
-        else:
-            para_splits   = current['num_para_splits'] if current else 0
-            para_merges   = current['num_para_merges'] if current else 0
-            para_rearranges = current['num_para_rearranges'] if current else 0
-            para_inserts  = current['num_para_inserts'] if current else 0
-            para_deletes  = current['num_para_deletes'] if current else 0
-            word_inserts  = current['num_word_inserts'] if current else 0
-            word_deletes  = current['num_word_deletes'] if current else 0
-            word_rearranges = current['num_word_rearranges'] if current else 0
+    def format_tool_file(self, tool_path):
+        """ 
+        Reads the given tool file. Override it if you have to do more 
+        advanced stuff, like removing semantic markups, etc.
+        """
         
-        if latest and isinstance(latest, list):
-            latest_para_splits   = round(sum(x[0] for x in latest) / len(latest), 1)
-            latest_para_merges   = round(sum(x[1] for x in latest) / len(latest), 1)
-            latest_para_rearranges = round(sum(x[2] for x in latest) / len(latest), 1)
-            latest_para_inserts  = round(sum(x[3] for x in latest) / len(latest), 1)
-            latest_para_deletes  = round(sum(x[4] for x in latest) / len(latest), 1)
-            latest_word_inserts  = round(sum(x[5] for x in latest) / len(latest), 1)
-            latest_word_deletes  = round(sum(x[6] for x in latest) / len(latest), 1)
-            latest_word_rearranges = round(sum(x[7] for x in latest) / len(latest), 1)
-        else:
-            latest_para_splits   = latest[0] if latest else 0
-            latest_para_merges   = latest[1] if latest else 0
-            latest_para_rearranges = latest[2] if latest else 0
-            latest_para_inserts  = latest[3] if latest else 0
-            latest_para_deletes  = latest[4] if latest else 0
-            latest_word_inserts  = latest[5] if latest else 0
-            latest_word_deletes  = latest[6] if latest else 0
-            latest_word_rearranges = latest[7] if latest else 0
-            
-        if best and isinstance(best, list):
-            best_para_splits   = round(sum(x[0] for x in best) / len(best), 1)
-            best_para_merges   = round(sum(x[1] for x in best) / len(best), 1)
-            best_para_rearranges = round(sum(x[2] for x in best) / len(best), 1)
-            best_para_inserts  = round(sum(x[3] for x in best) / len(best), 1)
-            best_para_deletes  = round(sum(x[4] for x in best) / len(best), 1)
-            best_word_deletes  = round(sum(x[5] for x in best) / len(best), 1)
-            best_word_deletes  = round(sum(x[6] for x in best) / len(best), 1)
-            best_word_rearranges = round(sum(x[7] for x in best) / len(best), 1)
-        else:
-            best_para_splits   = best[0] if best else 0
-            best_para_merges   = best[1] if best else 0
-            best_para_rearranges = best[2] if best else 0
-            best_para_inserts  = best[3] if best else 0
-            best_para_deletes  = best[4] if best else 0
-            best_word_inserts  = best[5] if best else 0
-            best_word_deletes  = best[6] if best else 0
-            best_word_rearranges = best[7] if best else 0
+        tool_output = ""        
+        if not self.is_missing_or_empty(tool_path):
+            with open(tool_path) as tool_file: 
+                tool_output = tool_file.read()
         
-        # Compute the difference to the latest values.
-        para_splits_delta   = para_splits   - latest_para_splits
-        para_merges_delta   = para_merges   - latest_para_merges
-        para_rearranges_delta = para_rearranges - latest_para_rearranges
-        para_inserts_delta  = para_inserts  - latest_para_inserts
-        para_deletes_delta  = para_deletes  - latest_para_deletes
-        word_inserts_delta  = word_inserts  - latest_word_inserts
-        word_deletes_delta  = word_deletes  - latest_word_deletes
-        word_rearranges_delta = word_rearranges - latest_word_rearranges
+        return tool_output
+        
+    def format_gt_file(self, gt_path):
+        """ 
+        Reads the given groundtruth file. Override it if you have to do more 
+        advanced stuff, like removing semantic markups, etc.
+        """
+        
+        gt_output = ""
+        if not self.is_missing_or_empty(gt_path):
+            with open(gt_path) as gt_file: 
+                gt_output = gt_file.read()
+        
+        return gt_output
+    
+    # --------------------------------------------------------------------------
+       
+    def serialize(self, result):
+        """
+        Serializes the given evaluation result.
+        """
+        
+        serialization_path = self.define_serialization_path(result)
+        num_ops = result["num_ops"]
+
+        # Create parent directories, if not existent.
+        if not os.path.exists(os.path.dirname(serialization_path)):
+            os.makedirs(os.path.dirname(serialization_path), exist_ok=True)
+    
+        # Append line in serialization file.
+        with open(serialization_path, "a") as f:
+            fields = []
+            fields.append(str(datetime.now()))
+            fields.append(str(num_ops.get('num_para_splits', 0)))
+            fields.append(str(num_ops.get('num_para_merges', 0)))
+            fields.append(str(num_ops.get('num_para_rearranges', 0)))
+            fields.append(str(num_ops.get('num_para_inserts', 0)))
+            fields.append(str(num_ops.get('num_para_deletes', 0)))
+            fields.append(str(num_ops.get('num_word_inserts', 0)))
+            fields.append(str(num_ops.get('num_word_deletes', 0)))
+            fields.append(str(num_ops.get('num_word_replaces', 0)))
+
+            f.write("\t".join(fields))
+            f.write("\n")
+       
+    def deserialize(self, result):
+        """ 
+        Deserializes the previous result related to the given result.
+        """
+         
+        serialization_path = self.define_serialization_path(result)
+        
+        # Abort if there is no such serialization file.
+        if self.is_missing_or_empty(serialization_path):
+            return
+        
+        # Iterate through the lines of file to get only the last line.
+        prev_num_ops = []
+        with open(serialization_path, "r") as f:
+            for line in f:                
+                # Ignore first field (date).
+                prev_num_ops = [int(x) for x in line.strip().split("\t")[1 : ]]
+          
+        # Abort if list doesn't contain at least the expected number of fields.
+        if len(prev_num_ops) < 8:
+            return
+          
+        counter = Counter()
+        counter["num_para_splits"]     = prev_num_ops[0]
+        counter["num_para_merges"]     = prev_num_ops[1]
+        counter["num_para_rearranges"] = prev_num_ops[2]
+        counter["num_para_inserts"]    = prev_num_ops[3]
+        counter["num_para_deletes"]    = prev_num_ops[4]
+        counter["num_word_inserts"]    = prev_num_ops[5]
+        counter["num_word_deletes"]    = prev_num_ops[6]
+        counter["num_word_replaces"]   = prev_num_ops[7]
                 
-        # Format the delta parts.
-        para_splits_delta_str   = "±0" if para_splits_delta == 0 else "%+d" % para_splits_delta
-        para_merges_delta_str   = "±0" if para_merges_delta == 0 else "%+d" % para_merges_delta
-        para_rearranges_delta_str = "±0" if para_rearranges_delta == 0 else "%+d" % para_rearranges_delta
-        para_inserts_delta_str  = "±0" if para_inserts_delta == 0 else "%+d" % para_inserts_delta
-        para_deletes_delta_str  = "±0" if para_deletes_delta == 0 else "%+d" % para_deletes_delta
-        word_inserts_delta_str  = "±0" if word_inserts_delta == 0 else "%+d" % word_inserts_delta
-        word_deletes_delta_str  = "±0" if word_deletes_delta == 0 else "%+d" % word_deletes_delta
-        word_rearranges_delta_str = "±0" if word_rearranges_delta == 0 else "%+d" % word_rearranges_delta
+        return counter
         
-        # Compose the string.   
+    def visualize(self, result):
+        """ 
+        Visualizes the given evaluation result.
+        """
+        visualization_path = self.define_visualization_path(result)
+        
+        # Create parent directories, if not existent.
+        if not os.path.exists(os.path.dirname(visualization_path)):
+            os.makedirs(os.path.dirname(visualization_path), exist_ok=True)
+        
+        with open(visualization_path, "w") as f:
+            f.write(visualize_diff_phrases(result["evaluation_result"], self.args.junk))
+       
+    # --------------------------------------------------------------------------
+    # Methods to print the overview table.
+    
+    def print_overview_table_header(self):
+        """ 
+        Prints the header of overview table to stdout.
+        """
+        
+        def hr():
+            print("-" * table_width) 
+        
+        def hrr():
+            print("=" * table_width)
+            
+        def tr(*columns):
+            pattern = "%-*s" * len(columns)
+            
+            params = [first_column_width, columns[0]]
+            for i in range(1, len(columns)):
+                params.append(other_column_width)
+                params.append(columns[i])
+                                
+            print(pattern % tuple(params))
+                        
+        tr("")
+        tr("Evaluation of tool %s:" % self.args.tool_name)  
+        hr()       
+        tr("tool root: ", self.args.tool_root)
+        tr("groundtruth root: ", self.args.gt_root)
+        tr("pdf root: ", self.args.pdf_root)
+        tr("prefix:", self.args.prefix)
+        tr("suffix:", self.args.suffix)
+        tr("rearrange: ", self.args.rearrange)
+        tr("case-insensitive:", self.args.ignore_cases)
+        tr("ignore whitespace:", self.args.remove_spaces)
+        tr("junk: ", self.args.junk)
+        tr("processing type: ", self.args.processing_type)
+        tr("")
+        tr("# files to evaluate:",  len(self.args.files))
+        tr("start time: ", self.args.start_time)
+        hr()
+        tr("")
+        tr("")        
+        tr("Results: ", "#p. splits", "#p. merges", "#p. rearr.", "#p. inserts", 
+            "#p. deletes", "#w. inserts", "w.deletes", "w.replaces")
+        hr()
+              
+    def print_overview_table_row(self, result):
+        """
+        Prints a row in overview table for given result.
+        """
+        
+        gt_file         = result["file"]["gt_file"]
+        num_ops         = result["num_ops"]
+        prev_num_ops    = result["prev_num_ops"]
+        
+        delta_values = self.compute_delta_values(num_ops, prev_num_ops)
+        row = self.create_overview_table_row(gt_file, delta_values)
+        if row:
+            print(row)
+        
+    def print_overview_table_footer(self, results):
+        """ 
+        Prints the footer of overview table to stdout.
+        """
+        print("-" * 138)
+               
+        # Iterate through the results to create the summary.
+        num_ops = []
+        prev_num_ops = []
+        
+        missing_gt_files = []
+        missing_pdf_files = []
+        missing_tool_files = []
+        
+        for result in results:
+            # Ignore None results.
+            if not result:
+                continue
+                        
+            # Keep track of results with missing gt file.
+            if result.get("missing_gt_file", False):
+                missing_gt_files.append(result)
+                continue
+                
+            # Keep track of results with missing pdf file.
+            if result.get("missing_pdf_file", False):
+                missing_pdf_files.append(result)
+                continue
+                
+            # Keep track of results with missing tool file.
+            if result.get("missing_tool_file", False):
+                missing_tool_files.append(result)
+                continue
+            
+            if result.get("num_ops", None):
+                num_ops.append(result["num_ops"])
+            else:
+                # There are some groundtruth file containing only "[formula]".
+                # Theses files are definitely corrupt. So add it to missing
+                # gt files.
+                missing_gt_files.append(result)
+                continue
+                
+            if result.get("prev_num_ops", None):
+                prev_num_ops.append(result["prev_num_ops"])
+             
+        delta_values = self.compute_delta_values(num_ops, prev_num_ops) 
+        row = self.create_overview_table_row("Total:", delta_values)
+                
+        tex_row = self.create_tex_table_row(delta_values)
+        if row:
+            print(row)
+          
+        # -------------------
+            
+        def hr():
+            print("-" * table_width) 
+        
+        def hrr():
+            print("=" * table_width)
+            
+        def tr(*columns):
+            pattern = "%-*s" * len(columns)
+            
+            params = [first_column_width, columns[0]]
+            for i in range(1, len(columns)):
+                params.append(other_column_width)
+                params.append(columns[i])
+                                
+            print(pattern % tuple(params))
+        
+        time_needed = self.args.end_time.timestamp() - self.args.start_time.timestamp()
+        time_needed_avg = time_needed / len(num_ops) if len(num_ops) > 0 else 0
+        
+        hr()
+        tr("")
+        tr("")
+        tr("Summary")  
+        hr()
+        tr("tool root: ", self.args.tool_root)
+        tr("groundtruth root: ", self.args.gt_root)
+        tr("pdf root: ", self.args.pdf_root)
+        tr("prefix:", self.args.prefix)
+        tr("suffix:", self.args.suffix)
+        tr("rearrange: ", self.args.rearrange)
+        tr("case-insensitive:", self.args.ignore_cases)
+        tr("ignore whitespace:", self.args.remove_spaces)
+        tr("junk: ", self.args.junk)
+        tr("processing type: ", self.args.processing_type)
+        tr("")
+        #tr("# files to evaluate:",  len(files))
+        tr("start time: ", self.args.start_time)
+        tr("end time: ", self.args.end_time)
+        tr("total time needed: ",  "%.2fs" % time_needed)
+        tr("avg time needed: ",  "%.2fs" % time_needed_avg)
+        tr("# evaluated files: ", len(num_ops))
+        tr("# corrupt gt files: ", len(missing_gt_files))
+        tr("# missing pdf files: ", len(missing_pdf_files))
+        tr("# missing tool files: ", len(missing_tool_files))
+        tr("TeX Table Row: ", tex_row)
+        hr()
+    
+    # TODO: Change arguments to: def create_overview_table_row(self, result(s)): 
+    def compute_delta_values(self, curr, prev):
+        """ 
+        Creates a row in overview table for given pair of current value(s)
+        and latest value(s).
+        """
+           
+        if not curr:
+            return
+             
+        def get(dictionary, key, default):
+            if dictionary is None:
+                return default 
+            return dictionary.get(key, default)
+                    
+        # Current may be a single counter (if the row is created for a single 
+        # result) or a list of counters (if the row is created for the footer).
+        if isinstance(curr, list):
+            num = len(curr)
+            
+            num_para_splits   = [get(x, "num_para_splits", 0) for x in curr]
+            para_splits       = round(sum(num_para_splits) / num, 1)
+            num_para_merges   = [get(x, "num_para_merges", 0) for x in curr]
+            para_merges       = round(sum(num_para_merges) / num, 1)
+            num_para_rearr    = [get(x, "num_para_rearranges", 0) for x in curr]
+            para_rearr        = round(sum(num_para_rearr) / num, 1)
+            num_para_inserts  = [get(x, "num_para_inserts", 0) for x in curr]
+            para_inserts      = round(sum(num_para_inserts) / num, 1)
+            num_para_deletes  = [get(x, "num_para_deletes", 0) for x in curr]
+            para_deletes      = round(sum(num_para_deletes) / num, 1)
+            num_word_inserts  = [get(x, "num_word_inserts", 0) for x in curr]
+            word_inserts      = round(sum(num_word_inserts) / num, 1)
+            num_word_deletes  = [get(x, "num_word_deletes", 0) for x in curr]
+            word_deletes      = round(sum(num_word_deletes) / num, 1)
+            num_word_replaces = [get(x, "num_word_replaces", 0) for x in curr]
+            word_replaces     = round(sum(num_word_replaces) / num, 1)
+        else:
+            para_splits     = curr['num_para_splits']
+            para_merges     = curr['num_para_merges']
+            para_rearr      = curr['num_para_rearranges']
+            para_inserts    = curr['num_para_inserts']
+            para_deletes    = curr['num_para_deletes']
+            word_inserts    = curr['num_word_inserts']
+            word_deletes    = curr['num_word_deletes']
+            word_replaces   = curr['num_word_replaces']
+            
+        if prev and isinstance(prev, list):
+            num = len(prev)
+            
+            num_para_splits    = [get(x, "num_para_splits", 0) for x in prev]
+            last_para_splits   = round(sum(num_para_splits) / num, 1)
+            num_para_merges    = [get(x, "num_para_merges", 0) for x in prev]
+            last_para_merges   = round(sum(num_para_merges) / num, 1)
+            num_para_rearr     = [get(x, "num_para_rearranges", 0) for x in prev]
+            last_para_rearr    = round(sum(num_para_rearr) / num, 1)
+            num_para_inserts   = [get(x, "num_para_inserts", 0) for x in prev]
+            last_para_inserts  = round(sum(num_para_inserts) / num, 1)
+            num_para_deletes   = [get(x, "num_para_deletes", 0) for x in prev]
+            last_para_deletes  = round(sum(num_para_deletes) / num, 1)
+            num_word_inserts   = [get(x, "num_word_inserts", 0) for x in prev]
+            last_word_inserts  = round(sum(num_word_inserts) / num, 1)
+            num_word_deletes   = [get(x, "num_word_deletes", 0) for x in prev]
+            last_word_deletes  = round(sum(num_word_deletes) / num, 1)
+            num_word_replaces  = [get(x, "num_word_replaces", 0) for x in prev]
+            last_word_replaces = round(sum(num_word_replaces) / num, 1)
+        else:
+            last_para_splits   = prev['num_para_splits'] if prev else 0
+            last_para_merges   = prev['num_para_merges'] if prev else 0
+            last_para_rearr    = prev['num_para_rearranges'] if prev else 0
+            last_para_inserts  = prev['num_para_inserts'] if prev else 0
+            last_para_deletes  = prev['num_para_deletes'] if prev else 0
+            last_word_inserts  = prev['num_word_inserts'] if prev else 0
+            last_word_deletes  = prev['num_word_deletes'] if prev else 0
+            last_word_replaces = prev['num_word_replaces'] if prev else 0
+        
+        # Compute the difference to the last values.
+        para_splits_delta     = para_splits   - last_para_splits
+        para_merges_delta     = para_merges   - last_para_merges
+        para_rearr_delta      = para_rearr    - last_para_rearr
+        para_inserts_delta    = para_inserts  - last_para_inserts
+        para_deletes_delta    = para_deletes  - last_para_deletes
+        word_inserts_delta    = word_inserts  - last_word_inserts
+        word_deletes_delta    = word_deletes  - last_word_deletes
+        word_replaces_delta   = word_replaces - last_word_replaces
+           
+        return {
+            "para_splits":     (para_splits,   para_splits_delta),
+            "para_merges":     (para_merges,   para_merges_delta),
+            "para_rearranges": (para_rearr,    para_rearr_delta),
+            "para_inserts":    (para_inserts,  para_inserts_delta),
+            "para_deletes":    (para_deletes,  para_deletes_delta),
+            "word_inserts":    (word_inserts,  word_inserts_delta),
+            "word_deletes":    (word_deletes,  word_deletes_delta),
+            "word_replaces":   (word_replaces, word_replaces_delta),
+        }
+              
+    def create_overview_table_row(self, prefix, delta_values):
+        if not delta_values:
+            return
+            
+        def create_delta_str(delta):
+            """ Creates a nice-looking str for given dleta value."""
+            return "±0.0" if delta == 0 else "%+.1f" % delta
+        
+        def create_table_cell(value, delta):
+            """ Creates textual content for a table cell from given value and
+            given delta. """
+            parts = []
+            parts.append(("%s" % value).rjust(6))
+            parts.append(("(%s)" % create_delta_str(delta)).rjust(8))
+            return "".join(parts)
+        
+        para_splits,   para_splits_delta   = delta_values["para_splits"]
+        para_merges,   para_merges_delta   = delta_values["para_merges"]
+        para_rearr,    para_rearr_delta    = delta_values["para_rearranges"]
+        para_inserts,  para_inserts_delta  = delta_values["para_inserts"]
+        para_deletes,  para_deletes_delta  = delta_values["para_deletes"]        
+        word_inserts,  word_inserts_delta  = delta_values["word_inserts"]
+        word_deletes,  word_deletes_delta  = delta_values["word_deletes"]
+        word_replaces, word_replaces_delta = delta_values["word_replaces"]
+        
+        # Compose the row.   
         parts = []
-        parts.append(("%s" % para_splits).rjust(8))
-        parts.append((" (%s)" % para_splits_delta_str).rjust(6))
-        parts.append(("%s" % para_merges).rjust(8))
-        parts.append((" (%s)" % para_merges_delta_str).rjust(6))
-        parts.append(("%s" % para_rearranges).rjust(8))
-        parts.append((" (%s)" % para_rearranges_delta_str).rjust(6))
-        parts.append(("%s" % para_inserts).rjust(8))
-        parts.append((" (%s)" % para_inserts_delta_str).rjust(6))
-        parts.append(("%s" % para_deletes).rjust(8))
-        parts.append((" (%s)" % para_deletes_delta_str).rjust(6))
-        parts.append(("%s" % word_inserts).rjust(8))
-        parts.append((" (%s)" % word_inserts_delta_str).rjust(6))
-        parts.append(("%s" % word_deletes).rjust(8))
-        parts.append((" (%s)" % word_deletes_delta_str).rjust(6))
-        parts.append(("%s" % word_rearranges).rjust(8))
-        parts.append((" (%s)" % word_rearranges_delta_str).rjust(6))
+        parts.append(prefix.ljust(25)) # Append the prefix for row. 
+        parts.append(create_table_cell(para_splits, para_splits_delta))
+        parts.append(create_table_cell(para_merges, para_merges_delta))
+        parts.append(create_table_cell(para_rearr, para_rearr_delta))
+        parts.append(create_table_cell(para_inserts, para_inserts_delta))
+        parts.append(create_table_cell(para_deletes, para_deletes_delta))
+        parts.append(create_table_cell(word_inserts, word_inserts_delta))
+        parts.append(create_table_cell(word_deletes, word_deletes_delta))
+        parts.append(create_table_cell(word_replaces, word_replaces_delta))
         
         return "".join(parts)
-
-    def create_recap_string(self, latest):
-        ''' Returns a string where the current precision/recall values are 
-        compared to the latest and the best values. '''
+        
+    def create_tex_table_row(self, delta_values):
+        if not delta_values:
+            return
             
-        if latest and isinstance(latest, list):
-            # If 'latest' is a list, compute p/r by average values.
-            latest_para_splits   = sum(x[0] for x in latest) / len(latest)
-            latest_para_merges   = sum(x[1] for x in latest) / len(latest)
-            latest_para_rearranges = sum(x[2] for x in latest) / len(latest)
-            latest_para_inserts  = sum(x[3] for x in latest) / len(latest)
-            latest_para_deletes  = sum(x[4] for x in latest) / len(latest)
-            latest_word_inserts  = sum(x[5] for x in latest) / len(latest)
-            latest_word_deletes  = sum(x[6] for x in latest) / len(latest)
-            latest_word_rearranges = sum(x[7] for x in latest) / len(latest)
-        else:
-            latest_para_splits   = latest[0] if latest else 0
-            latest_para_merges   = latest[1] if latest else 0
-            latest_para_rearranges = latest[2] if latest else 0
-            latest_para_inserts  = latest[3] if latest else 0
-            latest_para_deletes  = latest[4] if latest else 0
-            latest_word_inserts  = latest[5] if latest else 0
-            latest_word_deletes  = latest[6] if latest else 0
-            latest_word_rearranges = latest[7] if latest else 0
-
-        # Compose the string.   
+        para_splits,   para_splits_delta   = delta_values["para_splits"]
+        para_merges,   para_merges_delta   = delta_values["para_merges"]
+        para_rearr,    para_rearr_delta    = delta_values["para_rearranges"]
+        para_inserts,  para_inserts_delta  = delta_values["para_inserts"]
+        para_deletes,  para_deletes_delta  = delta_values["para_deletes"]        
+        word_inserts,  word_inserts_delta  = delta_values["word_inserts"]
+        word_deletes,  word_deletes_delta  = delta_values["word_deletes"]
+        word_replaces, word_replaces_delta = delta_values["word_replaces"]
+        
         parts = []
-        parts.append("#para_splits: %s"   % (latest_para_splits))
-        parts.append("#para_merges: %s"   % (latest_para_merges))
-        parts.append("#para_rearranges: %s" % (latest_para_rearranges))
-        parts.append("#para_inserts: %s"  % (latest_para_inserts))
-        parts.append("#para_deletes: %s"  % (latest_para_deletes))
-        parts.append("#word_inserts: %s"  % (latest_word_inserts))
-        parts.append("#word_deletes: %s"  % (latest_word_deletes))
-        parts.append("#word_rearranges: %s" % (latest_word_rearranges))
+        parts.append("& \TD{%.1f}" % para_merges)
+        parts.append("\t\t")
+        parts.append("& \TD{%.1f}" % para_splits)
+        parts.append("\t\t")
+        parts.append("& \TD{%.1f}" % para_deletes)
+        parts.append("\t\t")
+        parts.append("& \TD{%.1f}" % para_inserts)
+        parts.append("\t\t")
+        parts.append("& \TD{%.1f}" % para_rearr)
+        parts.append("\t\t\t")
+        parts.append("& \TD{%.1f}" % word_deletes)
+        parts.append("\t\t")
+        parts.append("& \TD{%.1f}" % word_inserts)
+        parts.append("\t\t")
+        parts.append("& \TD{%.1f}" % word_replaces)
+        parts.append("\t\t")
+        parts.append("\TDeol")
         
-        return ", ".join(parts)
-
-    # __________________________________________________________________________
-
-    def get_actual_path(self, gt_file_path):
-        '''
-        Returns the path to the actual file produced by the tool under review
-        that belongs to the given groundtruth file path.
-        Returns None if no such actual file exists.
-        '''
-        groundtruth_root = self.args.gt_path
-        gt_rel_path = os.path.relpath(gt_file_path, groundtruth_root)
-            
-        # Groundtruth file may have an extended file extension like 
-        # "cond-mat0001228.full.txt" or "cond-mat0001228.body.txt"
-        # But actual files don't have these extension.
-        # For file name "cond-mat0001228.full.txt", find "cond-mat0001228.txt"
-           
-        # Find the first dot in the gt path.
-        index_first_dot = gt_rel_path.find('.')
-                
-        if index_first_dot >= 0:
-            # ext_file_extension = ".full.txt"
-            ext_file_extension = gt_rel_path[index_first_dot : ]
-            # Find the last dot in the extended file extension.
-            index_last_dot = ext_file_extension.rfind('.')
-            if index_last_dot >= 0:
-                # ext_file_extension = ".txt"
-                file_ext = ext_file_extension[index_last_dot : ]
-                # Replace the extended file extension by the simple one.
-                gt_rel_path = gt_rel_path.replace(ext_file_extension, file_ext)
-            
-        return os.path.join(self.args.actual_path, gt_rel_path)
-
-    def get_groundtruth_files_suffix(self):
-        """ Returns the suffix of groundtruth files to consider on parsing the 
-        input directory. """
-        return ".body.txt"
+        return "".join(parts)
+                    
+    # --------------------------------------------------------------------------
+    # Util methods.
+      
+    def get_external_info_file_path(self):
+        return os.path.join(self.args.tool_root, "info.txt")
+               
+    def collect_files(self):
+        """ 
+        Scans the root directory of groundtruth files to find groundtruth 
+        files that matches the given prefix and suffix. 
+        Checks for each groundtruth file, if there is a related pdf file and a 
+        related tool file. 
+        Returns a list of dictionaries, where each dictionary contains 
+        (1) the path of parent directory
+        (2) the filename
+        (3) the full path (the parent directory joined with the filename)
+        of the gt file, pdf file and tool file.
+        """
         
-    def get_visualization_path(self, actual_path):
-        ''' Returns the path to the file, where the visualization of the 
-        evaluation of the given file/feature - pair should be stored. '''
-        return util.update_file_extension(actual_path, ".visualization.txt")
+        result_files = []
+        gt_root = self.args.gt_root
+        prefix = self.args.prefix
+        suffix = self.args.suffix
+        
+        # Scan the given root directory of groundtruth files.
+        for curr_dir, dirs, files in os.walk(gt_root):
+            for gt_file in files:
+                # Consider those files that matches the given prefix and suffix.
+                if not gt_file.startswith(prefix): 
+                    continue
+                if not gt_file.endswith(suffix):
+                    continue;
+               
+                # Obtain paths to pdf file.
+                pdf_dir, pdf_file = self.get_pdf_paths(curr_dir, gt_file)
+                # Obtain paths to tool file.
+                tool_dir, tool_file = self.get_tool_paths(curr_dir, gt_file)
+            
+                file_dict = dict()
+                file_dict["gt_dir"]    = curr_dir
+                file_dict["gt_file"]   = gt_file
+                file_dict["gt_path"]   = os.path.join(curr_dir, gt_file)
+                file_dict["pdf_dir"]   = pdf_dir
+                file_dict["pdf_file"]  = pdf_file
+                file_dict["pdf_path"]  = os.path.join(pdf_dir, pdf_file)
+                file_dict["tool_dir"]  = tool_dir
+                file_dict["tool_file"] = tool_file
+                file_dict["tool_path"] = os.path.join(tool_dir, tool_file)
+                                
+                result_files.append(file_dict)
+        return result_files
+      
+    def get_tool_paths(self, gt_dir, gt_file):
+        """ 
+        Returns the path to the parent directory and the filename of the 
+        tool file, related to the given groundtruth file.
+        """
+        # Example:
+        # gt_root   = output/groundtruth/
+        # tool_root = output/pdftotext/ 
+        # gt_dir    = output/groundtruth/0001
+        # gt_file   = cond-mat0001419.body.txt
+        #
+        # We want to find:
+        # tool_dir = output/pdftotext/0001
+        # tool_file = cond-mat0001419.txt         
 
-    def get_serialization_path(self, actual_path):
-        ''' Returns the path to the file, where the evaluation results for the
-        given file/feature-pair should be stored. '''
-        return util.update_file_extension(actual_path, ".results.txt")
-
+        # Find the relative gt dir: /0001
+        rel_gt_dir = os.path.relpath(gt_dir, self.args.gt_root)
+        # Compose the tool dir: tool_root + rel_gt_dir = output/pdftotext/0001
+        tool_dir = os.path.join(self.args.tool_root, rel_gt_dir)
+        
+        # Compute the basename of gt file: cond-mat0001419
+        gt_base_name = self.get_gt_base_name(gt_file)
+        # Append the correct file extension: cond-mat0001419.txt
+        tool_file = gt_base_name + ".txt"
+            
+        return tool_dir, tool_file
+    
+    def get_pdf_paths(self, gt_dir, gt_file):
+        """ 
+        Returns the path to the parent directory and the filename of the 
+        pdf file, related to the given groundtruth file.
+        """
+        # Example:
+        # gt_root   = output/groundtruth/
+        # pdf_root  = input/pdf/ 
+        # gt_dir    = output/groundtruth/0001
+        # gt_file   = cond-mat0001419.body.txt
+        #
+        # We want to find:
+        # pdf_dir   = input/pdf/0001
+        # pdf_file  = cond-mat0001419.pdf     
+        
+        # Find the relative gt dir: /0001
+        rel_gt_dir = os.path.relpath(gt_dir, self.args.gt_root)
+        # Compose the pdf dir: pdf_root + rel_gt_dir = input/pdf/0001
+        pdf_dir = os.path.join(self.args.pdf_root, rel_gt_dir)
+        
+        # Compute the basename of gt file: cond-mat0001419
+        gt_base_name = self.get_gt_base_name(gt_file)
+        # Append the correct file extension: cond-mat0001419.pdf
+        pdf_file = gt_base_name + ".pdf"
+        
+        return pdf_dir, pdf_file
+       
+    def get_gt_base_name(self, gt_file):
+        """ 
+        Returns the base name of given gt file name. For gt file 
+        "cond-mat0001419.body.txt" this method returns "cond-mat0001419".
+        """
+        index_first_dot = gt_file.find(".")
+        if index_first_dot > 0:
+            return gt_file[0 : index_first_dot]
+       
+    def define_visualization_path(self, result):
+        """ 
+        Defines the path to the file, where the visualization of the 
+        given evaluation result should be stored.
+        """
+        tool_path = result["file"]["tool_path"]
+        return util.update_file_extension(tool_path, ".visualization.txt")
+       
+    def define_serialization_path(self, result):        
+        """ 
+        Defines the path to the file, where the serialization of the 
+        given evaluation result should be stored.
+        """
+        tool_path = result["file"]["tool_path"]
+        return util.update_file_extension(tool_path, ".results.txt")
+        
+    def is_missing_or_empty(self, file_path):
+        """ Returns true, if the given file_path doesn't exist or if the 
+        content of file is empty. """
+        
+        return not os.path.isfile(file_path) or os.path.getsize(file_path) == 0
+        
+    # --------------------------------------------------------------------------
+        
     def get_argument_parser():
-        ''' Creates an parser to parse the command line arguments. '''
+        """ 
+        Creates an parser to parse the command line arguments. 
+        """
         parser = argparse.ArgumentParser()
         
         def add_arg(names, default=None, help=None, nargs=None, choices=None):
             parser.add_argument(names, default=default, help=help, nargs=nargs, 
                 choices=choices)
             
-        add_arg("actual_path", help="The path to the files to evaluate.")
-        add_arg("gt_path", help="The path to the groundtruth files.")
-        add_arg("--rearrange", help="Toogle rearranging of words.")
+        add_arg("tool_root", help="The root of actual files.")
+        add_arg("gt_root", help="The root of groundtruth files.")
+        add_arg("pdf_root", help="The root of pdf files.")
+        add_arg("--prefix", help="The prefix of groundtruth files", default="")
+        add_arg("--suffix", help="The suffix of groundtruth files", default="")
+        add_arg("--rearrange", help="Toogle the rearranging of words.")
         add_arg("--ignore_cases", help="Toggle case-sensitivity.")
         add_arg("--remove_spaces", help="Toggle removing of whitespaces.")
-        add_arg("--max_dist", help="The max. distance between words.")
-        add_arg("--min_sim", help="The min. similarity between words.")
         add_arg("--junk", help="The junk to ignore.")
-        add_arg("--prefix", help="The prefix of evaluation files", default="")
-        add_arg("--output", help="The path to the result file", default="")
-        add_arg("--recap", help="Recap latest evaluation results", default="")
+        add_arg("--processing_type", help="'sequential' or 'parallel'", default="parallel")
 
         return parser
+        
+if __name__ == "__main__":
+    Evaluator(Evaluator.get_argument_parser().parse_args()).evaluate() 

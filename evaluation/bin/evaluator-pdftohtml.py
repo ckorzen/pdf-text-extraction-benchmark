@@ -5,13 +5,16 @@ from evaluator import Evaluator
 
 
 class PdfToHtmlEvaluator(Evaluator):        
-    def format_actual_file(self, file_path):
-        '''
-        Reads the given result file and formats it to a proper format.
-        '''
-        if os.path.isfile(file_path):
+    def format_tool_file(self, tool_path):
+        """ 
+        Reads the given tool file. Override it if you have to do more 
+        advanced stuff, like removing semantic markups, etc.
+        """
+        
+        tool_output = ""        
+        if not self.is_missing_or_empty(tool_path):
             parser = XMLParser(encoding="UTF-8", recover=True)
-            root = ElementTree.parse(file_path, parser=parser).getroot()
+            root = ElementTree.parse(tool_path, parser=parser).getroot()
             
             lines = []
             # Extract the text from <text> elements.
@@ -24,4 +27,4 @@ class PdfToHtmlEvaluator(Evaluator):
             return "" 
 
 if __name__ == "__main__":      
-    PdfToHtmlEvaluator(Evaluator.get_argument_parser().parse_args()).process()
+    PdfToHtmlEvaluator(Evaluator.get_argument_parser().parse_args()).evaluate()
