@@ -23,6 +23,7 @@ IGNORE_CASES = True
 JUNK = \[formula\] \[table\] \[figure\] \[\\\cite=(.+)\] \[\\\ref=(.+)\]
 
 PROCESSING_TYPE = parallel
+DIRS = 
 
 TOOL=icecite
 
@@ -132,7 +133,8 @@ evaluate:
 		--rearrange "$(REARRANGE)" \
 		--ignore_cases "$(IGNORE_CASES)" \
 		--junk "$(JUNK)" \
-		--processing_type "$(PROCESSING_TYPE)"
+		--processing_type "$(PROCESSING_TYPE)" \
+		--dir_filter "$(DIRS)"
 		
 # Evaluate the stuff extracted from the given extraction tool. 
 inspect: 

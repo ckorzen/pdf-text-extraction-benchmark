@@ -10,21 +10,24 @@ from multiprocessing import Pool
 
 #from doc_diff import doc_diff
 #from doc_diff import count_diff_items
-#from doc_diff import visualize_diff_result
+#from doc_diff import visualize_diff_stats
 
 from doc_diff import doc_diff
-from doc_diff import count_num_ops
-from doc_diff import visualize_diff_phrases
+from doc_diff_count_num_ops import count_num_ops
+from doc_diff_visualize import visualize_diff_phrases
 
 table_width = 138
 first_column_width = 27
 other_column_width = 14
 
 # Sometimes, multiprocessing throws "maximum recursion depth exceeded" errors.
-sys.setrecursionlimit(10000)
+#sys.setrecursionlimit(10000)
 
-# TODO: Put all the arguments, computed result into self.args
+# TODO: Put all the arguments, computed stats into self.args
 
+from collections import Mapping, Container
+from sys import getsizeof
+ 
 class Evaluator:
     """ 
     Evaluates the quality of text extraction of a given PDF extraction tool.
@@ -41,10 +44,12 @@ class Evaluator:
         # The junk tokens are given as string. Split it to get a list of tokens.
         self.args.junk = self.args.junk.split()
         
+        self.args.dir_filter = self.args.dir_filter.split() if self.args.dir_filter else []
+        
     def read_external_info(self, args):
         """ Reads some informations from external file to display in output. """
         external_info_file_path = self.get_external_info_file_path()
-        
+                
         if not self.is_missing_or_empty(external_info_file_path):
             with open(external_info_file_path) as external_info_file:
                 for line in external_info_file:
@@ -66,18 +71,18 @@ class Evaluator:
         self.handle_evaluation_start(files)
         
         # Evaluate with given groundtruth files.
-        evaluation_results = []
+        evaluation_stats = []
         if self.args.processing_type == "sequential":
             # Process the groundtruth files *sequentially*.
             for f in files:
-                evaluation_results.append(self.evaluate_file(f))
+                evaluation_stats.append(self.evaluate_file(f))
         else:
             # Process the groundtruth files *in parallel*. 
             pool = Pool()
-            evaluation_results = pool.map(self.evaluate_file, files)
-            
-        # Handle the evaluation results.
-        self.handle_evaluation_end(evaluation_results)
+            evaluation_stats = pool.map(self.evaluate_file, files)
+                          
+        # Handle the evaluation statss.
+        self.handle_evaluation_end(evaluation_stats)
        
     # --------------------------------------------------------------------------
     # Handler methods.
@@ -91,59 +96,60 @@ class Evaluator:
         self.args.start_time = datetime.now()
               
         self.print_overview_table_header()
-        
-    def handle_evaluation_result(self, result):    
+    
+    # Keep diff_phrases separated from stats because it tooks too much memory.    
+    def handle_evaluation_result(self, stats, diff_phrases):    
         """ 
-        Handles a single evaluation result.
+        Handles a single evaluation stats.
         """               
                 
-        # Don't proceed if there is no result or if the tool output is corrupt.
-        if (result
-            and not result.get("missing_gt_file", False)
-            and not result.get("missing_pdf_file", False)
-            and not result.get("missing_tool_file", False)):
+        # Don't proceed if there is no stats or if the tool output is corrupt.
+        if (stats
+            and not stats.get("missing_gt_file", False)
+            and not stats.get("missing_pdf_file", False)
+            and not stats.get("missing_tool_file", False)):
             
-            # Add row for the result in overview table.
-            self.print_overview_table_row(result) 
+            # Add row for the stats in overview table.
+            self.print_overview_table_row(stats) 
             
-            # Visualize the evaluation result.
-            self.visualize(result)
+            # Visualize the evaluation stats.
+            self.visualize(stats, diff_phrases)
             
-            # Serialize the evaluation result.            
-            self.serialize(result)
+            # Serialize the evaluation stats.            
+            self.serialize(stats)
                 
-    def handle_evaluation_end(self, results):
+    def handle_evaluation_end(self, stats):
         """ 
         Handles the end of evaluation.
         """
         
         self.args.end_time = datetime.now()
         
-        self.print_overview_table_footer(results)
+        self.print_overview_table_footer(stats)
         
     # --------------------------------------------------------------------------
         
     def evaluate_file(self, f):
         """ 
-        Evaluates the given file and returns the result.
+        Evaluates the given file and returns the stats.
         """
         
         gt_path   = f["gt_path"]
         pdf_path  = f["pdf_path"]
         tool_path = f["tool_path"]
         
-        res = dict()
-        res["file"] = f
+        stats = dict()
+        stats["file"] = f
                
         # Don't proceed, if the gt file doesn't exist.
         if self.is_missing_or_empty(gt_path):
-            res["missing_gt_file"] = True
-            return res
+            stats["missing_gt_file"] = True
+            return stats
             
         # Don't proceed, if the pdf file doesn't exist.
         if self.is_missing_or_empty(pdf_path):
-            res["missing_pdf_file"] = True
-            return res
+            stats["missing_pdf_file"] = True
+            return stats
                 
         # Read and format the groundtruth file.
         gt = self.format_gt_file(gt_path)
@@ -152,36 +158,36 @@ class Evaluator:
                 
         # Don't proceed, if the gt is empty.                        
         if not gt:
-            res["missing_gt_file"] = True
-            return res
+            stats["missing_gt_file"] = True
+            return stats
                   
         # Don't proceed, if the tool output is empty.
         if not tool_output:
-            res["missing_tool_file"] = True
-            return res
+            stats["missing_tool_file"] = True
+            return stats
                                          
-        # Compute evaluation result.
-        res["evaluation_result"] = self.evaluate_strings(gt, tool_output)
-        res["num_ops"]           = count_num_ops(res["evaluation_result"], self.args.junk)
-        res["prev_num_ops"]      = self.deserialize(res)
+        # Compute evaluation stats.
+        diff_phrases          = self.evaluate_strings(gt, tool_output)
+        stats["num_ops"]      = count_num_ops(diff_phrases, self.args.junk)
+        stats["prev_num_ops"] = self.deserialize(stats)
                 
         # Trigger the event here to interact with user immediately, even in 
         # case of parallel processing.
-        self.handle_evaluation_result(res)
-                        
-        return res
+        self.handle_evaluation_result(stats, diff_phrases)
+                                      
+        return stats
                     
     def evaluate_strings(self, gt, actual):
         """
         Computes precision and recall of words extraction. For that, run diff 
         on the set of words of groundtruth (gt) and the actual extraction 
-        result (actual). The precision of actual follows from the percentage of
+        stats (actual). The precision of actual follows from the percentage of
         the number of common words to the number of extracted words. The recall 
         follows from the percentage of the number of common words to the number 
         of all words in the groundtruth.  
         We only want to evaluate the accuracy of words extraction, but not to 
         evaluate the correct order of extracted words. Thus, we try tro 
-        rearrange the words in the actual result such that the order of words 
+        rearrange the words in the actual stats such that the order of words 
         corresponds to the order in the groundtruth. You can disable the 
         rearrange step by setting the rearrange flag to False. 
         Per default, the evaluation is done case-insensitively. To make it 
@@ -223,13 +229,13 @@ class Evaluator:
     
     # --------------------------------------------------------------------------
        
-    def serialize(self, result):
+    def serialize(self, stats):
         """
-        Serializes the given evaluation result.
+        Serializes the given evaluation stats.
         """
         
-        serialization_path = self.define_serialization_path(result)
-        num_ops = result["num_ops"]
+        serialization_path = self.define_serialization_path(stats)
+        num_ops = stats["num_ops"]
 
         # Create parent directories, if not existent.
         if not os.path.exists(os.path.dirname(serialization_path)):
@@ -251,12 +257,12 @@ class Evaluator:
             f.write("\t".join(fields))
             f.write("\n")
        
-    def deserialize(self, result):
+    def deserialize(self, stats):
         """ 
-        Deserializes the previous result related to the given result.
+        Deserializes the previous stats related to the given stats.
         """
          
-        serialization_path = self.define_serialization_path(result)
+        serialization_path = self.define_serialization_path(stats)
         
         # Abort if there is no such serialization file.
         if self.is_missing_or_empty(serialization_path):
@@ -285,18 +291,18 @@ class Evaluator:
                 
         return counter
         
-    def visualize(self, result):
+    def visualize(self, stats, diff_phrases):
         """ 
-        Visualizes the given evaluation result.
+        Visualizes the given evaluation stats.
         """
-        visualization_path = self.define_visualization_path(result)
+        visualization_path = self.define_visualization_path(stats)
         
         # Create parent directories, if not existent.
         if not os.path.exists(os.path.dirname(visualization_path)):
             os.makedirs(os.path.dirname(visualization_path), exist_ok=True)
         
         with open(visualization_path, "w") as f:
-            f.write(visualize_diff_phrases(result["evaluation_result"], self.args.junk))
+            f.write(visualize_diff_phrases(diff_phrases, self.args.junk))
        
     # --------------------------------------------------------------------------
     # Methods to print the overview table.
@@ -328,6 +334,7 @@ class Evaluator:
         tr("tool root: ", self.args.tool_root)
         tr("groundtruth root: ", self.args.gt_root)
         tr("pdf root: ", self.args.pdf_root)
+        tr("dirs:", self.args.dir_filter)
         tr("prefix:", self.args.prefix)
         tr("suffix:", self.args.suffix)
         tr("rearrange: ", self.args.rearrange)
@@ -341,31 +348,31 @@ class Evaluator:
         hr()
         tr("")
         tr("")        
-        tr("Results: ", "#p. splits", "#p. merges", "#p. rearr.", "#p. inserts", 
+        tr("statss: ", "#p. splits", "#p. merges", "#p. rearr.", "#p. inserts", 
             "#p. deletes", "#w. inserts", "w.deletes", "w.replaces")
         hr()
               
-    def print_overview_table_row(self, result):
+    def print_overview_table_row(self, stats):
         """
-        Prints a row in overview table for given result.
+        Prints a row in overview table for given stats.
         """
         
-        gt_file         = result["file"]["gt_file"]
-        num_ops         = result["num_ops"]
-        prev_num_ops    = result["prev_num_ops"]
+        gt_file         = stats["file"]["gt_file"]
+        num_ops         = stats["num_ops"]
+        prev_num_ops    = stats["prev_num_ops"]
         
         delta_values = self.compute_delta_values(num_ops, prev_num_ops)
         row = self.create_overview_table_row(gt_file, delta_values)
         if row:
             print(row)
         
-    def print_overview_table_footer(self, results):
+    def print_overview_table_footer(self, statss):
         """ 
         Prints the footer of overview table to stdout.
         """
         print("-" * 138)
                
-        # Iterate through the results to create the summary.
+        # Iterate through the statss to create the summary.
         num_ops = []
         prev_num_ops = []
         
@@ -373,37 +380,37 @@ class Evaluator:
         missing_pdf_files = []
         missing_tool_files = []
         
-        for result in results:
-            # Ignore None results.
-            if not result:
+        for stats in statss:
+            # Ignore None statss.
+            if not stats:
                 continue
                         
-            # Keep track of results with missing gt file.
-            if result.get("missing_gt_file", False):
-                missing_gt_files.append(result)
+            # Keep track of statss with missing gt file.
+            if stats.get("missing_gt_file", False):
+                missing_gt_files.append(stats)
                 continue
                 
-            # Keep track of results with missing pdf file.
-            if result.get("missing_pdf_file", False):
-                missing_pdf_files.append(result)
+            # Keep track of statss with missing pdf file.
+            if stats.get("missing_pdf_file", False):
+                missing_pdf_files.append(stats)
                 continue
                 
-            # Keep track of results with missing tool file.
-            if result.get("missing_tool_file", False):
-                missing_tool_files.append(result)
+            # Keep track of statss with missing tool file.
+            if stats.get("missing_tool_file", False):
+                missing_tool_files.append(stats)
                 continue
             
-            if result.get("num_ops", None):
-                num_ops.append(result["num_ops"])
+            if stats.get("num_ops", None):
+                num_ops.append(stats["num_ops"])
             else:
                 # There are some groundtruth file containing only "[formula]".
                 # Theses files are definitely corrupt. So add it to missing
                 # gt files.
-                missing_gt_files.append(result)
+                missing_gt_files.append(stats)
                 continue
                 
-            if result.get("prev_num_ops", None):
-                prev_num_ops.append(result["prev_num_ops"])
+            if stats.get("prev_num_ops", None):
+                prev_num_ops.append(stats["prev_num_ops"])
              
         delta_values = self.compute_delta_values(num_ops, prev_num_ops) 
         row = self.create_overview_table_row("Total:", delta_values)
@@ -441,6 +448,7 @@ class Evaluator:
         tr("tool root: ", self.args.tool_root)
         tr("groundtruth root: ", self.args.gt_root)
         tr("pdf root: ", self.args.pdf_root)
+        tr("dirs:", self.args.dir_filter)
         tr("prefix:", self.args.prefix)
         tr("suffix:", self.args.suffix)
         tr("rearrange: ", self.args.rearrange)
@@ -461,7 +469,7 @@ class Evaluator:
         tr("TeX Table Row: ", tex_row)
         hr()
     
-    # TODO: Change arguments to: def create_overview_table_row(self, result(s)): 
+    # TODO: Change arguments to: def create_overview_table_row(self, stats(s)): 
     def compute_delta_values(self, curr, prev):
         """ 
         Creates a row in overview table for given pair of current value(s)
@@ -477,7 +485,7 @@ class Evaluator:
             return dictionary.get(key, default)
                     
         # Current may be a single counter (if the row is created for a single 
-        # result) or a list of counters (if the row is created for the footer).
+        # stats) or a list of counters (if the row is created for the footer).
         if isinstance(curr, list):
             num = len(curr)
             
@@ -649,20 +657,28 @@ class Evaluator:
         of the gt file, pdf file and tool file.
         """
         
-        result_files = []
+        stats_files = []
         gt_root = self.args.gt_root
         prefix = self.args.prefix
         suffix = self.args.suffix
-        
+        dir_filter = self.args.dir_filter
+                
         # Scan the given root directory of groundtruth files.
         for curr_dir, dirs, files in os.walk(gt_root):
             for gt_file in files:
+                cur_dir_parts = curr_dir.split(os.path.sep)
+            
+                # Continue if dir_filter is set and they don't match the current
+                # directory.
+                if dir_filter and not self.have_commons(cur_dir_parts, dir_filter):
+                    continue 
+                        
                 # Consider those files that matches the given prefix and suffix.
-                if not gt_file.startswith(prefix): 
+                if not gt_file.startswith(prefix):
                     continue
                 if not gt_file.endswith(suffix):
                     continue;
-               
+                              
                 # Obtain paths to pdf file.
                 pdf_dir, pdf_file = self.get_pdf_paths(curr_dir, gt_file)
                 # Obtain paths to tool file.
@@ -679,8 +695,8 @@ class Evaluator:
                 file_dict["tool_file"] = tool_file
                 file_dict["tool_path"] = os.path.join(tool_dir, tool_file)
                                 
-                result_files.append(file_dict)
-        return result_files
+                stats_files.append(file_dict)
+        return stats_files
       
     def get_tool_paths(self, gt_dir, gt_file):
         """ 
@@ -745,27 +761,30 @@ class Evaluator:
         if index_first_dot > 0:
             return gt_file[0 : index_first_dot]
        
-    def define_visualization_path(self, result):
+    def define_visualization_path(self, stats):
         """ 
         Defines the path to the file, where the visualization of the 
-        given evaluation result should be stored.
+        given evaluation stats should be stored.
         """
-        tool_path = result["file"]["tool_path"]
+        tool_path = stats["file"]["tool_path"]
         return util.update_file_extension(tool_path, ".visualization.txt")
        
-    def define_serialization_path(self, result):        
+    def define_serialization_path(self, stats):        
         """ 
         Defines the path to the file, where the serialization of the 
-        given evaluation result should be stored.
+        given evaluation stats should be stored.
         """
-        tool_path = result["file"]["tool_path"]
-        return util.update_file_extension(tool_path, ".results.txt")
+        tool_path = stats["file"]["tool_path"]
+        return util.update_file_extension(tool_path, ".statss.txt")
         
     def is_missing_or_empty(self, file_path):
         """ Returns true, if the given file_path doesn't exist or if the 
         content of file is empty. """
         
         return not os.path.isfile(file_path) or os.path.getsize(file_path) == 0
+        
+    def have_commons(self, list1, list2):
+        return len(list(set(list1) & set(list2))) > 0
         
     # --------------------------------------------------------------------------
         
@@ -789,7 +808,7 @@ class Evaluator:
         add_arg("--remove_spaces", help="Toggle removing of whitespaces.")
         add_arg("--junk", help="The junk to ignore.")
         add_arg("--processing_type", help="'sequential' or 'parallel'", default="parallel")
-
+        add_arg("--dir_filter", help="The directories to consider", default="")
         return parser
         
 if __name__ == "__main__":

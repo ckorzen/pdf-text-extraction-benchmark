@@ -297,10 +297,15 @@ public class TeXParagraphParserMain {
     ExecutorService executor = Executors.newFixedThreadPool(12);
 
     long start = System.currentTimeMillis();
-    for (Path file : this.inputFiles) {
-      Runnable worker = new CancelableTexFileWorker(file, 1, TimeUnit.MINUTES);
-      executor.execute(worker);
+    for (Path p : this.inputFiles) {
+      System.out.println(p);
     }
+    System.out.println(this.inputFiles.size());
+    
+//    for (Path file : this.inputFiles) {
+//      Runnable worker = new CancelableTexFileWorker(file, 1, TimeUnit.MINUTES);
+//      executor.execute(worker);
+//    }
 
     executor.shutdown();
     while (!executor.isTerminated()) {
@@ -322,7 +327,7 @@ public class TeXParagraphParserMain {
       Iterator<Path> itr = ds.iterator();
       while (itr.hasNext()) {
         Path next = itr.next();
-
+        
         if (considerPath(next)) {
           if (Files.isDirectory(next)) {
             readDirectory(next, res);

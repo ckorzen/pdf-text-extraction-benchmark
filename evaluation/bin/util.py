@@ -1,6 +1,7 @@
 import unicodedata
 import re
 import string
+import diff
 
 def update_file_extension(path, new_file_extension):
     ''' Returns the given path where the actual file extension is replaced by 
@@ -63,16 +64,19 @@ def to_list(arg, default, separator=" "):
         return default
 
 def ignore_phrase(phrase, junk=[]):
-    if phrase:
-        for target_word in phrase.words_target:           
-            if ignore_word(target_word, junk):
-                return True
+    if phrase is None:
+        return False
+        
+    if not isinstance(phrase, diff.DiffPhrase):
+        return False
 
-    return False
+    for target_word in phrase.words_target:           
+        if ignore_word(target_word, junk):
+            return True
 
 def ignore_word(word, junk=[]):
     if word:
-        if any(re.search(regex, word.text) for regex in junk):
+        if any(re.search(regex, str(word)) for regex in junk):
             return True
 
     return False
@@ -231,15 +235,15 @@ def to_formatted_paragraphs(text, to_lower=True, excludes=[]):
     formatted word and the original word (including trailing whitespaces).
          
     >>> to_formatted_paragraphs("Foo Bar")
-    [[('foo', 'Foo '), ('bar', 'Bar')]]
+    [[('foo', 'Foo '), ('bar', 'Bar ')]]
     >>> to_formatted_paragraphs("Foo \\n\\n Bar")
-    [[('foo', 'Foo \\n\\n ')], [('bar', 'Bar')]]
+    [[('foo', 'Foo \\n\\n ')], [('bar', 'Bar ')]]
     >>> to_formatted_paragraphs("Foo [formula]")
-    [[('foo', 'Foo '), ('formula', 'formula')]]
+    [[('foo', 'Foo '), ('formula', '[formula] ')]]
     >>> to_formatted_paragraphs("Foo-bar-baz", excludes=["\[formula\]"])
-    [[('foo', 'Foo'), ('bar', 'bar'), ('baz', 'baz')]]
+    [[('foo', 'Foo-'), ('bar', 'bar-'), ('baz', 'baz ')]]
     >>> to_formatted_paragraphs("Foo [formula]", excludes=["\[formula\]"])
-    [[('foo', 'Foo '), ('[formula]', '[formula]')]]
+    [[('foo', 'Foo '), ('[formula]', '[formula] ')]]
     """
        
     # Compose the text (merge decomposed characters).
@@ -268,30 +272,40 @@ def _to_formatted_paragraph(para_words, to_lower=True, excludes=[]):
         
     for word, word_with_ws in para_words:         
         # Check if we have to exclude the word from formatting. The word may be 
-        # nested within a prefix and/or a suffix, like "foo[formula]bar", with
-        # prefix "foo", the word "[formula]" to exclude and suffix "bar". 
+        # nested within a prefix and/or a suffix, like 
+        # (1) "foo[formula]bar" or (2) "([formula])". 
+        # In case of (1), we want to separate the prefix and suffix from 
+        # [formula] to handle them separately. 
+        # In case of (2), we do *not* want to separate the prefix/suffix, but
+        # handle the word as a whole.
         prefix, exclude, suffix = _check_exclude_word(word, excludes)
-                  
+                             
         if exclude:
-            # We have to exclude the word. Check if there is a prefix
-            if prefix is not None and len(prefix) > 0:
-                # Format the prefix. to_formatted_paragraphs returns list of 
-                # list. We only need the first element.
+            # We have to exclude the word. Check if we have to exclude a prefix/
+            # suffix.
+            
+            exclude_prefix = not prefix or _check_exclude_char(prefix)
+            exclude_suffix = not suffix or _check_exclude_char(suffix)
+            
+            if not exclude_prefix:                
+                # Format the prefix. to_formatted_paragraphs returns list 
+                # of list. We only need the first list.
                 paras = to_formatted_paragraphs(prefix, to_lower, excludes)
                 if len(paras) > 0:
                     result.extend(paras[0])
             
             # Given the word to exclude, cut the related part from word_with_ws
-            # "foo[formula]bar" -> "[formula]".
-            len_prefix = len(prefix) if prefix is not None else 0
-            len_suffix = len(suffix) if suffix is not None else 0
+            # (1) "foo[formula]bar" -> "[formula]".
+            # (2) "([formula])"     -> "([formula])".
+            len_prefix = len(prefix) if not exclude_prefix else 0
+            len_suffix = len(suffix) if not exclude_suffix else 0
             start = len_prefix
             end = len(word_with_ws) - len_suffix
             result.append((exclude, word_with_ws[start : end]))
-            
-            if len(suffix) > 0:
-                # Format the suffix. to_formatted_paragraphs returns list of 
-                # list. We only need the first element.
+                        
+            if not exclude_suffix:
+                # Format the suffix. to_formatted_paragraphs returns list 
+                # of list. We only need the first list.
                 paras = to_formatted_paragraphs(suffix, to_lower, excludes)
                 if len(paras) > 0:
                     result.extend(paras[0])
@@ -301,30 +315,30 @@ def _to_formatted_paragraph(para_words, to_lower=True, excludes=[]):
             # Split them on special characters into "ice" and "cold".
             prev_split = -1          
                           
-            word_chars = list(word)
-            # Iterate through the characters to detect characters to exclude.
-            for i in range(0, len(word_chars)):
-                if _check_exclude_char(word_chars, i):
-                    word_fragment = word[prev_split + 1 : i]
-                    # Cut the word_with_ws *with* special char (i + 1)                     
+            # Iterate *inner* characters. We don't want to split outer special 
+            # characters, i.e. don't split "(3)"
+            for i in range(1, len(word) - 1):
+                if _check_exclude_char(word, i):
+                    word_fragment = _filter_chars(word[prev_split + 1 : i])
                     word_with_ws_fragment = word_with_ws[prev_split + 1 : i + 1]
                                                   
                     if to_lower:
                         word_fragment = word_fragment.lower()
                                 
-                    if len(word_fragment) > 0 or len(word_with_ws_fragment) > 0:
+                    if len(word_fragment) > 0:
                         result.append((word_fragment, word_with_ws_fragment))
                             
                     prev_split = i
              
             # Don't forget the rest of the word.  
-            word_fragment = word[prev_split + 1 : ]
+            # word_fragment = word[prev_split + 1 : ]
+            word_fragment = _filter_chars(word[prev_split + 1 : ])
             word_with_ws_fragment = word_with_ws[prev_split + 1 : ]
             
             if to_lower:
                 word_fragment = word_fragment.lower()
                     
-            if len(word_fragment) > 0 or len(word_with_ws_fragment) > 0:
+            if len(word_fragment) > 0:
                 result.append((word_fragment, word_with_ws_fragment)) 
                                                                 
     return result
@@ -367,9 +381,9 @@ def get_words_per_paragraph(text, keep_whitespaces=True):
     'word_with_ws' represents the word *with* trailing whitespaces. 
     
     >>> get_words_per_paragraph("Foo Bar")
-    [[('Foo', 'Foo '), ('Bar', 'Bar')]]
+    [[('Foo', 'Foo '), ('Bar', 'Bar ')]]
     >>> get_words_per_paragraph("foo \\n\\n bar")
-    [[('foo', 'foo \\n\\n ')], [('bar', 'bar')]]
+    [[('foo', 'foo \\n\\n ')], [('bar', 'bar ')]]
     """
     
     paragraphs = []
@@ -443,14 +457,15 @@ def _check_exclude_word(word, excludes=[]):
             # Check for leading and trailing strings.
             prefix, suffix = "", ""
             start, end = exclude.start(), exclude.end()
+                        
             if start > 0:
                # There is some prefix. Format it.
                prefix = word[ : start]
             
             # Append the word to protect as it is.
             exclude_word = word[start : end]
-            
-            if end < len(word) - 1:
+                        
+            if end < len(word):
                 # There is some succeeding string. Format it.
                 suffix = word[end : ]
                 
@@ -458,9 +473,13 @@ def _check_exclude_word(word, excludes=[]):
             
     return "", "", ""
 
-def _check_exclude_char(word_chars, i): 
-    """ Returns True if we have to exclude the i-th character in the given 
-    array of characters, False otherwise.
+def _check_exclude_char(word_chars, i=None): 
+    """ 
+    Returns True when i is set and we have to exclude the i-th character in 
+    the given array of characters.
+    Returns True when i is *not* set and we have to exclude *all* characters in
+    the given array.
+    Returns False otherwise.
     
     >>> _check_exclude_char(["a", "-", "b"], 0)
     False
@@ -473,23 +492,32 @@ def _check_exclude_char(word_chars, i):
     if word_chars is None:
         return False
     
-    if i < 0:
+    start = i if i is not None else 0
+    end   = i + 1 if i is not None else len(word_chars)
+    
+    if start < 0:
         return False
     
-    if i > len(word_chars) - 1:
+    if start == end:
         return False
     
-    char = word_chars[i]
+    if start > len(word_chars):
+        return False
+    
+    for j in range(start, end):
+        char = word_chars[j]
              
-    if not SPECIAL_CHARS_PATTERN.match(char):
-        return False 
+        if not SPECIAL_CHARS_PATTERN.match(char):
+            return False 
     
-    # Don't split the word if the special char lies between
-    # two digits (i.e. keep things like '1.23')
-    if char == "." and i > 0 and i < len(word_chars) - 1:
-        prev_char = word_chars[i - 1]
-        next_char = word_chars[i + 1]
-        if prev_char.isdigit() and next_char.isdigit():
-            return False
+        # Don't split the word if the special char lies between
+        # two digits (i.e. keep things like '1.23')
+        if char == "." and j > 0 and j < len(word_chars) - 1:
+            prev_char = word_chars[j - 1]
+            next_char = word_chars[j + 1]
+            if prev_char.isdigit() and next_char.isdigit():
+                return False
     
     return True
+    
+   

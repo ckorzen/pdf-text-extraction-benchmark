@@ -115,7 +115,7 @@ class Extractor:
     
     def format_output(self, output_path):        
         if not self.is_missing_or_empty(output_path):
-            with open(output_path, "r") as output_file: 
+            with open(output_path, "r", errors='ignore') as output_file: 
                 return output_file.read()
         else:
             return ""

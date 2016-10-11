@@ -11,28 +11,10 @@ def rearrange(diff_phrases, junk=[]):
     because their order in actual and target doesn't correspond. """
 
     # Rearrange those phrases, which are declared as diff.Replace.
-    rearranged_phrases = rearrange_phrases(diff_phrases)
+    rearrange_phrases(diff_phrases)
        
-    # Resolve the replaces.
-    result = []
-    for i in range(0, len(diff_phrases)):
-        prev_phrase = diff_phrases[i - 1] if i > 0 else None
-        phrase = diff_phrases[i]
-        next_phrase = diff_phrases[i + 1] if i < len(diff_phrases) - 1 else None
-
-        if isinstance(phrase, diff.DiffReplacePhrase):
-            resolved = resolve_replace(prev_phrase, phrase, next_phrase, junk)
-            
-            # Ignore phrases with empty actual words *and* empty target words.
-            if resolved is not None:
-                for r in resolved:
-                    if r is not None and (len(r.words_actual) > 0 or len(r.words_target) > 0):
-                        result.append(r)
-        else:
-            result.append(phrase)
-                    
-    return result
-
+    return resooolve(diff_phrases)
+       
 def rearrange_phrases(diff_phrases):
     """ Tries to identify phrases in diff_result, which occur in both, 'actual' 
     and 'target' but are indeed declared as diff.Replace in given diff_result 
@@ -48,11 +30,11 @@ def rearrange_phrases(diff_phrases):
     for diff_phrase in diff_phrases:
         if isinstance(diff_phrase, diff.DiffReplacePhrase):
             for word in diff_phrase.words_target:
-                inserts_index.setdefault(word.text, []).append(word)
+                inserts_index.setdefault(str(word), []).append(word)
                 # Initialize new field "match" that is used to mark this word
                 # as matched/unmatched.                
                 word.match = None
-            inserts.append(diff_phrase.words_target)
+            inserts.append((diff_phrase, diff_phrase.words_target))
 
     # Create index from all deletes (phrases in 'actual' which could not be 
     # matched to a phrase in 'target').
@@ -61,7 +43,7 @@ def rearrange_phrases(diff_phrases):
         if isinstance(diff_phrase, diff.DiffReplacePhrase):
             for word in diff_phrase.words_actual:
                 # Fetch all match candidates and associate them with the word.
-                word.candidates = inserts_index.get(word.text, [])
+                word.candidates = inserts_index.get(str(word), [])
                 # Initialize new field "match" that is used to mark this word
                 # as matched/unmatched.
                 word.match = None
@@ -75,8 +57,8 @@ def rearrange_phrases(diff_phrases):
         # Compute the longest possible "run". That is the longest (sub)phrase 
         # for which a matching phrase was found.
         run = find_longest_run(delete)
-        
-        if run:
+                
+        if run:                    
             # The queue is min-based, so put a negative priority.
             runs.put((-len(run), run))
             
@@ -162,121 +144,13 @@ def rearrange_phrases(diff_phrases):
                     runs_by_item.discard(obsolete_run)
                     runs_by_item.add(new_run)
 
-def resolve_replace(prev_word, replace, next_word, junk=[]):
-    """ Resolves the given replace to a sequence of diff.Replace and 
-    rearrange.Rearrange objects. """
-
-    # __________________________________________________________________________
-    # Identify the words that couldn't be rearranged and all words that could
-    # be rearranged in any run. The result is a list of all "unrearranged"
-    # words and a list of list of all rearranged words.
-    #    
-    # simplified example: 
-    # Let words_actual = "foo bar baz boo far faz" and lets say "bar baz" and 
-    # "boo far" could be rearranged to (different) positions. We compute:
-    # 
-    # unrearranged_words = ["foo", "faz"] and
-    # rearranged_words_lists = [["bar", "baz"], ["boo", "far"]]
-
-    i = 0
-    unrearranged_words = []
-    rearranged_words_lists = []
-    while i < len(replace.words_actual):
-        word = replace.words_actual[i]
-
-        if word.run:
-            # The word has a run and thus could be rearranged. Proceed as long
-            # next words belongs to the same run.
-            rearranged_words = [word]
-            while i + 1 < len(replace.words_actual):
-                next_word = replace.words_actual[i + 1]
-
-                # Abort if next word has no run or belongs to another run.
-                if not next_word.run or next_word.run != word.run:
-                    break
-
-                rearranged_words.append(next_word)
-                i += 1
-            # Append the rearranged words to result if it is non-empty.            
-            if rearranged_words:         
-                rearranged_words_lists.append(rearranged_words)
-        else:
-            # The word has no run and thus couldn't be rearranged. Add it to 
-            # unrearranged words.
-            unrearranged_words.append(word)
-        i += 1
-
-    # __________________________________________________________________________
-    # Split the (unmatched) target words into sequences of junk and non-junk 
-    # words. 
-    #    
-    # simplified example: 
-    # Let words_target = "foo bar JUNK1 baz JUNK2" with junk words "JUNK1" and 
-    # "JUNK2". We compute:
-    # 
-    # junk_target_words = ["JUNK1", "JUNK2"] and 
-    # non_junk_target_words = ["foo", "bar", "baz"]
-
-    # Obtain all unmatched target words.
-    unmatched_target_words = [x for x in replace.words_target if not x.match]
-
-    junk_target_words = []
-    non_junk_target_words = []
-        
-    for i in range(0, len(unmatched_target_words)):
-        word = unmatched_target_words[i]
-
-        if util.ignore_word(word, junk):
-            # The word is a junk word.
-            junk_target_words.append(word)
-        else:
-            # The word is not a junk word.
-            non_junk_target_words.append(word)
-
-    # __________________________________________________________________________
-    # Setup the sequence of diff.Replace and rearrange.Rearrange objects.
-
-    result = []
-     
-    if not junk_target_words:    
-        # There are no junk words. So create a single replace object with the
-        # unrearranged_words as actual words and the non_junk_target_words as 
-        # the target words.   
-        words_actual = unrearranged_words
-        words_target = non_junk_target_words 
-        result.append(diff.DiffReplacePhrase(words_actual, words_target))
-    else:
-        # There is at least one junk word. We will assign each unrearranged 
-        # actual word to a junk word. Because the junk words will be ignored 
-        # from further process, we can ignore all unrearranged words.
-        #for i in range(0, len(junk_target_words)):
-        words_actual = unrearranged_words
-        words_target = [junk_target_words[0]]
-        result.append(diff.DiffReplacePhrase(words_actual, words_target))
-
-        # Create a single replace object that considers the remaining non junk
-        # target words.
-        if non_junk_target_words:
-            words_actual = unrearranged_words
-            words_target = non_junk_target_words
-            result.append(diff.DiffReplacePhrase(words_actual, words_target))
-
-    # Iterate through the rearranged lists and setup the rearrange.Rearrange 
-    # objects.
-    for i in range(0, len(rearranged_words_lists)):  
-        words_actual = rearranged_words_lists[i]
-        words_target = [x.match for x in words_actual]
-        result.append(DiffRearrangePhrase(words_actual, words_target))
-
-    return result
-
 def find_longest_run(delete):
     """ Computes the longest possible "run" (subphrase) of given delete that 
     could be matched to insertion position. """
 
     if not delete:
         return None
-    
+        
     # The runs found so far.
     active_runs = []
     # The longest run found so far.
@@ -319,14 +193,14 @@ def find_longest_run(delete):
             # Obtain the position of the deletion (could be None).
             pos = None
             if insert_word is not None:
-                pos = insert_word.wrapped[1] # the flat position.
+                pos = insert_word.wrapped.global_pos # the flat position.
             
             if pos is not None: # There is a matched deletion.
                 # Check, if there are runs with end element 'pos-1'
                 if pos - 1 in prev_runs_by_end_words:
                     # There are runs that end with 'pos-1'. 
                     run_indices = prev_runs_by_end_words[pos - 1]
-                    
+                                  
                     for run_index in run_indices:
                         # Append the element to the run.
                         run = prev_active_runs[run_index]
@@ -343,7 +217,7 @@ def find_longest_run(delete):
                         # Update the maps
                         runs_by_end_words[pos].add(new_run_index)
                         end_words_by_runs[new_run_index].add(pos)
-                else:                   
+                else:                             
                     # There is no run that end with 'pos-1'.
                     # Create new run.
                     new_run = unmatched_queue
@@ -380,7 +254,7 @@ def find_longest_run(delete):
                     if len(active_run) > len(longest_run):
                         longest_run = active_run
 
-    #if len(longest_run) > 5: # TODO
+    #if len(longest_run) > 3: # TODO
     if longest_run:
         return longest_run
     else:
@@ -394,9 +268,12 @@ class DiffRearrangePhrase(diff.DiffPhrase):
     def __init__(self, words_actual, words_target):
         super(DiffRearrangePhrase, self).__init__(words_actual, words_target)
         
+        self.sub_phrases = []
+        self.chunks = []
+        
         # Need to adapt the pos array.
         if len(words_actual) > 0 and len(words_target) > 0:
-            self.pos = [words_actual[0].pos[0], words_target[0].pos[1]]
+            self.pos = list(words_target[0].pos)
 
     def get_str_pattern(self):
         return "[~ %s, %s]"
@@ -407,12 +284,15 @@ class DiffRun:
     
     def __init__(self, delete):
         """" Creates a new run based on the given delete. """
+        self.matched_phrase = None
         self.delete = delete
         self.items = []
         self.is_obsolete = False
         
     def add(self, item):
         """ Adds the given run item to this run. """
+        if not self.matched_phrase:
+            self.matched_phrase = item.insert_item.phrase
         self.items.append(item)
     
     def __len__(self):
@@ -430,3 +310,161 @@ class DiffRunItem:
         """ Creates a new DiffRunItem. """
         self.delete_item = delete_item
         self.insert_item = insert_item
+        
+ 
+class Chunk:
+    """"""
+    
+    def __init__(self):
+        self.words = []
+     
+    def append(self, word):
+        self.words.append(word)
+        
+    def is_empty(self):
+        return len(self.words) == 0   
+        
+    @property
+    def phrase(self):
+        for word in self.words:
+            match = word.match if word is not None else None
+            if match is not None:
+                return match.phrase
+        return None
+    
+    @property
+    def pos(self):
+        for word in self.words:
+            match = word.match if word is not None else None
+            if match is not None:
+                return match.pos
+        return None
+        
+    @property
+    def text(self):
+        return " ".join(word.text for word in self.words)
+            
+replace_rearrange_dict = dict()     
+
+
+        
+        
+def resooolve(phrases):
+    """ Resolves the replace phrases in the given diff phrases."""
+    result = []
+
+    # Obtain all replace phrases.
+    replaces = [x for x in phrases if isinstance(x, diff.DiffReplacePhrase)] 
+    # Obtain all other phrases.
+    other    = [x for x in phrases if not isinstance(x, diff.DiffReplacePhrase)] 
+
+    # Resolve the replaces and append it to result list.
+    result.extend(resooolve_replaces(replaces))
+    # Append all other phrases to result list.
+    result.extend(other)
+        
+    # Sort the result by position.
+    result.sort(key=lambda phrase: phrase.pos)
+                                 
+    return result
+        
+def resooolve_replaces(replaces):
+    replace_rearrange_dict = {}    
+ 
+    for replace in replaces:
+        # Find the chunks in actual words of given replace. That are fragments 
+        # to rearrange to another replace phrase. A fragment extends until a
+        # word is reached that should be rearranged to another phrase.
+        # Example:
+        # The red fox jumps over the red fox.
+        # ^   ^             ^            ^
+        # A   A             B            C
+        #
+        # The words "The", "red", "over" "fox" should be rearranged to the 
+        # phrases A/B/C. Other words are unmatched. We will find the chunks
+        # "The red fox jums", that is rearranged to A, the chunk "over the red",
+        # that is rearranged to B and the chunk "fox", that is rearranged to C.
+        chunks = chunkify(replace)
+                      
+        # Proceed with computed chunks. 
+        for chunk in chunks:
+            # Only consider chunks which could be matched to another phrase.
+            if chunk.phrase is None:
+                continue
+
+            # Check, if there is already a rearrange phrase for the phrase.
+            rearrange = replace_rearrange_dict.get(chunk.phrase, None)
+            if rearrange is None:            
+                # Create a new rearrange phrase.
+                rearrange = DiffRearrangePhrase([], [])
+                replace_rearrange_dict[chunk.phrase] = rearrange
+                
+                rearrange.pos = chunk.phrase.pos
+                rearrange.chunks.append(chunk)
+                rearrange.words_target.extend(chunk.phrase.words_target)
+                
+                # Delete all words of the chunk from the phrase.
+                replace.words_actual = [x for x in replace.words_actual if x not in chunk.words]
+
+                chunk.phrase.words_target = []
+            else:    
+                # Register the chunk in rearrange phrase.
+                rearrange.chunks.append(chunk)
+                
+                # Delete all words of the chunk from the phrase.
+                replace.words_actual = [x for x in replace.words_actual if x not in chunk.words]
+        
+    # Pick up all remaining non-empty replace phrases.
+    rearranges = list(replace_rearrange_dict.values())
+    replaces = [x for x in replaces if not x.is_empty()]
+    
+    for rearrange in rearranges:
+        # Bring the chunks into correct order.
+        rearrange.chunks.sort(key=lambda chunk: chunk.pos)
+        # Fill the actual words from chunks.
+        rearrange.words_actual = [word for chunk in rearrange.chunks for word in chunk.words]
+        
+        # Compute sub phrases.
+        words_actual = [x.wrapped for x in rearrange.words_actual]
+        words_target = [x.wrapped for x in rearrange.words_target]   
+        rearrange.sub_phrases = diff.diff(words_actual, words_target)
+
+    return rearranges + replaces  
+    
+    
+def chunkify(replace):
+    chunks = []
+    chunk  = Chunk()
+   
+    prev_match_phrase = None
+    prev_pos_in_match_phrase = None
+                                                                                                            
+    for word in replace.words_actual:
+        # We need to know if the word should be rearranged to another 
+        # phrase than the previous word. 
+                
+        match = word.match if word is not None else None 
+        match_phrase = match.phrase if match is not None else None
+        pos_in_match_phrase = match.pos if match is not None else None
+                                
+        differ_match_phrase = False
+        if prev_match_phrase and match_phrase:
+            differ_match_phrase = prev_match_phrase != match_phrase
+                            
+        # Introduce new chunk, if previous and current matched phrase exist
+        # and if they differ from each other or if pos differ.
+        if match_phrase and not chunk.is_empty():
+            chunks.append(chunk)
+            chunk = Chunk()
+                    
+        chunk.append(word)
+            
+        if match_phrase:
+            prev_match_phrase = match_phrase
+        if pos_in_match_phrase:
+            prev_pos_in_match_phrase = pos_in_match_phrase
+      
+    if not chunk.is_empty():                                               
+        chunks.append(chunk) 
+                                
+    return chunks         

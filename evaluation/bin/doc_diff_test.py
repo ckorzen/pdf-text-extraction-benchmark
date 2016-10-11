@@ -1,11 +1,14 @@
 import unittest
 import doc_diff
+import doc_diff_count_num_ops as count_num_ops
+import doc_diff_visualize as visualize
 
 class DocDiffTest(unittest.TestCase):
     
     def assert_equal(self, input1, input2, expected):
         diff_phrases = doc_diff.doc_diff(input1, input2)
-        num_ops      = doc_diff.count_num_ops(diff_phrases)
+        num_ops      = count_num_ops.count_num_ops(diff_phrases)
+                
         self.assertDictEqual(dict(num_ops), expected)
     
     def test_common(self):
@@ -38,13 +41,13 @@ class DocDiffTest(unittest.TestCase):
         input2 = "bar foo"
         expected = { 'num_word_inserts': 1, 'num_word_deletes': 1 }
         self.assert_equal(input1, input2, expected)
-    
+        
         # Test rearrange with single paragraph and *paragraph* operations.
         input1 = "foo bar baz boo doo goo gol bol koi foi hul xxx"
         input2 = "gol bol koi foi hul xxx foo bar baz boo doo goo"
-        expected = { 'num_para_rearranges': 1 }
+        expected = { 'num_para_rearranges': 1, 'num_para_splits': 1 }
         self.assert_equal(input1, input2, expected)
-    
+        
         # Test rearrange with 2 paragraphs and *word* operations.
         input1 = """
         foo bar
@@ -56,9 +59,9 @@ class DocDiffTest(unittest.TestCase):
         
         foo bar
         """
-        expected = { 'num_word_inserts': 2, 'num_word_deletes': 2 }
+        expected = { 'num_para_rearranges': 1 }
         self.assert_equal(input1, input2, expected)
-            
+                        
         # Test rearrange with 2 paragraphs and *paragraph* operations.
         input1 = """
         foo bar baz boo doo goo
@@ -72,17 +75,17 @@ class DocDiffTest(unittest.TestCase):
         """
         expected = { 'num_para_rearranges': 1 }
         self.assert_equal(input1, input2, expected)
-        
+                
         # Test rearrange whithin single paragraph where the rearrange is a short inner string.    
         input1 = "foo bar baz boo doo koo"
         input2 = "foo bar doo koo baz boo"
         expected = { 'num_word_inserts': 2, 'num_word_deletes': 2 }
         self.assert_equal(input1, input2, expected)
-        
+                
         # Test paragraph rearrange whithin single paragraph where the rearrange is a long inner string.
         input1 = "foo bar baz jojo hoko baw kli blu glu doo koo doo koo doo koo doo"
         input2 = "foo bar doo koo doo koo doo koo doo baz jojo hoko baw kli blu glu"
-        expected = { 'num_para_rearranges': 1 }
+        expected = { 'num_para_rearranges': 1, 'num_para_splits': 2}
         self.assert_equal(input1, input2, expected)
         
     def test_substitutes(self):
@@ -95,19 +98,31 @@ class DocDiffTest(unittest.TestCase):
         # Test long replace within single paragraph.
         input1 = "foo xxx yyy zzz aaa bbb ccc ddd"
         input2 = "foo 111 222 333 444 555 666 777"
-        expected = { 'num_word_replaces': 7 }
+        expected = { 'num_para_replaces': 1 }
         self.assert_equal(input1, input2, expected)
         
         # Test replaces with different lengths.
         input1 = "foo xxx"
-        input2 = "foo 111 222 333 444 555 666 777"
-        expected = { 'num_word_replaces': 1, 'num_word_inserts': 6 }
+        input2 = "foo 111 222"
+        expected = { 'num_word_replaces': 1, 'num_word_inserts': 1 }
+        self.assert_equal(input1, input2, expected)
+
+        # Test replaces with different lengths.
+        input1 = "foo xxx"
+        input2 = "foo 111 222 333"
+        expected = { 'num_para_replaces': 1 }
+        self.assert_equal(input1, input2, expected)
+
+        # Test replaces with different lengths.
+        input1 = "foo 111 222"
+        input2 = "foo xxx"
+        expected = { 'num_word_replaces': 1, 'num_word_deletes': 1 }
         self.assert_equal(input1, input2, expected)
 
         # Test replaces with different lengths.
         input1 = "foo 111 222 333 444 555 666 777"
         input2 = "foo xxx"
-        expected = { 'num_word_replaces': 1, 'num_word_deletes': 6 }
+        expected = { 'num_para_replaces': 1 }
         self.assert_equal(input1, input2, expected)
 
         # Test replace across paragraphs boundaries.
@@ -144,7 +159,7 @@ class DocDiffTest(unittest.TestCase):
         doo goo
         """
         input2 = """foo bar"""
-        expected = { 'num_word_deletes': 4 }
+        expected = { 'num_para_deletes': 2 }
         self.assert_equal(input1, input2, expected)
         
         # Test two deletes within paragraphs.
@@ -156,7 +171,7 @@ class DocDiffTest(unittest.TestCase):
         doo goo
         """
         input2 = """foo bar"""
-        expected = { 'num_word_deletes': 2, 'num_para_deletes': 1 }
+        expected = { 'num_para_deletes': 2 }
         self.assert_equal(input1, input2, expected)
         
 
@@ -197,7 +212,7 @@ class DocDiffTest(unittest.TestCase):
         
         koo loo
         """
-        expected = { 'num_word_deletes': 6 }
+        expected = { 'num_para_deletes': 2 }
         self.assert_equal(input1, input2, expected)
                
     def test_inserts(self):
@@ -220,7 +235,7 @@ class DocDiffTest(unittest.TestCase):
         
         baz boo
         """
-        expected = { 'num_word_inserts': 2 }
+        expected = { 'num_para_inserts': 1 }
         self.assert_equal(input1, input2, expected)
         
         # Test long insert within two paragraphs.
@@ -242,7 +257,7 @@ class DocDiffTest(unittest.TestCase):
         
         doo goo
         """
-        expected = { 'num_word_inserts': 4 }
+        expected = { 'num_para_inserts': 2 }
         self.assert_equal(input1, input2, expected)
         
         # Test two inserts within paragraphs.
@@ -254,7 +269,7 @@ class DocDiffTest(unittest.TestCase):
         
         doo goo
         """
-        expected = { 'num_word_inserts': 2, 'num_para_inserts': 1 }
+        expected = { 'num_para_inserts': 2 }
         self.assert_equal(input1, input2, expected)
         
         # Test short inner insert.
@@ -282,7 +297,7 @@ class DocDiffTest(unittest.TestCase):
         """
         expected = { 'num_word_inserts': 2 }
         self.assert_equal(input1, input2, expected)
-    
+        
         # Test delete across paragraph boundaries.
         input1 = """
         foo bar
@@ -294,7 +309,7 @@ class DocDiffTest(unittest.TestCase):
         
         goo goo goo koo loo
         """
-        expected = { 'num_word_inserts': 6 }
+        expected = { 'num_para_inserts': 2 }
         self.assert_equal(input1, input2, expected)
                    
         # Test insert of a short paragraph.
@@ -306,7 +321,7 @@ class DocDiffTest(unittest.TestCase):
                 
         bar
         """
-        expected = { 'num_word_inserts': 1 }
+        expected = { 'num_para_inserts': 1 }
         self.assert_equal(input1, input2, expected)
                         
         # Test insert of a long paragraph.
