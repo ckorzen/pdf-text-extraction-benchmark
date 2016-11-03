@@ -3,19 +3,21 @@ from lxml import etree
 from os.path import isfile
 from os.path import getsize
 
+import file_util
+
 title_xpath = "title"
 sections_xpath = "(/pdf/section)"
 line_xpath = "(./line)"
 
 class PdfExtractExtractor(Extractor):
     
-    def format_output(self, output_path):
+    def create_plain_output(self, raw_output_path):
         """ 
         Formats the given file.
         """
      
-        if not self.is_missing_or_empty(output_path):
-            xml = etree.parse(output_path, etree.XMLParser(recover=True))
+        if not file_util.is_missing_or_empty_file(raw_output_path):
+            xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
             
             sections = []
 
@@ -32,4 +34,7 @@ class PdfExtractExtractor(Extractor):
         return ""
 
 if __name__ == "__main__":
-    PdfExtractExtractor(Extractor.get_argument_parser().parse_args()).process() 
+    arg_parser = Extractor.get_argument_parser()
+    args       = arg_parser.parse_args()
+     
+    PdfExtractExtractor(args).process()
