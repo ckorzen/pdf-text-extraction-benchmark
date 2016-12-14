@@ -90,6 +90,7 @@ public class TeXMacroResolver extends TeXParser {
   public void preprocess(BufferedWriter writer) throws IOException,
     ParseException {
     Document document = parse();
+        
     while (document.hasNext()) {
       handleElement(document.next(), writer);
     }

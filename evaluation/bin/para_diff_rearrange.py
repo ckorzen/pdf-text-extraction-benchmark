@@ -12,7 +12,7 @@ def rearrange(diff_phrases, junk=[]):
 
     # Rearrange those phrases, which are declared as diff.Replace.
     rearrange_phrases(diff_phrases)
-       
+    
     return resooolve(diff_phrases)
        
 def rearrange_phrases(diff_phrases):
@@ -49,7 +49,7 @@ def rearrange_phrases(diff_phrases):
                 word.match = None
                 word.run = None
             deletes.append(diff_phrase.words_actual)
-
+    
     # Fill queue with runs.
     runs = PriorityQueue()
     runs_by_words = {}
@@ -143,7 +143,7 @@ def rearrange_phrases(diff_phrases):
                     runs_by_item = runs_by_words.setdefault(insert_item, set())
                     runs_by_item.discard(obsolete_run)
                     runs_by_item.add(new_run)
-
+                        
 def find_longest_run(delete):
     """ Computes the longest possible "run" (subphrase) of given delete that 
     could be matched to insertion position. """
@@ -254,8 +254,8 @@ def find_longest_run(delete):
                     if len(active_run) > len(longest_run):
                         longest_run = active_run
 
-    #if len(longest_run) > 3: # TODO
-    if longest_run:
+    if len(longest_run) > 3: # TODO
+    # if longest_run:
         return longest_run
     else:
         return unmatched_queue
@@ -342,7 +342,7 @@ class Chunk:
         
     @property
     def text(self):
-        return " ".join(word.text for word in self.words)
+        return " ".join(str(word) for word in self.words)
             
 replace_rearrange_dict = dict()     
 
@@ -371,7 +371,7 @@ def resooolve(phrases):
 def resooolve_replaces(replaces):
     replace_rearrange_dict = {}    
  
-    for replace in replaces:
+    for replace in replaces:    
         # Find the chunks in actual words of given replace. That are fragments 
         # to rearrange to another replace phrase. A fragment extends until a
         # word is reached that should be rearranged to another phrase.
@@ -423,12 +423,12 @@ def resooolve_replaces(replaces):
         rearrange.chunks.sort(key=lambda chunk: chunk.pos)
         # Fill the actual words from chunks.
         rearrange.words_actual = [word for chunk in rearrange.chunks for word in chunk.words]
-        
+                                  
         # Compute sub phrases.
         words_actual = [x.wrapped for x in rearrange.words_actual]
         words_target = [x.wrapped for x in rearrange.words_target]   
         rearrange.sub_phrases = diff.diff(words_actual, words_target)
-
+        
     return rearranges + replaces  
     
     

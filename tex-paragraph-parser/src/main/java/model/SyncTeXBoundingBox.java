@@ -5,6 +5,7 @@ import java.util.List;
 
 import de.freiburg.iif.model.HasRectangle;
 import de.freiburg.iif.model.Rectangle;
+import de.freiburg.iif.model.simple.SimpleRectangle;
 
 /**
  * A "position" (bounding box + page number) within pdf files.
@@ -53,7 +54,7 @@ public class SyncTeXBoundingBox implements HasRectangle {
    * Extends this box by given another box.
    */
   public void extend(SyncTeXBoundingBox other) {
-    this.rectangle = getRectangle().union(other.getRectangle());
+    getRectangle().unite(other.getRectangle());
     this.records.addAll(other.getRecords());
   }
 

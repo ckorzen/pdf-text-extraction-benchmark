@@ -3,41 +3,56 @@ import util
 import para_diff_rearrange as rearr
 import doc_diff_choose_para_or_word as choose
 
-def visualize_diff_phrases(diff_phrases, junk=[]):
+def visualize_diff_phrases(evaluation_result, junk=[]):
     """ Visualizes the given diff phrases. """
         
     visualizations = []
     
+    diff_phrases = evaluation_result.get("phrases", None)
+    
     if diff_phrases:
         # Visualize each single phrase.
         for phrase in diff_phrases: 
-            visualizations.extend(visualize_phrase(phrase))
+            visualizations.extend(visualize_phrase(phrase, junk))
         
         # Sort the instructions by defined positions.
         visualizations.sort(key=lambda v: v[1])
-    
+            
     return "".join([vis for vis, pos in visualizations])
     
 def visualize_phrase(phrase, junk=[]):
     """ Visualizes the given diff phrases. """
                 
     visualizations = []
-           
+                     
     # Collect the visualization instructions per phrase.    
-    if util.ignore_phrase(phrase, junk):
-        num_ops, vis = choose.apply_ignored_phrase(phrase)
+    
+    # Check for RearrangePhrase *before* phrase to ignore, because 
+    # RearrangePhrase has sub_phrases. The decision, if we have to ignore a 
+    # phrase should be make on the sub_phrases, not the rearrange phrase itself
+    # (for example, a very long RearrangePhrase could contain a junk word 
+    # and hence, the whole phrase would be ignored.
+    if isinstance(phrase, rearr.DiffRearrangePhrase):    
+        op_type, num_ops, num_ops_abs, vis = choose.apply_rearrange_phrase(phrase, junk)
+        visualizations.extend(vis)
+    elif util.ignore_phrase(phrase, junk):
+        op_type, num_ops, num_ops_abs, vis = choose.apply_ignored_phrase(phrase)
         visualizations.extend(vis)
     elif isinstance(phrase, diff.DiffCommonPhrase):
-        num_ops, vis = choose.apply_common_phrase(phrase)
+        op_type, num_ops, num_ops_abs, vis = choose.apply_common_phrase(phrase)
         visualizations.extend(vis)
     elif isinstance(phrase, diff.DiffReplacePhrase):
-        num_ops, vis = choose.apply_replace_phrase(phrase)
+        op_type, num_ops, num_ops_abs, vis = choose.apply_replace_phrase(phrase)
         visualizations.extend(vis)
-    elif isinstance(phrase, rearr.DiffRearrangePhrase):
-        num_ops, vis = choose.apply_rearrange_phrase(phrase)
-        visualizations.extend(vis)
-        
+             
     return visualizations
+    
+    
+    
+    
+    
+    
+    
   
 # ------------------------------------------------------------------------------
      

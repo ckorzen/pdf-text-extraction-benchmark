@@ -42,7 +42,7 @@ def para_diff(actual, target, junk=[]):
     # target_flatten = [('The', 0, [0, 0]), ..., ('Pack', 9, [0, 9]), ...] 
     flatten_actual = flatten(actual)
     flatten_target = flatten(target)
-  
+    
     # Do a word-based diff on 'actual_flatten' and 'target_flatten'. 
     # The result is a list of diff.DiffCommonPhrase and diff.DiffReplacePhrase 
     # objects denoting the operations to perform to transform actual_flatten 
@@ -68,7 +68,7 @@ def para_diff(actual, target, junk=[]):
     # Because diff doesn't know any paragraph boundaries (see above), we have
     # to divide the phrases to get phrases per actual paragraphs.                                                     
     diff_phrases = divide_phrases_into_paras(diff_phrases, "words_actual")
-                                                                             
+                                                                   
     # Assume, that there is a phrase that occur in both list, but its order in 
     # actual doesn't correspond to the order in target, for example:
     #
@@ -84,9 +84,9 @@ def para_diff(actual, target, junk=[]):
     # from actual and to insert it in target.
     # Try to find such phrases and to rearrange them.
     diff_phrases = rearr.rearrange(diff_phrases, junk)
-        
+                                                                           
     # Decide where we have to split resp. merge the paragraphs.
-    diff_phrases = split(diff_phrases)
+    diff_phrases = split(diff_phrases) 
     diff_phrases = merge(diff_phrases)
     
     return diff_phrases
@@ -102,7 +102,7 @@ def divide_phrases_into_paras(phrases, list_str):
     prev_word = None
         
     # Iterate through the phrases and divide them.
-    for phrase in phrases:    
+    for phrase in phrases:        
         paras, prev_word = divide_phrase_into_paras(phrase, list_str, prev_word)
         
         result.extend(paras)
@@ -122,20 +122,47 @@ def divide_phrase_into_paras(diff_phrase, list_name, prev_diff_word=None):
     # The last position where the given phrase was divided.
     last_divide_pos = 0
     
-    def divide_diff_phrase(diff_phrase, pos):
-        """ Divides the given phrase at the given position. Returns a new
+    def divide_diff_phrase(diff_phrase, pos, list_name):
+        """ Divides the given phrase at the given position in given list_name
+        ("words_actual" or "words_target"). Returns a new
         phrase of same type as the given phrase containing the words in
         bounds of last_divide_pos and pos. """
             
-        nonlocal last_divide_pos
+        nonlocal last_divide_pos        
         klass = type(diff_phrase)
 
-        # Thanks to python, we don't have to care about index bounds here.
-        new_diff_words_actual = diff_phrase.words_actual[last_divide_pos : pos]
-        new_diff_words_target = diff_phrase.words_target[last_divide_pos : pos]
-            
+        # Dividing a diff phrase is trivial, if the phrase is a DiffCommonPhrase
+        # or a DiffRearrangePhrase, because they same number of actual and 
+        # target words and their positions are well defined.
+        if klass is diff.DiffCommonPhrase or klass is rearr.DiffRearrangePhrase:
+            # Thanks to python, we don't have to care about index bounds here.
+            words_actual = diff_phrase.words_actual[last_divide_pos : pos]
+            words_target = diff_phrase.words_target[last_divide_pos : pos]
+        else:
+            # If the phrase is a DiffReplacePhrase, the number of actual words
+            # and target words may differ and the divide position is not so 
+            # clear.
+            if list_name == "words_actual":
+                # The phrase should be divided based on actual words.
+                # Take the predefined range of actual words and *all* target 
+                # words.
+                words_actual = diff_phrase.words_actual[last_divide_pos : pos]
+                words_target = diff_phrase.words_target[ : ]
+                # Clear the target words such that they are not available 
+                # anymore in the next round.
+                diff_phrase.words_target = []
+            else:
+                # The phrase should be divided based on target words.
+                # Take *all* actual words; and the predefined range of target 
+                # words.
+                words_actual = diff_phrase.words_actual[ : ]
+                words_target = diff_phrase.words_target[last_divide_pos : pos]
+                # Clear the actual words such that they are not available 
+                # anymore in the next round.
+                diff_phrase.words_actual = []
+                
         # Create new phrase, based on the type of given phrase.
-        new_diff_phrase = klass(new_diff_words_actual, new_diff_words_target)
+        new_diff_phrase = klass(words_actual, words_target)
             
         last_divide_pos = pos
           
@@ -146,13 +173,13 @@ def divide_phrase_into_paras(diff_phrase, list_name, prev_diff_word=None):
     # Iterate through the predefined list of words.
     diff_words = getattr(diff_phrase, list_name)
     
-    for i in range(0, len(diff_words)):
-        diff_word = diff_words[i]                                                                       
+    for i in range(1, len(diff_words)):
+        diff_word = diff_words[i]                             
         
         # Decide if we have to divide the phrase.
         if is_para_break_before(diff_word):
             # Divide the phrase
-            divided_phrase = divide_diff_phrase(diff_phrase, i)  
+            divided_phrase = divide_diff_phrase(diff_phrase, i, list_name)  
             if not divided_phrase.is_empty():
                 result.append(divided_phrase)
         
@@ -165,7 +192,7 @@ def divide_phrase_into_paras(diff_phrase, list_name, prev_diff_word=None):
         result.append(diff_phrase)
     else:
         # Create new phrase from the rest of the phrase.
-        divided_phrase = divide_diff_phrase(diff_phrase, None)
+        divided_phrase = divide_diff_phrase(diff_phrase, None, list_name)
             
         if not divided_phrase.is_empty():
             result.append(divided_phrase)
@@ -173,26 +200,73 @@ def divide_phrase_into_paras(diff_phrase, list_name, prev_diff_word=None):
     return result, prev_diff_word
 
 def split(diff_phrases):
+    """ Decides where to insert a "split paragraph" operation. """ 
     result = []
     
-    for phrase in diff_phrases:    
-        paras, _ = divide_phrase_into_paras(phrase, "words_target")
-
-        for i in range(0, len(paras)):
-            para = paras[i]
-            para.split_before = False
-            
-            # Count split operation only if there is at least 1 equivalent
-            # actual words. 
-            if i > 0 and para.num_words_actual() > 0:
-                para.split_before = True
-                
-            result.append(para)
-            
-        # Process the sub phrases of a rearrange phrase.
+    pre_word_actual, pre_word_target = None, None
+                    
+    for phrase in diff_phrases:
+        # If the phrase is a RearrangePhrase, process its sub_phrases.
         if isinstance(phrase, rearr.DiffRearrangePhrase):
             phrase.sub_phrases = split(phrase.sub_phrases)
+            if len(phrase.sub_phrases) > 0:
+                pre_word_actual = phrase.sub_phrases[-1].get_last_word_actual()
+                pre_word_target = phrase.sub_phrases[-1].get_last_word_target()
+            else:
+                pre_word_actual = None
+                pre_word_target = None
+            result.append(phrase)
+            continue
+            
+        # To decide, if we have to insert a "split paragraph" operation in 
+        # between two different phrases, we need to keep track of the first 
+        # actual word and the first target word of the current phrase as well as
+        # of the last actual/target word of the previous phrase. 
+        first_word_actual = phrase.get_first_word_actual()
+        first_word_target = phrase.get_first_word_target()
+           
+        # Compute if there is a paragraph break in actual and/or target.    
+        is_para_break_actual = is_para_break(pre_word_actual, first_word_actual)
+        is_para_break_target = is_para_break(pre_word_target, first_word_target)
+       
+        # To decide if we have to insert a "split paragraph" operation in the 
+        # inner of a phrase, we divide a phrase according to target paragraphs.
+        target_paras, _ = divide_phrase_into_paras(phrase, "words_target")
+                          
+        for i in range(0, len(target_paras)):
+            para = target_paras[i]
+            para.split_before = False
+                        
+            # We need to add a "split paragraph" in front of the first paragraph
+            # if there is a paragraph break in target but not in actual.
+            if i == 0:
+                if (is_para_break_actual is False and is_para_break_target):
+                    para.split_before = True
+            
+            # We need to add a "split paragraph" operation to every other 
+            # remaining paragraph, because the original phrase was splitted
+            # according to actual paras. Hence, the original phrase lived
+            # within a single paragraph. But obviously, the phrase was 
+            # splitted into multiple target paragraphs (i > 0), so we have to 
+            # add a split operation to every paragraph where i > 0, as long as
+            # there is at least one actual word (otherwise, the phrase would be
+            # an insertion, where we don't have to add split operations). 
+            if i > 0 and para.num_words_actual() > 0:
+                para.split_before = True
+            
+            # TODO: On splitting into target paras, sub_phrases won't be available
+            # anymore.
+            if isinstance(para, rearr.DiffRearrangePhrase):
+                para_words_actual = [x.wrapped for x in para.words_actual]
+                para_words_target = [x.wrapped for x in para.words_target]   
+                para.sub_phrases = diff.diff(para_words_actual, para_words_target)
+              
+            result.append(para)
         
+        # Keep track of the last actual/target words of the phrase.
+        pre_word_actual = phrase.get_last_word_actual()
+        pre_word_target = phrase.get_last_word_target()
+            
     return result
 
 def merge(diff_phrases):

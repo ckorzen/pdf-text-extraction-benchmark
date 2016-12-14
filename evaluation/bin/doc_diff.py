@@ -57,8 +57,13 @@ def doc_diff(actual, target, excludes=[], junk=[]):
     paras_actual = to_normalized_paras(actual, to_lower=True, excludes=excludes)
     paras_target = to_normalized_paras(target, to_lower=True, excludes=excludes)
 
-    # Run para diff on list of pragraphs.
-    return para_diff.para_diff(paras_actual, paras_target, junk)
+    return {
+        "num_paras_actual": len(paras_actual),
+        "num_paras_target": len(paras_target),
+        "num_words_actual": sum(len(x) for x in paras_actual),
+        "num_words_target": sum(len(x) for x in paras_target),
+        "phrases": para_diff.para_diff(paras_actual, paras_target, junk) 
+    }
 
 # ==============================================================================
 # Normalize methods.
@@ -176,14 +181,36 @@ def split_into_paragraphs(text):
         word = words_and_ws[i]
         # Obtain the related trailing whitespaces (that is the next element).
         ws = words_and_ws[i + 1]
-        
+                
         # Ignore empty words.
         if len(word) == 0:
             continue
         
+        # NEW(2016-12-13): word now may contain (line-number, column-number)
+        # pair defining the line number and the column number of the word in
+        # the tex file. Parse this pair.
+        # Format is <word>(linenumber,columnnumber)
+        line_num = -1
+        column_num = -1
+        start_index = word.find("(")
+        if start_index > 0:
+            end_index = word.find(")", start_index)
+            if end_index > 0:
+                line_column = word[start_index + 1 : end_index]
+                # line_column is now "linenumber,columnnumber"
+                comma_index = line_column.find(",")
+                if comma_index > 0:
+                    # There is a pair (line_num, column_num) given. Parse it.
+                    line_num_str = line_column[ : comma_index]
+                    column_num_str = line_column[comma_index + 1 : ]
+                    line_num = str_to_int(line_num_str)
+                    column_num = str_to_int(column_num_str)
+                    # Crop the word by the given pair.
+                    word = word [ : start_index]
+        
         # Append tuple consisting of (1) the single word and (2) the word with 
         # trailing whitespaces.
-        words_per_paragraph.append((word, word + ws))
+        words_per_paragraph.append((word, word + ws, line_num, column_num))
                         
         # Check if the trailing whitespaces introduces a new paragraph.
         # If so, introduce a new paragraph (a new list of words).
@@ -219,8 +246,8 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
     [DocWord([form], [form] )]
     """
     result = []
-        
-    for word, word_with_ws in word_tuples:         
+            
+    for word, word_with_ws, line_num, column_num in word_tuples:       
         # Check if we have to exclude the word from formatting. 
         # The word could be nested within a prefix and/or a suffix, that could 
         # contain non-special characters like "foo[formula]bar"; or the prefix/
@@ -230,10 +257,10 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
         # In the second case, we do *not* want to separate the prefix/suffix, 
         # but handle the word as a whole.
         prefix, word_to_exclude, suffix = is_exclude_word(word, excludes)
-                             
+                                        
         if word_to_exclude is not None:
             # There is a word to exclude. 
-            
+                        
             # Check if there is a prefix which we have to consider.
             consider_prefix = False
             if prefix is not None and len(prefix) > 0:           
@@ -244,25 +271,58 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
             if suffix is not None and len(suffix) > 0:           
                 consider_suffix = not contains_only_special_chars(suffix)
             
-            if consider_prefix:                
-                 # Normalize the prefix and append it to result list.
-                 paras = to_normalized_paras(prefix, to_lower, excludes)
-                 # 'paras' is list of lists. We only need the first list.
-                 if len(paras) > 0:
-                     result.extend(paras[0])
+            if consider_prefix:
+                # Extract the equivalent prefix from word_with_ws.
+                prefix_with_ws = word_with_ws[ : len(prefix)]
+                               
+                # Normalize the prefix and append it to result list.
+                paras = to_normalized_paras(prefix_with_ws, to_lower, excludes)
+                # 'paras' is list of lists. We only need the first list.
+                if len(paras) > 0:
+                    result.extend(paras[0])
             
-            # Given the word to exclude, cut the equivalent from unnormal. word.
-            # (1) "foo[formula]bar" -> "[formula]".
-            # (2) "([formula])"     -> "([formula])".
+            # Given the word to exclude, extract the equivalent from 
+            # unnormalized word:
+            #
+            # "foo[formula]bar__"
+            #     ^       ^  
+            #     S       E
+            #
+            # "([formula])__"
+            #  ^         ^
+            #  S         E
+            # 
+            # We need to find the start position S end the end position E.
+            # S is defined by |prefix|.
+            # E is defined by |word_with_ws| - (|suffix| + k) where k is the 
+            # length of the trailing whitespaces (the "__" parts).
+ 
+            # Compute the length of prefix and suffix.
             len_prefix = len(prefix) if consider_prefix else 0
             len_suffix = len(suffix) if consider_suffix else 0
-            cut = word_with_ws[len_prefix : len(word_with_ws) - len_suffix]
-            # Append new DocWord for the word to exclude.
-            result.append(DocWord(word_to_exclude, cut))
+            
+            # Compute the length of trailing whitepaces.
+            len_trailing_ws = len(word_with_ws) - len(word_with_ws.strip())
+            
+            # Define start and end position of the cut. 
+            start = len_prefix
+            # If there is no suffix we append the trailing whitespaces to the 
+            # cut, otherwise we append it to the suffix.
+            if len_prefix == 0:
+                end = len(word_with_ws)
+            else:
+                end = len(word_with_ws) - (len_suffix + len_trailing_ws)
+            
+            # Extract the word and append new DocWord for the word to exclude.
+            cut = word_with_ws[start : end]
+            result.append(DocWord(word_to_exclude, cut, line_num, column_num))
                     
             if consider_suffix:
+                # Extract the equivalent prefix from word_with_ws.
+                suffix_with_ws = word_with_ws[end : ]
+            
                 # Normalize the suffix and append it to result list.
-                paras = to_normalized_paragraphs(suffix, to_lower, excludes)
+                paras = to_normalized_paras(suffix_with_ws, to_lower, excludes)
                 # 'paras' is list of lists. We only need the first list.
                 if len(paras) > 0:
                     result.extend(paras[0])
@@ -283,15 +343,15 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
                     # we iterate only the inner characters.
                     word_fragment = filter_special_chars(word_fragment)
                     # Cut the equivalent from unnormalized word.
-                    word_with_ws_fragment = word_with_ws[prev_split + 1 : i + 1]
-                                                
+                    word_with_ws_fragment = word_with_ws[prev_split + 1 : i + 1]                     
                     if to_lower:
                         # Transform the word to lowercases.
                         word_fragment = word_fragment.lower()
                                 
                     if len(word_fragment) > 0:
                         # Append new DocWord to result list.
-                        doc_word = DocWord(word_fragment, word_with_ws_fragment)
+                        doc_word = DocWord(word_fragment, word_with_ws_fragment,
+                            line_num, column_num)
                         result.append(doc_word)
                             
                     prev_split = i
@@ -305,15 +365,18 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
             # we iterated only the inner characters.
             word_fragment = filter_special_chars(word_fragment)
             # Cut the equivalent from unnormalized word.
-            word_with_ws_fragment = word_with_ws[prev_split + 1 : ]
-            
+            word_with_ws_fragment = word_with_ws[prev_split + 1 : ]                        
             if to_lower:
                 # Transform the word to lowercases.
                 word_fragment = word_fragment.lower()
-                    
+           
+            # TODO: Use len(word_fragment) > 0 or len(word_with_ws_fragment) > 0?
+            # First ignore all words which consists only of special_characters
+            # Second takes *all* words into account.         
             if len(word_fragment) > 0:
                 # Append new DocWord to result list.
-                result.append(DocWord(word_fragment, word_with_ws_fragment)) 
+                result.append(DocWord(word_fragment, word_with_ws_fragment,
+                    line_num, column_num)) 
                                                                 
     return result
 
@@ -425,6 +488,12 @@ def filter_special_chars(text):
     """ Replaces all special characters from the given text by empty string."""
     chars = [x for i, x in enumerate(text) if not is_special_character(text, i)]
     return "".join(chars)
+    
+def str_to_int(s, default=-1):
+    try:
+        return int(s)
+    except ValueError:
+        return default
 
 # ==============================================================================
 # Some helper classes.
@@ -433,12 +502,19 @@ class DocWord:
     """ A word represented by the normalized and the unnormalized version of 
     the word. """
     
-    def __init__(self, normalized, unnormalized):
+    def __init__(self, normalized, unnormalized, line_num, column_num):
         self.normalized   = normalized
         self.unnormalized = unnormalized
+        self.line_num     = line_num
+        self.column_num   = column_num
         
     def __str__(self):
         return self.normalized
         
     def __repr__(self):
-        return "DocWord(%s, %s)" % (self.normalized, self.unnormalized)
+        return "DocWord(%s, %s, %s, %s)" % (self.normalized, self.unnormalized,
+            self.line_num, self.column_num)
+        
+        
+if __name__ == "__main__":
+    print(doc_diff("Reducing(5,16) quasi-ergodicity(5,33)", "XXX"))

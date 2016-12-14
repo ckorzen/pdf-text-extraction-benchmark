@@ -80,9 +80,9 @@ public class TeXParagraphsParser_BACKUP {
    */
   protected TeXParagraph processOption(Option option, String role, 
       TeXParagraph para, List<TeXParagraph> paras) {
-    para.registerText("[");
+    para.registerText("[", option);
     para = processElements(option.getElements(), role, para, paras);
-    para.registerText("]");
+    para.registerText("]", option);
     return para;
   }
 
@@ -158,7 +158,7 @@ public class TeXParagraphsParser_BACKUP {
       // Replace all whitespaces and newlines by a single whitespace.
       para.registerWhitespace();
     } else {
-      para.registerText(text);
+      para.registerText(text, textElement);
       para.registerTeXElement(textElement);
     }
 
@@ -273,9 +273,7 @@ public class TeXParagraphsParser_BACKUP {
         }
       }
     }
-    
-    System.out.println(cmd + " " + role);
-    
+        
     List<Element> childElements = getChildElements(cmd, itr, role);
     
     String roleForChildElements = ref.getRoleForChildElements();
@@ -294,7 +292,7 @@ public class TeXParagraphsParser_BACKUP {
         }
       }
 
-      para.registerText(text);
+      para.registerText(text, cmd);
       para.registerTeXElements(childElements);
     } else {
       para = processElements(childElements, roleForChildElements, para, paras);
@@ -603,17 +601,17 @@ public class TeXParagraphsParser_BACKUP {
         String[] keys = text.split(",");
         // context.writeText(DEFAULT_CONTEXT_NAME, " ");
         for (int i = 0; i < keys.length; i++) {
-          para.registerText("[");
-          para.registerText(cmd.getName());
-          para.registerText("=");
+          para.registerText("[", cmd);
+          para.registerText(cmd.getName(), cmd);
+          para.registerText("=", cmd);
           // Don't allow whitespace in keys (because they would be split in
           // evaluation, and wouldn't be identified as cross reference command.
           // E.g. "[\ref=foo bar]" would be split into "[\ref=foo" and "bar]".
           // TODO: Also replace whitespaces in related \label command.
-          para.registerText(keys[i].trim().replaceAll(" ", "_"));
-          para.registerText("]");
+          para.registerText(keys[i].trim().replaceAll(" ", "_"), cmd);
+          para.registerText("]", cmd);
           if (i < keys.length - 1) {
-            para.registerText(" ");
+            para.registerWhitespace();
           }
         }
 

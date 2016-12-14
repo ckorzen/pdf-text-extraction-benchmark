@@ -187,6 +187,22 @@ class DiffPhrase:
             word.phrase = self
         for word in words_target:
             word.phrase = self
+    
+    def get_first_word_actual(self):
+        if len(self.words_actual) > 0:
+            return self.words_actual[0]
+
+    def get_first_word_target(self):
+        if len(self.words_target) > 0:
+            return self.words_target[0]
+
+    def get_last_word_actual(self):
+        if len(self.words_actual) > 0:
+            return self.words_actual[-1]
+
+    def get_last_word_target(self):
+        if len(self.words_target) > 0:
+            return self.words_target[-1]
 
     def num_words_actual(self):
         return len(self.words_actual)

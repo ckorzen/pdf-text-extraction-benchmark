@@ -8,7 +8,6 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.spi.NumberFormatProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -34,6 +33,7 @@ import de.freiburg.iif.text.StringUtils;
 import identifier.PdfParagraphsIdentifier;
 import identifier.TeXParagraphsIdentifier;
 import model.TeXFile;
+import serializer.TeXParagraphExtendedTxtSerializer;
 import serializer.TeXParagraphTsvSerializer;
 import serializer.TeXParagraphTxtSerializer;
 import visualizer.TeXParagraphVisualizer;
@@ -58,7 +58,12 @@ public class TeXParagraphParserMain {
   /**
    * The prefix to consider on parsing the input directory for input files.
    */
-  protected List<String> inputPrefixes;
+  protected List<String> inputDirectoryPrefixFilters;
+  
+  /**
+   * The prefix to consider on parsing the input directory for input files.
+   */
+  protected List<String> inputFilePrefixFilters;
 
   /**
    * The suffix to use on creating serialization target file.
@@ -137,10 +142,9 @@ public class TeXParagraphParserMain {
   protected Path visualizationDirectory;
 
   /**
-   * Flag to indicate whether we have to serialize only the texts of paragraphs
-   * into text file.
+   * The format of output files. One of: txt, txt2, tsv, 
    */
-  protected boolean isPlainSerialization;
+  protected String outputFormat;
 
   /**
    * The roles to consider on serialization.
@@ -188,10 +192,11 @@ public class TeXParagraphParserMain {
     input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
     visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);
-    inputPrefixes = getOptionValues(cmd, TeXParserOptions.PREFIX, null);
+    inputFilePrefixFilters = getOptionValues(cmd, TeXParserOptions.PREFIX, null);
+    inputDirectoryPrefixFilters = getOptionValues(cmd, TeXParserOptions.DIRS, null);
     identifyPdfParagraphs = hasOption(cmd, TeXParserOptions.BOUNDING_BOXES);
     texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
-    isPlainSerialization = hasOption(cmd, TeXParserOptions.PLAIN_SERIALIZATION);
+    outputFormat = getOptionValue(cmd, TeXParserOptions.OUTPUT_FORMAT, "txt");
     roles = resolveRoles(getOptionValues(cmd, TeXParserOptions.ROLE, null));
     serialFileSuffix = getOptionValue(cmd, TeXParserOptions.SUFFIX, ".txt");
   }
@@ -297,15 +302,11 @@ public class TeXParagraphParserMain {
     ExecutorService executor = Executors.newFixedThreadPool(12);
 
     long start = System.currentTimeMillis();
-    for (Path p : this.inputFiles) {
-      System.out.println(p);
-    }
-    System.out.println(this.inputFiles.size());
     
-//    for (Path file : this.inputFiles) {
-//      Runnable worker = new CancelableTexFileWorker(file, 1, TimeUnit.MINUTES);
-//      executor.execute(worker);
-//    }
+    for (Path file : this.inputFiles) {
+      Runnable worker = new CancelableTexFileWorker(file, 1, TimeUnit.MINUTES);
+      executor.execute(worker);
+    }
 
     executor.shutdown();
     while (!executor.isTerminated()) {
@@ -327,7 +328,6 @@ public class TeXParagraphParserMain {
       Iterator<Path> itr = ds.iterator();
       while (itr.hasNext()) {
         Path next = itr.next();
-        
         if (considerPath(next)) {
           if (Files.isDirectory(next)) {
             readDirectory(next, res);
@@ -358,13 +358,21 @@ public class TeXParagraphParserMain {
 
     if (Files.isDirectory(file)) {
       // Consider the path if no prefix(es) are given.
-      if (this.inputPrefixes == null || this.inputPrefixes.isEmpty()) {
+      if (this.inputFilePrefixFilters == null 
+          || this.inputFilePrefixFilters.isEmpty()) {
         return true;
       }
 
+      // Consider the path if no prefix(es) are given.
+      if (this.inputDirectoryPrefixFilters == null 
+          || this.inputDirectoryPrefixFilters.isEmpty()) {
+        return true;
+      }
+      
       String dirName = file.getFileName().toString().toLowerCase();
-
-      return StringUtils.startsWith(dirName, this.inputPrefixes);
+      
+      return StringUtils.startsWith(dirName, this.inputFilePrefixFilters) 
+          || StringUtils.startsWith(dirName, this.inputDirectoryPrefixFilters);
     }
 
     // Obtain the name of file's parent directory.
@@ -381,13 +389,14 @@ public class TeXParagraphParserMain {
     }
 
     // Consider the path if no prefix(es) are given.
-    if (this.inputPrefixes == null || this.inputPrefixes.isEmpty()) {
+    if (this.inputFilePrefixFilters == null 
+        || this.inputFilePrefixFilters.isEmpty()) {
       return true;
     }
 
     // Process only those files, which are located in a directory, which
     // contains the given prefix.
-    return StringUtils.startsWith(dirName, this.inputPrefixes);
+    return StringUtils.startsWith(dirName, this.inputFilePrefixFilters);
   }
 
   /**
@@ -520,6 +529,14 @@ public class TeXParagraphParserMain {
         false, true, Option.UNLIMITED_VALUES),
 
     /**
+     * Create option to define the prefix(es) to consider on parsing the input
+     * directory.
+     */
+    DIRS("d", "dirs",
+        "The prefix(es) to consider on parsing the input directory.",
+        false, true, Option.UNLIMITED_VALUES),
+    
+    /**
      * Create option to define the suffix for serialization files to create.
      */
     SUFFIX("s", "suffix",
@@ -543,9 +560,7 @@ public class TeXParagraphParserMain {
     /**
      * Create option to serialize only the text of paragraphs into txt file.
      */
-    PLAIN_SERIALIZATION("x", "plain",
-        "Outputs only the text of paragraphs delmited by \n\n into txt file.",
-        false),
+    OUTPUT_FORMAT("f", "format", "The format of output files.", false, true, 1),
 
     /**
      * Create option to define path to the texmf dir.
@@ -718,12 +733,19 @@ public class TeXParagraphParserMain {
     /**
      * Serializes the selected features to file.
      */
-    protected void serialize(TeXFile texFile, List<String> roles, Path target)
+    protected void serialize(TeXFile file, List<String> roles, Path target)
       throws IOException {
-      if (isPlainSerialization) {
-        new TeXParagraphTxtSerializer(texFile).serialize(target, roles);
-      } else {
-        new TeXParagraphTsvSerializer(texFile).serialize(target, roles);
+            
+      switch (outputFormat) {
+        case "txt2":
+          new TeXParagraphExtendedTxtSerializer(file).serialize(target, roles);
+          break;
+        case "tsv": 
+          new TeXParagraphTsvSerializer(file).serialize(target, roles);
+          break;
+        default:
+          new TeXParagraphTxtSerializer(file).serialize(target, roles);
+          break;
       }
     }
 

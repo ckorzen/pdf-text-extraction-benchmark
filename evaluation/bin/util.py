@@ -2,6 +2,28 @@ import unicodedata
 import re
 import string
 import diff
+import os.path
+
+import file_util
+
+from time import time
+
+def time_in_ms():
+    return int(round(time() * 1000))
+
+def remove_control_characters(text):
+    """ Removes all control characters from given text."""
+    
+    if text is None:
+        return
+    
+    # Create a dict with all the control characters.
+    ctrl_chars = dict.fromkeys(range(32))
+    
+    return text.translate(ctrl_chars)
+
+def have_elements_in_common(list1, list2):   
+    return len(list(set(list1) & set(list2))) > 0
 
 def update_file_extension(path, new_file_extension):
     ''' Returns the given path where the actual file extension is replaced by 
@@ -519,5 +541,29 @@ def _check_exclude_char(word_chars, i=None):
                 return False
     
     return True
+
+# ------------------------------------------------------------------------------
+# Reading tool info file.
+
+def read_tool_info(tool_dir):
+    """ Reads the external tool info file and appends the key/value pairs 
+    to given args dictionary. The given args dictionary must contain the 
+    path to the root directory of tool. """
     
-   
+    args = {}
+    tool_info_file_path = get_tool_info_file_path(tool_dir)
+    
+    # Only proceed if the the tool info file exists.
+    if file_util.is_missing_or_empty_file(tool_info_file_path):
+        return args
+                
+    with open(tool_info_file_path) as tool_info_file:
+        # Each line of file is of form <key> <TAB> <value>    
+        for line in tool_info_file:
+            key, value = line.strip().split("\t")
+            args[key] = value    
+    
+    return args
+
+def get_tool_info_file_path(tool_dir):
+    return os.path.join(tool_dir, "info.txt")    

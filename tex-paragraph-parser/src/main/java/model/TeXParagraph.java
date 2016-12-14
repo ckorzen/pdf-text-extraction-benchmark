@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
+import de.freiburg.iif.collection.CollectionUtils;
+
 /**
  * A paragraph in a tex file.
  * 
@@ -23,6 +25,11 @@ public class TeXParagraph {
    */
   protected StringBuilder textBuilder;
 
+  /**
+   * The words of this paragraph.
+   */
+  protected List<TeXWord> texWords;
+  
   /**
    * The TeX elements.
    */
@@ -80,6 +87,7 @@ public class TeXParagraph {
     this.texLineNums = new ArrayList<>();
     this.pdfParagraphs = new ArrayList<>();
     this.texElements = new ArrayList<>();
+    this.texWords = new ArrayList<>();
   }
 
   // ---------------------------------------------------------------------------
@@ -135,20 +143,39 @@ public class TeXParagraph {
   /**
    * Writes the given text to this paragraph.
    */
-  public void registerText(String text) {
-    // Write a whitespace if we have to.
-    if (introduceWhitespace) {
-      textBuilder.append(" ");
+  public void registerText(String text, Element element) {
+//    // Write a whitespace if we have to.
+//    if (introduceWhitespace) {
+//      textBuilder.append(" ");
+//      introduceWhitespace = false;
+//    }
+//    textBuilder.append(text);
+        
+    if (introduceWhitespace || texWords.isEmpty()) {
+      int lineNumber = element.getBeginLineNumber();
+      int columnNumber = element.getEndColumnNumber();
+      TeXWord word = new TeXWord(text, lineNumber, columnNumber);
+      texWords.add(word);
       introduceWhitespace = false;
+    } else {
+      TeXWord word = texWords.get(texWords.size() - 1);
+      word.text += text;
     }
-    textBuilder.append(text);
   }
 
   /**
    * Returns the text of this paragraph.
    */
+//  public String getText() {
+//    return textBuilder.toString();
+//  }
+  
   public String getText() {
-    return textBuilder.toString();
+    return CollectionUtils.join(texWords, " ");
+  }
+  
+  public List<TeXWord> getWords() {
+    return texWords;
   }
 
   // ---------------------------------------------------------------------------
