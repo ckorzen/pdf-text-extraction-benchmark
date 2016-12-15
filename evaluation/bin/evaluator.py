@@ -146,11 +146,26 @@ class Evaluator:
             return stats
                         
         # Read gt file and tool file.
-        gt = file_util.read_file(gt_file_path)
+        
+        # The gt file could contain headers starting with "##" containing some
+        # metadata.
+        gt_lines = []
+        source_tex_file = None
+        if not file_util.is_missing_or_empty_file(gt_file_path):
+            with open(gt_file_path) as f: 
+                for line in f: 
+                    if line.startswith("##source"):
+                        _, source_tex_file = line.split("\t")
+                    else:
+                        gt_lines.append(line)
+        gt = "".join(gt_lines)
+                
+        #gt = file_util.read_file(gt_file_path)
         tool_output = file_util.read_file(tool_file_path)
                                                                              
         # Compute evaluation result.
         evaluation_result = self.process_strings(gt, tool_output)
+        evaluation_result["source_tex_file"] = source_tex_file
         
         # Lock the counter, because += operation is not atomic
         with counter_processed_gt_files.get_lock():

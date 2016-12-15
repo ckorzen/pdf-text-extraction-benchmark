@@ -207,6 +207,7 @@ public class TeXParagraphParserMain {
   public void run() throws IOException {
     // Initialize the paragraph parser.
     initialize();
+        
     // Process the tex files.
     processTexFiles();
   }
@@ -683,6 +684,9 @@ public class TeXParagraphParserMain {
     public void processTeXFile(Path file) throws Exception {
       TeXFile texFile = new TeXFile(file);
 
+      // Needed to compute the relative path of the tex file.
+      texFile.setBaseDirectory(inputDirectory);
+      
       Path serializationTargetFile = defineSerializationTargetFile(texFile);
       Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
 

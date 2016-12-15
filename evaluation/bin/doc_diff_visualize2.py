@@ -5,7 +5,7 @@ import doc_diff_choose_para_or_word as choose
 
 def visualize_diff_phrases(evaluation_result, junk=[]):
     """ Visualizes the given diff phrases. """
-            
+                
     diff_phrases = evaluation_result.get("phrases", None)
     
     if diff_phrases is None:
@@ -68,13 +68,13 @@ def visualize_diff_phrases(evaluation_result, junk=[]):
         phrase.tex_line_num_end     = tex_line_num_end
         phrase.tex_column_num_end   = tex_column_num_end       
     
-    visualize(diff_phrases)
+    visualize(evaluation_result)
     
-def visualize(diff_phrases):
-    for diff_phrase in diff_phrases:
-        print("---------------------------------------------------------------")
-        print(type(diff_phrase))
-        print("---------------------------------------------------------------")
-        for key in diff_phrase.__dict__:
-            print(key, ": ", diff_phrase.__dict__[key])
+def visualize(evaluation_result):
+    phrases = evaluation_result.get("phrases", None)
+    for phrase in phrases:
+        if len(phrase.words_target) > 0:
+            if phrase.tex_line_num_start < 0 or phrase.tex_line_num_end < 0:
+                print(phrase.__dict__)
+    
     

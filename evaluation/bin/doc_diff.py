@@ -192,7 +192,7 @@ def split_into_paragraphs(text):
         # Format is <word>(linenumber,columnnumber)
         line_num = -1
         column_num = -1
-        start_index = word.find("(")
+        start_index = word.rfind("(")
         if start_index > 0:
             end_index = word.find(")", start_index)
             if end_index > 0:
@@ -246,8 +246,8 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
     [DocWord([form], [form] )]
     """
     result = []
-            
-    for word, word_with_ws, line_num, column_num in word_tuples:       
+                        
+    for word, word_with_ws, line_num, column_num in word_tuples:
         # Check if we have to exclude the word from formatting. 
         # The word could be nested within a prefix and/or a suffix, that could 
         # contain non-special characters like "foo[formula]bar"; or the prefix/
@@ -274,12 +274,14 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
             if consider_prefix:
                 # Extract the equivalent prefix from word_with_ws.
                 prefix_with_ws = word_with_ws[ : len(prefix)]
-                               
-                # Normalize the prefix and append it to result list.
-                paras = to_normalized_paras(prefix_with_ws, to_lower, excludes)
-                # 'paras' is list of lists. We only need the first list.
-                if len(paras) > 0:
-                    result.extend(paras[0])
+                
+                if (len(prefix_with_ws.strip()) > 0 and line_num > 0 and column_num > 0):               
+                    # Normalize the prefix and append it to result list.
+                    # FIXME: Don't hardcode the style.
+                    paras = to_normalized_paras("%s(%s,%s)" % (prefix_with_ws, line_num, column_num), to_lower, excludes)
+                    # 'paras' is list of lists. We only need the first list.
+                    if len(paras) > 0:
+                        result.extend(paras[0])
             
             # Given the word to exclude, extract the equivalent from 
             # unnormalized word:
@@ -316,16 +318,18 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
             # Extract the word and append new DocWord for the word to exclude.
             cut = word_with_ws[start : end]
             result.append(DocWord(word_to_exclude, cut, line_num, column_num))
-                    
+          
             if consider_suffix:
                 # Extract the equivalent prefix from word_with_ws.
                 suffix_with_ws = word_with_ws[end : ]
             
-                # Normalize the suffix and append it to result list.
-                paras = to_normalized_paras(suffix_with_ws, to_lower, excludes)
-                # 'paras' is list of lists. We only need the first list.
-                if len(paras) > 0:
-                    result.extend(paras[0])
+                if (len(suffix_with_ws.strip()) > 0 and line_num > 0 and column_num > 0):
+                    # Normalize the suffix and append it to result list.
+                    # FIXME: Don't hardcode the style.
+                    paras = to_normalized_paras("%s(%s,%s)" % (suffix_with_ws, line_num, column_num), to_lower, excludes)
+                    # 'paras' is list of lists. We only need the first list.
+                    if len(paras) > 0:
+                        result.extend(paras[0])
         else:
             # We don't have to exclude the word from normalization.
             
@@ -376,8 +380,7 @@ def normalize_words(word_tuples, to_lower=True, excludes=[]):
             if len(word_fragment) > 0:
                 # Append new DocWord to result list.
                 result.append(DocWord(word_fragment, word_with_ws_fragment,
-                    line_num, column_num)) 
-                                                                
+                    line_num, column_num))                                    
     return result
 
 def is_exclude_word(word, excludes=[]):

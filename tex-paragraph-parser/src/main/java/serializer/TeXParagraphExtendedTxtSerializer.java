@@ -96,8 +96,21 @@ public class TeXParagraphExtendedTxtSerializer {
         int lineNumber = word.lineNumber;
         int columnNumber = word.columnNumber;
         
-        paraText.append(text);
-        paraText.append("(" + lineNumber + "," + columnNumber + ")");
+        // FIXME: In case of a cite follows the word, the word is "xxx [cite]"
+        // Split them into words.
+        String[] subwords = text.split("\\s");
+        
+        for (int j = 0; j < subwords.length; j++) {
+          String subtext = subwords[j];
+          if (!subtext.trim().isEmpty()) {
+            paraText.append(subwords[j]);
+            paraText.append("(" + lineNumber + "," + columnNumber + ")");
+            
+            if (j < subwords.length - 1) {
+              paraText.append(" ");
+            }
+          }
+        }
         
         if (i < words.size() - 1) {
           paraText.append(" ");
@@ -115,6 +128,8 @@ public class TeXParagraphExtendedTxtSerializer {
       }
     }
 
+    // Write the source file to the header of the file.
+    writer.write("##source\t" + texFile.getRelativeTmpPath() + "\n");
     // Join the text by a double newline.
     writer.write(CollectionUtils.join(paraTexts, "\n\n"));
   }

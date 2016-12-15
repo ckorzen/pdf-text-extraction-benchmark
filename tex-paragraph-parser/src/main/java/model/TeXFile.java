@@ -27,6 +27,11 @@ public class TeXFile {
   protected Path tmpTexFile;
   
   /**
+   * The base directory.
+   */
+  protected Path baseDirectory;
+  
+  /**
    * The path to the related pdf file.
    */
   protected Path pdfFile;
@@ -84,10 +89,36 @@ public class TeXFile {
   }
   
   /**
+   * Returns the relative path to the temporary tex file.
+   */
+  public Path getRelativeTmpPath() {
+    if (baseDirectory != null) {
+      return baseDirectory.relativize(tmpTexFile);  
+    }
+    return null;
+  }
+  
+  /**
    * Sets the path to the temporary tex file.
    */
   public void setTmpPath(Path tmpPath) {
     this.tmpTexFile = tmpPath;
+  }
+  
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Returns the path to the base directory.
+   */
+  public Path getBaseDirectory() {
+    return baseDirectory;
+  }
+  
+  /**
+   * Sets the path to the base directory.
+   */
+  public void setBaseDirectory(Path baseDirectory) {
+    this.baseDirectory = baseDirectory;
   }
   
   // ---------------------------------------------------------------------------
