@@ -15,12 +15,15 @@ def visualize_diff_phrases(evaluation_result, junk=[]):
         # Decide if we apply the phrase by word operations or by paragraph
         # operations.
     
+        phrase.ignore = False
+    
         if isinstance(phrase, rearr.DiffRearrangePhrase):    
             op_type, _, _, _ = choose.apply_rearrange_phrase(phrase, junk)
             phrase.op_type = op_type
         elif util.ignore_phrase(phrase, junk):
             op_type, _, _, _ = choose.apply_ignored_phrase(phrase)
             phrase.op_type = op_type
+            phrase.ignore = True
         elif isinstance(phrase, diff.DiffCommonPhrase):
             op_type, _, _, _ = choose.apply_ignored_phrase(phrase)
             phrase.op_type = op_type
@@ -73,8 +76,9 @@ def visualize_diff_phrases(evaluation_result, junk=[]):
 def visualize(evaluation_result):
     phrases = evaluation_result.get("phrases", None)
     for phrase in phrases:
-        if len(phrase.words_target) > 0:
-            if phrase.tex_line_num_start < 0 or phrase.tex_line_num_end < 0:
-                print(phrase.__dict__)
+        if (phrase.split_before):
+            print(phrase.__dict__)
+            
+
     
     
