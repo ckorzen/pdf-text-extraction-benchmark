@@ -169,17 +169,17 @@ def apply_para_ops_rearrange_phrase(phrase, junk=[]):
     vis_parts = []
     for sub_phrase in phrase.sub_phrases:
         if util.ignore_phrase(sub_phrase, junk):
-            sub_num_ops, sub_num_ops_abs, sub_vis = apply_ignored_phrase(sub_phrase)
+            sub_op_type, sub_num_ops, sub_num_ops_abs, sub_vis = apply_ignored_phrase(sub_phrase)
             num_ops.update(sub_num_ops)
             num_ops_abs.update(sub_num_ops_abs)
             vis_parts.extend(sub_vis)
         elif isinstance(sub_phrase, diff.DiffCommonPhrase):
-            sub_num_ops, sub_num_ops_abs, sub_vis = apply_common_phrase(sub_phrase)
+            sub_op_type, sub_num_ops, sub_num_ops_abs, sub_vis = apply_common_phrase(sub_phrase)
             num_ops.update(sub_num_ops)
             num_ops_abs.update(sub_num_ops_abs)
             vis_parts.extend(sub_vis)
         elif isinstance(sub_phrase, diff.DiffReplacePhrase):
-            sub_num_ops, sub_num_ops_abs, sub_vis = apply_replace_phrase(sub_phrase)
+            sub_op_type, sub_num_ops, sub_num_ops_abs, sub_vis = apply_replace_phrase(sub_phrase)
             num_ops.update(sub_num_ops)
             num_ops_abs.update(sub_num_ops_abs)
             vis_parts.extend(sub_vis)
