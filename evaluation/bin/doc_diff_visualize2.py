@@ -75,10 +75,3 @@ def visualize_diff_phrases(evaluation_result, junk=[]):
     
 def visualize(evaluation_result):
     phrases = evaluation_result.get("phrases", None)
-    for phrase in phrases:
-        if (phrase.split_before):
-            print(phrase.__dict__)
-            
-
-    
-    
