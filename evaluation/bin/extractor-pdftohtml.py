@@ -1,9 +1,10 @@
 import os
+import traceback
 from lxml import etree
 from extractor import Extractor
 
 import util
-import files_util
+import file_util
 
 class PdfToHtmlExtractor(Extractor):     
     # The general structure of output from pdftohtml is:
@@ -20,29 +21,33 @@ class PdfToHtmlExtractor(Extractor):
     # may contain nested "<a>" and "<i>" nodes.
       
     def create_plain_output(self, raw_output_path):        
-        
         formatted_lines = []       
-        if not file_util.is_missing_or_empty_file(raw_output_path):
-            xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
-            
-            # Find all <text> nodes.
-            line_nodes = xml.xpath("/pdf2xml/page/text")
-            
-            for node in line_nodes:                
-                if node is None:
-                    continue
+        if file_util.is_missing_or_empty_file(raw_output_path):
+            return 11, None
+        
+        try:
+            xml = etree.parse(raw_output_path,
+            etree.XMLParser(encoding="utf-8", recover=True))
+        except:
+            return 12, None
 
-                # Extract the text, including text in <a> and <i> elements.
-                text_nodes = node.xpath("text() | a/text() | i/text()")
+        # Find all <text> nodes.
+        line_nodes = xml.xpath("/pdf2xml/page/text")
+            
+        for node in line_nodes:                
+            if node is None:
+                continue
+
+            # Extract the text, including text in <a> and <i> elements.
+            text_nodes = node.xpath("text() | a/text() | i/text()")
                 
-                # Compose the text and remove special characters like ^M
-                text = "".join(text_nodes)
-                text = util.remove_control_characters(text)
+            # Compose the text and remove special characters like ^M
+            text = "".join(text_nodes)
+            text = util.remove_control_characters(text)
                                 
-                formatted_lines.append(text)            
-            return "\n".join(formatted_lines)
-        else:
-            return "" 
+            formatted_lines.append(text)
+
+        return 0, "\n".join(formatted_lines) 
 
 if __name__ == "__main__": 
     arg_parser = Extractor.get_argument_parser()

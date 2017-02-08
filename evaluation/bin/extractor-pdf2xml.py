@@ -12,12 +12,16 @@ class Pdf2XmlExtractor(Extractor):
         Formats the given file.
         """
      
-        if not file_util.is_missing_or_empty_file(raw_output_path):
+        if file_util.is_missing_or_empty_file(raw_output_path):
+            return 11, None
+        try:
             xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
-            p_nodes = xml.xpath(p_xpath)
-            return "\n\n".join([x.text for x in p_nodes if x is not None and x.text is not None])
-        return ""
+        except:
+            return 12, None
 
+        p_nodes = xml.xpath(p_xpath)
+        return 0, "\n\n".join([x.text for x in p_nodes if x is not None and x.text is not None])
+        
 if __name__ == "__main__":
     arg_parser = Extractor.get_argument_parser()
     args       = arg_parser.parse_args()

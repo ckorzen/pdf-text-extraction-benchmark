@@ -32,15 +32,20 @@ class PdfToXmlExtractor(Extractor):
         #</DOCUMENT>
         
         formatted_lines = []       
-        if not file_util.is_missing_or_empty_file(raw_output_path):
+        if file_util.is_missing_or_empty_file(raw_output_path):
+            return 11, None
+        
+        try:
             xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
-            block_nodes = xml.xpath(blocks_xpath)
-            blocks = []
-            for block_node in block_nodes:
-                token_nodes = block_node.xpath(token_xpath)
-                blocks.append(" ".join([x.text for x in token_nodes if x.text is not None]))      
-            return "\n\n".join(blocks)
-        return ""
+        except:
+            return 12, None
+        
+        block_nodes = xml.xpath(blocks_xpath)
+        blocks = []
+        for block_node in block_nodes:
+            token_nodes = block_node.xpath(token_xpath)
+            blocks.append(" ".join([x.text for x in token_nodes if x.text is not None]))      
+        return 0, "\n\n".join(blocks)
         
 if __name__ == "__main__":      
     arg_parser = Extractor.get_argument_parser()

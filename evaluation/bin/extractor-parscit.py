@@ -10,7 +10,7 @@ from extractor import Extractor
 title_xpath = """./algorithm[@name='ParsHed']//title"""
 variant_xpath = """./algorithm[@name='SectLabel']//variant"""
 
-class ParscitExtractor(Extractor):        
+class ParscitExtractor(Extractor):
     def process_pdf_file(self, pdf_path):
         # Parscit only works on *txt* files, but we have *pdf* files as input. 
         # Introduce a preprocessing step, where the input pdf files are 
@@ -26,7 +26,7 @@ class ParscitExtractor(Extractor):
         # Run the routine on pdftotext file.
         return super(ParscitExtractor, self).process_pdf_file(pre_file_path)
     
-    def define_pre_file_path(self, pdf_path, create=create):
+    def define_pre_file_path(self, pdf_path, create=False):
         """ Defines the path to the output file where the txt file of the 
         preprocessing step be stored. Creates the related parent directory if it 
         doesn't exist yet. Returns the defined path or None, if the parent 
@@ -71,10 +71,13 @@ class ParscitExtractor(Extractor):
         """
                        
         if file_util.is_missing_or_empty_file(raw_output_path):
-            return ""
+            return 11, None
         
-        # Read in the xml.
-        xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
+        try:
+            # Read in the xml.
+            xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
+        except:
+            return 12, None
 
         paragraphs = []
         
@@ -86,7 +89,7 @@ class ParscitExtractor(Extractor):
         variant_node = xml.find(variant_xpath)
         paragraphs.extend(self.find_paragraphs(variant_node))
                             
-        return "\n\n".join(paragraphs)
+        return 0, "\n\n".join(paragraphs)
       
     def find_paragraphs(self, variant_node):
         """ Finds paragraphs in the given "chapter" node (body/div). """ 
@@ -112,10 +115,13 @@ class ParscitExtractor(Extractor):
         def iterate(node):
             """ Iterates through the child nodes of the given node recursively
             and decides where to split the text into paragraphs."""
+            if node is None:
+                return
+            
             for sub_node in node.xpath("child::node()"):
-            
+                if sub_node is None:
+                    continue
                 # sub_node could be either text or a node.
-            
                 if isinstance(sub_node, etree._ElementUnicodeResult):
                     text = sub_node.strip("\n")
                     if len(text) > 0:

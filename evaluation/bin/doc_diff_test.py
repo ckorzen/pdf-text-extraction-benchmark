@@ -1,340 +1,912 @@
 import unittest
-import doc_diff
-import doc_diff_count_num_ops as count_num_ops
-import doc_diff_visualize as visualize
+
+from collections import Counter
+from doc_diff import doc_diff_from_strings
+from doc_diff import compute_costs_para_ops
+from doc_diff import compute_costs_word_ops
+
 
 class DocDiffTest(unittest.TestCase):
-    
-    def assert_equal(self, input1, input2, expected):
-        diff_phrases = doc_diff.doc_diff(input1, input2)
-        num_ops      = count_num_ops.count_num_ops(diff_phrases)
-                
-        self.assertDictEqual(dict(num_ops), expected)
-    
-    def test_common(self):
-        input1 = ""
-        input2 = ""
-        expected = {}
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = "foo bar"
-        input2 = "foo bar"
-        expected = {}
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = """
-        foo bar
-        
-        baz boo
-        """
-        input2 = """
-        foo bar
-        
-        baz boo
-        """
-        expected = {}
-        self.assert_equal(input1, input2, expected)
-        
-    def test_rearranges(self):
-        # Test rearrange with single paragraph and *word* operations.
-        input1 = "foo bar"
-        input2 = "bar foo"
-        expected = { 'num_word_inserts': 1, 'num_word_deletes': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test rearrange with single paragraph and *paragraph* operations.
-        input1 = "foo bar baz boo doo goo gol bol koi foi hul xxx"
-        input2 = "gol bol koi foi hul xxx foo bar baz boo doo goo"
-        expected = { 'num_para_rearranges': 1, 'num_para_splits': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test rearrange with 2 paragraphs and *word* operations.
-        input1 = """
-        foo bar
-        
-        baz boo
-        """
-        input2 = """
-        baz boo
-        
-        foo bar
-        """
-        expected = { 'num_para_rearranges': 1 }
-        self.assert_equal(input1, input2, expected)
-                        
-        # Test rearrange with 2 paragraphs and *paragraph* operations.
-        input1 = """
-        foo bar baz boo doo goo
-        
-        goo gol bol koi foi hul xxx
-        """
-        input2 = """
-        goo gol bol koi foi hul xxx
-        
-        foo bar baz boo doo goo
-        """
-        expected = { 'num_para_rearranges': 1 }
-        self.assert_equal(input1, input2, expected)
-                
-        # Test rearrange whithin single paragraph where the rearrange is a short inner string.    
-        input1 = "foo bar baz boo doo koo"
-        input2 = "foo bar doo koo baz boo"
-        expected = { 'num_word_inserts': 2, 'num_word_deletes': 2 }
-        self.assert_equal(input1, input2, expected)
-                
-        # Test paragraph rearrange whithin single paragraph where the rearrange is a long inner string.
-        input1 = "foo bar baz jojo hoko baw kli blu glu doo koo doo koo doo koo doo"
-        input2 = "foo bar doo koo doo koo doo koo doo baz jojo hoko baw kli blu glu"
-        expected = { 'num_para_rearranges': 1, 'num_para_splits': 2}
-        self.assert_equal(input1, input2, expected)
-        
-    def test_substitutes(self):
-        # Test short replace within single paragraph.
-        input1 = "foo bar"
-        input2 = "foo bal"
-        expected = { 'num_word_replaces': 1 }
-        self.assert_equal(input1, input2, expected)
+    """ Tests for doc_diff."""
 
-        # Test long replace within single paragraph.
-        input1 = "foo xxx yyy zzz aaa bbb ccc ddd"
-        input2 = "foo 111 222 333 444 555 666 777"
-        expected = { 'num_para_replaces': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test replaces with different lengths.
-        input1 = "foo xxx"
-        input2 = "foo 111 222"
-        expected = { 'num_word_replaces': 1, 'num_word_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
+    def test_doc_diff_from_strings_border_cases(self):
+        in1 = None
+        in2 = None
+        phrases = "[]"
+        num_ops = {}
+        self.evaluate(in1, in2, phrases, num_ops)
 
-        # Test replaces with different lengths.
-        input1 = "foo xxx"
-        input2 = "foo 111 222 333"
-        expected = { 'num_para_replaces': 1 }
-        self.assert_equal(input1, input2, expected)
+        in1 = ""
+        in2 = ""
+        phrases = "[]"
+        num_ops = {}
+        self.evaluate(in1, in2, phrases, num_ops)
 
-        # Test replaces with different lengths.
-        input1 = "foo 111 222"
-        input2 = "foo xxx"
-        expected = { 'num_word_replaces': 1, 'num_word_deletes': 1 }
-        self.assert_equal(input1, input2, expected)
+        in1 = None
+        in2 = "A"
+        phrases = "[[/ [], ['A']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
 
-        # Test replaces with different lengths.
-        input1 = "foo 111 222 333 444 555 666 777"
-        input2 = "foo xxx"
-        expected = { 'num_para_replaces': 1 }
-        self.assert_equal(input1, input2, expected)
+        in1 = ""
+        in2 = "A"
+        phrases = "[[/ [], ['A']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
 
-        # Test replace across paragraphs boundaries.
-        input1 = """
-        Hello World
-        
-        How are you
-        """
-        input2 = """
-        Hello Word
-        
-        Huw are you
-        """
-        expected = { 'num_word_replaces': 2 }
-        self.assert_equal(input1, input2, expected)
-     
-    def test_deletes(self):        
-        # Test long delete within two paragraphs.
-        input1 = """
-        foo bar 
-        
-        baz boo baz boo baz boo baz boo
-        """
-        input2 = """foo bar"""
-        expected = { 'num_para_deletes': 1 }
-        self.assert_equal(input1, input2, expected)
+        in1 = None
+        in2 = "A B"
+        phrases = "[[/ [], ['A', 'B']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
 
-        # Test two deletes within paragraphs.
-        input1 = """
-        foo bar 
-        
-        baz boo
-        
-        doo goo
-        """
-        input2 = """foo bar"""
-        expected = { 'num_para_deletes': 2 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test two deletes within paragraphs.
-        input1 = """
-        foo bar 
-        
-        baz boo baz boo baz boo baz boo
-        
-        doo goo
-        """
-        input2 = """foo bar"""
-        expected = { 'num_para_deletes': 2 }
-        self.assert_equal(input1, input2, expected)
-        
+        in1 = None
+        in2 = "A\n\nB"
+        phrases = "[[/ [], ['A']], [/ [], ['B']]]"
+        num_ops = {'num_para_inserts': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
 
-        # Test short inner delete.
-        input1 = "foo bar baz"
-        input2 = "foo baz"
-        expected = { 'num_word_deletes': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test long inner delete.
-        input1 = "foo bar gar koo roo woo tul bol baz"
-        input2 = "foo baz"
-        expected = { 'num_para_deletes': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test delete across paragraph boundaries.
-        input1 = """
-        foo bar baz 
-        
-        goo koo loo
-        """
-        input2 = """
-        foo bar
-        
-        koo loo
-        """
-        expected = { 'num_word_deletes': 2 }
-        self.assert_equal(input1, input2, expected)
-    
-        # Test delete across paragraph boundaries.
-        input1 = """
-        foo bar baz baz baz
-        
-        goo goo goo koo loo
-        """
-        input2 = """
-        foo bar
-        
-        koo loo
-        """
-        expected = { 'num_para_deletes': 2 }
-        self.assert_equal(input1, input2, expected)
-               
-    def test_inserts(self):
-        # Test short insert within single paragraph.
-        input1 = "foo"
-        input2 = "foo bar baz"
-        expected = { 'num_word_inserts': 2 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test long insert within single paragraph.
-        input1 = "foo"
-        input2 = "foo bar baz boo goo loo hoo too"
-        expected = { 'num_para_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test short insert within two paragraphs.
-        input1 = """foo bar"""
-        input2 = """
-        foo bar 
-        
-        baz boo
-        """
-        expected = { 'num_para_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test long insert within two paragraphs.
-        input1 = """foo bar"""
-        input2 = """
-        foo bar 
-        
-        baz boo baz boo baz boo baz boo
-        """
-        expected = { 'num_para_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
 
-        # Test two inserts within paragraphs.
-        input1 = """foo bar"""
-        input2 = """
-        foo bar 
+    def test_doc_diff_from_strings_equal_inputs(self):
+        in1 = "A"
+        in2 = "A"
+        phrases = "[[= ['A'], ['A']]]"
+        num_ops = {}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B"
+        in2 = "A B"
+        phrases = "[[= ['A', 'B'], ['A', 'B']]]"
+        num_ops = {}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "A B C"
+        phrases = "[[= ['A', 'B', 'C'], ['A', 'B', 'C']]]"
+        num_ops = {}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB"
+        in2 = "A\n\nB"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']]]"
+        num_ops = {}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "A\n\nB\n\nC"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], [= ['C'], ['C']]]"
+        num_ops = {}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_word_deletes(self):
+        in1 = "A B C"
+        in2 = "A C"
+        phrases = "[[= ['A'], ['A']], [/ ['B'], []], [= ['C'], ['C']]]"
+        num_ops = {'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "B C"
+        phrases = "[[/ ['A'], []], [= ['B', 'C'], ['B', 'C']]]"
+        num_ops = {'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "A B"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], [/ ['C'], []]]"
+        num_ops = {'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_para_deletes(self):
+        in1 = "A"
+        in2 = None
+        phrases = "[[/ ['A'], []]]"
+        num_ops = {'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A"
+        in2 = ""
+        phrases = "[[/ ['A'], []]]"
+        num_ops = {'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B"
+        in2 = None
+        phrases = "[[/ ['A', 'B'], []]]"
+        num_ops = {'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB"
+        in2 = None
+        phrases = "[[/ ['A'], []], [/ ['B'], []]]"
+        num_ops = {'num_para_deletes': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B"
+        in2 = ""
+        phrases = "[[/ ['A', 'B'], []]]"
+        num_ops = {'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB"
+        in2 = ""
+        phrases = "[[/ ['A'], []], [/ ['B'], []]]"
+        num_ops = {'num_para_deletes': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "A\n\nC"
+        phrases = "[[= ['A'], ['A']], [/ ['B'], []], [= ['C'], ['C']]]"
+        num_ops = {'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "B\n\nC"
+        phrases = "[[/ ['A'], []], [= ['B'], ['B']], [= ['C'], ['C']]]"
+        num_ops = {'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "A\n\nB"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], [/ ['C'], []]]"
+        num_ops = {'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_word_inserts(self):
+        in1 = "A C"
+        in2 = "A B C"
+        phrases = "[[= ['A'], ['A']], [/ [], ['B']], [= ['C'], ['C']]]"
+        num_ops = {'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "B C"
+        in2 = "A B C"
+        phrases = "[[/ [], ['A']], [= ['B', 'C'], ['B', 'C']]]"
+        num_ops = {'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B"
+        in2 = "A B C"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], [/ [], ['C']]]"
+        num_ops = {'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_para_inserts(self):
+        in1 = None
+        in2 = "A"
+        phrases = "[[/ [], ['A']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = ""
+        in2 = "A"
+        phrases = "[[/ [], ['A']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = None
+        in2 = "A B"
+        phrases = "[[/ [], ['A', 'B']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = None
+        in2 = "A\n\nB"
+        phrases = "[[/ [], ['A']], [/ [], ['B']]]"
+        num_ops = {'num_para_inserts': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = ""
+        in2 = "A B"
+        phrases = "[[/ [], ['A', 'B']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = ""
+        in2 = "A\n\nB"
+        phrases = "[[/ [], ['A']], [/ [], ['B']]]"
+        num_ops = {'num_para_inserts': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
         
-        baz boo
+        in1 = "A\n\nC"
+        in2 = "A\n\nB\n\nC"
+        phrases = "[[= ['A'], ['A']], [/ [], ['B']], [= ['C'], ['C']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "B\n\nC"
+        in2 = "A\n\nB\n\nC"
+        phrases = "[[/ [], ['A']], [= ['B'], ['B']], [= ['C'], ['C']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB"
+        in2 = "A\n\nB\n\nC"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], [/ [], ['C']]]"
+        num_ops = {'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_word_replaces(self):
+        in1 = "A B C"
+        in2 = "A X C"
+        phrases = "[[= ['A'], ['A']], [/ ['B'], ['X']], [= ['C'], ['C']]]"
+        num_ops = {'num_word_replaces': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "X B C"
+        phrases = "[[/ ['A'], ['X']], [= ['B', 'C'], ['B', 'C']]]"
+        num_ops = {'num_word_replaces': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "A B X"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], [/ ['C'], ['X']]]"
+        num_ops = {'num_word_replaces': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_para_replaces(self):
+        in1 = "A\n\nB\n\nC"
+        in2 = "A\n\nX\n\nC"
+        phrases = "[[= ['A'], ['A']], [/ ['B'], ['X']], [= ['C'], ['C']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "X\n\nB\n\nC"
+        phrases = "[[/ ['A'], ['X']], [= ['B'], ['B']], [= ['C'], ['C']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "A\n\nB\n\nX"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], [/ ['C'], ['X']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_word_rearranges(self):
+        in1 = "X A B"
+        in2 = "A B X"
+        phrases = "[[/ ['X'], []], [= ['A', 'B'], ['A', 'B']], [/ [], ['X']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "X A B"
+        in2 = "A X B"
+        phrases = "[[/ ['X'], []], [= ['A'], ['A']], [/ [], ['X']], [= ['B'], ['B']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X B"
+        in2 = "X A B"
+        phrases = "[[/ ['A'], []], [= ['X'], ['X']], [/ [], ['A']], [= ['B'], ['B']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X B"
+        in2 = "A B X"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], []], [= ['B'], ['B']], [/ [], ['X']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B X"
+        in2 = "X A B"
+        phrases = "[[/ [], ['X']], [= ['A', 'B'], ['A', 'B']], [/ ['X'], []]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B X"
+        in2 = "A X B"
+        phrases = "[[= ['A'], ['A']], [/ ['B'], []], [= ['X'], ['X']], [/ [], ['B']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        # With rearrange=True
+        in1 = "X A B"
+        in2 = "A B X"
+        phrases = "[[/ ['X'], []], [= ['A', 'B'], ['A', 'B']], [/ [], ['X']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "X A B"
+        in2 = "A X B"
+        phrases = "[[/ ['X'], []], [= ['A'], ['A']], [/ [], ['X']], [= ['B'], ['B']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A X B"
+        in2 = "X A B"
+        phrases = "[[/ ['A'], []], [= ['X'], ['X']], [/ [], ['A']], [= ['B'], ['B']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A X B"
+        in2 = "A B X"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], []], [= ['B'], ['B']], [/ [], ['X']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A B X"
+        in2 = "X A B"
+        phrases = "[[/ [], ['X']], [= ['A', 'B'], ['A', 'B']], [/ ['X'], []]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A B X"
+        in2 = "A X B"
+        phrases = "[[= ['A'], ['A']], [/ ['B'], []], [= ['X'], ['X']], [/ [], ['B']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+    def test_doc_diff_from_strings_para_rearranges(self):
+        in1 = "X\n\nA\n\nB"
+        in2 = "A\n\nB\n\nX"
+        phrases = "[[/ ['X'], []], [= ['A'], ['A']], [= ['B'], ['B']], [/ [], ['X']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "X\n\nA\n\nB"
+        in2 = "A\n\nX\n\nB"
+        phrases = "[[/ ['X'], []], [= ['A'], ['A']], [/ [], ['X']], [= ['B'], ['B']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX\n\nB"
+        in2 = "X\n\nA\n\nB"
+        phrases = "[[/ ['A'], []], [= ['X'], ['X']], [/ [], ['A']], [= ['B'], ['B']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX\n\nB"
+        in2 = "A\n\nB\n\nX"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], []], [= ['B'], ['B']], [/ [], ['X']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nX"
+        in2 = "X\n\nA\n\nB"
+        phrases = "[[/ [], ['X']], [= ['A'], ['A']], [= ['B'], ['B']], [/ ['X'], []]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nX"
+        in2 = "A\n\nX\n\nB"
+        phrases = "[[= ['A'], ['A']], [/ ['B'], []], [= ['X'], ['X']], [/ [], ['B']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        # With rearrange=True
+        in1 = "X\n\nA\n\nB"
+        in2 = "A\n\nB\n\nX"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], [~ ['X'], ['X']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "X\n\nA\n\nB"
+        in2 = "A\n\nX\n\nB"
+        phrases = "[[= ['A'], ['A']], [~ ['X'], ['X']], [= ['B'], ['B']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A\n\nX\n\nB"
+        in2 = "X\n\nA\n\nB"
+        phrases = "[[= ['X'], ['X']], [~ ['A'], ['A']], [= ['B'], ['B']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A\n\nX\n\nB"
+        in2 = "A\n\nB\n\nX"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], [~ ['X'], ['X']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A\n\nB\n\nX"
+        in2 = "X\n\nA\n\nB"
+        phrases = "[[~ ['X'], ['X']], [= ['A'], ['A']], [= ['B'], ['B']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A\n\nB\n\nX"
+        in2 = "A\n\nX\n\nB"
+        phrases = "[[= ['A'], ['A']], [= ['X'], ['X']], [~ ['B'], ['B']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "X\n\nA B"
+        in2 = "A B\n\nX"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], [~ ['X'], ['X']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A B\n\nX"
+        in2 = "X\n\nA B"
+        phrases = "[[~ ['X'], ['X']], [= ['A', 'B'], ['A', 'B']]]"
+        num_ops = {'num_para_rearranges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+
+    def test_doc_diff_from_strings_splits(self):
+        in1 = "A B C"
+        in2 = "A\n\nB C"
+        phrases = "[[= ['A'], ['A']], S, [= ['B', 'C'], ['B', 'C']]]"
+        num_ops = {'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "A B\n\nC"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], S, [= ['C'], ['C']]]"
+        num_ops = {'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "A\n\nB\n\nC"
+        phrases = "[[= ['A'], ['A']], S, [= ['B'], ['B']], S, [= ['C'], ['C']]]"
+        num_ops = {'num_para_splits': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB C"
+        in2 = "A\n\nB\n\nC"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], S, [= ['C'], ['C']]]"
+        num_ops = {'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B\n\nC"
+        in2 = "A\n\nB\n\nC"
+        phrases = "[[= ['A'], ['A']], S, [= ['B'], ['B']], [= ['C'], ['C']]]"
+        num_ops = {'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+    def test_doc_diff_from_strings_merges(self):
+        in1 = "A\n\nB C"
+        in2 = "A B C"
+        phrases = "[[= ['A'], ['A']], M, [= ['B', 'C'], ['B', 'C']]]"
+        num_ops = {'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B\n\nC"
+        in2 = "A B C"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], M, [= ['C'], ['C']]]"
+        num_ops = {'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "A B C"
+        phrases = "[[= ['A'], ['A']], M, [= ['B'], ['B']], M, [= ['C'], ['C']]]"
+        num_ops = {'num_para_merges': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "A\n\nB C"
+        phrases = "[[= ['A'], ['A']], [= ['B'], ['B']], M, [= ['C'], ['C']]]"
+        num_ops = {'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "A B\n\nC"
+        phrases = "[[= ['A'], ['A']], M, [= ['B'], ['B']], [= ['C'], ['C']]]"
+        num_ops = {'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_splits_and_merges(self):
+        in1 = "A\n\nB C"
+        in2 = "A B\n\nC"
+        phrases = "[[= ['A'], ['A']], M, [= ['B'], ['B']], S, [= ['C'], ['C']]]"
+        num_ops = {'num_para_merges': 1, 'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B\n\nC"
+        in2 = "A\n\nB C"
+        phrases = "[[= ['A'], ['A']], S, [= ['B'], ['B']], M, [= ['C'], ['C']]]"
+        num_ops = {'num_para_merges': 1, 'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_word_insert_deletes_replaces(self):
+        in1 = "A B C"
+        in2 = "B C D"
+        phrases = "[[/ ['A'], []], [= ['B', 'C'], ['B', 'C']], [/ [], ['D']]]"
+        num_ops = {'num_word_deletes': 1, 'num_word_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A B C"
+        in2 = "B X D"
+        phrases = "[[/ ['A'], []], [= ['B'], ['B']], [/ ['C'], ['X', 'D']]]"
+        num_ops = {'num_word_deletes': 1,
+                   'num_word_inserts': 1,
+                   'num_word_replaces': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "B C D"
+        in2 = "B X D E"
+        phrases = "[[= ['B'], ['B']], [/ ['C'], ['X']], [= ['D'], ['D']], [/ [], ['E']]]"
+        num_ops = {'num_word_inserts': 1,
+                   'num_word_replaces': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_para_insert_deletes_replaces(self):
+        in1 = "A\n\nB\n\nC"
+        in2 = "B\n\nC\n\nD"
+        phrases = "[[/ ['A'], []], [= ['B'], ['B']], [= ['C'], ['C']], [/ [], ['D']]]"
+        num_ops = {'num_para_deletes': 1, 'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nB\n\nC"
+        in2 = "B\n\nX\n\nD"
+        phrases = "[[/ ['A'], []], [= ['B'], ['B']], [/ ['C'], ['X']], [/ [], ['D']]]"
+        num_ops = {'num_para_deletes': 2, 'num_para_inserts': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "B\n\nC\n\nD"
+        in2 = "B\n\nX\n\nD\n\nE"
+        phrases = "[[= ['B'], ['B']], [/ ['C'], ['X']], [= ['D'], ['D']], [/ [], ['E']]]"
+        num_ops = {'num_para_inserts': 2,
+                   'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+    def test_doc_diff_from_strings_splits_merges_within_replaces(self):
+        in1 = "A X C D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], S, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X C D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nC D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX C D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX C D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X'], ['B']], S, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_para_splits': 1, 
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nC D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X'], ['B']], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_para_splits': 1, 
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+        in1 = "A\n\nX Y C D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X', 'Y'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY C D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X Y\n\nC D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X', 'Y'], ['B']], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX\n\nY C D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY\n\nC D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX Y\n\nC D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X', 'Y'], ['B']], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX\n\nY\n\nC D"
+        in2 = "A B C D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 2}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+        in1 = "A\n\nX Y C D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X', 'Y'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY C D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_word_deletes': 1,
+                   'num_para_splits': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X Y\n\nC D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X', 'Y'], ['B']], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_splits': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+        in1 = "A\n\nX\n\nY C D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY\n\nC D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_para_merges': 1,
+                   'num_para_splits': 1,
+                   'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX Y\n\nC D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X', 'Y'], ['B']], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX\n\nY\n\nC D"
+        in2 = "A\n\nB C D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], M, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_para_merges': 1,
+                   'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+        in1 = "A\n\nX Y C D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X', 'Y'], ['B']], S, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY C D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X Y\n\nC D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X', 'Y'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+        in1 = "A\n\nX\n\nY C D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY\n\nC D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX Y\n\nC D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X', 'Y'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_word_replaces': 1,
+                   'num_word_deletes': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX\n\nY\n\nC D"
+        in2 = "A B\n\nC D"
+        phrases = "[[= ['A'], ['A']], M, [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_merges': 1,
+                   'num_word_replaces': 1,
+                   'num_para_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+        in1 = "A\n\nX Y C D"
+        in2 = "A\n\nB\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X', 'Y'], ['B']], S, [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY C D"
+        in2 = "A\n\nB\n\nC D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_word_deletes': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X Y\n\nC D"
+        in2 = "A\n\nB\n\nC D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X', 'Y'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+        in1 = "A\n\nX\n\nY C D"
+        in2 = "A\n\nB\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1,
+                   'num_word_deletes': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A X\n\nY\n\nC D"
+        in2 = "A\n\nB\n\nC D"
+        phrases = "[[= ['A'], ['A']], S, [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 2,
+                   'num_para_inserts': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX Y\n\nC D"
+        in2 = "A\n\nB\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X', 'Y'], ['B']], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 1,
+                   'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+        in1 = "A\n\nX\n\nY\n\nC D"
+        in2 = "A\n\nB\n\nC D"
+        phrases = "[[= ['A'], ['A']], [/ ['X'], ['B']], [/ ['Y'], []], [= ['C', 'D'], ['C', 'D']]]"
+        num_ops = {'num_para_deletes': 2,
+                   'num_para_inserts': 1}
+        self.evaluate(in1, in2, phrases, num_ops)
+
+
+    def test_doc_diff_from_strings_split_merges_with_rearranges(self): 
+        in1 = "E F G\n\nA B C D"
+        in2 = "A B C D E F G"
+        phrases = "[[= ['A', 'B', 'C', 'D'], ['A', 'B', 'C', 'D']], M, [~ ['E', 'F', 'G'], ['E', 'F', 'G']]]"
+        num_ops = {'num_para_rearranges': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "E\n\nF G A B C D"
+        in2 = "A B C D E F G"
+        phrases = "[[/ ['F', 'G'], []], [= ['A', 'B', 'C', 'D'], ['A', 'B', 'C', 'D']], M, [~ ['E'], ['E']], M, [/ [], ['F', 'G']]]"
+        num_ops = {'num_word_deletes': 2,
+                   'num_word_inserts': 2,
+                   'num_para_rearranges': 1,
+                   'num_para_merges': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
         
-        doo goo
-        """
-        expected = { 'num_para_inserts': 2 }
-        self.assert_equal(input1, input2, expected)
+        in1 = "E\n\nF\n\nG\n\nA B C D"
+        in2 = "A B C D E F G"
+        phrases = "[[= ['A', 'B', 'C', 'D'], ['A', 'B', 'C', 'D']], M, [~ ['E'], ['E']], M, M, [~ ['F'], ['F']], M, M, [~ ['G'], ['G']]]"
+        num_ops = {'num_para_rearranges': 3,
+                   'num_para_merges': 3}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "F\n\nG\n\nE\n\nA B C D"
+        in2 = "A B C D E F G"
+        phrases = "[[= ['A', 'B', 'C', 'D'], ['A', 'B', 'C', 'D']], M, [~ ['E'], ['E']], M, M, [~ ['F'], ['F']], M, M, [~ ['G'], ['G']]]"
+        num_ops = {'num_para_rearranges': 3,
+                   'num_para_merges': 3}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "H I J K L M A B C D E F G"
+        in2 = "A B C D E F G H I J K L M"
+        phrases = "[[= ['A', 'B', 'C', 'D', 'E', 'F', 'G'], ['A', 'B', 'C', 'D', 'E', 'F', 'G']], M, [~ ['H', 'I', 'J', 'K', 'L', 'M'], ['H', 'I', 'J', 'K', 'L', 'M']]]"
+        num_ops = {'num_para_rearranges': 1,
+                   'num_para_merges': 1,
+                   'num_para_splits': 1}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
         
-        # Test two inserts within paragraphs.
-        input1 = """foo bar"""
-        input2 = """
-        foo bar 
-        
-        baz boo baz boo baz boo baz boo
-        
-        doo goo
-        """
-        expected = { 'num_para_inserts': 2 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test short inner insert.
-        input1 = "foo baz"
-        input2 = "foo bar baz"
-        expected = { 'num_word_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test long inner insert.
-        input1 = "foo baz"
-        input2 = "foo bar gar koo roo woo tul bol baz"
-        expected = { 'num_para_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
-                
-        # Test delete across paragraph boundaries.
-        input1 = """
-        foo bar
-        
-        koo loo
-        """
-        input2 = """
-        foo bar baz 
-        
-        goo koo loo
-        """
-        expected = { 'num_word_inserts': 2 }
-        self.assert_equal(input1, input2, expected)
-        
-        # Test delete across paragraph boundaries.
-        input1 = """
-        foo bar
-        
-        koo loo
-        """
-        input2 = """
-        foo bar baz baz baz
-        
-        goo goo goo koo loo
-        """
-        expected = { 'num_para_inserts': 2 }
-        self.assert_equal(input1, input2, expected)
-                   
-        # Test insert of a short paragraph.
-        input1 = """
-        bar
-        """
-        input2 = """
-        foo
-                
-        bar
-        """
-        expected = { 'num_para_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
-                        
-        # Test insert of a long paragraph.
-        input1 = """
-        bar
-        """
-        input2 = """
-        foo foo foo foo foo foo foo
-                
-        bar
-        """
-        expected = { 'num_para_inserts': 1 }
-        self.assert_equal(input1, input2, expected)
-                                
+        in1 = "A B V W X Y Z C D E F G H"
+        in2 = "A B C D E F G V W X Y Z H"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], [= ['C', 'D', 'E', 'F', 'G'], ['C', 'D', 'E', 'F', 'G']], M, [~ ['V', 'W', 'X', 'Y', 'Z'], ['V', 'W', 'X', 'Y', 'Z']], M, [= ['H'], ['H']]]"
+        num_ops = {'num_para_merges': 2, 
+                   'num_para_rearranges': 1,
+                   'num_para_splits': 2}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+        in1 = "A B V W X Y Z C D E F G H"
+        in2 = "A B C D E F G V W X Y Z H"
+        phrases = "[[= ['A', 'B'], ['A', 'B']], [= ['C', 'D', 'E', 'F', 'G'], ['C', 'D', 'E', 'F', 'G']], M, [~ ['V', 'W', 'X', 'Y', 'Z'], ['V', 'W', 'X', 'Y', 'Z']], M, [= ['H'], ['H']]]"
+        num_ops = {'num_para_merges': 2, 
+                   'num_para_rearranges': 1,
+                   'num_para_splits': 2}
+        self.evaluate(in1, in2, phrases, num_ops, rearrange=True)
+
+    # ==========================================================================
+    # Some util methods.
+
+    def evaluate(self, in1, in2, phrases, num_ops, rearrange=False):
+        result = doc_diff_from_strings(
+            in1,
+            in2,
+            to_lower=False,
+            rearrange_phrases=rearrange,
+            min_rearrange_length=1)
+        self.assertEqual(self.to_string(result.phrases), phrases)
+        self.assertDictEqual(dict(result.num_ops), num_ops)
+
+    def to_string(self, phrases):
+        """ Creates a string representation for given list of phrases. """
+        texts = []
+        for phrase in phrases:
+            parts = []
+            if getattr(phrase, 'split_before', False):
+                parts.append("S")
+            if getattr(phrase, 'merge_before', False):
+                parts.append("M")
+            parts.append(str(phrase))
+            if getattr(phrase, 'split_after', False):
+                parts.append("S")
+            if getattr(phrase, 'merge_after', False):
+                parts.append("M")
+            texts.append(", ".join(parts))
+        return "[%s]" % ", ".join(texts)
+
 if __name__ == '__main__':
     unittest.main()

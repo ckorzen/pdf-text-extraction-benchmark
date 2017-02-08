@@ -40,7 +40,7 @@ public class TeXParagraphsParser {
   protected TeXElementReferences texElementRefs;
 
   protected String documentStyle;
-  
+    
   /**
    * Creates a new paragraph parser for the given document.
    */
@@ -134,7 +134,7 @@ public class TeXParagraphsParser {
     Iterator<Element> itr = new Iterator<>(elements);
     while (itr.hasNext()) {
       Element element = itr.next();
-      
+            
       if (element instanceof Option) {
         // There may be (valid) text like "foo bar [2]", see cond-mat0001200.
         // So, if the element is a standalone option, handle it as text.
@@ -143,7 +143,7 @@ public class TeXParagraphsParser {
       } else if (element instanceof Group) {
         para = processGroup(((Group) element), role, defaultRole, para, paras);
       } else if (element instanceof Command) {
-        para = processCommand(((Command) element), role, defaultRole, itr, para, paras);
+        para = processCommand(((Command) element), role, defaultRole, itr, para, paras); 
       } else if (element instanceof Text) {
         para = processText((Text) element, role, defaultRole, itr, para, paras);
       }
@@ -166,7 +166,7 @@ public class TeXParagraphsParser {
     if (text.startsWith("@")) {
       return para;
     }
-
+    
     // Check if the element introduces a new paragraph.
     para = checkForParagraphStart(textElement, role, defaultRole, para, paras);
 
@@ -199,7 +199,7 @@ public class TeXParagraphsParser {
    * Process the given command.
    */
   protected TeXParagraph processCommand(Command cmd, String role, String defaultRole, 
-      Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {
+      Iterator<Element> itr, TeXParagraph para, List<TeXParagraph> paras) {    
     // Check, if the command is a cross reference. TODO
     if (StringUtils.equals(cmd.getName(), "\\onlinecite")) {
       cmd.setName("\\cite");
@@ -210,7 +210,11 @@ public class TeXParagraphsParser {
       this.documentStyle = cmd.getGroup().getText();
     }
     
-    if (StringUtils.equals(cmd.getName(), "\\ref", "\\cite")) {
+    if (StringUtils.equals(cmd.getName(), "\\ref", "\\eqref", "\\cite", 
+        "\\citep", "\\citet", "\\citealp", "\\citealt", "\\citetext", 
+        "\\citeauthor", "\\citeyear", "\\citeyearpar", "\\Citep", "\\Citet", 
+        "\\Citealp", "\\Citealt", "\\Citetext", "\\Citeauthor", "\\Citeyear", 
+        "\\Citeyearpar", "\\citetalias", "\\citepalias")) {
       processCrossReferenceCommand(cmd, itr, para);
     }
     
@@ -351,12 +355,12 @@ public class TeXParagraphsParser {
   protected String getTextOfSimpleFormula(List<Element> elements) {    
     StringBuilder sb = new StringBuilder();
     Iterator<Element> itr = new Iterator<>(elements);
-    
+        
     // Only iterate until numElements - 1, because last element is
     // "end math-mode" command. Ignore it.
     while (itr.hasNext()) {
       Element element = itr.next();
-      
+            
       // If there is a run of "_x^y" we want to proceed with superscript first.
       if (isSubscriptCommand(element)) {
         Element next = itr.peekNonWhitespace();

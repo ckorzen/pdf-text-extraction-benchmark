@@ -15,11 +15,15 @@ class PDFExtractExtractor(Extractor):
         ''' Reads the given actual file. Override it if you have to do more 
         advanced stuff, like removing semantic markups, etc.'''
 
-        if not file_util.is_missing_or_empty_file(raw_output_path):
+        if file_util.is_missing_or_empty_file(raw_output_path):
+            return 11, None
+        try:
             xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
-            para_nodes = xml.xpath(paras_xpath, namespaces=ns)   
-            return "\n\n".join([para_node.text for para_node in para_nodes if para_node is not None and para_node.text is not None])
-        return ""
+        except:
+            return 12, None
+
+        para_nodes = xml.xpath(paras_xpath, namespaces=ns)   
+        return 0, "\n\n".join([para_node.text for para_node in para_nodes if para_node is not None and para_node.text is not None])
 
 if __name__ == "__main__":
     arg_parser = Extractor.get_argument_parser()

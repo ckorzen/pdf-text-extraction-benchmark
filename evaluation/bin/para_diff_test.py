@@ -1,185 +1,144 @@
 import unittest
-from para_diff import para_diff
+import para_diff
+
+para_diff_tests = [
+    # (actual, target, expected output)
+    ("A B C", "A B C",
+        "[[= ['A', 'B', 'C'], ['A', 'B', 'C']]]"),
+    ("", "A B C",
+        "[[/ [], ['A', 'B', 'C']]]"),
+    ("A B C", "",
+        "[[/ ['A', 'B', 'C'], []]]"),
+    ("", "A \n\n B \n\n C",
+        "[[/ [], ['A']], S, [/ [], ['B']], S, [/ [], ['C']]]"),
+    ("A \n\n B \n\n C", "",
+        "[[/ ['A'], []], M, [/ ['B'], []], M, [/ ['C'], []]]"),
+    ("A B C", "A",
+        "[[= ['A'], ['A']], [/ ['B', 'C'], []]]"),
+    ("A", "A B C",
+        "[[= ['A'], ['A']], [/ [], ['B', 'C']]]"),
+    ("X A B C", "A B C",
+        "[[/ ['X'], []], [= ['A', 'B', 'C'], ['A', 'B', 'C']]]"),
+    ("A B C", "X A B C",
+        "[[/ [], ['X']], [= ['A', 'B', 'C'], ['A', 'B', 'C']]]"),
+    ("A X B C", "A B C",
+        "[[= ['A'], ['A']], [/ ['X'], []], [= ['B', 'C'], ['B', 'C']]]"),
+    ("A B C", "A X B C",
+        "[[= ['A'], ['A']], [/ [], ['X']], [= ['B', 'C'], ['B', 'C']]]"),
+    ("A B C X", "A B C",
+        "[[= ['A', 'B', 'C'], ['A', 'B', 'C']], [/ ['X'], []]]"),
+    ("A B C", "A B C X",
+        "[[= ['A', 'B', 'C'], ['A', 'B', 'C']], [/ [], ['X']]]"),
+    ("A \n\n B \n\n C", "A \n\n B \n\n C",
+        "[[= ['A', 'B', 'C'], ['A', 'B', 'C']]]"),
+    ("A B C", "A \n\n B \n\n C",
+        "[[= ['A'], ['A']], S, [= ['B'], ['B']], S, [= ['C'], ['C']]]"),
+    ("A \n\n B \n\n C", "A B C",
+        "[[= ['A'], ['A']], M, [= ['B'], ['B']], M, [= ['C'], ['C']]]"),
+    ("A \n\n B \n\n C", "A B C D",
+        "[[= ['A'], ['A']], M, [= ['B'], ['B']], M, [= ['C'], ['C']], "
+        "[/ [], ['D']]]"),
+    ("A B C D", "A \n\n B \n\n C",
+        "[[= ['A'], ['A']], S, [= ['B'], ['B']], S, [= ['C'], ['C']], "
+        "[/ ['D'], []]]"),
+    ("A \n\n B \n\n C", "A B C \n\n D",
+        "[[= ['A'], ['A']], M, [= ['B'], ['B']], M, [= ['C'], ['C']], S, "
+        "[/ [], ['D']]]"),
+    ("A B C \n\n D", "A \n\n B \n\n C",
+        "[[= ['A'], ['A']], S, [= ['B'], ['B']], S, [= ['C'], ['C']], M, "
+        "[/ ['D'], []]]"),
+    ("A \n\n B \n\n C", "A B \n\n X",
+        "[[= ['A'], ['A']], M, [= ['B'], ['B']], [/ ['C'], ['X']]]"),
+    ("A B \n\n X", "A \n\n B \n\n C",
+        "[[= ['A'], ['A']], S, [= ['B'], ['B']], [/ ['X'], ['C']]]"),
+    ("A B C", "A \n\n X B C",
+        "[[= ['A'], ['A']], S, [/ [], ['X']], [= ['B', 'C'], ['B', 'C']]]"),
+    ("A \n\n X B C", "A B C",
+        "[[= ['A'], ['A']], M, [/ ['X'], []], [= ['B', 'C'], ['B', 'C']]]"),
+    ("A B C", "A X \n\n B C",
+        "[[= ['A'], ['A']], [/ [], ['X']], S, [= ['B', 'C'], ['B', 'C']]]"),
+    ("A X \n\n B C", "A B C",
+        "[[= ['A'], ['A']], [/ ['X'], []], M, [= ['B', 'C'], ['B', 'C']]]"),
+    ("A B C", "A \n\n X \n\n B \n\n C",
+        "[[= ['A'], ['A']], S, [/ [], ['X']], S, [= ['B'], ['B']], S, "
+        "[= ['C'], ['C']]]"),
+    ("A \n\n X \n\n B \n\n C", "A B C",
+        "[[= ['A'], ['A']], M, [/ ['X'], []], M, [= ['B'], ['B']], M, "
+        "[= ['C'], ['C']]]"),
+    ("A B C", "X \n\n A \n\n B \n\n C",
+        "[[/ [], ['X']], S, [= ['A'], ['A']], S, [= ['B'], ['B']], S, "
+        "[= ['C'], ['C']]]"),
+    ("X \n\n A \n\n B \n\n C", "A B C",
+        "[[/ ['X'], []], M, [= ['A'], ['A']], M, [= ['B'], ['B']], M, "
+        "[= ['C'], ['C']]]"),
+    ("A B C", "A \n\n B \n\n C \n\n X",
+        "[[= ['A'], ['A']], S, [= ['B'], ['B']], S, [= ['C'], ['C']], S, "
+        "[/ [], ['X']]]"),
+    ("A \n\n B \n\n C \n\n X", "A B C",
+        "[[= ['A'], ['A']], M, [= ['B'], ['B']], M, [= ['C'], ['C']], M, "
+        "[/ ['X'], []]]"),
+    ("A \n\n B \n\n C", "A \n\n X B C",
+        "[[= ['A'], ['A']], [/ [], ['X']], [= ['B'], ['B']], M, "
+        "[= ['C'], ['C']]]"),
+    ("A \n\n X B C", "A \n\n B \n\n C",
+        "[[= ['A'], ['A']], [/ ['X'], []], [= ['B'], ['B']], S, "
+        "[= ['C'], ['C']]]"),
+    ("A \n\n B \n\n C", "A X \n\n B C",
+        "[[= ['A'], ['A']], [/ [], ['X']], [= ['B'], ['B']], M, "
+        "[= ['C'], ['C']]]"),
+    ("A X \n\n B C", "A \n\n B \n\n C",
+        "[[= ['A'], ['A']], [/ ['X'], []], [= ['B'], ['B']], S, "
+        "[= ['C'], ['C']]]"),
+    ("A \n\n B \n\n C", "A \n\n X \n\n B \n\n C",
+        "[[= ['A'], ['A']], [/ [], ['X']], S, [= ['B', 'C'], ['B', 'C']]]"),
+    ("A \n\n X \n\n B \n\n C", "A \n\n B \n\n C",
+        "[[= ['A'], ['A']], [/ ['X'], []], M, [= ['B', 'C'], ['B', 'C']]]"),
+    ("A \n\n B \n\n C", "X \n\n A \n\n B \n\n C",
+        "[[/ [], ['X']], S, [= ['A', 'B', 'C'], ['A', 'B', 'C']]]"),
+    ("X \n\n A \n\n B \n\n C", "A \n\n B \n\n C",
+        "[[/ ['X'], []], M, [= ['A', 'B', 'C'], ['A', 'B', 'C']]]"),
+    ("A \n\n B \n\n C", "A \n\n B \n\n C \n\n X",
+        "[[= ['A', 'B', 'C'], ['A', 'B', 'C']], S, [/ [], ['X']]]"),
+    ("A \n\n B \n\n C \n\n X", "A \n\n B \n\n C",
+        "[[= ['A', 'B', 'C'], ['A', 'B', 'C']], M, [/ ['X'], []]]"),
+]
+
 
 class ParaDiffTest(unittest.TestCase):
+    """ Tests for para_diff."""
 
-    def assert_equal(self, input1, input2, expected_str):
-        actual     = para_diff(input1, input2)
-        actual_str = "[%s]" % ", ".join([str(x) for x in actual]) 
-        self.assertEqual(actual_str, expected_str)
+    def test_para_diff_from_strings(self):
+        """ Tests the method para_diff_from_strings(). """
+        # Test None values.
+        res = para_diff.para_diff_from_strings(None, None).phrases
+        self.assertEqual(res, [])
 
-    def test_equal_paras(self):
-        input1   = []
-        input2   = []
-        expected = "[]"
-        self.assert_equal(input1, input2, expected)
+        # Test empty values.
+        res = para_diff.para_diff_from_strings([], []).phrases
+        self.assertEqual(res, [])
 
-        input1   = [["foo", "bar"]]
-        input2   = [["foo", "bar"]]
-        expected = "[[= ['foo', 'bar'], ['foo', 'bar']]]"
-        self.assert_equal(input1, input2, expected)
+        # Test all the given test cases.
+        for test in para_diff_tests:
+            out = para_diff.para_diff_from_strings(test[0], test[1])
+            out_str = self.phrases_to_string(out.phrases)
+            expected = test[2]
+            self.assertEqual(out_str, expected, msg="Test: {0}".format(test))
 
-        input1   = [["foo", "bar"], ["baz", "boo"]] 
-        input2   = [["foo", "bar"], ["baz", "boo"]]
-        expected = "[[= ['foo', 'bar'], ['foo', 'bar']], [= ['baz', 'boo'], ['baz', 'boo']]]"
-        self.assert_equal(input1, input2, expected)
+    # ==========================================================================
+    # Some util methods.
 
-    def test_delete_para(self):
-        input1 = [["foo"]]
-        input2 = []
-        expected = "[[/ ['foo'], []]]"
-        self.assert_equal(input1, input2, expected)
+    def phrases_to_string(self, phrases):
+        """ Creates a string representation for given list of phrases. """
+        texts = []
+        for phrase in phrases:
+            parts = []
+            if getattr(phrase, 'split_before', False):
+                parts.append("S")
+            if getattr(phrase, 'merge_before', False):
+                parts.append("M")
+            parts.append(str(phrase))
+            texts.append(", ".join(parts))
+        return "[%s]" % ", ".join(texts)
 
-        input1 = [["foo", "bar"]]
-        input2 = []
-        expected = "[[/ ['foo', 'bar'], []]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo"], ["bar"]]
-        input2 = []
-        expected = "[[/ ['foo'], []], [/ ['bar'], []]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo"], ["bar"]]
-        input2 = [["bar"]]
-        expected = "[[/ ['foo'], []], [= ['bar'], ['bar']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo", "bar"], ["baz"]]
-        input2 = [["foo"], ["baz"]]
-        expected = "[[= ['foo'], ['foo']], [/ ['bar'], []], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-                
-    def test_insert_para(self):
-        input1 = []
-        input2 = [["foo"]]
-        expected = "[[/ [], ['foo']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = []
-        input2 = [["foo", "bar"]]
-        expected = "[[/ [], ['foo', 'bar']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = []
-        input2 = [["foo"], ["bar"]]        
-        expected = "[[/ [], ['foo']], [/ [], ['bar']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["bar"]]
-        input2 = [["foo"], ["bar"]]
-        expected = "[[/ [], ['foo']], [= ['bar'], ['bar']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo"], ["baz"]]
-        input2 = [["foo", "bar"], ["baz"]]
-        expected = "[[= ['foo'], ['foo']], [/ [], ['bar']], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-        
-    def test_replace_para(self):
-        input1 = [["foo"]]
-        input2 = [["bar"]]
-        expected = "[[/ ['foo'], ['bar']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo", "bar"]]
-        input2 = [["baz", "boo"]]
-        expected = "[[/ ['foo', 'bar'], ['baz', 'boo']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo"], ["bar"]]
-        input2 = [["baz"], ["boo"]]
-        expected = "[[/ ['foo'], ['baz']], [/ ['bar'], ['boo']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo", "bar"]]
-        input2 = [["baz"]]
-        expected = "[[/ ['foo', 'bar'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo"], ["bar"]]
-        input2 = [["baz"]]
-        expected = "[[/ ['foo'], ['baz']], [/ ['bar'], []]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo"]]
-        input2 = [["baz", "boo"]]
-        expected = "[[/ ['foo'], ['baz', 'boo']]]"
-        self.assert_equal(input1, input2, expected)
-       
-        input1 = [["foo"]]
-        input2 = [["baz"], ["boo"]]
-        expected = "[[/ ['foo'], ['baz']], [/ [], ['boo']]]"
-        self.assert_equal(input1, input2, expected)
-        
-    def test_split_para(self):
-        input1 = [["foo", "bar"]]
-        input2 = [["foo"], ["bar"]]
-        expected = "[[= ['foo'], ['foo']], [split], [= ['bar'], ['bar']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo", "bar", "baz"]]
-        input2 = [["foo"], ["bar"], ["baz"]]
-        expected = "[[= ['foo'], ['foo']], [split], [= ['bar'], ['bar']], [split], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo", "bar", "baz"]]
-        input2 = [["foo", "bar"], ["baz"]]
-        expected = "[[= ['foo', 'bar'], ['foo', 'bar']], [split], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-               
-    def test_merge_para(self):
-        input1 = [["foo"], ["bar"]]
-        input2 = [["foo", "bar"]]
-        expected = "[[= ['foo'], ['foo']], [merge], [= ['bar'], ['bar']]]"
-        self.assert_equal(input1, input2, expected)
-
-        input1 = [["foo"], ["bar"], ["baz"]]        
-        input2 = [["foo", "bar", "baz"]]
-        expected = "[[= ['foo'], ['foo']], [merge], [= ['bar'], ['bar']], [merge], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo", "bar"], ["baz"]]
-        input2 = [["foo", "bar", "baz"]]
-        expected = "[[= ['foo', 'bar'], ['foo', 'bar']], [merge], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-     
-    def test_rearrange_para(self):
-        input1 = [["foo"], ["bar"]]
-        input2 = [["bar"], ["foo"]]
-        expected = "[[~ ['foo'], ['foo']], [= ['bar'], ['bar']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo"], ["bar"], ["baz"]]
-        input2 = [["baz"], ["bar"], ["foo"]]
-        expected = "[[~ ['foo'], ['foo']], [~ ['bar'], ['bar']], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo", "bar", "baz"]]
-        input2 = [["baz", "bar", "foo"]]
-        expected = "[[~ ['foo'], ['foo']], [~ ['bar'], ['bar']], [= ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo", "bar", "baz", "boo"]]
-        input2 = [["baz", "boo", "foo", "bar"]]
-        expected = "[[~ ['foo', 'bar'], ['foo', 'bar']], [= ['baz', 'boo'], ['baz', 'boo']]]"
-        self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo", "bar"], ["baz"]]
-        input2 = [["baz"], ["foo", "bar"]]
-        expected = "[[= ['foo', 'bar'], ['foo', 'bar']], [~ ['baz'], ['baz']]]"
-        self.assert_equal(input1, input2, expected)
-         
-    def test_various_combinations(self):
-        input1 = [["foo"], ["bar"]]
-        input2 = [["foo", "baz", "bar"]]
-        expected = "[[= ['foo'], ['foo']], [/ [], ['baz']], [merge], [= ['bar'], ['bar']]]"
-        # self.assert_equal(input1, input2, expected)
-        
-        input1 = [["foo", "bar"]]
-        input2 = [["foo", "baz"], ["bar"]]
-        expected = "[[= ['foo'], ['foo']], [/ [], ['baz']], [split], [= ['bar'], ['bar']]]"
-        # self.assert_equal(input1, input2, expected)
-                       
 if __name__ == '__main__':
     unittest.main()

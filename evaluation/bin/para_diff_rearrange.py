@@ -1,470 +1,555 @@
-import util
-import diff
-from collections import defaultdict
+from word_diff import DiffReplacePhrase, DiffPhrase
+import doc_diff
+import logging
+import time
+from collections import Counter
 from queue import PriorityQueue
 
-# TODO: Refactor!
+logging.basicConfig(
+    format='%(asctime)s : %(levelname)s : %(module)s : %(message)s',
+    level=logging.INFO
+)
+log = logging.getLogger(__name__)
 
-def rearrange(diff_phrases, junk=[]):
-    """ Tries to identify phrases in diff_result, which occur in both, 'actual' 
-    and 'target' but are indeed declared as diff.Replace in given diff_result 
-    because their order in actual and target doesn't correspond. """
+# TODO: Verify correctness of rearrange_phrases()
 
-    # Rearrange those phrases, which are declared as diff.Replace.
-    rearrange_phrases(diff_phrases)
+times = []
+
+def rearrange(diff_result, min_rearrange_length=3, refuse_common_threshold=0,
+              junk=[]):
+    """
+    Tries to rearrange phrases.
+    """
+
+    # A queue of matching but not settled (delete_window, insert_window) pairs
+    # ordered by number of common words.
+    pq = PriorityQueue()
+    # The matching but not settled (delete_window, insert_window) pairs
+    # grouped by insert_window.
+    pairs_per_insert_window = {}
+
+    def put_into_queue(pair):
+        """
+        Puts the given (delete_window, insert_window) pair into the queue if it
+        is not None.
+        """
+        if pair is None:
+            return
+
+        pq.put(pair)
+
+        # Register the pair by insert window.
+        if pair.insert_window in pairs_per_insert_window:
+            pairs_per_insert_window[pair.insert_window].append(pair)
+        else:
+            pairs_per_insert_window[pair.insert_window] = [pair]
+
+    # Create index of all unmatched insert windows, grouped by insert phrases.
+    insert_windows_index = {}
+    for phrase in diff_result.phrases:
+        if isinstance(phrase, DiffReplacePhrase):
+            if phrase.num_words_target > 0:
+                insert_windows_index[phrase] = {InsertWindow(phrase)}
+
+    # Find unmatched insert window candidates for each unmatched delete window.
+    for phrase in diff_result.phrases:
+        if isinstance(phrase, DiffReplacePhrase):
+            if phrase.num_words_actual > 0:
+                # Find a matching insert window.
+                pair = find_matching_insert_window(
+                    DeleteWindow(phrase), insert_windows_index,
+                    min_rearrange_length=min_rearrange_length)
+                put_into_queue(pair)
     
-    return resooolve(diff_phrases)
-       
-def rearrange_phrases(diff_phrases):
-    """ Tries to identify phrases in diff_result, which occur in both, 'actual' 
-    and 'target' but are indeed declared as diff.Replace in given diff_result 
-    because their order in actual and target doesn't correspond.
-    Replaces such phrases such that their order corresponds. """
+    while not pq.empty():
+        pair = pq.get()
 
-    rearranged_phrases = {}
-
-    # Create index from all inserts (phrases in 'target' which could not be 
-    # matched to a phrase in 'actual').
-    inserts_index = {}
-    inserts = []
-    for diff_phrase in diff_phrases:
-        if isinstance(diff_phrase, diff.DiffReplacePhrase):
-            for word in diff_phrase.words_target:
-                inserts_index.setdefault(str(word), []).append(word)
-                # Initialize new field "match" that is used to mark this word
-                # as matched/unmatched.                
-                word.match = None
-            inserts.append((diff_phrase, diff_phrase.words_target))
-
-    # Create index from all deletes (phrases in 'actual' which could not be 
-    # matched to a phrase in 'target').
-    deletes = []
-    for diff_phrase in diff_phrases:
-        if isinstance(diff_phrase, diff.DiffReplacePhrase):
-            for word in diff_phrase.words_actual:
-                # Fetch all match candidates and associate them with the word.
-                word.candidates = inserts_index.get(str(word), [])
-                # Initialize new field "match" that is used to mark this word
-                # as matched/unmatched.
-                word.match = None
-                word.run = None
-            deletes.append(diff_phrase.words_actual)
-    
-    # Fill queue with runs.
-    runs = PriorityQueue()
-    runs_by_words = {}
-    for delete in deletes:
-        # Compute the longest possible "run". That is the longest (sub)phrase 
-        # for which a matching phrase was found.
-        run = find_longest_run(delete)
-                
-        if run:                    
-            # The queue is min-based, so put a negative priority.
-            runs.put((-len(run), run))
-            
-            for item in run.items:
-                # Register the run at each involved insert item.                
-                runs_by_words.setdefault(item.insert_item, set()).add(run)
-
-    # Process the queue of runs.
-    while not runs.empty():
-        # Fetch the longest run (the longest subphrase that could be matched).
-        priority, run = runs.get()
-
-        # The run could be empty or obsolete. A run is obsolete if an insert 
-        # item that is a match member of the run was matched to an delete item 
-        # of another run in the meanwhile. 
-        if not run or run.is_obsolete:
+        # Ignore the pair if it has become obsolete in the meanwhile.
+        if getattr(pair, "obsolete", False):
             continue
 
-        # There may be delete items which could not be matched to an insert 
-        # item. Hence we do not know where to put such deletions.
-        # If there is such deletion within a run, concat it with a 
-        # preceding or succeeding matched deletion.
-        
-        # The previous delete_item that could be matched.
-        prev_matched_delete_word = None
-        # If there is no matched deletion yet, add a unmatched deletion 
-        # to this queue.
-        unmatched_delete_words = []
+        # Settle the matching pair.
+        res = match_to_insert_window(pair)
 
-        # Keep track of obsolete runs.
-        obsolete_runs = set()
+        # The matched delete window.
+        matched_delete_window = res.get("matched_delete_window")
+        # The matched insert window.
+        matched_insert_window = res.get("matched_insert_window")
+        # The new unmatched delete windows.
+        new_delete_windows = res.get("new_delete_windows")
+        # The new unmatched insert windows.
+        new_insert_windows = res.get("new_insert_windows")
 
-        for run_item in run.items:
-            # Register the run at each involved delete item.                
-            run_item.delete_item.run = run
+        # Append the match to result.
+        actual = matched_delete_window.words
+        pos_actual = actual[0].pos_actual
+        target = matched_insert_window.words
+        pos_target = target[0].pos_target
 
-        for run_item in run.items:
-            insert_item = run_item.insert_item
-            delete_item = run_item.delete_item
-            
-            if insert_item is not None:
-                # The delete_item has a matched insert_item.
-                prev_matched_delete_word = delete_item
-                
-                # First, concat all unmatched deletions (if any) to this 
-                # deletion.
-                for i, unmatched in enumerate(unmatched_delete_words):
-                    unmatched.match = insert_item
-                    insert_item.match = unmatched
-                unmatched_delete_words = []
+        rearrange_phrase = DiffRearrangePhrase(
+            pos_actual, actual, pos_target, target,
+            refuse_common_threshold=refuse_common_threshold,
+            junk=junk)
 
-                # Then map the actual deletion to this deletion.
-                delete_item.match = insert_item
-                insert_item.match = delete_item
-            else:
-                # The deletion has no matched deletion.
-                if prev_matched_delete_word:
-                    # If there was a matched deletion seen so far, add the 
-                    # unmatched deleteion to the this matched deletion.
-                    delete_item.match = prev_matched_delete_word.match
-                    prev_matched_delete_word.match.match = delete_item
-                else:
-                    # Otherwise queue the unmatched deletion.
-                    unmatched_delete_words.append(delete_item)
-            
-            # All runs that includes the insert item are now obsolete.
-            obsolete_runs.update(runs_by_words.get(insert_item, set()))
+        rearrange_phrase.source_phrase = matched_delete_window.phrase
+        rearrange_phrase.target_phrase = matched_insert_window.phrase
 
-        # Recompute all obsolete runs.
-        for obsolete_run in obsolete_runs:
-            # Mark the run as obsolete such that it won't be considered anymore.            
-            obsolete_run.is_obsolete = True
-            # Compute new run.
-            new_run = find_longest_run(obsolete_run.delete)
-            
-            if new_run:
-                runs.put((-len(new_run), new_run))
-                    
-                for item in new_run.items:
-                    insert_item = item.insert_item
-                    # Register new run and unregister obsolete run.
-                    runs_by_item = runs_by_words.setdefault(insert_item, set())
-                    runs_by_item.discard(obsolete_run)
-                    runs_by_item.add(new_run)
-                        
-def find_longest_run(delete):
-    """ Computes the longest possible "run" (subphrase) of given delete that 
-    could be matched to insertion position. """
+        source_phrase = rearrange_phrase.source_phrase
+        if not hasattr(source_phrase, "rearrange_candidates"):
+            source_phrase.rearrange_candidates = [rearrange_phrase]
+        else:
+            source_phrase.rearrange_candidates.append(rearrange_phrase)
 
-    if not delete:
-        return None
-        
-    # The runs found so far.
-    active_runs = []
-    # The longest run found so far.
-    longest_run = []
-    
-    # The runs by their end elements. For example, if the runs at indices
-    # 1, 2, 3 end with '5' and the runs at indices 4 and 5 ends with '7' 
-    # the map looks like: { 5: {1, 2, 3}, 7: {4, 5} }
-    runs_by_end_words = defaultdict(lambda: set())
-    # The end elements by runs. For the example above, this map looks like:
-    # { 1: 5, 2: 5, 3: 5, 4: 7, 5: 7 }
-    end_words_by_runs = defaultdict(lambda: set())
-    # The queue of unmatched deletes (deletes with no associated deletion).
-    unmatched_queue = DiffRun(delete)
-                      
-    for delete_word in delete:
-        if delete_word.match:
-            # If the delete is already matched, the word shouldn't be a 
-            # member of a run anymore.
-            continue
-            
-        insert_word_candidates = delete_word.candidates
+        # Update the insert_windows_index:
+        # Remove the affected insert window and append the new insert windows.
+        index_set = insert_windows_index[matched_insert_window.phrase]
+        index_set.remove(pair.insert_window)
+        index_set.update(new_insert_windows)
 
-        prev_active_runs = active_runs
-        active_runs = []
-        
-        prev_runs_by_end_words = runs_by_end_words
-        runs_by_end_words = defaultdict(lambda: set())
-        
-        prev_end_words_by_runs = end_words_by_runs
-        end_words_by_runs = defaultdict(lambda: set())
-         
-        # Iterate through the inserted positions.
-        for insert_word in insert_word_candidates:
-            # If the deletion is already matched, the word shouldn't be a 
-            # member of a run anymore.
-            if insert_word is not None and insert_word.match:
+        # Recompute matching insert window for new unmatched delete windows.
+        for delete_window in new_delete_windows:
+            new_pair = find_matching_insert_window(
+                delete_window, insert_windows_index,
+                min_rearrange_length=min_rearrange_length)
+            put_into_queue(new_pair)
+
+        # Recompute matching insert window for all delete windows which was
+        # also mapped to the affected insert window.
+        others = pairs_per_insert_window.pop(pair.insert_window, [])
+        for other_pair in others:
+            if pair == other_pair:
                 continue
-            
-            # Obtain the position of the deletion (could be None).
-            pos = None
-            if insert_word is not None:
-                pos = insert_word.wrapped.global_pos # the flat position.
-            
-            if pos is not None: # There is a matched deletion.
-                # Check, if there are runs with end element 'pos-1'
-                if pos - 1 in prev_runs_by_end_words:
-                    # There are runs that end with 'pos-1'. 
-                    run_indices = prev_runs_by_end_words[pos - 1]
-                                  
-                    for run_index in run_indices:
-                        # Append the element to the run.
-                        run = prev_active_runs[run_index]
-                        run.add(DiffRunItem(insert_word, delete_word)) 
-                        
-                        # Add the run to active runs.
-                        active_runs.append(run)
-                        new_run_index = len(active_runs) - 1
-                        
-                        # Check, if the current run is now the longest run. 
-                        if len(run) > len(longest_run):
-                            longest_run = run
-                        
-                        # Update the maps
-                        runs_by_end_words[pos].add(new_run_index)
-                        end_words_by_runs[new_run_index].add(pos)
-                else:                             
-                    # There is no run that end with 'pos-1'.
-                    # Create new run.
-                    new_run = unmatched_queue
-                    new_run.add(DiffRunItem(insert_word, delete_word))
-                                        
-                    # Append the run to active runs.
-                    active_runs.append(new_run)
-                    new_run_index = len(active_runs) - 1
-                                              
-                    # Check, if the new run is the longest run.     
-                    if len(new_run) > len(longest_run):
-                        longest_run = new_run
-                                
-                    # Update the maps.
-                    runs_by_end_words[pos].add(new_run_index)
-                    end_words_by_runs[new_run_index].add(pos)
-                # Clear the queue.
-                unmatched_queue = DiffRun(delete)
-            else: # There is no matched deletion.
-                run_item = DiffRunItem(insert_word, delete_word)
-                unmatched_queue.add(run_item)
-                
-                for j, active_run in enumerate(prev_active_runs):
-                    pos = max(prev_end_words_by_runs[j]) + 1
-                        
-                    # Append the element to run.
-                    active_run.append(run_item)
-                    active_runs.append(active_run)
-                    new_run_index = len(active_runs) - 1
-                      
-                    runs_by_end_words[pos].add(new_run_index)
-                    end_words_by_runs[new_run_index].add(pos)
-                                            
-                    if len(active_run) > len(longest_run):
-                        longest_run = active_run
+            other_pair.obsolete = True
+            new_pair = find_matching_insert_window(
+                other_pair.delete_window, insert_windows_index,
+                min_rearrange_length=min_rearrange_length)
+            put_into_queue(new_pair)
 
-    if len(longest_run) > 3: # TODO
-    # if longest_run:
-        return longest_run
-    else:
-        return unmatched_queue
+def find_matching_insert_window(
+        delete_window,
+        insert_windows_index,
+        min_rearrange_length=1,
+        max_num=3):
+    """ Finds a matching insert window for the given delete window. """
+    # Abort if length of delete_window is smaller than min_rearrange_length.
+    if len(delete_window.words) < min_rearrange_length:
+        return
 
-# ------------------------------------------------------------------------------
-# Some util classes.
+    # Find some candidates.
+    index = Counter()
+    for phrase in insert_windows_index:
+        for insert_window in insert_windows_index[phrase]:
+            # Abort if the length of insert_window < min_rearrange_length.
+            if len(insert_window.words) < min_rearrange_length:
+                continue
+            # Count the total number of common words.
+            common_grams = get_num_common_grams(
+                delete_window, insert_window, q=min_rearrange_length)
+            if common_grams > 0:
+                index[insert_window] = common_grams
+    candidates = index.most_common(max_num)
+
+    # Choose the best matching candidate.
+    max_score = 0
+    max_insert_window = None
+    insert_window_start, insert_window_end = None, None
+    delete_window_start, delete_window_end = None, None
+    for insert_window, freq in candidates:
+        score, delete_pos, insert_pos = sw(delete_window, insert_window)
         
-class DiffRearrangePhrase(diff.DiffPhrase):
-    """ A phrase of words, that are common in actual and target. """ 
-    def __init__(self, words_actual, words_target):
-        super(DiffRearrangePhrase, self).__init__(words_actual, words_target)
-        
-        self.sub_phrases = []
-        self.chunks = []
-        
-        # Need to adapt the pos array.
-        if len(words_actual) > 0 and len(words_target) > 0:
-            self.pos = list(words_target[0].pos)
+        if score is not None and score > max_score:
+            max_score = score
+            max_insert_window = insert_window
+            insert_window_start, insert_window_end = insert_pos
+            delete_window_start, delete_window_end = delete_pos
+
+    if max_score == 0 or max_insert_window is None:
+        return
+
+    pair = MatchingPair(max_score, delete_window, max_insert_window)
+    pair.insert_window_start = insert_window_start
+    pair.insert_window_end = insert_window_end
+    pair.delete_window_start = delete_window_start
+    pair.delete_window_end = delete_window_end
+
+    return pair
+
+
+def match_to_insert_window(pair):
+    """ Settles the given matching pair. """
+
+    delete = pair.delete_window
+    del_phrase = delete.phrase
+    del_start = pair.delete_window_start
+    del_end = pair.delete_window_end
+
+    insert = pair.insert_window
+    ins_phrase = insert.phrase
+    ins_start = pair.insert_window_start
+    ins_end = pair.insert_window_end
+
+    # Create matching delete window.
+    matched_delete = DeleteWindow(del_phrase, del_start, del_end, matched=True)
+    # Create matching insert window.
+    matched_insert = InsertWindow(ins_phrase, ins_start, ins_end, matched=True)
+
+    # Create the new unmatched delete windows.
+    new_delete_windows = []
+    if del_start > delete.phrase_start:
+        sub = delete.sub_window(delete.phrase_start, del_start)
+        new_delete_windows.append(sub)
+    if del_end < delete.phrase_end:
+        sub = delete.sub_window(del_end, delete.phrase_end)
+        new_delete_windows.append(sub)
+
+    # Create the new unmatched insert windows.
+    new_insert_windows = []
+    if ins_start > insert.phrase_start:
+        sub = insert.sub_window(insert.phrase_start, ins_start)
+        new_insert_windows.append(sub)
+    if ins_end < insert.phrase_end:
+        sub = insert.sub_window(ins_end, insert.phrase_end)
+        new_insert_windows.append(sub)
+
+    return {
+        "matched_delete_window": matched_delete,
+        "matched_insert_window": matched_insert,
+        "new_delete_windows": new_delete_windows,
+        "new_insert_windows": new_insert_windows,
+    }
+
+
+# def rearrange_phrases2(phrases, matches, refuse_common_threshold=0):
+#    # The phrases in rearranged order.
+#    rearranged_phrases = []
+
+#    def filter_matched_words(words):
+#        return [x for x in words if not getattr(x, "is_rearranged", False)]
+
+#    for phrase in phrases:
+#        # Obtain the matching pairs for the current phrase.
+#        phrase_matches = matches.get(phrase, [])
+
+#        if len(phrase_matches) == 0:
+#            # There are no matching pairs.
+#            phrase.words_actual = filter_matched_words(phrase.words_actual)
+#            if not phrase.is_empty():
+#                rearranged_phrases.append(phrase)
+#            continue
+
+#        # Sort the matching (delete, insert) pairs by phrase_start of insert.
+#        phrase_matches.sort(key=lambda x: x[1].phrase_start)
+
+#        # The previous divide position.
+#        idx = 0
+#        pos_actual = phrase.pos_actual
+#        pos_target = phrase.pos_target
+
+#        for delete, insert in phrase_matches:
+#            # Check if there are unmatched words left to the rearrange.
+#            if insert.phrase_start > idx:
+#                # Create replace phrase.
+#                actual = filter_matched_words(phrase.words_actual)
+#                target = phrase.words_target[idx:insert.phrase_start]
+#                p = DiffReplacePhrase(pos_actual, actual, pos_target, target)
+#                rearranged_phrases.append(p)
+#                pos_actual += len(actual)
+#                pos_target += len(target)
+#                phrase.words_actual = []
+
+#            # Create rearrange phrase.
+#            actual = delete.words
+#            target = insert.words
+#            p = DiffRearrangePhrase(pos_actual, actual, pos_target, target)
+#            p.sub_diff_result = para_diff.para_diff(
+#                actual, target,
+#                refuse_common_threshold=refuse_common_threshold)
+#            rearranged_phrases.append(p)
+#            pos_actual += len(actual)
+#            pos_target += len(target)
+#            idx = insert.phrase_end
+
+#        # Check if there are unmatched words right to the last rearrange.
+#        if idx < len(phrase.words_target):
+#            # Create replace phrase.
+#            actual = filter_matched_words(phrase.words_actual)
+#            target = phrase.words_target[idx:len(phrase.words_target)]
+#            p = DiffReplacePhrase(pos_actual, actual, pos_target, target)
+#            rearranged_phrases.append(p)
+#            pos_actual += len(actual)
+#            pos_target += len(target)
+#            phrase.words_actual = []
+
+#        # Create a replace phrase for all remaining actual words.
+#        actual = filter_matched_words(phrase.words_actual)
+#        target = []
+#        p = DiffReplacePhrase(pos_actual, actual, pos_target, target)
+#        if not p.is_empty():
+#            rearranged_phrases.append(p)
+
+#    return rearranged_phrases
+
+
+# TODO
+# def rearrange_phrases3(phrases, matches, refuse_common_threshold=0):
+#    """ Applies the given matches. """
+#    resolved_phrases = []
+
+#    for phrase in phrases:
+#        if phrase not in matches:
+#            phrase.words_actual = [x for x in phrase.words_actual if not getattr(x, "is_rearranged", False)]
+#            resolved_phrases.append(phrase)
+#            continue
+
+#        # Sort (delete, insert) pairs by phrase_start of insert.
+#        matches[phrase].sort(key=lambda x: x[1].phrase_start)
+
+#        # Divide the phrase into DiffReplacePhrases and DiffRearrangePhrases.
+#        start = 0
+#        end = len(phrase.words_target)
+#        pos_actual = phrase.pos_actual
+#        pos_target = phrase.pos_target
+
+#        for delete, insert in matches[phrase]:
+#            # Create the replace before the rearrange.
+#            if insert.phrase_start > start:
+#                words_actual = [x for x in phrase.words_actual if not getattr(x, "is_rearranged", False)]
+#                phrase.words_actual = []
+#                words_target = phrase.words_target[start:insert.phrase_start]
+
+#                replace = DiffReplacePhrase(
+#                    pos_actual, words_actual, pos_target, words_target)
+#                resolved_phrases.append(replace)
+#                pos_actual += len(words_actual)
+#                pos_target += len(words_target)
+
+#            words_actual = delete.words
+#            words_target = insert.words
+#            rearrange = DiffRearrangePhrase(pos_actual, words_actual, pos_target, words_target)
+#            resolved_phrases.append(rearrange)
+
+#            rearrange.sub_diff_result = para_diff.para_diff(
+#                phrase.words_actual, phrase.words_target,
+#                refuse_common_threshold=refuse_common_threshold)
+
+#            pos_actual += len(words_actual)
+#            pos_target += len(words_target)
+#            start = insert.phrase_end
+
+#        if start < end:
+#            words_actual = [x for x in phrase.words_actual if not getattr(x, "is_rearranged", False)]
+#            phrase.words_actual = []
+#            words_target = phrase.words_target[start:end]
+#            replace = DiffReplacePhrase(
+#                pos_actual, words_actual, pos_target, words_target)
+#            pos_actual += len(words_actual)
+#            pos_target += len(words_target)
+#            resolved_phrases.append(replace)
+
+#        if len(phrase.words_actual) > 0:
+#            words_actual = [x for x in phrase.words_actual if not getattr(x, "is_rearranged", False)]
+#            words_target = []
+#            replace = DiffReplacePhrase(
+#                pos_actual, words_actual, pos_target, words_target)
+#            resolved_phrases.append(replace)
+
+#    x = [x for x in resolved_phrases if not x.is_empty()]
+
+#    return x
+
+# ==============================================================================
+
+
+def sw(delete, insert, score=2, mis_score=-1):
+    """
+    Computes the Smith-Waterman score for the given delete and the given
+    insert.
+    """
+    def is_match(delete_word, insert_word):
+        return str(delete_word) == str(insert_word)
+
+    x = len(delete.words) + 1
+    y = len(insert.words) + 1
+    m = [[0 for j in range(y)] for i in range(x)]
+
+    # Fill the matrices and keep track of the max score.
+    max_score = 0
+    max_pos = None
+    for i in range(1, x):
+        for j in range(1, y):
+            d_word = delete.words[i - 1]
+            i_word = insert.words[j - 1]
+            score_diag = m[i - 1][j - 1]
+            score_up = m[i - 1][j]
+            score_left = m[i][j - 1]
+
+            #if i_word.exclude:
+            #    score_cur = max(1, score_diag, score_up, score_left)
+            #    print("  ", score_cur, (i, j), d_word, i_word)
+            #else:
+            score_diag += score if is_match(d_word, i_word) else mis_score
+            score_up += mis_score
+            score_left += mis_score
+            score_cur = max(0, score_diag, score_up, score_left)
+            if score_cur >= max_score:
+                max_score = score_cur
+                max_pos = (i, j)
+            m[i][j] = score_cur
+
+    if max_pos is None:
+        return None, None, None
+
+    # Do the traceback.
+    i, j = max_pos
+    while True:
+        d_word = delete.words[i - 1]
+        i_word = insert.words[j - 1]
+        score_diag = m[i - 1][j - 1]
+        score_up = m[i - 1][j]
+        score_left = m[i][j - 1]
+        score_cur = m[i][j]
+
+        is_word_match = is_match(d_word, i_word)
+        expected = score_cur - (score if is_word_match else mis_score)
+        if score_diag > 0 and score_diag == expected:
+            i -= 1
+            j -= 1
+            continue
+
+        expected = score_cur - mis_score
+        if score_up > 0 and score_up == expected:
+            i -= 1
+            continue
+
+        expected = score_cur - mis_score
+        if score_left > 0 and score_left == expected:
+            j -= 1
+            continue
+        break
+
+    delete_start = delete.phrase_start + i - 1
+    delete_end = delete.phrase_start + max_pos[0]
+    insert_start = insert.phrase_start + j - 1
+    insert_end = insert.phrase_start + max_pos[1]
+
+    return max_score, (delete_start, delete_end), (insert_start, insert_end)
+
+
+def get_num_common_grams(delete, insert, q=5):
+    """ Returns the number of common words in given delete and given insert."""    
+    delete_grams_freqs = delete.get_q_grams_freq(q)
+    insert_grams_freqs = insert.get_q_grams_freq(q)
+    common_grams_freqs = delete_grams_freqs & insert_grams_freqs
+    return sum(common_grams_freqs.values())
+
+# ==============================================================================
+
+
+class Window:
+    """ An excerpt of a phrase. """
+    def __init__(self, phrase, phrase_start=0, phrase_end=None, matched=False,
+            min_rearrange_length=1):
+        self.phrase = phrase
+        self.phrase_start = phrase_start
+        self.phrase_end = phrase_end
+        if phrase_end is None:
+            self.phrase_end = len(self.get_phrase_words())
+        self.words = self.get_phrase_words()[phrase_start:phrase_end]
+        #self.word_freq = Counter([str(x) for x in self.words if not x.exclude])
+        self.matched = matched
+        for word in self.words:
+            word.is_rearranged = matched
+        self.q_grams_freq_index = {}
+        self.q_words = [str(x) for x in self.words if not x.exclude]
+        # self.q_words = [str(x) for x in self.words if not x.exclude and len(str(x)) > 2]
+
+    def get_q_grams_freq(self, q=5):
+        if q not in self.q_grams_freq_index:
+            self.q_grams_freq_index[q] = self.compute_q_grams_freq(q)
+        return self.q_grams_freq_index[q]
+
+    def compute_q_grams_freq(self, q=5):
+        return Counter(["".join(x) for x in self.compute_q_grams(q)])
+
+    def compute_q_grams(self, q=5):
+        return [self.q_words[i:i+q] for i in range(len(self.q_words)-q+1)]
+
+    def sub_window(self, phrase_start, phrase_end):
+        return type(self)(self.phrase, phrase_start, phrase_end)
+
+    def __str__(self):
+        return "(phrase: %s, phrase_start: %s, phrase_end: %s, words: %s)" \
+            % ("", self.phrase_start, self.phrase_end, self.words)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class DeleteWindow(Window):
+    def get_phrase_words(self):
+        return self.phrase.words_actual
+
+
+class InsertWindow(Window):
+    def get_phrase_words(self):
+        return self.phrase.words_target
+
+
+class MatchingPair:
+    """
+    A pair of matching delete window and insert window.
+    """
+    def __init__(self, score, delete_window, insert_window):
+        self.score = score
+        self.delete_window = delete_window
+        self.insert_window = insert_window
+
+    def __lt__(self, other):
+        """ Define an order to be able to put it into a queue. """
+        return self.score > other.score
+
+    def __str__(self):
+        return "(id: %s, score: %s, DeleteWindow: %s, InsertWindows: %s)" \
+            % (id(self), self.score, self.delete_window.words, self.insert_window.words)
+
+# ==============================================================================
+
+
+class DiffRearrangePhrase(DiffPhrase):
+    """ A phrase of rearranged words. """
+
+    def __init__(self, pos_actual, words_actual, pos_target, words_target,
+                 refuse_common_threshold=0, junk=[]):
+        super(DiffRearrangePhrase, self).__init__(
+            pos_actual, words_actual, pos_target, words_target)
+        self.refuse_common_threshold = refuse_common_threshold
+        self.junk = junk
+        self.sub_diff_result = doc_diff.doc_diff(
+            self.words_actual, self.words_target,
+            refuse_common_threshold=refuse_common_threshold,
+            junk=junk)
 
     def get_str_pattern(self):
+        """ Returns the pattern to use on creating string representation. """
         return "[~ %s, %s]"
-        
-class DiffRun:
-    """ A run that holds a list of matchings between an delete and consecutive
-    insertd items."""
-    
-    def __init__(self, delete):
-        """" Creates a new run based on the given delete. """
-        self.matched_phrase = None
-        self.delete = delete
-        self.items = []
-        self.is_obsolete = False
-        
-    def add(self, item):
-        """ Adds the given run item to this run. """
-        if not self.matched_phrase:
-            self.matched_phrase = item.insert_item.phrase
-        self.items.append(item)
-    
-    def __len__(self):
-        return len(self.items)
-    
-    def __lt__(self, other):
-        """ Define an order on DiffRun to be able to put a run into a queue. """
-        return len(self.items) < len(other.items)
 
-class DiffRunItem:
-    """ A member item of a DiffRun that holds a matching between a insertd item
-    and a deleteed item. """
-    
-    def __init__(self, insert_item, delete_item):
-        """ Creates a new DiffRunItem. """
-        self.delete_item = delete_item
-        self.insert_item = insert_item
-        
- 
-class Chunk:
-    """"""
-    
-    def __init__(self):
-        self.words = []
-     
-    def append(self, word):
-        self.words.append(word)
-        
-    def is_empty(self):
-        return len(self.words) == 0   
-        
-    @property
-    def phrase(self):
-        for word in self.words:
-            match = word.match if word is not None else None
-            if match is not None:
-                return match.phrase
-        return None
-    
-    @property
-    def pos(self):
-        for word in self.words:
-            match = word.match if word is not None else None
-            if match is not None:
-                return match.pos
-        return None
-        
-    @property
-    def text(self):
-        return " ".join(str(word) for word in self.words)
-            
-replace_rearrange_dict = dict()     
-
-
-        
-        
-def resooolve(phrases):
-    """ Resolves the replace phrases in the given diff phrases."""
-    result = []
-
-    # Obtain all replace phrases.
-    replaces = [x for x in phrases if isinstance(x, diff.DiffReplacePhrase)] 
-    # Obtain all other phrases.
-    other    = [x for x in phrases if not isinstance(x, diff.DiffReplacePhrase)] 
-
-    # Resolve the replaces and append it to result list.
-    result.extend(resooolve_replaces(replaces))
-    # Append all other phrases to result list.
-    result.extend(other)
-        
-    # Sort the result by position.
-    result.sort(key=lambda phrase: phrase.pos)
-                                 
-    return result
-        
-def resooolve_replaces(replaces):
-    replace_rearrange_dict = {}    
- 
-    for replace in replaces:    
-        # Find the chunks in actual words of given replace. That are fragments 
-        # to rearrange to another replace phrase. A fragment extends until a
-        # word is reached that should be rearranged to another phrase.
-        # Example:
-        # The red fox jumps over the red fox.
-        # ^   ^             ^            ^
-        # A   A             B            C
-        #
-        # The words "The", "red", "over" "fox" should be rearranged to the 
-        # phrases A/B/C. Other words are unmatched. We will find the chunks
-        # "The red fox jums", that is rearranged to A, the chunk "over the red",
-        # that is rearranged to B and the chunk "fox", that is rearranged to C.
-        chunks = chunkify(replace)
-                      
-        # Proceed with computed chunks. 
-        for chunk in chunks:
-            # Only consider chunks which could be matched to another phrase.
-            if chunk.phrase is None:
-                continue
-
-            # Check, if there is already a rearrange phrase for the phrase.
-            rearrange = replace_rearrange_dict.get(chunk.phrase, None)
-            if rearrange is None:            
-                # Create a new rearrange phrase.
-                rearrange = DiffRearrangePhrase([], [])
-                replace_rearrange_dict[chunk.phrase] = rearrange
-                
-                rearrange.pos = chunk.phrase.pos
-                rearrange.chunks.append(chunk)
-                rearrange.words_target.extend(chunk.phrase.words_target)
-                
-                # Delete all words of the chunk from the phrase.
-                replace.words_actual = [x for x in replace.words_actual if x not in chunk.words]
-
-                chunk.phrase.words_target = []
-            else:    
-                # Register the chunk in rearrange phrase.
-                rearrange.chunks.append(chunk)
-                
-                # Delete all words of the chunk from the phrase.
-                replace.words_actual = [x for x in replace.words_actual if x not in chunk.words]
-        
-    # Pick up all remaining non-empty replace phrases.
-    rearranges = list(replace_rearrange_dict.values())
-    replaces = [x for x in replaces if not x.is_empty()]
-    
-    for rearrange in rearranges:
-        # Bring the chunks into correct order.
-        rearrange.chunks.sort(key=lambda chunk: chunk.pos)
-        # Fill the actual words from chunks.
-        rearrange.words_actual = [word for chunk in rearrange.chunks for word in chunk.words]
-                                  
-        # Compute sub phrases.
-        words_actual = [x.wrapped for x in rearrange.words_actual]
-        words_target = [x.wrapped for x in rearrange.words_target]   
-        rearrange.sub_phrases = diff.diff(words_actual, words_target)
-        
-    return rearranges + replaces  
-    
-    
-def chunkify(replace):
-    chunks = []
-    chunk  = Chunk()
-   
-    prev_match_phrase = None
-    prev_pos_in_match_phrase = None
-                                                                                                            
-    for word in replace.words_actual:
-        # We need to know if the word should be rearranged to another 
-        # phrase than the previous word. 
-                
-        match = word.match if word is not None else None 
-        match_phrase = match.phrase if match is not None else None
-        pos_in_match_phrase = match.pos if match is not None else None
-                                
-        differ_match_phrase = False
-        if prev_match_phrase and match_phrase:
-            differ_match_phrase = prev_match_phrase != match_phrase
-                            
-        # Introduce new chunk, if previous and current matched phrase exist
-        # and if they differ from each other or if pos differ.
-        if match_phrase and not chunk.is_empty():
-            chunks.append(chunk)
-            chunk = Chunk()
-                    
-        chunk.append(word)
-            
-        if match_phrase:
-            prev_match_phrase = match_phrase
-        if pos_in_match_phrase:
-            prev_pos_in_match_phrase = pos_in_match_phrase
-      
-    if not chunk.is_empty():                                               
-        chunks.append(chunk) 
-                                
-    return chunks         
+    # Override
+    def subphrase(self, start, end):
+        """
+        Creates a subphrase from this phrase, starting at given start index
+        (inclusive) and ending at given end index (exclusively).
+        This method is needed in para_diff to divide a phrase in order to meet
+        paragraph boundaries.
+        """
+        words_actual = self.words_actual[start:end]
+        words_target = self.words_target[start:end]
+        pos_actual = self.pos_actual
+        if len(words_actual) > 0:
+            pos_actual = words_actual[0].pos_actual
+        pos_target = self.pos_target
+        if len(words_target) > 0:
+            pos_target = words_target[0].pos_target
+        # Call the constructor of the concrete subtype.
+        return type(self)(pos_actual, words_actual, pos_target, words_target,
+                          refuse_common_threshold=self.refuse_common_threshold,
+                          junk=self.junk)

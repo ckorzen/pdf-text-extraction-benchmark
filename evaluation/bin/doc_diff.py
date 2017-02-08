@@ -1,523 +1,666 @@
-import re
-import unicodedata
 import para_diff
+import para_diff_rearrange as para_diff_rearr
+import word_diff
+import diff_utils
+import file_util
+import logging
+import sys
+import doc_diff_visualize as vis
+from collections import Counter
 
-# TODO: Consider the new argument 'excludes'.
+# Increase the recursion limit for pickle.
+sys.setrecursionlimit(100000)
 
-def doc_diff(actual, target, excludes=[], junk=[]):
-    """ Given two texts, 'actual' and 'target', this method outputs a sequence
-    of phrases which can be used to determine the operations required to 
-    transform 'actual' into 'target'. A phrase is defined by a sequence of 
-    words. The texts are seen as sequences of paragraphs (text blocks separated 
-    by two or more newlines). Phrases lives within paragraphs and do *not* 
-    exceed paragraph boundaries. We differ in the following phrases:
-    
-    * CommonPhrase: 
-        A phrase that is common to both texts.
-    * ReplacePhrase: 
-        A phrase x in 'actual' to replace by a phrase y in 'target'.
-        Note that x or y could be empty, i.e. a ReplacePhrase could indeed 
-        represent a phrase to delete from 'actual' or a phrase to insert into 
-        'target'.
-    * RearrangePhrase: 
-        A phrase that is common to both texts but their order in the texts 
-        differ.
-        
-    On comparing, words are normalized, i.e. punctuation marks and any other
-    special characters will be removed and all characters will be transformed 
-    to lowercases. 
-    You can exclude certain words from normalization by defining a list 
-    'excludes' of related regular expression that matches the words you wish 
-    to exclude.
-    
-    Let us define the following running example to use throughout the whole 
-    documentation:
-    
-    actual                  target:
-    --------------------    --------------------
-    The quick, big fox      The big, quick fox
-    eats the ice-cold 
-    sandwich.               eats the ice-cold
-                            sandwich.
-    
-    Note, that 'actual' consists of one paragraph and 'target' consists of two
-    paragraphs.
+# Initialize the logger.
+log = logging.getLogger(__name__)
+logging.basicConfig(
+    format='%(asctime)s : %(levelname)s : %(module)s : %(message)s',
+    level=logging.DEBUG
+)
+
+
+def doc_diff_from_strings(
+        actual,
+        target,
+        rearrange_phrases=False,
+        min_rearrange_length=3,
+        refuse_common_threshold=0,
+        compose_characters=False,
+        para_delimiter="\n\s*\n\s*",
+        word_delimiter="\s+",
+        to_lower=True,
+        specialchars_pattern="(?<!\d)\W+|\W+(?!\d)", # special chars that are not surrounded by digit.
+        excludes=[],
+        junk=[]):
+    """ Does a doc diff based on given strings.
+    Splits the strings actual and target to paragraphs and words based on
+    given para_delimiter and word_delimiter. Normalizes the words by
+    transforming it to lower cases if to_lower is True and by removing
+    characters that matches the given specialchars_pattern. Words that matches
+    any of pattern given in excludes will be not normalized.
+    Outputs a list of DiffCommonPhrase objects and DiffReplacePhrase objects.
     """
-    # TODO: Explain 'junk'.
+
+    actual = "" if actual is None else actual
+    target = "" if target is None else target
+
+    # Transform actual to flat list of DiffWords.
+    actual = diff_utils.string_to_diff_words(
+        actual,
+        flatten=True,
+        compose_characters=compose_characters,
+        para_delimiter=para_delimiter,
+        word_delimiter=word_delimiter,
+        to_lower=to_lower,
+        specialchars_pattern=specialchars_pattern,
+        excludes=excludes)
+
+    # Transform actual to flat list of DiffWords.
+    target = diff_utils.string_to_diff_words(
+        target,
+        flatten=True,
+        compose_characters=compose_characters,
+        para_delimiter=para_delimiter,
+        word_delimiter=word_delimiter,
+        to_lower=to_lower,
+        specialchars_pattern=specialchars_pattern,
+        excludes=excludes)
+
+    return doc_diff(
+        actual,
+        target,
+        rearrange_phrases=rearrange_phrases,
+        min_rearrange_length=min_rearrange_length,
+        refuse_common_threshold=refuse_common_threshold,
+        junk=junk)
 
 
-    # Split 'actual' and 'target' into paragraphs and normalize the words.
-    #
-    # Result is a list of lists of DocWords, where the inner lists represent 
-    # the paragraphs (one list for each paragraph) with included words. Each 
-    # DocWord includes the normalized and the unnormalized version (with 
-    # trailing whitespaces) of a word:
-    # paras_target = [[DocWord("the", "The "), DocWord("big", "big, "), ...],
-    #                 [DocWord("eats", "eats "), DocWord("the", "the "), ...]]
-    paras_actual = to_normalized_paras(actual, to_lower=True, excludes=excludes)
-    paras_target = to_normalized_paras(target, to_lower=True, excludes=excludes)
+def doc_diff(
+        actual,
+        target,
+        rearrange_phrases=False,
+        min_rearrange_length=3,
+        refuse_common_threshold=0,
+        junk=[]):
+    """ Does doc_diff based on flat lists of DiffWord objects. """
 
-    return {
-        "num_paras_actual": len(paras_actual),
-        "num_paras_target": len(paras_target),
-        "num_words_actual": sum(len(x) for x in paras_actual),
-        "num_words_target": sum(len(x) for x in paras_target),
-        "phrases": para_diff.para_diff(paras_actual, paras_target, junk) 
-    }
+    # Run para_diff on given input.
+    diff_result = para_diff.para_diff(
+        actual,
+        target,
+        rearrange_phrases=rearrange_phrases,
+        min_rearrange_length=min_rearrange_length,
+        refuse_common_threshold=refuse_common_threshold,
+        junk=junk)
 
-# ==============================================================================
-# Normalize methods.
+    # Compute the number of operations.
+    handle_diff_result(diff_result, junk)
 
-# The pattern defining the characters to remove on normalization: All symbols
-# which are no "word characters" (\w) and no whitespaces (\s) 
-SPECIAL_CHARS_PATTERN = re.compile("[^\w\s]")
-    
-def to_normalized_paras(text, to_lower=True, excludes=[]):
-    """ Splits the text into paragraphs and normalizes the words of each 
-    paragraph: Removes all symbols defined by "SPECIAL_CHARS_PATTERN" (see 
-    above) and transforms all letters to lowercases, if the 'to_lower' flag is 
-    set to True.
-    You can exclude certain words from normalization by defining a list 
-    'excludes' of related regular expression that matches the words you wish 
-    to exclude.
-    Returns a list of lists of DocWords, where the inner lists represent 
-    the paragraphs (one list for each paragraph) with included words. Each 
-    DocWord includes the normalized and the unnormalized version (with 
-    trailing whitespaces) of a word. For the text 'target', the result is:
-    [[DocWord("the", "The "), DocWord("big", "big, "), ...],
-     [DocWord("eats", "eats "), DocWord("the", "the "), ...]] 
-    
-    >>> to_normalized_paras("Foo Bar")
-    [[DocWord(foo, Foo ), DocWord(bar, Bar )]]
-    >>> to_normalized_paras("Foo \\n\\n Bar")
-    [[DocWord(foo, Foo 
-    <BLANKLINE>
-     )], [DocWord(bar, Bar )]]
-    >>> to_normalized_paras("Foo [formula]")
-    [[DocWord(foo, Foo ), DocWord(formula, [formula] )]]
-    >>> to_normalized_paras("Foo-bar-baz", excludes=["\[formula\]"])
-    [[DocWord(foo, Foo-), DocWord(bar, bar-), DocWord(baz, baz )]]
-    >>> to_normalized_paras("Foo [formula]", excludes=["\[formula\]"])
-    [[DocWord(foo, Foo ), DocWord([formula], [formula] )]]
-    """
-       
-    # Compose the characters of text (merge decomposed characters).
-    text = compose_characters(text)
-          
-    # Split the text into paragraphs:
-    para_words = split_into_paragraphs(text)
-               
-    # Normalize the words of each paragraph (create DocWord objects).    
-    return [normalize_words(words, to_lower, excludes) for words in para_words]
+    return diff_result
 
-def compose_characters(text):
-    """ Composes the characters of given text. Unicode can hold "decomposed" 
-    characters, e.g. characters with accents where the accent is a character on 
-    its own (for example, the character "ä" could be actually two characters: 
-    "a" and the two dots. Tries to compose these characters to a single one 
-    using unicodedata."""
-        
-    # Compute the list of unicode code points from text.
-    codepoints = [ord(i) for i in text]
-    
-    # Unicodedata has issues to compose 
-    # "LATIN SMALL LETTER DOTLESS I" (that is an 'i' without the dot) / 
-    # "LATIN SMALL LETTER DOTLESS J" (that is an 'j' without the dot)
-    # with accents. So replace all occurrences of these chars by "i" resp. "j".
-    # Map "LATIN SMALL LETTER DOTLESS I" to "LATIN SMALL LETTER I"
-    # Map "LATIN SMALL LETTER DOTLESS J" to "LATIN SMALL LETTER J"        
-    mappings = { 0x0131: 0x0069, 0x0237: 0x0061 } 
-    for i, codepoint in enumerate(codepoints):
-        if codepoint in mappings:
-            codepoints[i] = mappings[codepoint]
-            
-    # Normalize (= compose the characters) using unicodedata. 
-    # Valid values for normalization are: 
-    # NFD: Normal Form D(ecomposition)
-    #   Translates each character into its decomposed form
-    # NFC: Normal Form C(omposition)
-    #   First applies a NFD, then composes pre-combined characters again      
-    # NFKD: Normal Form KD
-    #   Applies the compatibility decomposition, i.e. replaces all 
-    #   compatibility characters with their equivalents
-    # NFKC: The normal form KC
-    #   First applies the compatibility decomposition, followed by the NFD.
-    #
-    # TODO: Check, if "NFKC" fixes the issues with "LATIN SMALL LETTER DOTLESS I"
-    #       above.
-    return unicodedata.normalize("NFC", "".join([chr(i) for i in codepoints]))
- 
-def split_into_paragraphs(text):
-    """ Splits the given text into paragraphs. Returns a list of list of words, 
-    where each inner list represents a paragraph with its words. Each word is
-    represented by a tuple (<word>, <word_with_ws>), where 'word' represents 
-    the stripped word and 'word_with_ws' represents the word *with* trailing 
-    whitespaces. 
-    
-    >>> split_into_paragraphs("Foo Bar")
-    [[('Foo', 'Foo '), ('Bar', 'Bar ')]]
-    >>> split_into_paragraphs("foo \\n\\n bar")
-    [[('foo', 'foo \\n\\n ')], [('bar', 'bar ')]]
-    """
-    
-    # The list of paragraphs.
-    paragraphs = []
-    # The words of the current paragraph.
-    words_per_paragraph = []
-    
-    # Split the text on whitespaces and keep the whitespaces: 
-    # ["The", " ", "quick,", " ", "big", " ", "fox", ...]
-    words_and_ws = re.split(r'(\s+)', text)
-    
-    # We want to merge each word with its trailing whitepaces. So make sure 
-    # that the list contains an even number of elements. 
-    # (In other words: Make sure that the last word ends with an whitespace)
-    if len(words_and_ws) % 2 != 0:
-        words_and_ws.append(" ")
-    
-    # Iterate through the elements with even indices (that are the words).
-    for i in range(0, len(words_and_ws), 2):
-        # Obtain the word.
-        word = words_and_ws[i]
-        # Obtain the related trailing whitespaces (that is the next element).
-        ws = words_and_ws[i + 1]
-                
-        # Ignore empty words.
-        if len(word) == 0:
-            continue
-        
-        # NEW(2016-12-13): word now may contain (line-number, column-number)
-        # pair defining the line number and the column number of the word in
-        # the tex file. Parse this pair.
-        # Format is <word>(linenumber,columnnumber)
-        line_num = -1
-        column_num = -1
-        start_index = word.rfind("(")
-        if start_index > 0:
-            end_index = word.find(")", start_index)
-            if end_index > 0:
-                line_column = word[start_index + 1 : end_index]
-                # line_column is now "linenumber,columnnumber"
-                comma_index = line_column.find(",")
-                if comma_index > 0:
-                    # There is a pair (line_num, column_num) given. Parse it.
-                    line_num_str = line_column[ : comma_index]
-                    column_num_str = line_column[comma_index + 1 : ]
-                    line_num = str_to_int(line_num_str)
-                    column_num = str_to_int(column_num_str)
-                    # Crop the word by the given pair.
-                    word = word [ : start_index]
-        
-        # Append tuple consisting of (1) the single word and (2) the word with 
-        # trailing whitespaces.
-        words_per_paragraph.append((word, word + ws, line_num, column_num))
-                        
-        # Check if the trailing whitespaces introduces a new paragraph.
-        # If so, introduce a new paragraph (a new list of words).
-        if re.search("\n\s*\n", ws) is not None:
-            if len(words_per_paragraph) > 0:
-                paragraphs.append(words_per_paragraph)
-                words_per_paragraph = []
-    
-    # Dont't forget the remaining word tuples.                
-    if len(words_per_paragraph) > 0:
-        paragraphs.append(words_per_paragraph)   
-                
-    return paragraphs  
-    
-def normalize_words(word_tuples, to_lower=True, excludes=[]):
-    """ Normalizes all '<word>' parts of given list of word tuples 
-    (<word>, <word_with_whitespaces>)). Removes all punctuation marks and 
-    special characters. If a special character is an inner symbol of a word,
-    the word is splitted into two words ("ice-cold" will be resolved to "ice" 
-    and "cold", but not to "icecold"). Transforms each letter to lowercases if
-    the flag 'to_lower' is set to True.  
-    You can exclude certain words from normalization by defining a list 
-    'excludes' of related regular expression that matches the words you wish 
-    to exclude.
-    Returns list of DocWords, where each DocWord includes the normalized version
-    and the unnormalized version of a word. 
-    
-    >>> normalize_words([('Foo', 'Foo '), ('Bar', 'Bar')])
-    [DocWord(foo, Foo ), DocWord(bar, Bar)]
-    >>> normalize_words([('ice-cold', 'ice-cold ')])
-    [DocWord(ice, ice-), DocWord(cold, cold )]
-    >>> normalize_words([('[form]', '[form] ')], True, ["\[form\]"])
-    [DocWord([form], [form] )]
-    """
-    result = []
-                        
-    for word, word_with_ws, line_num, column_num in word_tuples:
-        # Check if we have to exclude the word from formatting. 
-        # The word could be nested within a prefix and/or a suffix, that could 
-        # contain non-special characters like "foo[formula]bar"; or the prefix/
-        # suffix could contain only special characters like "([formula])". 
-        # In the first case, we want to separate the prefix "foo" and the suffix 
-        # "bar" from [formula] to handle them separately. 
-        # In the second case, we do *not* want to separate the prefix/suffix, 
-        # but handle the word as a whole.
-        prefix, word_to_exclude, suffix = is_exclude_word(word, excludes)
-                                        
-        if word_to_exclude is not None:
-            # There is a word to exclude. 
-                        
-            # Check if there is a prefix which we have to consider.
-            consider_prefix = False
-            if prefix is not None and len(prefix) > 0:           
-                consider_prefix = not contains_only_special_chars(prefix)
-            
-            # Check if there is a suffix which we have to consider.
-            consider_suffix = False
-            if suffix is not None and len(suffix) > 0:           
-                consider_suffix = not contains_only_special_chars(suffix)
-            
-            if consider_prefix:
-                # Extract the equivalent prefix from word_with_ws.
-                prefix_with_ws = word_with_ws[ : len(prefix)]
-                
-                if (len(prefix_with_ws.strip()) > 0 and line_num > 0 and column_num > 0):               
-                    # Normalize the prefix and append it to result list.
-                    # FIXME: Don't hardcode the style.
-                    paras = to_normalized_paras("%s(%s,%s)" % (prefix_with_ws, line_num, column_num), to_lower, excludes)
-                    # 'paras' is list of lists. We only need the first list.
-                    if len(paras) > 0:
-                        result.extend(paras[0])
-            
-            # Given the word to exclude, extract the equivalent from 
-            # unnormalized word:
-            #
-            # "foo[formula]bar__"
-            #     ^       ^  
-            #     S       E
-            #
-            # "([formula])__"
-            #  ^         ^
-            #  S         E
-            # 
-            # We need to find the start position S end the end position E.
-            # S is defined by |prefix|.
-            # E is defined by |word_with_ws| - (|suffix| + k) where k is the 
-            # length of the trailing whitespaces (the "__" parts).
- 
-            # Compute the length of prefix and suffix.
-            len_prefix = len(prefix) if consider_prefix else 0
-            len_suffix = len(suffix) if consider_suffix else 0
-            
-            # Compute the length of trailing whitepaces.
-            len_trailing_ws = len(word_with_ws) - len(word_with_ws.strip())
-            
-            # Define start and end position of the cut. 
-            start = len_prefix
-            # If there is no suffix we append the trailing whitespaces to the 
-            # cut, otherwise we append it to the suffix.
-            if len_prefix == 0:
-                end = len(word_with_ws)
-            else:
-                end = len(word_with_ws) - (len_suffix + len_trailing_ws)
-            
-            # Extract the word and append new DocWord for the word to exclude.
-            cut = word_with_ws[start : end]
-            result.append(DocWord(word_to_exclude, cut, line_num, column_num))
-          
-            if consider_suffix:
-                # Extract the equivalent prefix from word_with_ws.
-                suffix_with_ws = word_with_ws[end : ]
-            
-                if (len(suffix_with_ws.strip()) > 0 and line_num > 0 and column_num > 0):
-                    # Normalize the suffix and append it to result list.
-                    # FIXME: Don't hardcode the style.
-                    paras = to_normalized_paras("%s(%s,%s)" % (suffix_with_ws, line_num, column_num), to_lower, excludes)
-                    # 'paras' is list of lists. We only need the first list.
-                    if len(paras) > 0:
-                        result.extend(paras[0])
+
+def handle_diff_result(diff_result, junk=[]):
+    # The total number of required operations.
+    diff_result.num_ops = Counter()
+    # The absolute number of required operations.
+    diff_result.num_ops_abs = Counter()
+    # The relative number of required operations.
+    diff_result.num_ops_rel = Counter()
+    # The visualization parts.
+    vis_parts = []
+
+    # Decide which of the rearrange candidates to rearrange.
+    rearrange(diff_result)
+
+    # Decide where to split and where to merge the phrases.
+    split_and_merge(diff_result, junk=junk)
+
+    # For each phrase, choose word- or para ops.
+    for phrase in diff_result.phrases:
+        # Compute the word operations.
+        compute_word_ops(phrase, junk)
+        # Compute the para ops.
+        force_para_ops = compute_para_ops(phrase, junk)
+
+        num_word_ops = phrase.num_word_ops
+        num_para_ops = phrase.num_para_ops
+        num_split_merge = phrase.num_para_ops_split_merge
+
+        # Compute costs.
+        costs_word_ops = compute_costs_word_ops(num_word_ops)
+        costs_para_ops = compute_costs_para_ops(num_split_merge, num_para_ops)
+
+        if force_para_ops or costs_para_ops <= costs_word_ops:
+            phrase.num_ops = num_split_merge + phrase.num_para_ops
+            phrase.num_ops_abs = num_split_merge + phrase.num_para_ops_abs
+            phrase.vis = phrase.vis_para_ops
         else:
-            # We don't have to exclude the word from normalization.
-            
-            # Split words on every *inner* special characters, e.g. split 
-            # "ice-cold" into "ice" and "cold", but don't split "sandwich." 
-            prev_split = -1          
-                          
-            # Iterate the *inner* symbols = iterate word[1 : len(word) - 1]
-            for i in range(1, len(word) - 1):
-                if is_special_character(word, i):
-                    # Cut the word.
-                    word_fragment = word[prev_split + 1 : i]
-                    # Remove all special characters (the word could still 
-                    # contain special characters at begin and/or end, because
-                    # we iterate only the inner characters.
-                    word_fragment = filter_special_chars(word_fragment)
-                    # Cut the equivalent from unnormalized word.
-                    word_with_ws_fragment = word_with_ws[prev_split + 1 : i + 1]                     
-                    if to_lower:
-                        # Transform the word to lowercases.
-                        word_fragment = word_fragment.lower()
-                                
-                    if len(word_fragment) > 0:
-                        # Append new DocWord to result list.
-                        doc_word = DocWord(word_fragment, word_with_ws_fragment,
-                            line_num, column_num)
-                        result.append(doc_word)
-                            
-                    prev_split = i
-             
-            # Don't forget the rest of the word.
-            #
-            # Cut the word.
-            word_fragment = word[prev_split + 1 : ]
-            # Remove all special characters (the word could still 
-            # contain special characters at begin and/or end, because
-            # we iterated only the inner characters.
-            word_fragment = filter_special_chars(word_fragment)
-            # Cut the equivalent from unnormalized word.
-            word_with_ws_fragment = word_with_ws[prev_split + 1 : ]                        
-            if to_lower:
-                # Transform the word to lowercases.
-                word_fragment = word_fragment.lower()
-           
-            # TODO: Use len(word_fragment) > 0 or len(word_with_ws_fragment) > 0?
-            # First ignore all words which consists only of special_characters
-            # Second takes *all* words into account.         
-            if len(word_fragment) > 0:
-                # Append new DocWord to result list.
-                result.append(DocWord(word_fragment, word_with_ws_fragment,
-                    line_num, column_num))                                    
-    return result
+            phrase.num_ops = phrase.num_word_ops
+            phrase.num_ops_abs = phrase.num_word_ops_abs
+            phrase.vis = phrase.vis_word_ops
 
-def is_exclude_word(word, excludes=[]):
-    """ Checks if the given word matches any of the patterns given in 
-    'excludes' (if we have to exlude the word from normalization). Returns 
-    tuple (prefix, word_to_exclude, suffix) where 'word_to_exclude' is the word 
-    to exclude (is None if the word doesn't match any patterns. If there is a 
-    prefix in front of the word to exclude it is given by 'prefix'. If there is 
-    a suffix in behind the word, it is given by 'suffix'.
-    
-    >>> is_exclude_word("foo")
-    (None, None, None)
-    
-    >>> is_exclude_word("[formula]", ["\[formula\]"])
-    (None, '[formula]', None)
-    
-    >>> is_exclude_word("foo[formula]bar", ["\[formula\]"])
-    ('foo', '[formula]', 'bar')
-    """
- 
-    if len(excludes) == 0:
-        return None, None, None
- 
-    # Compose the regular expression 
-    # (= all patterns given by 'excludes' joined with "OR") 
-    exclude_pattern = re.compile("|".join(excludes))
- 
-    # Check, if the word matches the given pattern.
-    exclude_match = exclude_pattern.search(word)
-    
-    if not exclude_match:
-        return None, None, None
-              
-    match_start = exclude_match.start()
-    match_end = exclude_match.end()
-        
-    # Check for prefix and suffix.
-    prefix = None
-    suffix = None
-        
-    if match_start > 0:
-        # There is a prefix. Extract it.
-        prefix = word[ : match_start]
-            
-    # Extract the word to exclude.
-    word_to_exclude = word[match_start : match_end]
-                        
-    if match_end < len(word):
-        # There is suffix. Extract it.
-        suffix = word[match_end : ]
-                
-    return prefix, word_to_exclude, suffix
+        # Add splits and merges.
+        if getattr(phrase, "split_before", False):
+            phrase.num_ops["num_para_splits"] += 1
+            phrase.num_ops_abs["num_para_splits"] += 1
+            phrase.vis = "%s%s" % (vis.visualize_split(), phrase.vis)
+        if getattr(phrase, "merge_before", False):
+            phrase.num_ops["num_para_merges"] += 1
+            phrase.num_ops_abs["num_para_merges"] += 1
+            phrase.vis = "%s%s" % (vis.visualize_merge(), phrase.vis)
 
-def contains_only_special_chars(text):
-    """ Returns True, if the given text consists only of special characters,
-    False otherwise.""" 
-           
-    if len(text) == 0:
-        return False
-            
-    for i in range(0, len(text)):
-        if not is_special_character(text, i):
-            return False
-            
-    return True 
-    
-def is_special_character(text, i): 
-    """ 
-    Returns True if the i-th character in the given text is a special character,
-    False otherwise. The character is *not* a special character if it is a dot
-    and it is surrounded by two digits, like in "1.23".
-    
-    >>> is_special_character(["a", "-", "b"], 0)
-    False
-    >>> is_special_character(["a", "-", "b"], 1)
-    True
-    >>> is_special_character(["1", ".", "2"], 1)
-    False
-    """
-    
-    if text is None or len(text) == 0:
-        return False
-    
-    if i < 0:
-        return False
-    
-    if i >= len(text):
-        return False
-    
-    char = text[i]
-    
-    # The character is *not* a special character if it doesn't match the defined
-    # pattern.         
-    if not SPECIAL_CHARS_PATTERN.match(char):
-        return False 
-    
-    # The character is *not* a special character if it is a dot and it is 
-    # surrounded by two digits.
-    if char == "." and i > 0 and i < len(text) - 1:
-        prev_char = text[i - 1]
-        next_char = text[i + 1]
-        if prev_char.isdigit() and next_char.isdigit():
-            return False
-    
-    return True
+        # Update visualization and num ops.
+        diff_result.num_ops.update(phrase.num_ops)
+        diff_result.num_ops_abs.update(phrase.num_ops_abs)
+        vis_parts.append(phrase.vis)
 
-def filter_special_chars(text):
-    """ Replaces all special characters from the given text by empty string."""
-    chars = [x for i, x in enumerate(text) if not is_special_character(text, i)]
-    return "".join(chars)
-    
-def str_to_int(s, default=-1):
-    try:
-        return int(s)
-    except ValueError:
-        return default
+    def compute_rel_num_ops(key, div):
+        result = diff_result.num_ops_abs.get(key, 0) / max(div, 1)
+        diff_result.num_ops_rel[key] = result
+
+    # Compute the relative number of operations.
+    compute_rel_num_ops("num_para_splits", diff_result.num_paras_target - 1)
+    compute_rel_num_ops("num_para_merges", diff_result.num_paras_target - 1)
+    compute_rel_num_ops("num_para_rearranges", diff_result.num_words_target)
+    compute_rel_num_ops("num_para_inserts", diff_result.num_words_target)
+    compute_rel_num_ops("num_para_deletes", diff_result.num_words_target)
+    compute_rel_num_ops("num_word_inserts", diff_result.num_words_target)
+    compute_rel_num_ops("num_word_deletes", diff_result.num_words_target)
+    compute_rel_num_ops("num_word_replaces", diff_result.num_words_target)
+
+    diff_result.vis = "".join(vis_parts)
+    diff_result.num_ops += Counter()
+    diff_result.num_ops_abs += Counter()
+    diff_result.num_ops_rel += Counter()
 
 # ==============================================================================
-# Some helper classes.
+# Rearrange methods.
 
-class DocWord:
-    """ A word represented by the normalized and the unnormalized version of 
-    the word. """
+
+def rearrange(diff_result):
+    for phrase in diff_result.phrases:
+        # Decide whether to rearrange the rearrange candidates or not.
+        if hasattr(phrase, "rearrange_candidates"):
+            rearrange_phrase(phrase)
+
+    # Add the rearrange phrases if any.
+    rearranged_phrases = []
+    for phrase in diff_result.phrases:
+        phrase_parts = []
+        if not phrase.is_empty():
+            phrase_parts.append(phrase)
+        if hasattr(phrase, "applied_rearranges"):
+            # phrase.applied_rearranges.sort(key=lambda x: x.pos_target)
+            phrase_parts.extend(phrase.applied_rearranges)
+            phrase_parts.sort(key=lambda x: x.first_word_target.pos if x.first_word_target != None else (-1, -1))
+        rearranged_phrases.extend(phrase_parts)
     
-    def __init__(self, normalized, unnormalized, line_num, column_num):
-        self.normalized   = normalized
-        self.unnormalized = unnormalized
-        self.line_num     = line_num
-        self.column_num   = column_num
-        
-    def __str__(self):
-        return self.normalized
-        
-    def __repr__(self):
-        return "DocWord(%s, %s, %s, %s)" % (self.normalized, self.unnormalized,
-            self.line_num, self.column_num)
-        
-        
-if __name__ == "__main__":
-    print(doc_diff("Reducing(5,16) quasi-ergodicity(5,33)", "XXX"))
+    diff_result.phrases = rearranged_phrases
+
+def rearrange_phrase(phrase):
+    """ Handles a rearrange phrase. """
+
+    phrase.rearrange_candidates.sort(key=lambda x: x.pos_actual)
+
+    for p in phrase.rearrange_candidates:
+        # Compute the word operations.
+        compute_word_ops_replace_phrase(p)
+
+        # Compute para ops.
+        force_para_ops = compute_para_ops_rearrange_phrase(p)
+        p.num_para_ops += p.sub_diff_result.num_ops
+
+        # Choose between word and para operation.
+        num_word_ops = p.num_word_ops
+        num_para_ops = p.num_para_ops
+        num_split_merge = p.num_para_ops_split_merge
+
+        costs_word_ops = compute_costs_word_ops(num_word_ops)
+        costs_para_ops = compute_costs_para_ops(num_split_merge, num_para_ops)
+
+        if force_para_ops or costs_para_ops <= costs_word_ops:
+            # Do the rearrange.
+            to_remove = set(p.words_actual)
+            words_actual = p.source_phrase.words_actual
+            words_actual = [x for x in words_actual if x not in to_remove]
+            p.source_phrase.words_actual = words_actual
+
+            to_remove = set(p.words_target)
+            words_target = p.target_phrase.words_target
+            words_target = [x for x in words_target if x not in to_remove]
+            p.target_phrase.words_target = words_target
+
+            if not hasattr(p.target_phrase, "applied_rearranges"):
+                p.target_phrase.applied_rearranges = [p]
+            else:
+                p.target_phrase.applied_rearranges.append(p)
+
+# ==============================================================================
+
+def split_and_merge(diff_result, junk=[]):
+    """
+    Identifies the positions where to split and where to merge the given
+    phrases.
+    """
+
+    # The splitted and merged phrases.
+    split_and_merged_phrases = []
+    # Flag to indicate whether we have to add a SPLIT in front of next phrase.
+    split_before_subphrase = False
+    # Flag to indicate whether we have to add a MERGE in front of next phrase.
+    merge_before_subphrase = False
+
+    prev_word_actual = None
+    prev_word_target = None
+    prev_phrase = None
+    
+    # Iterate through the phrases.
+    for phrase in diff_result.phrases:
+        if diff_utils.ignore_phrase(phrase, junk):
+            split_and_merged_phrases.append(phrase)
+            continue
+
+        if isinstance(phrase, para_diff_rearr.DiffRearrangePhrase):
+            is_break_before = is_break_before_target(phrase=phrase)
+            is_break_after = is_break_after_target(phrase=phrase)
+            phrase.merge_before = not is_break_before
+            phrase.merge_after = not is_break_after
+            split_and_merged_phrases.append(phrase)
+            continue
+
+        # The position where the current phrase was interrupted last time.
+        prev_phrase_break_pos = 0
+        actual = phrase.words_actual
+        target = phrase.words_target
+
+        for i in range(max(len(actual), len(target))):
+            word_actual = actual[i] if i < len(actual) else None
+            word_target = target[i] if i < len(target) else None
+
+            if word_actual is None or word_target is None:
+                continue
+
+            break_actual = is_break_before_actual(prev_word_actual, word_actual)
+            break_target = is_break_before_target(prev_word_target, word_target)
+
+            split = not break_actual and break_target 
+            merge = break_actual and not break_target 
+
+            if split or merge:
+                # Take a subphrase.
+                subphrase = phrase.subphrase(prev_phrase_break_pos, i)
+                prev_phrase_break_pos = i
+                if not subphrase.is_empty():
+                    subphrase.split_before = split_before_subphrase
+                    subphrase.merge_before = merge_before_subphrase
+                    split_and_merged_phrases.append(subphrase)
+                if split:
+                    split_before_subphrase = True
+                    merge_before_subphrase = False
+                if merge:
+                    split_before_subphrase = False
+                    merge_before_subphrase = True
+
+            prev_word_actual = word_actual
+            prev_word_target = word_target
+
+        # Don't forget the remaining part of the phrase.
+        # If prev_phrase_break_pos is 0, there was no break. We can append the
+        # phrase "as it is".
+        if prev_phrase_break_pos != 0:
+            phrase = phrase.subphrase(prev_phrase_break_pos, None)
+        if not phrase.is_empty():
+            phrase.split_before = split_before_subphrase
+            phrase.merge_before = merge_before_subphrase
+            split_and_merged_phrases.append(phrase)
+
+        # End of phrase. Reset the split and merge flags.
+        split_before_subphrase = False
+        merge_before_subphrase = False
+    diff_result.phrases = split_and_merged_phrases
+
+# ==============================================================================
+
+
+def compute_word_ops(phrase, junk):
+    if phrase.is_empty():
+        return
+    elif isinstance(phrase, para_diff_rearr.DiffRearrangePhrase):
+        return compute_word_ops_rearrange_phrase(phrase)
+    elif diff_utils.ignore_phrase(phrase, junk):
+        return compute_word_ops_ignore_phrase(phrase)
+    elif isinstance(phrase, word_diff.DiffCommonPhrase):
+        return compute_word_ops_common_phrase(phrase)
+    elif isinstance(phrase, word_diff.DiffReplacePhrase):
+        if phrase.num_words_actual == 0:
+            return compute_word_ops_insert_phrase(phrase)
+        elif phrase.num_words_target == 0:
+            return compute_word_ops_delete_phrase(phrase)
+        else:
+            return compute_word_ops_replace_phrase(phrase)
+
+
+def compute_para_ops(phrase, junk):
+    if phrase.is_empty():
+        return
+    elif isinstance(phrase, para_diff_rearr.DiffRearrangePhrase):
+        return compute_para_ops_rearrange_phrase(phrase)
+    elif diff_utils.ignore_phrase(phrase, junk):
+        return compute_para_ops_ignore_phrase(phrase)
+    elif isinstance(phrase, word_diff.DiffCommonPhrase):
+        return compute_para_ops_common_phrase(phrase)
+    elif isinstance(phrase, word_diff.DiffReplacePhrase):
+        if phrase.num_words_actual == 0:
+            return compute_para_ops_insert_phrase(phrase)
+        elif phrase.num_words_target == 0:
+            return compute_para_ops_delete_phrase(phrase)
+        else:
+            return compute_para_ops_replace_phrase(phrase)
+
+# ==============================================================================
+
+# The multiplication factor on computing the costs for paragraph operations.
+COST_FACTOR_PARA_OPS = 1.1
+# The multiplication factor on computing the costs of word operations.
+COST_FACTOR_WORD_OPS = 1
+
+
+def compute_costs_para_ops(split_merge_ops, para_ops):
+    """ Returns the total costs for the given para operations. """
+    if split_merge_ops is None or para_ops is None:
+        return float("inf")
+    else:
+        sum_split_merge = sum(split_merge_ops[op] for op in split_merge_ops)
+        sum_para_ops = sum(para_ops[op] for op in para_ops)
+        return COST_FACTOR_PARA_OPS * sum_split_merge + sum_para_ops
+
+
+def compute_costs_word_ops(word_ops):
+    """ Returns the total costs for the given word operations. """
+    if word_ops is None:
+        return float("inf")
+    else:
+        return COST_FACTOR_WORD_OPS * sum(word_ops[op] for op in word_ops)
+
+# ==============================================================================
+# Word operations.
+
+
+def compute_word_ops_ignore_phrase(phrase):
+    phrase.num_word_ops = Counter()
+    phrase.num_word_ops_abs = Counter()
+    phrase.vis_word_ops = vis.gray(get_text(phrase.words_target))
+
+
+def compute_word_ops_common_phrase(phrase):
+    phrase.num_word_ops = Counter()
+    phrase.num_word_ops_abs = Counter()
+    phrase.vis_word_ops = get_text(phrase.words_target)
+
+
+def compute_word_ops_rearrange_phrase(phrase):
+    phrase.num_word_ops = None
+    phrase.num_word_ops_abs = None
+    phrase.vis_word_ops = ""
+
+
+def compute_word_ops_insert_phrase(phrase):
+    """ Returns the required word operations for given insert phrase. """
+
+    print(phrase)
+
+    phrase.num_word_ops = Counter({
+        "num_word_inserts": len(phrase.words_target)
+    })
+    phrase.num_word_ops_abs = Counter(phrase.num_word_ops)
+    phrase.vis_word_ops = vis.green(get_text(phrase.words_target))
+
+
+def compute_word_ops_delete_phrase(phrase):
+    """ Returns the required word operations for given delete phrase. """
+
+    phrase.num_word_ops = Counter({
+        "num_word_deletes": len(phrase.words_actual)
+    })
+    phrase.num_word_ops_abs = Counter(phrase.num_word_ops)
+    phrase.vis_word_ops = vis.red(get_text(phrase.words_actual))
+
+def compute_word_ops_replace_phrase(phrase):
+    """ Returns the required word operations for given substitute phrase. """
+
+    num_words_target = len(phrase.words_target)
+
+    phrase.num_word_ops = Counter({
+        "num_word_replaces": num_words_target
+    })
+    phrase.num_word_ops_abs = Counter(phrase.num_word_ops)
+
+    vis_word_ops = []
+    vis_word_ops.append(vis.gray("["))
+    vis_word_ops.append(vis.red(get_text(phrase.words_actual).strip()))
+    vis_word_ops.append(vis.gray("/"))
+    vis_word_ops.append(vis.green(get_text(phrase.words_target).strip()))
+    vis_word_ops.append(vis.gray("]"))
+    vis_word_ops.append(phrase.last_word_target.whitespaces)
+    phrase.vis_word_ops = "".join(vis_word_ops)
+
+# ==============================================================================
+# Para ops.
+
+
+def compute_para_ops_ignore_phrase(phrase):
+    phrase.num_para_ops = None
+    phrase.num_para_ops_abs = None
+    phrase.num_para_ops_split_merge = None
+    phrase.vis_para_ops = ""
+
+
+def compute_para_ops_common_phrase(phrase):
+    phrase.num_para_ops = None
+    phrase.num_para_ops_abs = None
+    phrase.num_para_ops_split_merge = None
+    phrase.vis_para_ops = ""
+
+
+def compute_para_ops_rearrange_phrase(phrase):
+    """ Returns the required para operations for given insert phrase. """
+
+    sm = phrase.num_para_ops_split_merge = Counter()
+
+    #break_before = is_break_before(phrase.first_word_target)
+    #break_after = is_break_after(phrase.last_word_target)
+    #sm["num_para_splits"] += (not break_before and not break_after)
+    #sm["num_para_merges"] += (not break_before)
+    #sm["num_para_merges"] += (not break_after)
+
+    break_before = is_break_before_actual(phrase=phrase)
+    break_after = is_break_after_actual(phrase=phrase)
+    sm["num_para_splits"] += (not break_before)
+    sm["num_para_splits"] += (not break_after)
+    sm["num_para_merges"] += (not break_before and not break_after)
+    
+    sub_num_ops = phrase.sub_diff_result.num_ops
+    phrase.num_para_ops = sub_num_ops + Counter({
+        "num_para_rearranges": 1
+    })
+    phrase.num_para_ops_abs = Counter({
+        "num_para_rearranges": len(phrase.words_actual)
+    })
+
+    # Create visualization.
+    sm_str = "(#S:%s,#M:%s)" % (sm["num_para_splits"], sm["num_para_merges"])
+    sm_vis = vis.gray(sm_str)
+    vis_str = "%s%s" % (phrase.sub_diff_result.vis, sm_vis)
+    phrase.vis_para_ops = vis.blue_bg(vis_str)
+
+    return break_before and break_after
+
+
+def compute_para_ops_insert_phrase(phrase):
+    """ Returns the required para operations for given insert phrase. """
+
+    sm = phrase.num_para_ops_split_merge = Counter()
+
+    break_before = is_break_before_target(phrase=phrase)
+    break_after = is_break_after_target(phrase=phrase)
+    sm["num_para_splits"] += (not break_before and not break_after)
+    sm["num_para_merges"] += (not break_before)
+    sm["num_para_merges"] += (not break_after)
+
+    phrase.num_para_ops = Counter({
+        "num_para_inserts": 1
+    })
+    phrase.num_para_ops_abs = Counter({
+        "num_para_inserts": len(phrase.words_target)
+    })
+
+    # Compute visualization.
+    sm_str = "(#S:%s,#M:%s)" % (sm["num_para_splits"], sm["num_para_merges"])
+    sm_vis = vis.gray(sm_str)
+    vis_str = "%s%s" % (get_text(phrase.words_target).strip(), sm_vis)
+    vis_str += phrase.last_word_target.whitespaces
+    phrase.vis_para_ops = vis.green_bg(vis_str)
+
+    return break_before and break_after
+
+
+def compute_para_ops_delete_phrase(phrase):
+    """ Returns the required para operations for given delete phrase. """
+
+    sm = phrase.num_para_ops_split_merge = Counter()
+
+    break_before = is_break_before_actual(phrase=phrase)
+    break_after = is_break_after_actual(phrase=phrase)
+    sm["num_para_splits"] += (not break_before)
+    sm["num_para_splits"] += (not break_after)
+    sm["num_para_merges"] += (not break_before and not break_after)
+
+    phrase.num_para_ops = Counter({
+        "num_para_deletes": 1
+    })
+    phrase.num_para_ops_abs = Counter({
+        "num_para_deletes": len(phrase.words_actual)
+    })
+
+    # Compute visualization.
+    sm_str = "(#S:%s,#M:%s)" % (sm["num_para_splits"], sm["num_para_merges"])
+    sm_vis = vis.gray(sm_str)
+    vis_str = "%s%s" % (get_text(phrase.words_actual).strip(), sm_vis)
+    vis_str += phrase.last_word_actual.whitespaces
+    phrase.vis_para_ops = vis.red_bg(vis_str)
+
+    return break_before and break_after
+
+
+def compute_para_ops_replace_phrase(phrase):
+    """ Returns the required para operations for given substitute phrase. """
+
+    sm = Counter()
+    break_before = is_break_before_actual(phrase=phrase)
+    break_after = is_break_after_actual(phrase=phrase)
+    sm["num_para_splits"] += (not break_before)
+    sm["num_para_splits"] += (not break_after)
+    sm["num_para_merges"] += (not break_before and not break_after)
+    phrase.num_para_ops_split_merge = sm
+
+    phrase.num_para_ops = Counter({
+        "num_para_deletes": 1,
+        "num_para_inserts": 1
+    })
+    phrase.num_para_ops_abs = Counter({
+        "num_para_deletes": len(phrase.words_actual),
+        "num_para_inserts": len(phrase.words_target)
+    })
+
+    # Compute visualization.
+    sm_str = "(#S:%s,#M:%s)" % (sm["num_para_splits"], sm["num_para_merges"])
+    sm_vis = vis.gray(sm_str)
+    vis2_str = "%s%s" % (get_text(phrase.words_actual).strip(), sm_vis)
+    vis2_str += phrase.last_word_actual.whitespaces
+
+    vis1_str = get_text(phrase.words_target).strip()
+    vis1_str += phrase.last_word_target.whitespaces
+
+    phrase.vis_para_ops = vis.red_bg(vis2_str) + vis.green_bg(vis1_str)
+
+    return break_before and break_after
+
+# ==============================================================================
+# Some util methods.
+
+
+def is_break_before_actual(prev_word=False, word=False, phrase=False):
+    if phrase == False and word == False:
+        return False
+    if word == False:
+        word = phrase.first_word_actual
+    if word is None:
+        return False
+    if prev_word == False:
+        prev_word = word.prev
+    if prev_word is None:
+        return True
+    return is_break_between_words(prev_word, word)
+
+
+def is_break_after_actual(word=False, next_word=False, phrase=False):
+    if phrase == False and word == False:
+        return False
+    if word == False:
+        word = phrase.last_word_actual
+    if word is None:
+        return False
+    if next_word == False:
+        next_word = word.next
+    if next_word is None:
+        return True
+    return is_break_between_words(word, next_word)
+
+
+def is_break_before_target(prev_word=False, word=False, phrase=False):
+    if phrase == False and word == False:
+        return False
+    if word == False:
+        word = phrase.first_word_target
+    if word is None:
+        return False
+    if prev_word == False:
+        prev_word = word.prev
+    if prev_word is None:
+        return True
+    return is_break_between_words(prev_word, word)
+
+
+def is_break_after_target(word=False, next_word=False, phrase=False):
+    if phrase == False and word == False:
+        return False
+    if word == False:
+        word = phrase.last_word_target
+    if word is None:
+        return False
+    if next_word == False:
+        next_word = word.next
+    if next_word is None:
+        return True
+    return is_break_between_words(word, next_word)
+
+
+def is_break_between_words(word1, word2, respect_split_merges=True):
+    if word1 is None or word2 is None:
+        return False
+
+    if respect_split_merges and word1.phrase != word2.phrase:
+        if getattr(word1.phrase, "split_after", False):
+            return True
+        if getattr(word2.phrase, "split_before", False):
+            return True
+        if getattr(word1.phrase, "merge_after", False):
+            return False
+        if getattr(word2.phrase, "merge_before", False):
+            return False
+    return word1.para != word2.para
+
+
+def get_text(words):
+    """ Returns the (unnormalized) text composed from the given words."""
+    return "".join([x.unnormalized_with_whitespaces for x in words])

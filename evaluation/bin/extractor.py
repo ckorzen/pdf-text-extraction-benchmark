@@ -1,6 +1,8 @@
 import os
 import os.path
 import subprocess
+import shlex
+import signal
 
 import util
 import file_util
@@ -10,13 +12,14 @@ import outputter as out
 
 from argparse import ArgumentParser
 from multiprocessing import Pool, Value, Lock
+from threading import Timer
 
 class Extractor:
     """ Extracts from PDF with given extraction tool."""
     
     counter_processed_pdf_files = 0
     num_total_pdf_files = 0
-    
+
     def __init__(self, args):
         """ Creates a new extractor based on the given args. """           
         self.args = self.prepare_arguments(args)
@@ -60,13 +63,12 @@ class Extractor:
         threads."""
         global counter_processed_pdf_files
         global num_total_pdf_files
-        
+
         counter_processed_pdf_files = counter_processed_pdfs 
         num_total_pdf_files = num_total_pdfs
-     
+
     # --------------------------------------------------------------------------
     # Process.
-                   
     def process(self):
         """ Starts the extraction process. """
         
@@ -76,7 +78,7 @@ class Extractor:
         
         # Collect the pdf files to process.
         self.handle_collect_pdf_files_start()
-        pdf_files = self.collect_pdf_files()        
+        pdf_files = self.collect_pdf_files()
         self.handle_collect_pdf_files_end(pdf_files)
                             
         # Define a counter to count already processed pdf files.
@@ -111,28 +113,48 @@ class Extractor:
         """ Processes the given pdf file. """
         global counter_processed_pdf_files
         global num_total_pdf_files
-        
+
         # Define the output paths.
         raw_output_path   = self.define_raw_output_path(pdf_path, create=True)
         plain_output_path = self.define_plain_output_path(pdf_path, create=True)
-                
+
         # The given command holds placeholder for input path and output path.
         # Plug in these arguments.
         cmd = self.args.cmd
         cmd = cmd.replace('%IN', pdf_path)
         cmd = cmd.replace('%OUT', raw_output_path)
+        
+        def kill_proc(proc, timeout):
+            timeout["value"] = True
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            proc.kill()
 
-        # Run the command.        
+        def run(cmd, timeout_sec):
+            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+            timeout = {"value": False}
+            timer = Timer(timeout_sec, kill_proc, [proc, timeout])
+            timer.start()
+            stdout, stderr = proc.communicate()
+            timer.cancel()
+            #return proc.returncode, stdout.decode("utf-8"), stderr.decode("utf-8"), timeout["value"]
+            return proc.returncode, timeout["value"]
+        
+        # Run the command
         start = util.time_in_ms()
-        with open(os.devnull, 'w') as FNULL:
-            subprocess.call(cmd, shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
-            #subprocess.call(cmd, shell=True)
+        #code, stdout, stderr, is_timeout = run(cmd, self.args.timeout)
+        code, is_timeout = run(cmd, self.args.timeout)
+
+        #with open(os.devnull, 'w') as FNULL:
+        #    subprocess.call(cmd, shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
+        #    #subprocess.call(cmd, shell=True)
         end = util.time_in_ms()
         runtime = end - start
         
+        status = 99 if is_timeout else 0
         # The output of the given tool may be not plain txt, but XML, HTML, etc.
         # Derive a plain txt file from the output. 
-        self.create_plain_output_file(raw_output_path, plain_output_path)   
+        self.create_plain_output_file(raw_output_path, plain_output_path, status=status)   
         
         # Output some debug informations.
         # We need a lock to increment the counter, because += operation is not 
@@ -150,20 +172,34 @@ class Extractor:
         }
         
         self.handle_extraction_result(stats)
-        
+
         return stats
     
-    def create_plain_output_file(self, raw_output_path, plain_output_path):
+    def create_plain_output_file(self, raw_output_path, plain_output_path,
+            status=-1):
         """ Creates a plain txt output file from given "raw" output file, which
         could be a XML or HTML file. Stores the result to given 
         plain_output_path. """
-        
-        # Create the plain output.
-        plain_output = self.create_plain_output(raw_output_path)
-        
+          
+        status_messages = {
+            0: "OK",
+            11: "Missing or empty output file",
+            12: "Corrupt output file",
+            99: "Timeout"
+        }
+        status2, plain_output = self.create_plain_output(raw_output_path)
+        status = max(status, status2)
+
         # Store the output to file.
-        with open(plain_output_path, "w") as plain_output_file: 
-            plain_output_file.write(plain_output)
+        with open(plain_output_path, "w") as f: 
+            # Write the status into the header of file.
+            if status in status_messages:
+                status_msg = status_messages[status]
+                f.write("##status\t%d\t%s\n" % (status, status_msg))
+            
+            if plain_output is not None:
+                # Write the plain output to file.
+                f.write(plain_output)
     
     def create_plain_output(self, raw_output_path):
         """ Creates a plain txt output from given raw output file. Override
@@ -171,9 +207,9 @@ class Extractor:
              
         if not file_util.is_missing_or_empty_file(raw_output_path):
             with open(raw_output_path, "r", errors='ignore') as raw_output_file: 
-                return raw_output_file.read()
+                return 0, raw_output_file.read()
         else:
-            return ""
+            return 11, None
     
     # --------------------------------------------------------------------------
     # Handler methods.
@@ -192,6 +228,7 @@ class Extractor:
         self.out.print_columns("Directory Filter: ", self.args.dir_filter)
         self.out.print_columns("Prefix: ", self.args.prefix)
         self.out.print_columns("Max. Threads: ", self.args.num_threads)
+        self.out.print_columns("Timeout (secs): ", self.args.timeout)
         self.out.print_gap()  
     
     def handle_collect_pdf_files_start(self):
@@ -263,7 +300,7 @@ class Extractor:
         doesn't exist yet. Returns the defined path or None, if the parent 
         directory doesn't exist and could not be created. """
         
-        return self.define_output_path(pdf_path, ".txt", create=create)
+        return self.define_output_path(pdf_path, ".final.txt", create=create)
        
     def define_output_path(self, pdf_path, extension, create=False):
         """ Defines the path to a output file with given extension. Creates the 
@@ -365,6 +402,11 @@ class Extractor:
         parser.add_argument("--num_threads", 
             help="The number of threads to use on extraction.",
             type=int
+        )
+        parser.add_argument("--timeout", 
+            help="The maximal time in secs to wait for a single extraction task.",
+            type=int,
+            default=300  # 5 min
         )
         
         return parser

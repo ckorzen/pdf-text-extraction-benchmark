@@ -13,10 +13,12 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -25,6 +27,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Option.Builder;
+
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
@@ -59,7 +62,7 @@ public class TeXParagraphParserMain {
    * The prefix to consider on parsing the input directory for input files.
    */
   protected List<String> inputDirectoryPrefixFilters;
-  
+
   /**
    * The prefix to consider on parsing the input directory for input files.
    */
@@ -142,7 +145,7 @@ public class TeXParagraphParserMain {
   protected Path visualizationDirectory;
 
   /**
-   * The format of output files. One of: txt, txt2, tsv, 
+   * The format of output files. One of: txt, txt2, tsv,
    */
   protected String outputFormat;
 
@@ -152,14 +155,14 @@ public class TeXParagraphParserMain {
   protected List<String> roles;
 
   protected int numProcessedFiles;
-  
+
   /**
    * The main method to start the paragraphs parser.
    */
   public static void main(String[] args) {
     // Create command line options.
     Options options = buildOptions();
-       
+    
     // Try to parse the given command line arguments.
     CommandLine cmd = null;
     try {
@@ -188,12 +191,14 @@ public class TeXParagraphParserMain {
    */
   public TeXParagraphParserMain(CommandLine cmd) {
     inputFiles = new ArrayList<>();
-    
+
     input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
     visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);
-    inputFilePrefixFilters = getOptionValues(cmd, TeXParserOptions.PREFIX, null);
-    inputDirectoryPrefixFilters = getOptionValues(cmd, TeXParserOptions.DIRS, null);
+    inputFilePrefixFilters =
+        getOptionValues(cmd, TeXParserOptions.PREFIX, null);
+    inputDirectoryPrefixFilters =
+        getOptionValues(cmd, TeXParserOptions.DIRS, null);
     identifyPdfParagraphs = hasOption(cmd, TeXParserOptions.BOUNDING_BOXES);
     texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
     outputFormat = getOptionValue(cmd, TeXParserOptions.OUTPUT_FORMAT, "txt");
@@ -207,9 +212,13 @@ public class TeXParagraphParserMain {
   public void run() throws IOException {
     // Initialize the paragraph parser.
     initialize();
-        
+
     // Process the tex files.
-    processTexFiles();
+    try {
+      processTexFiles();
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
   }
 
   // ===========================================================================
@@ -298,17 +307,29 @@ public class TeXParagraphParserMain {
 
   /**
    * Processes the tex files found from users input.
+   * @throws TimeoutException 
+   * @throws ExecutionException 
+   * @throws InterruptedException 
    */
-  protected void processTexFiles() throws IOException {
-    ExecutorService executor = Executors.newFixedThreadPool(12);
+  protected void processTexFiles() throws Exception {
+    ExecutorService executor = Executors.newFixedThreadPool(4);
 
     long start = System.currentTimeMillis();
+        
+    List<Future<?>> futures = new ArrayList<Future<?>>();
     
     for (Path file : this.inputFiles) {
       Runnable worker = new CancelableTexFileWorker(file, 1, TimeUnit.MINUTES);
-      executor.execute(worker);
+      // executor.execute(worker);
+      // Future<Void> future = executor.submit(worker, null);
+      // future.get(5, TimeUnit.MINUTES);
+      futures.add(executor.submit(worker));
     }
 
+    for (Future<?> f: futures) { 
+      f.get(1, TimeUnit.MINUTES);
+    }
+    
     executor.shutdown();
     while (!executor.isTerminated()) {
 
@@ -359,21 +380,26 @@ public class TeXParagraphParserMain {
 
     if (Files.isDirectory(file)) {
       // Consider the path if no prefix(es) are given.
-      if (this.inputFilePrefixFilters == null 
-          || this.inputFilePrefixFilters.isEmpty()) {
-        return true;
-      }
-
-      // Consider the path if no prefix(es) are given.
-      if (this.inputDirectoryPrefixFilters == null 
+      if (this.inputDirectoryPrefixFilters == null
           || this.inputDirectoryPrefixFilters.isEmpty()) {
         return true;
       }
-      
-      String dirName = file.getFileName().toString().toLowerCase();
-      
-      return StringUtils.startsWith(dirName, this.inputFilePrefixFilters) 
-          || StringUtils.startsWith(dirName, this.inputDirectoryPrefixFilters);
+
+      // Check if the path contains a parent directory that matches the given
+      // filters.
+      Path dir = file;
+      while (dir != null) {
+        Path dirName = dir.getFileName();
+        if (dirName != null) {
+          String dirStr = dirName.toString();
+          if (StringUtils.equals(dirStr, this.inputDirectoryPrefixFilters)) {
+            return true;
+          }
+        }
+        dir = dir.getParent();
+      }
+
+      return false;
     }
 
     // Obtain the name of file's parent directory.
@@ -390,7 +416,7 @@ public class TeXParagraphParserMain {
     }
 
     // Consider the path if no prefix(es) are given.
-    if (this.inputFilePrefixFilters == null 
+    if (this.inputFilePrefixFilters == null
         || this.inputFilePrefixFilters.isEmpty()) {
       return true;
     }
@@ -536,7 +562,7 @@ public class TeXParagraphParserMain {
     DIRS("d", "dirs",
         "The prefix(es) to consider on parsing the input directory.",
         false, true, Option.UNLIMITED_VALUES),
-    
+
     /**
      * Create option to define the suffix for serialization files to create.
      */
@@ -631,7 +657,6 @@ public class TeXParagraphParserMain {
   }
 
   class CancelableTexFileWorker implements Runnable {
-
     protected Path file;
     protected long timeout;
     protected TimeUnit unit;
@@ -644,40 +669,48 @@ public class TeXParagraphParserMain {
 
     @Override
     public void run() {
-      ExecutorService executor = Executors.newSingleThreadExecutor();
+      ExecutorService executor = Executors.newFixedThreadPool(1);
       TexFileWorker worker = new TexFileWorker(file);
       Future<Void> future = executor.submit(worker, null);
-
+      
       try {
-        future.get(this.timeout, this.unit);
-      } catch (InterruptedException | ExecutionException | TimeoutException e) {
-        e.printStackTrace();
+        future.get(timeout, unit);
+        System.out.println("FINISHED 2 " + file);
+      } catch (TimeoutException | InterruptedException | ExecutionException e) {
+        worker.interrupt();
+        future.cancel(true);
       }
 
-      executor.shutdown();
+      executor.shutdownNow();
     }
   }
 
-  class TexFileWorker implements Runnable {
+  class TexFileWorker extends Thread {
 
     public Path file;
-
+    
     public TexFileWorker(Path file) {
       this.file = file;
     }
-
+        
     /**
-     * Processes the given tex file. Identifies the paragraphs from given tex 
-     * file and their positions in pdf file if global flag 
-     * 'identifyPdfParagraphs' is set to true. Serializes and visualizes the 
+     * Processes the given tex file. Identifies the paragraphs from given tex
+     * file and their positions in pdf file if global flag
+     * 'identifyPdfParagraphs' is set to true. Serializes and visualizes the
      * paragraphs if related paths are given.
      */
     public void run() {
       try {
         processTeXFile(this.file);
+      } catch (InterruptedException e) {
+        System.err.println("Error on processing: " + this.file + ": ");
+        e.printStackTrace();
+          
+        Thread.currentThread().interrupt();
       } catch (Exception e) {
         System.err.println("Error on processing: " + this.file + ": ");
         e.printStackTrace();
+        System.exit(1);
       }
     }
 
@@ -686,13 +719,13 @@ public class TeXParagraphParserMain {
 
       // Needed to compute the relative path of the tex file.
       texFile.setBaseDirectory(inputDirectory);
-      
+
       Path serializationTargetFile = defineSerializationTargetFile(texFile);
       Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
 
-      System.out.println(++numProcessedFiles + "/" + inputFiles.size() + " " 
+      System.out.println(++numProcessedFiles + "/" + inputFiles.size() + " "
           + file + " -> " + serializationTargetFile);
-      
+
       if (serializationTargetFile == null) {
         return;
       }
@@ -704,12 +737,12 @@ public class TeXParagraphParserMain {
       if (identifyPdfParagraphs) {
         identifyPdfParagraphs(texFile, texmfPaths);
       }
-      
+
       // Serialize.
       if (serializationTargetFile != null) {
         serialize(texFile, roles, serializationTargetFile);
       }
-      
+
       // Visualize.
       if (visualizationTargetFile != null) {
         visualize(texFile, roles, visualizationTargetFile);
@@ -729,8 +762,9 @@ public class TeXParagraphParserMain {
      * Identifies the positions of paragraphs from given tex file in related pdf
      * file.
      */
-    protected void identifyPdfParagraphs(TeXFile texFile, 
-        List<String> texmfPaths) throws IOException {
+    protected void identifyPdfParagraphs(TeXFile texFile,
+        List<String> texmfPaths)
+      throws IOException {
       new PdfParagraphsIdentifier(texFile, texmfPaths).identify();
     }
 
@@ -739,17 +773,17 @@ public class TeXParagraphParserMain {
      */
     protected void serialize(TeXFile file, List<String> roles, Path target)
       throws IOException {
-            
+
       switch (outputFormat) {
-        case "txt2":
-          new TeXParagraphExtendedTxtSerializer(file).serialize(target, roles);
-          break;
-        case "tsv": 
-          new TeXParagraphTsvSerializer(file).serialize(target, roles);
-          break;
-        default:
-          new TeXParagraphTxtSerializer(file).serialize(target, roles);
-          break;
+      case "txt2":
+        new TeXParagraphExtendedTxtSerializer(file).serialize(target, roles);
+        break;
+      case "tsv":
+        new TeXParagraphTsvSerializer(file).serialize(target, roles);
+        break;
+      default:
+        new TeXParagraphTxtSerializer(file).serialize(target, roles);
+        break;
       }
     }
 
@@ -782,7 +816,7 @@ public class TeXParagraphParserMain {
       }
 
       // Obtain the basename of the parent directory.
-      String basename = PathUtils.getBasename(texFile.getPath().getParent());
+      String basename = texFile.getPath().getParent().getFileName().toString();
 
       Path targetDir = defineSerializationTargetDir(texFile);
       if (targetDir != null) {

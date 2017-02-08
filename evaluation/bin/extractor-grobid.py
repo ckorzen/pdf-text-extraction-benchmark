@@ -20,7 +20,7 @@ class GrobidExtractor(Extractor):
 	#           <sourceDesc>
 	#			    <biblStruct>
 	#   				<analytic>
-	#   					<author role="corresp">
+	#   				    <author role="corresp">
 	#                           ...
 	#                       </author>
 	#					    <title level="a" type="main">Reducing quasi-ergodicity in a double well potential by Tsallis Monte Carlo simulation</title>
@@ -52,10 +52,13 @@ class GrobidExtractor(Extractor):
         """
                        
         if file_util.is_missing_or_empty_file(raw_output_path):
-            return ""
+            return 11, None
 
-        # Read in the xml.
-        xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
+        try:
+            # Read in the xml.
+            xml = etree.parse(raw_output_path, etree.XMLParser(recover=True))
+        except:
+            return 12, None
 
         paragraphs = []
         
@@ -69,7 +72,7 @@ class GrobidExtractor(Extractor):
         for chapter_node in chapter_nodes:
             paragraphs.extend(self.find_paragraphs(chapter_node))
             
-        return "\n\n".join(paragraphs)
+        return 0, "\n\n".join(paragraphs)
     
     def find_paragraphs(self, chapter_node):
         """ Finds paragraphs in the given "chapter" node (body/div). """ 
@@ -90,6 +93,10 @@ class GrobidExtractor(Extractor):
         def append_to_paragraph(text):
             """ Appends the given text to the current paragraph.""" 
             nonlocal paragraph
+            
+            # Remove @BULLET annotations from text.
+            text = text.replace("@BULLET ", "")
+            
             paragraph.append(text)
     
         def iterate(node):
