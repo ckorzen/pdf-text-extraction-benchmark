@@ -1,0 +1,509 @@
+Index: pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDSimpleFont.java
+===================================================================
+--- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDSimpleFont.java	(revision 1085755)
++++ pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDSimpleFont.java	(revision )
+@@ -27,11 +27,13 @@
+ 
+ import java.util.HashMap;
+ 
++import org.apache.fontbox.afm.CharMetric;
+ import org.apache.fontbox.afm.FontMetric;
+ 
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
+ 
++import org.apache.fontbox.util.BoundingBox;
+ import org.apache.pdfbox.cos.COSArray;
+ import org.apache.pdfbox.cos.COSBase;
+ import org.apache.pdfbox.cos.COSDictionary;
+@@ -130,9 +132,9 @@
+         float retval = 0;
+         int code = getCodeFromArray( c, offset, length );
+         FontMetric metric = getAFM();
+-        if( metric != null )
+-        {
+-            Encoding encoding = getFontEncoding();
++        Encoding encoding = getFontEncoding();
++        if( metric != null && encoding != null)
++        {
+             String characterName = encoding.getName( code );
+             retval = metric.getCharacterHeight( characterName );
+         }
+@@ -270,15 +272,43 @@
+     /**
+      * This will get the fonts bounding box.
+      *
+-     * @return The fonts bouding box.
++     * @return The fonts bounding box.
+      *
+      * @throws IOException If there is an error getting the bounding box.
+      */
+     public PDRectangle getFontBoundingBox() throws IOException
+     {
++        if (getFontDescriptor() != null && getFontDescriptor().getFontBoundingBox() != null){
+-        return getFontDescriptor().getFontBoundingBox();
+-    }
++            return getFontDescriptor().getFontBoundingBox();
++        }
+ 
++        return new PDRectangle((COSArray) font.getDictionaryObject("FontBBox"));
++
++    }
++
++    @Override
++    public BoundingBox getCharacterBoundingBox(final byte[] bytes, final int offset, final int length) throws IOException {
++
++        final String characterName;
++
++        if (getFontEncoding() != null) {
++            int code = getCodeFromArray(bytes, offset, length);
++            characterName = getFontEncoding().getName(code);
++        } else if (cmap != null){
++            characterName = cmap.lookup(bytes, offset, length);
++        } else {
++            return null;
++        }
++
++        final FontMetric fontMetric = getAFM();
++        if (fontMetric == null) {
++            return null;
++        }
++        CharMetric metric = fontMetric.getCharacterMetric(characterName);
++        return metric == null ? null : metric.getBoundingBox();
++
++    }
++
+     /**
+      * This will draw a string on a canvas using the font.
+      *
+Index: pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDCIDFont.java
+===================================================================
+--- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDCIDFont.java	(revision 1085755)
++++ pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDCIDFont.java	(revision )
+@@ -23,6 +23,7 @@
+ 
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
++import org.apache.fontbox.util.BoundingBox;
+ import org.apache.pdfbox.cos.COSArray;
+ import org.apache.pdfbox.cos.COSBase;
+ import org.apache.pdfbox.cos.COSDictionary;
+@@ -298,8 +299,15 @@
+         }
+         return cidSystemInfo;
+     }
+-    
++
++
+     @Override
++    public BoundingBox getCharacterBoundingBox(final byte[] bytes, final int offset, final int length) throws IOException
++    {
++        return null;
++    }
++    
++    @Override
+     protected void determineEncoding()
+     {
+         String cidSystemInfo = getCIDSystemInfo();
+Index: pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType1Font.java
+===================================================================
+--- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType1Font.java	(revision 1085916)
++++ pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType1Font.java	(revision )
+@@ -28,6 +28,7 @@
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
+ import org.apache.fontbox.afm.FontMetric;
++import org.apache.fontbox.util.BoundingBox;
+ import org.apache.pdfbox.cos.COSArray;
+ import org.apache.pdfbox.cos.COSDictionary;
+ import org.apache.pdfbox.cos.COSFloat;
+@@ -160,6 +161,7 @@
+                 try 
+                 {
+                     type1CFont = new PDType1CFont( super.font );
++                    awtFont = type1CFont.getawtFont();
+                 }
+                 catch (IOException exception) 
+                 {
+@@ -264,7 +266,15 @@
+         return awtFont;
+     }
+ 
++@Override
++protected FontMetric getAFM() {
++    if (type1CFont != null){
++        return type1CFont.getFontMetric();
++    }
++    return super.getAFM();
++}
++
+-    protected void determineEncoding()
++protected void determineEncoding()
+     {
+         super.determineEncoding();
+         Encoding fontEncoding = getFontEncoding();
+@@ -429,4 +439,31 @@
+             return super.getFontMatrix();
+         }
+     }
++
++    @Override
++    public float getFontHeight(final byte[] c, final int offset, final int length) throws IOException {
++        float ret = -1;
++        if (type1CFont != null){
++            ret = type1CFont.getFontHeight(c, offset, length);
+-}
++        }
++
++        if (ret == -1){
++            ret = super.getFontHeight(c, offset, length);
++        }
++        return ret;
++    }
++
++    @Override
++    public BoundingBox getCharacterBoundingBox(final byte[] c, final int offset,
++                                               final int length) throws IOException {
++        BoundingBox ret = null;
++        if (type1CFont != null){
++            ret = type1CFont.getCharacterBoundingBox(c, offset, length);
++        }
++
++        if (ret == null){
++            ret = super.getCharacterBoundingBox(c, offset, length);
++        }
++        return ret;
++    }
++}
+Index: fontbox/src/main/java/org/apache/fontbox/afm/FontMetric.java
+===================================================================
+--- fontbox/src/main/java/org/apache/fontbox/afm/FontMetric.java	(revision 905016)
++++ fontbox/src/main/java/org/apache/fontbox/afm/FontMetric.java	(revision )
+@@ -70,7 +70,8 @@
+     private float standardVerticalWidth;
+ 
+     private List<CharMetric> charMetrics = new ArrayList<CharMetric>();
+-    private Map<String,CharMetric> charMetricsMap = new HashMap<String,CharMetric>();
++    private Map<String,CharMetric> charMetricsMap_ = new HashMap<String,CharMetric>();
++    private Map<Integer,CharMetric> charMetricsMapI = new HashMap<Integer,CharMetric>();
+     private List<TrackKern> trackKern = new ArrayList<TrackKern>();
+     private List<Composite> composites = new ArrayList<Composite>();
+     private List<KernPair> kernPairs = new ArrayList<KernPair>();
+@@ -84,6 +85,14 @@
+     {
+     }
+ 
++	public CharMetric getCharacterMetric(String name){
++		return charMetricsMap_.get(name);
++	}
++
++	public CharMetric getCharacterMetric(int code){
++		return charMetricsMapI.get(code);
++	}
++
+     /**
+      * This will get the width of a character.
+      *
+@@ -96,7 +105,7 @@
+     public float getCharacterWidth( String name ) throws IOException
+     {
+         float result = 0;
+-        CharMetric metric = charMetricsMap.get( name );
++        CharMetric metric = charMetricsMap_.get( name );
+         if( metric == null )
+         {
+             result=0;
+@@ -122,7 +131,7 @@
+     public float getCharacterHeight( String name ) throws IOException
+     {
+         float result = 0;
+-        CharMetric metric = charMetricsMap.get( name );
++        CharMetric metric = charMetricsMap_.get( name );
+         if( metric == null )
+         {
+             result=0;
+@@ -133,12 +142,12 @@
+         {
+             if( metric.getWy() == 0 )
+             {
+-                result = metric.getBoundingBox().getHeight();
+-            }
++		        result = metric.getBoundingBox().getHeight();
++	        }
+             else
+             {
+                 result = metric.getWy();
+-            }
++        }
+         }
+         return result;
+     }
+@@ -156,7 +165,7 @@
+         float average = 0;
+         float totalWidths = 0;
+         float characterCount = 0;
+-        Iterator<CharMetric> iter = charMetricsMap.values().iterator();
++        Iterator<CharMetric> iter = charMetricsMap_.values().iterator();
+         while( iter.hasNext() )
+         {
+             CharMetric metric = iter.next();
+@@ -743,7 +752,8 @@
+     public void addCharMetric( CharMetric metric )
+     {
+         charMetrics.add( metric );
+-        charMetricsMap.put( metric.getName(), metric );
++        charMetricsMap_.put( metric.getName(), metric );
++        charMetricsMapI.put( metric.getCharacterCode(), metric );
+     }
+ 
+     /** Getter for property trackKern.
+Index: pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDFont.java
+===================================================================
+--- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDFont.java	(revision 1151382)
++++ pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDFont.java	(revision )
+@@ -21,6 +21,7 @@
+ import org.apache.fontbox.cmap.CMapParser;
+ import org.apache.fontbox.cmap.CMap;
+ 
++import org.apache.fontbox.util.BoundingBox;
+ import org.apache.pdfbox.encoding.Encoding;
+ 
+ import org.apache.pdfbox.cos.COSArray;
+@@ -294,6 +295,21 @@
+     }
+ 
+     /**
++     * This will get the font bounding box for a character.
++     *
++     *
++     * @param bytes
++     * @param offset The offset into the array.
++     * @param length The length of the data.
++     *
++     * @return The width is in 1000 unit of text space, ie 333 or 777
++     *
++     * @throws IOException If an error occurs while parsing.
++     */
++    public abstract BoundingBox getCharacterBoundingBox(byte[] bytes, int offset, int length) throws IOException;
++
++
++    /**
+      * This will get the average font width for all characters.
+      *
+      * @return The width is in 1000 unit of text space, ie 333 or 777
+Index: pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType1CFont.java
+===================================================================
+--- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType1CFont.java	(revision 1075455)
++++ pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType1CFont.java	(revision )
+@@ -38,6 +38,7 @@
+ import org.apache.commons.logging.LogFactory;
+ 
+ import org.apache.fontbox.afm.AFMParser;
++import org.apache.fontbox.afm.CharMetric;
+ import org.apache.fontbox.afm.FontMetric;
+ import org.apache.fontbox.cff.AFMFormatter;
+ import org.apache.fontbox.cff.charset.CFFCharset;
+@@ -79,10 +80,8 @@
+ 
+     private Font awtFont = null;
+ 
+-    private Map<String, Float> glyphWidths = new HashMap<String, Float>();
++    private Map<String, CharMetric> glyphMetrics = new HashMap<String, CharMetric>();
+ 
+-    private Map<String, Float> glyphHeights = new HashMap<String, Float>();
+-
+     private Float avgWidth = null;
+ 
+     private PDRectangle fontBBox = null;
+@@ -92,7 +91,7 @@
+     private static final byte[] SPACE_BYTES = {(byte)32};
+ 
+     private COSDictionary fontDict = null;
+-    
++
+     /**
+      * Constructor.
+      * @param fontDictionary the corresponding dictionary
+@@ -133,35 +132,63 @@
+         return (String)this.codeToCharacter.get(code);
+     }
+ 
+-    /**
+-     * {@inheritDoc}
+-     */
++	/**
++	 * {@inheritDoc}
++	 */
+-    public float getFontWidth( byte[] bytes, int offset, int length ) throws IOException
++	@Override
++	public BoundingBox getCharacterBoundingBox(final byte[] bytes,
++	                                           final int offset,
++	                                           final int length) throws IOException
+-    {
+-        String name = getName(bytes, offset, length);
++	{
++		String name = getName(bytes, offset, length);
++        int code = getCodeFromArray(bytes, offset, length );
+-        if( name == null && !Arrays.equals(SPACE_BYTES, bytes) )
+-        {
++		if( name == null && !Arrays.equals(SPACE_BYTES, bytes) )
++		{
+-            log.debug("No name for code " + (bytes[offset] & 0xff) + " in " + this.cffFont.getName());
++		    log.debug("No info for code " + (bytes[offset] & 0xff) + " in " + this.cffFont.getName());
++			return null;
++		}
+ 
+-            return 0;
++		CharMetric metric = fontMetric.getCharacterMetric(code);
++
++		return metric == null ? null : metric.getBoundingBox();
++
+-        }
++	}
+ 
+-        Float width = (Float)this.glyphWidths.get(name);
+-        if( width == null )
++
++    /**
++     * {@inheritDoc}
++     */
++    public float getFontWidth( byte[] bytes, int offset, int length ) throws IOException
+-        {
++    {
+-            width = Float.valueOf(getFontMetric().getCharacterWidth(name));
+-            this.glyphWidths.put(name, width);
+-        }
++        int code = getCodeFromArray(bytes, offset, length );
++        CharMetric charMetric = fontMetric.getCharacterMetric(code);
++        String name = charMetric.getName();
++        float width = charMetric.getBoundingBox().getWidth();
+ 
+-        return width.floatValue();
++//        String name = getName(bytes, offset, length);
++        if( name == null && !Arrays.equals(SPACE_BYTES, bytes) )
++        {
++            log.debug("No name for code " + (bytes[offset] & 0xff) + " in " + this.cffFont.getName());
++
++            return 0;
+-    }
++        }
++//	    return this.fontMetric.getCharacterWidth(name);
++        return width;
++    }
+ 
+     /**
+      * {@inheritDoc}
+      */
+     public float getFontHeight( byte[] bytes, int offset, int length ) throws IOException
+     {
+-        String name = getName(bytes, offset, length);
++//        String name = getName(bytes, offset, length);
++        int code = getCodeFromArray(bytes, offset, length );
++        CharMetric charMetric = fontMetric.getCharacterMetric(code);
++        if (charMetric == null){
++            return -1;
++        }
++        String name = charMetric.getName();
++        float height = charMetric.getBoundingBox().getHeight();
+         if( name == null )
+         {
+             log.debug("No name for code " + (bytes[offset] & 0xff) + " in " + this.cffFont.getName());
+@@ -169,30 +196,24 @@
+             return 0;
+         }
+ 
+-        Float height = (Float)this.glyphHeights.get(name);
+-        if( height == null )
+-        {
+-            height = Float.valueOf(getFontMetric().getCharacterHeight(name));
+-            this.glyphHeights.put(name, height);
++//	    return fontMetric.getCharacterHeight(name);
++        return height;
+-        }
++    }
+ 
+-        return height.floatValue();
+-    }
+-
+     private String getName( byte[] bytes, int offset, int length )
+     {
+         if (length > 2)
+         {
+             return null;
+         }
+-        
++
+         int code = bytes[offset] & 0xff;
+         if (length == 2)
+         {
+             code = code * 256 + bytes[offset+1] & 0xff;
+         }
+ 
+-        return (String)this.codeToName.get(code);
++        return codeToName.get(code);
+     }
+ 
+     /**
+@@ -289,7 +310,7 @@
+         return awtFont;
+     }
+     
+-    private FontMetric getFontMetric() 
++    public FontMetric getFontMetric()
+     {
+         if (fontMetric == null)
+         {
+@@ -362,25 +383,18 @@
+             throw new RuntimeException(e);
+         }
+ 
+-        for( Iterator<Map.Entry<Integer,String>> it = (codeToNameMap.entrySet()).iterator(); it.hasNext();)
+-        {
++
++        for (Iterator<Map.Entry<Integer, String>> it = (codeToNameMap.entrySet()).iterator(); it
++                .hasNext();) {
+-            Map.Entry<Integer,String> entry = it.next();
++            Map.Entry<Integer, String> entry = it.next();
+-            Integer code = (Integer)entry.getKey();
++            Integer code = (Integer) entry.getKey();
+-            String name = (String)entry.getValue();
++            String name = (String) entry.getValue();
+-            String uniName = "uni";
+-            String character = (String)nameToCharacter.get(name);
++            String character = (String) nameToCharacter.get(name);
+-            if( character != null )
+-            {
+-                for( int j = 0; j < character.length(); j++ )
+-                {
+-                    uniName += hexString(character.charAt(j), 4);
+-                }
+-            }
+-            else
+-            {
+-                uniName += hexString(code.intValue(), 4);
++            if (character == null) {
+-                character = String.valueOf((char)code.intValue());
++                character = String.valueOf((char) code.intValue());
+             }
++            final String uniName = "uni" + hexString(code, 4);
++
+             pdfEncoding.register(code.intValue(), code.intValue());
+             pdfCharset.register(code.intValue(), uniName);
+             this.codeToName.put(code, uniName);
+@@ -393,8 +407,14 @@
+         this.cffFont.setCharset(pdfCharset);
+         charStringsDict.clear();
+         charStringsDict.putAll(pdfCharStringsDict);
++
++        fontMetric = prepareFontMetric(this.cffFont);
++        awtFont = prepareAwtFont(this.cffFont);
++
+-        Number defaultWidthX = (Number)this.cffFont.getProperty("defaultWidthX");
++        Number defaultWidthX = (Number) this.cffFont.getProperty("defaultWidthX");
+-        this.glyphWidths.put(null, Float.valueOf(defaultWidthX.floatValue()));
++        CharMetric nullMetric = new CharMetric();
++        nullMetric.setWx(defaultWidthX.floatValue());
++        glyphMetrics.put(null, nullMetric);
+     }
+ 
+     private byte[] loadBytes() throws IOException

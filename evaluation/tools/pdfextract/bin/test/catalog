@@ -1,0 +1,177 @@
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+
+# Grab some DOIS and metadata via OAI PMH.
+
+# Record metadata in the test-data dir.
+
+# If there is no corresponding PDF in the test-data dir, download it using
+# get-pdf.
+
+require 'commander/import'
+require 'nokogiri'
+require 'json'
+require 'mongo'
+require_relative '../lib/pdf-extract'
+
+program :name, "catalog"
+program :version, "0.0.1"
+program :description, "Build a PDF catalog, with metadata."
+
+def catalog_filename
+  "catalog.json"
+end
+
+def read_catalog filename=catalog_filename
+  if File.exists? filename
+    File.open filename do |file|
+      JSON.load file
+    end
+  else
+    say "Created a new catalog"
+    {}
+  end
+end
+
+def write_catalog catalog, filename=catalog_filename
+  File.open filename, "w" do |file|
+    file.write catalog.to_json
+  end
+end
+
+def with_catalog &block
+  catalog = read_catalog
+  yield catalog
+  write_catalog catalog
+end
+
+def parse_xml_citations xml
+  doc = Nokogiri::XML::Document.parse xml
+  doc.css("reference").map { |r| r.text }
+end
+
+def diff_list left, right
+  (left.count - right.count).abs
+end
+
+def get_references doi
+  $mongo ||= Mongo::Connection.new($mongo_host || "192.168.1.152")
+  citations = $mongo["crossref"]["citations"]
+
+  docs = citations.find({"from.doi" => doi})
+  docs.map { |doc| doc["to"]["unstructured_citation"] }.compact
+end
+
+global_option "--mongo host" do |val|
+  $mongo_host = val
+end
+
+command :add do |c|
+  # add doi for PDF filename
+
+  c.syntax = "catalog add doi pdf"
+  c.description = "Add a PDF to the catalog with given DOI"
+
+  c.action do |args, options|
+    doi, filename = args
+    with_catalog do |catalog|
+      catalog[doi] = {
+        :pdf => filename,
+        :citations => get_references(doi)
+      }
+      say "Found #{catalog[doi][:citations].count} citations in CrossRef Cited-by data"
+    end
+  end
+end
+
+command :accept do |c|
+  c.syntax = "catalog accept doi"
+  c.description = "Accept extracted references as test examples"
+
+  c.action do |args, options|
+    with_catalog do |catalog|
+      args.each do |doi|
+        xml_filename =  catalog[doi]["pdf"] + ".xml"
+        refs = File.open(xml_filename) { |file| parse_xml_citations(file.read) }
+        catalog[doi]["citations"] = refs
+      end
+    end
+  end
+end
+
+command :count do |c|
+  c.syntax = "catalog count"
+  c.description = "Count records in a catalog"
+
+  c.action do |args, options|
+    with_catalog do |catalog|
+      say catalog.count.to_s
+    end
+  end
+end
+
+command :run do |c|
+  c.syntax = "catalog run"
+  c.description = "Run pdfextract on PDFs in a catalog"
+
+  c.action do |args, options|
+
+    with_catalog do |catalog|
+      catalog.each do |doi, record|
+        if record["pdf"]
+          say "Running pdfextract for #{record["pdf"]} ( #{doi} )..."
+
+          begin
+            xml = PdfExtract.view(record["pdf"], :as => :xml) do |pdf|
+              pdf.references
+            end
+
+            references_filename = record["pdf"] + ".xml"
+
+            File.open(references_filename, "w") do |file|
+              file.write xml
+            end
+
+            record[:extracted] = references_filename
+          rescue StandardError => e
+            say "Failed because of: #{e}"
+          end
+        end
+      end
+    end
+
+  end
+end
+
+command :stats do |c|
+  c.syntax = "catalog stats"
+  c.description = "Success rate of pdfextract"
+
+  c.action do |args, options|
+
+    with_catalog do |catalog|
+
+      diffs = []
+
+      catalog.each do |doi, record|
+        if record["pdf"]
+          xml = File.open(record["pdf"] + ".xml") { |file| file.read }
+          diffs << diff_list(parse_xml_citations(xml), record["citations"])
+        end
+      end
+
+      if diffs.count.zero?
+        say "No records with a PDF and pdf-extract results"
+      else
+        successful = diffs.count { |diff| diff.zero? }
+        unsuccessful = diffs.count - successful
+
+        success_percent = (successful / diffs.count.to_f) * 100.0
+
+        say "Successfully matched all references: #{successful}/#{diffs.count} (#{success_percent}%)"
+      end
+    end
+
+  end
+end
+
