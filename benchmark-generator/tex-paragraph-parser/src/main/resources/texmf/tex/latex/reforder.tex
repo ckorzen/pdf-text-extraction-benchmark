@@ -1,0 +1,116 @@
+%%		REFORDER.TEX			6/7/85	Doug E.
+%%
+%%	This macro package is intended for use with JNL.
+%%	It will automatically order and sort the references in a paper
+%%	by order of first citation.(!!)  To use, say \input reforder
+%%	after \input jnl (and after all definitions of \refto etc.,
+%%	in particular after any use of the \refstyleXX macros),
+%%	but before any use of \refto etc.  Use \refto{} (or \ref{} and
+%%	\Ref{}) to cite references in the text.  Use \refis{} to list
+%%	the references,  SKIP A LINE after each reference.  Open the
+%%	reference listing with \references and close it with \endreferences.
+%%
+%%	REFORDER depends on the
+%%	JNL macros \refto{}, \ref{}, \Ref{} to identify citation of references.
+%%	REFORDER also contains a macro \cite{} which can be used to cite
+%%	references; e.g., ``Reference \cite{19} blah...'' will produce
+%% 	output ``Reference 19 blah''.  Multiple citations can be separated
+%%	by commas.  E.g., \refto{24,26,27} and \cite{3,7}
+%%	are legal.  Also legal is \refto{3-7}, which expands to mean the same
+%%	as \refto{3,4,5,6,7}.  Reference ``numbers'' can in general be any
+%%	alphanumeric string; e.g. BjorkenAndDrell is perfectly OK used in
+%%	the form\ref{BjorkenAndDrell};  such strings should contain no blanks.
+%%
+%%	If you have your own pet macros to cite references such as, e.g.,
+%%	\def\referpet#1{$^(#1)$)}, you can bring it to the attention of
+%%	REFORDER so all \referpet's will be properly cited simply by
+%%	declaring ``\citeall\referpet'' once near the beginning, after
+%%	\referpet is defined and
+%%	after \input reforder.  This has the effect of redefining the macro
+%%	as e.g., \def\referpet#1{$^(\cite{#1})$}.  (Such \citeall'ed macros
+%%	must have exactly one argument #1, as in \referpet.)  See e.g.,
+%%	the end of this file where \refto, \ref and \Ref are \citeall'ed.
+%%
+%%	REFORDER depends on the macro \refis{} for listings.  In fact,
+%%	a reference listing can appear anywhere in the paper after
+%%	its first citation.  The macro \endreferences actually triggers
+%%	sorting and listing of references.  Skip a line after a reference
+%%	listing (or, alternatively, end each listing in \par).
+
+\catcode`@=11
+\newcount\r@fcount \r@fcount=0
+\newcount\r@fcurr
+\immediate\newwrite\reffile
+\newif\ifr@ffile\r@ffilefalse
+\def\w@rnwrite#1{\ifr@ffile\immediate\write\reffile{#1}\fi\message{#1}}
+
+\def\writer@f#1>>{}
+\def\referencefile{%			  Stuff to write .REF file
+  \r@ffiletrue\immediate\openout\reffile=\jobname.ref%
+  \def\writer@f##1>>{\ifr@ffile\immediate\write\reffile%
+    {\noexpand\refis{##1} = \csname r@fnum##1\endcsname = %
+     \expandafter\expandafter\expandafter\strip@t\expandafter%
+     \meaning\csname r@ftext\csname r@fnum##1\endcsname\endcsname}\fi}%
+  \def\strip@t##1>>{}}
+\let\referencelist=\referencefile
+
+\def\citeall#1{\xdef#1##1{#1{\noexpand\cite{##1}}}}
+\def\cite#1{\each@rg\citer@nge{#1}} % Variable No. of args, separated by ","
+
+\def\each@rg#1#2{{\let\thecsname=#1\expandafter\first@rg#2,\end,}}
+\def\first@rg#1,{\thecsname{#1}\apply@rg}	% each@ag is a general purpose
+\def\apply@rg#1,{\ifx\end#1\let\next=\relax%	  variable no. of arg. macro.
+\else,\thecsname{#1}\let\next=\apply@rg\fi\next}% args separated by commas
+
+\def\citer@nge#1{\citedor@nge#1-\end-}	% Check for M-N range (M and N numbers)
+\def\citer@ngeat#1\end-{#1}
+\def\citedor@nge#1-#2-{\ifx\end#2\r@featspace#1 % Single argument
+  \else\citel@@p{#1}{#2}\citer@ngeat\fi}	% M-N range of arguments
+\def\citel@@p#1#2{\ifnum#1>#2{\errmessage{Reference range #1-#2\space is bad.}
+    \errhelp{If you cite a series of references by the notation M-N, then M and
+    N must be integers, and N must be greater than or equal to M.}}\else%
+ {\count0=#1\count1=#2\advance\count1 by1\relax%
+\expandafter\r@fcite\the\count0,%
+  \loop\advance\count0 by1\relax%	  Loop from M to N
+    \ifnum\count0<\count1,\expandafter\r@fcite\the\count0,%
+  \repeat}\fi}
+
+\def\r@featspace#1#2 {\r@fcite#1#2,}	% Eat spaces at beginning or end of arg
+\def\r@fcite#1,{\ifuncit@d{#1}		% Cite individual reference
+    \expandafter\gdef\csname r@ftext\number\r@fcount\endcsname%
+    {\message{Reference #1 to be supplied.}\writer@f#1>>#1 to be supplied.\par
+     }\fi%
+  \csname r@fnum#1\endcsname}
+
+\def\ifuncit@d#1{\expandafter\ifx\csname r@fnum#1\endcsname\relax%
+\global\advance\r@fcount by1%
+\expandafter\xdef\csname r@fnum#1\endcsname{\number\r@fcount}}
+
+\let\r@fis=\refis			% Save old \refis, redefine
+\def\refis#1#2#3\par{\ifuncit@d{#1}%      Use two params #2 #3 to strip blank
+    \w@rnwrite{Reference #1=\number\r@fcount\space is not cited up to now.}\fi%
+  \expandafter\gdef\csname r@ftext\csname r@fnum#1\endcsname\endcsname%
+  {\writer@f#1>>#2#3\par}}
+
+\def\r@ferr{\endreferences\errmessage{I was expecting to see
+\noexpand\endreferences before now;  I have inserted it here.}}
+\let\r@ferences=\references
+\def\references{\r@ferences\def\endmode{\r@ferr\par\endgroup}}
+
+\let\endr@ferences=\endreferences
+\def\endreferences{\r@fcurr=0%		  Save old \endreferences, redefine
+  {\loop\ifnum\r@fcurr<\r@fcount%	  Loop over refnum and produce text
+    \advance\r@fcurr by 1\relax\expandafter\r@fis\expandafter{\number\r@fcurr}%
+    \csname r@ftext\number\r@fcurr\endcsname%
+  \repeat}\gdef\r@ferr{}\endr@ferences}
+
+% Save old \endpaper, redefine it to write parting message.
+
+\let\r@fend=\endpaper\gdef\endpaper{\ifr@ffile
+\immediate\write16{Cross References written on []\jobname.REF.}\fi\r@fend}
+
+\catcode`@=12
+
+\citeall\refto		% These macros will generate citations
+\citeall\ref		%
+\citeall\Ref		%

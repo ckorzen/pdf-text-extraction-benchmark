@@ -1,0 +1,1449 @@
+%*************************************************************************
+%*	Jean Orloff		*	phone:	(41-22) 767-3204	*
+%*	TH-Division, CERN	*	fax:	(41-22) 782-3914	*
+%*	CH-1211 Geneva 23	*	e-mail: ORLOFF@cernvm.cern.ch	*
+%*************************************************************************
+% This text was produced with psbox's \joinfiles. You should:
+%-save this with a filename CONTAINING ONLY LETTERS
+% (say, PSBOXALL.TEX), in some uncrowded directory;
+%-tex PSBOXALL.TEX using Plain TeX.
+% You will get 6 files:
+%   psbox.tex (the macros),
+%   psbsamp.tex (the dox & sample file)
+%   psbREAD.ME (a quick overview)
+%   box.ps (a stupid sample PostScript dawing)
+%   psbugs.tex  (a sample bug report file)
+%   psboxOK.tex {an anti-bug report file: please send if satisfied!)
+% and furthermore do the equivalent of TeXing psbsamp.tex.
+%Beginning-Of-File-Named:psbox.tex
+%
+%       %%%%%%%    %%%%%        %%%%%%    %%%%%   %     %
+%       %      %  %             %     %  %     %   %   %
+%       %      %  %             %     %  %     %    % %
+%       %%%%%%%    %%%%%        %%%%%%   %     %     %
+%       %               %       %     %  %     %    % %
+%       %               %       %     %  %     %   %   %
+%       %         %%%%%%        %%%%%%    %%%%%   %     %
+%
+%       By Jean Orloff
+%       Comments & suggestions by e-mail: ORLOFF@surya11.cern.ch
+%       No modification of this file allowed if not e-sent to me.
+%
+% WHAT IS IT:
+% psbox is a set of machine-independent TeX macros to
+% 1) allow (Encapsulated) PostScript figure inclusion in all versions
+%    of TeX (Plain, LaTeX) on all machines using a PostScript printer
+% 2) facilitate the communication (e-mail, ftp, ...) of all the files
+%    (text, macros, figs) needed to reproduce a TeX document by grouping
+%    them together into a single, TeXable file.
+% For more info, get the file pub/TeX/psbox/PSBOXALL.TEX by anonymous
+%     ftp from cs.nyu.edu(=128.122.140.24)
+%
+% History:
+%  1.34  \readfilename=final fix for all filename scans; try \psforptips
+%  1.33: corrects \psnewinput for LaTeX (still fails if fname=a{b}c)
+%  1.32: corrects \psfordvialw and adds .TEX to PSBOXALL(!)
+%  1.31: adds \psfordvialw(?)
+%  1.30: adds \splitfile & \joinfiles for multi-file management
+%  1.24: fix error handling & add \psonlyboxes
+%  1.22: makes \drawingBox \global for use in Phyzzx
+%  1.21: accepts %%BoundingBox: (atend)
+%  1.20: tries to add \psfordvitps for the TeXPS package.
+%  1.10: adds \psforoztex, error handling...
+%2345678 1 2345678 2 2345678 3 2345678 4 2345678 5 2345678 6 2345678 7 23456789
+%
+% Checking version no to avoid multiple loadings
+\def\temp{1.34}%
+\let\tempp=\relax
+\expandafter\ifx\csname psboxversion\endcsname\relax
+  \message{PSBOX(\temp) loading}%
+\else
+    \ifdim\temp cm>\psboxversion cm
+      \message{PSBOX(\temp) loading}%
+    \else
+      \message{PSBOX(\psboxversion) is already loaded: I won't load
+        PSBOX(\temp)!}%
+      \let\temp=\psboxversion
+      \let\tempp=\endinput
+    \fi
+\fi
+\tempp
+\let\psboxversion=\temp
+\catcode`\@=11
+% Every macro likes a little privacy...
+%
+%Trying to tame the variety of \special commands for Postscript: the
+%  universal internal command \PSspeci@l##1##2 takes ##1 to be the
+%  filename and ##2 to be the integer scale factor*1000 (as for usual
+%   TeX \scale commands)
+%
+\def\psfortextures{%     For TeXtures on the Macintosh
+%-----------------
+\def\PSspeci@l##1##2{%
+\special{illustration ##1\space scaled ##2}%
+}}%
+\def\psfordvitops{%      For the DVItoPS converter on IBM mainframes
+%----------------
+\def\PSspeci@l##1##2{%
+\special{dvitops: import ##1\space \the\drawingwd \the\drawinght}%
+}}%
+\def\psfordvips{%      For DVIPS converter on VAX, UNIX and PC's
+%--------------
+\def\PSspeci@l##1##2{%
+%    \special{/@scaleunit 1000 def}% never read dox without trying!
+\d@my=0.1bp \d@mx=\drawingwd \divide\d@mx by\d@my% BUG! for large \drawingwd
+\special{PSfile=##1\space llx=\psllx\space lly=\pslly\space%
+urx=\psurx\space ury=\psury\space rwi=\number\d@mx
+}}}%
+\def\psforoztex{%        For the OzTeX shareware on the Macintosh
+%--------------
+\def\PSspeci@l##1##2{%
+\special{##1 \space
+      ##2 1000 div dup scale
+      \number-\psllx\space \number-\pslly\space translate
+}}}%
+\def\psfordvitps{%       From the UNIX TeXPS package, vers.>3.12
+%---------------
+% Convert a dimension into the number \psn@sp (in scaled points)
+\def\psdimt@n@sp##1{\d@mx=##1\relax\edef\psn@sp{\number\d@mx}}
+\def\PSspeci@l##1##2{%
+% psfig.psr contains the def of "startTexFig": if you can locate it
+% and include the correct pathname, it should work
+\special{dvitps: Include0 "psfig.psr"}% contains def of "startTexFig"
+\psdimt@n@sp{\drawingwd}
+\special{dvitps: Literal "\psn@sp\space"}
+\psdimt@n@sp{\drawinght}
+\special{dvitps: Literal "\psn@sp\space"}
+\psdimt@n@sp{\psllx bp}
+\special{dvitps: Literal "\psn@sp\space"}
+\psdimt@n@sp{\pslly bp}
+\special{dvitps: Literal "\psn@sp\space"}
+\psdimt@n@sp{\psurx bp}
+\special{dvitps: Literal "\psn@sp\space"}
+\psdimt@n@sp{\psury bp}
+\special{dvitps: Literal "\psn@sp\space startTexFig\space"}
+\special{dvitps: Include1 "##1"}
+\special{dvitps: Literal "endTexFig\space"}
+}}%
+\def\psfordvialw{%   Try for dvialw, a UNIX public domain
+%---------------
+\def\PSspeci@l##1##2{
+\special{language "PostScript",
+position = "bottom left",
+literal "  \psllx\space \pslly\space translate
+  ##2 1000 div dup scale
+  -\psllx\space -\pslly\space translate",
+include "##1"}
+}}%
+\def\psforptips{%   For MS-DOS; LUOMA@brandeis.bitnet
+%---------------
+\def\PSspeci@l##1##2{{
+\d@mx=\psurx bp
+\advance \d@mx by -\psllx bp
+\divide \d@mx by 1000\multiply\d@mx by \xscale
+\incm{\d@mx}
+\let\tmpx\dimincm
+\d@my=\psury bp
+\advance \d@my by -\pslly bp
+\divide \d@my by 1000\multiply\d@my by \xscale
+\incm{\d@my}
+\let\tmpy\dimincm
+\d@mx=-\psllx bp
+\divide \d@mx by 1000\multiply\d@mx by \xscale
+\d@my=-\pslly bp
+\divide \d@my by 1000\multiply\d@my by \xscale
+\at(\d@mx;\d@my){\special{ps:##1 x=\tmpx, y=\tmpy}}
+}}}%
+\def\psonlyboxes{%     Draft-like behaviour if none of the others works
+%---------------
+\def\PSspeci@l##1##2{%
+\at(0cm;0cm){\boxit{\vbox to\drawinght
+  {\vss\hbox to\drawingwd{\at(0cm;0cm){\hbox{({\tt##1})}}\hss}}}}
+}}%
+\def\psloc@lerr#1{%
+\let\savedPSspeci@l=\PSspeci@l%
+\def\PSspeci@l##1##2{%
+\at(0cm;0cm){\boxit{\vbox to\drawinght
+  {\vss\hbox to\drawingwd{\at(0cm;0cm){\hbox{({\tt##1}) #1}}\hss}}}}
+\let\PSspeci@l=\savedPSspeci@l% restore normal output for other figs!
+}}%
+%\def\psfor...  add your own!
+%
+% Some common defs
+%
+\newread\pst@mpin
+\newdimen\drawinght\newdimen\drawingwd
+\newdimen\psxoffset\newdimen\psyoffset
+\newbox\drawingBox
+\newcount\xscale \newcount\yscale \newdimen\pscm\pscm=1cm
+\newdimen\d@mx \newdimen\d@my
+\newdimen\pswdincr \newdimen\pshtincr
+\let\ps@nnotation=\relax
+{\catcode`\|=0 |catcode`|\=12 |catcode`|%=12 |catcode`~=12
+|catcode`#=12 |catcode`*=14
+|xdef|backslashother{\}*
+|xdef|percentother{%}*
+|xdef|tildeother{~}*
+|xdef|sharpother{#}*
+}%
+% useful to display special chars in \tt; fails for \,#,%
+\def\R@moveMeaningHeader#1:->{}%
+\def\uncatcode#1{%
+\edef#1{\expandafter\R@moveMeaningHeader\meaning#1}}%
+%
+\def\execute#1{#1}% NOT stupid: cs in #1 are then identified BEFORE execution
+\def\psm@keother#1{\catcode`#112\relax}% borrowed from latex
+\def\executeinspecs#1{%
+\execute{\begingroup\let\do\psm@keother\dospecials\catcode`\^^M=9#1\endgroup}}%
+\def\@mpty{}%
+% \if\matchin#1#2<=> \iftrue if #1 contains #2, <=>\iffalse otherwise:
+% \if\matchexpin: idem, but #1 & #2 are first fully expanded (no \if
+% inside!)
+% \tmpa & \tmpb contain what's before and after the occurence of #2
+\def\matchexpin#1#2{
+  \fi%
+%\message{(#1>#2)}
+  \edef\tmpb{{#2}}%
+  \expandafter\makem@tchtmp\tmpb%
+  \edef\tmpa{#1}\edef\tmpb{#2}%
+  \expandafter\expandafter\expandafter\m@tchtmp\expandafter\tmpa\tmpb\endm@tch%
+  \if\match%
+}%
+\def\matchin#1#2{%
+  \fi%
+  \makem@tchtmp{#2}%
+  \m@tchtmp#1#2\endm@tch%
+  \if\match%
+}%
+\def\makem@tchtmp#1{\def\m@tchtmp##1#1##2\endm@tch{%
+  \def\tmpa{##1}\def\tmpb{##2}\let\m@tchtmp=\relax%
+  \ifx\tmpb\@mpty\def\match{YN}%
+  \else\def\match{YY}\fi%
+}}%
+% converts any dimen in cm, with 1E-4 cm precision
+\def\incm#1{{\psxoffset=1cm\d@my=#1
+ \d@mx=\d@my
+  \divide\d@mx by \psxoffset
+  \xdef\dimincm{\number\d@mx.}
+  \advance\d@my by -\number\d@mx cm
+  \multiply\d@my by 100
+ \d@mx=\d@my
+  \divide\d@mx by \psxoffset
+  \edef\dimincm{\dimincm\number\d@mx}
+  \advance\d@my by -\number\d@mx cm
+  \multiply\d@my by 100
+ \d@mx=\d@my
+  \divide\d@mx by \psxoffset
+  \xdef\dimincm{\dimincm\number\d@mx}
+}}%
+%
+%  \ReadPSize{PSfilename} reads the dimensions of a PostScript drawing
+%      and stores it in \drawinght(wd)
+\newif\ifNotB@undingBox
+\newhelp\PShelp{Proceed: you'll have a 5cm square blank box instead of
+your graphics (Jean Orloff).}%
+\def\s@tsize#1 #2 #3 #4\@ndsize{
+  \def\psllx{#1}\def\pslly{#2}%
+  \def\psurx{#3}\def\psury{#4}%  needed by a crazyness of dvips!
+  \ifx\psurx\@mpty\NotB@undingBoxtrue% this is not a valid one!
+  \else
+    \drawinght=#4bp\advance\drawinght by-#2bp
+    \drawingwd=#3bp\advance\drawingwd by-#1bp
+%  !Units related by crazy factors as bp/pt=72.27/72 should be BANNED!
+  \fi
+  }%
+\def\sc@nBBline#1:#2\@ndBBline{\edef\p@rameter{#1}\edef\v@lue{#2}}%
+\def\g@bblefirstblank#1#2:{\ifx#1 \else#1\fi#2}%
+{\catcode`\%=12
+\xdef\B@undingBox{%%BoundingBox}}%
+%% is not a true comment in PostScript, even if % is!
+\def\ReadPSize#1{
+ \readfilename#1\relax
+ \let\PSfilename=\lastreadfilename
+ \openin\pst@mpin=#1\relax
+ \ifeof\pst@mpin \errhelp=\PShelp
+   \errmessage{I haven't found your postscript file (\PSfilename)}%
+   \psloc@lerr{was not found}%
+   \s@tsize 0 0 142 142\@ndsize
+   \closein\pst@mpin
+ \else
+% each entry in \GlobalInputList should be unique
+   \if\matchexpin{\GlobalInputList}{, \lastreadfilename}%
+   \else\xdef\GlobalInputList{\GlobalInputList, \lastreadfilename}%
+     \immediate\write\psbj@inaux{\lastreadfilename,}%
+   \fi%
+   \loop
+     \executeinspecs{\catcode`\ =10\global\read\pst@mpin to\n@xtline}%
+     \ifeof\pst@mpin
+       \errhelp=\PShelp
+       \errmessage{(\PSfilename) is not an Encapsulated PostScript File:
+           I could not find any \B@undingBox: line.}%
+       \edef\v@lue{0 0 142 142:}%
+       \psloc@lerr{is not an EPSFile}%
+       \NotB@undingBoxfalse
+     \else
+       \expandafter\sc@nBBline\n@xtline:\@ndBBline
+       \ifx\p@rameter\B@undingBox\NotB@undingBoxfalse
+         \edef\t@mp{%
+           \expandafter\g@bblefirstblank\v@lue\space\space\space}%
+         \expandafter\s@tsize\t@mp\@ndsize
+       \else\NotB@undingBoxtrue
+       \fi
+     \fi
+   \ifNotB@undingBox\repeat
+   \closein\pst@mpin
+ \fi
+\message{#1}%
+}%
+%
+% \psboxto(xdim;ydim){psfilename}: you specify the dimensions and
+%    TeX uniformly scales to fit the largest one. If xdim=0pt, the
+%    scale is fully determined by ydim and vice versa.
+%    Notice: psboxes are a real vboxes; couldn't take hbox otherwise all
+%    indentation and all cr's would be interpreted as spaces (hugh!).
+%
+\def\psboxto(#1;#2)#3{\vbox{%
+   \ReadPSize{#3}%
+   \advance\pswdincr by \drawingwd
+   \advance\pshtincr by \drawinght
+   \divide\pswdincr by 1000
+   \divide\pshtincr by 1000
+   \d@mx=#1
+   \ifdim\d@mx=0pt\xscale=1000
+         \else \xscale=\d@mx \divide \xscale by \pswdincr\fi
+   \d@my=#2
+   \ifdim\d@my=0pt\yscale=1000
+         \else \yscale=\d@my \divide \yscale by \pshtincr\fi
+   \ifnum\yscale=1000
+         \else\ifnum\xscale=1000\xscale=\yscale
+                    \else\ifnum\yscale<\xscale\xscale=\yscale\fi
+              \fi
+   \fi
+   \divide\drawingwd by1000 \multiply\drawingwd by\xscale
+   \divide\drawinght by1000 \multiply\drawinght by\xscale
+   \divide\psxoffset by1000 \multiply\psxoffset by\xscale
+   \divide\psyoffset by1000 \multiply\psyoffset by\xscale
+   \global\divide\pscm by 1000
+   \global\multiply\pscm by\xscale
+   \multiply\pswdincr by\xscale \multiply\pshtincr by\xscale
+   \ifdim\d@mx=0pt\d@mx=\pswdincr\fi
+   \ifdim\d@my=0pt\d@my=\pshtincr\fi
+   \message{scaled \the\xscale}%
+ \hbox to\d@mx{\hss\vbox to\d@my{\vss
+   \global\setbox\drawingBox=\hbox to 0pt{\kern\psxoffset\vbox to 0pt{%
+      \kern-\psyoffset
+      \PSspeci@l{\PSfilename}{\the\xscale}%
+      \vss}\hss\ps@nnotation}%
+   \global\wd\drawingBox=\the\pswdincr
+   \global\ht\drawingBox=\the\pshtincr
+   \global\drawingwd=\pswdincr
+   \global\drawinght=\pshtincr
+   \baselineskip=0pt
+   \copy\drawingBox
+ \vss}\hss}%
+  \global\psxoffset=0pt
+  \global\psyoffset=0pt
+  \global\pswdincr=0pt
+  \global\pshtincr=0pt % These are local to one figure
+  \global\pscm=1cm %should not be necessary
+}}%
+%
+% \psboxscaled{scalefactor*1000}{PSfilename} allows to bypass the
+%   rounding errors of TeX integer divisions for situations where the
+%   TeX box should fit the original BoundingBox with a precision
+%   better
+%   than 1/1000.
+%
+\def\psboxscaled#1#2{\vbox{%
+  \ReadPSize{#2}%
+  \xscale=#1
+  \message{scaled \the\xscale}%
+  \divide\pswdincr by 1000 \multiply\pswdincr by \xscale
+  \divide\pshtincr by 1000 \multiply\pshtincr by \xscale
+  \divide\psxoffset by1000 \multiply\psxoffset by\xscale
+  \divide\psyoffset by1000 \multiply\psyoffset by\xscale
+  \divide\drawingwd by1000 \multiply\drawingwd by\xscale
+  \divide\drawinght by1000 \multiply\drawinght by\xscale
+  \global\divide\pscm by 1000
+  \global\multiply\pscm by\xscale
+  \global\setbox\drawingBox=\hbox to 0pt{\kern\psxoffset\vbox to 0pt{%
+     \kern-\psyoffset
+     \PSspeci@l{\PSfilename}{\the\xscale}%
+     \vss}\hss\ps@nnotation}%
+  \advance\pswdincr by \drawingwd
+  \advance\pshtincr by \drawinght
+  \global\wd\drawingBox=\the\pswdincr
+  \global\ht\drawingBox=\the\pshtincr
+  \global\drawingwd=\pswdincr
+  \global\drawinght=\pshtincr
+  \baselineskip=0pt
+  \copy\drawingBox
+  \global\psxoffset=0pt
+  \global\psyoffset=0pt
+  \global\pswdincr=0pt
+  \global\pshtincr=0pt % These are local to one figure
+  \global\pscm=1cm
+}}%
+%
+%  \psbox{PSfilename} makes a TeX box having the minimal size to
+%      enclose the picture
+\def\psbox#1{\psboxscaled{1000}{#1}}%
+%------------------------------------------------------
+%  \joinfiles file1, file2, ...n \into joinedfilename .
+%     makes one file out of many
+%  \splitfile joinedfilename
+%     the opposite
+\newif\ifn@teof\n@teoftrue
+\newif\ifc@ntrolline
+\newif\ifmatch
+\newread\j@insplitin
+\newwrite\j@insplitout
+\newwrite\psbj@inaux
+\immediate\openout\psbj@inaux=psbjoin.aux
+\immediate\write\psbj@inaux{\string\joinfiles}%
+\immediate\write\psbj@inaux{\jobname,}%
+%
+% INPUT REDEFINITION
+%
+% works if #1 is a single character
+\def\toother#1{\ifcat\relax#1\else\expandafter%
+  \toother@ux\meaning#1\endtoother@ux\fi}%
+\def\toother@ux#1 #2#3\endtoother@ux{\def\tmp{#3}%
+  \ifx\tmp\@mpty\def\tmp{#2}\let\next=\relax%
+  \else\def\next{\toother@ux#2#3\endtoother@ux}\fi%
+\next}%
+%
+% \readfilename defs:
+%
+\let\readfilenamehook=\relax
+\def\re@d{\expandafter\re@daux}% spares typing 10 \expandafter's...
+\def\re@daux{\futurelet\nextchar\stopre@dtest}%
+\def\re@dnext{\xdef\lastreadfilename{\lastreadfilename\nextchar}%
+  \afterassignment\re@d\let\nextchar}%
+\def\stopre@d{\egroup\readfilenamehook}%
+\def\stopre@dtest{%
+  \ifcat\nextchar\relax\let\nextread\stopre@d
+  \else
+    \ifcat\nextchar\space\def\nextread{%
+      \afterassignment\stopre@d\chardef\nextchar=`}%
+    \else\let\nextread=\re@dnext
+      \toother\nextchar
+      \edef\nextchar{\tmp}%
+    \fi
+  \fi\nextread}%
+\def\readfilename{\bgroup%
+  \let\\=\backslashother \let\%=\percentother \let\~=\tildeother
+  \let\#=\sharpother \xdef\lastreadfilename{}%
+  \re@d}%
+%
+% redefines \input using \readfilename
+%
+\xdef\GlobalInputList{\jobname}%
+\def\psnewinput{%
+  \def\readfilenamehook{% each entry in \GlobalInputList should be unique
+    \if\matchexpin{\GlobalInputList}{, \lastreadfilename}%
+    \else\xdef\GlobalInputList{\GlobalInputList, \lastreadfilename}%
+      \immediate\write\psbj@inaux{\lastreadfilename,}%
+    \fi%
+    \ps@ldinput\lastreadfilename\relax%
+    \let\readfilenamehook=\relax%
+  }\readfilename%
+}%
+\expandafter\ifx\csname @@input\endcsname\relax    % then Plain
+  \immediate\let\ps@ldinput=\input\def\input{\psnewinput}%
+\else
+  \immediate\let\ps@ldinput=\@@input
+  \def\@@input{\psnewinput}%
+\fi%
+%
+\def\nowarnopenout{%
+ \def\warnopenout##1##2{%
+   \readfilename##2\relax
+   \message{\lastreadfilename}%
+   \immediate\openout##1=\lastreadfilename\relax}}%
+\def\warnopenout#1#2{%
+ \readfilename#2\relax
+ \def\t@mp{TrashMe,psbjoin.aux,psbjoint.tex,}\uncatcode\t@mp
+ \if\matchexpin{\t@mp}{\lastreadfilename,}%
+ \else
+   \immediate\openin\pst@mpin=\lastreadfilename\relax
+   \ifeof\pst@mpin
+     \else
+     \errhelp{If the content of this file is so precious to you, abort (ie
+press x or e) and rename it before retrying.}%
+     \errmessage{I'm just about to replace your file named \lastreadfilename}%
+   \fi
+   \immediate\closein\pst@mpin
+ \fi
+ \message{\lastreadfilename}%
+ \immediate\openout#1=\lastreadfilename\relax}%
+% % will have an unusual catcode below; use * instead
+%\vbox
+{\catcode`\%=12\catcode`\*=14
+\gdef\splitfile#1{*
+ \readfilename#1\relax
+ \immediate\openin\j@insplitin=\lastreadfilename\relax
+ \ifeof\j@insplitin
+   \message{! I couldn't find and split \lastreadfilename!}*
+ \else
+   \immediate\openout\j@insplitout=TrashMe
+   \message{< Splitting \lastreadfilename\space into}*
+   \loop
+     \ifeof\j@insplitin
+       \immediate\closein\j@insplitin\n@teoffalse
+     \else
+       \n@teoftrue
+       \executeinspecs{\global\read\j@insplitin to\spl@tinline\expandafter
+         \ch@ckbeginnewfile\spl@tinline%Beginning-Of-File-Named:%\endcheck}*
+       \ifc@ntrolline
+       \else
+         \toks0=\expandafter{\spl@tinline}*
+         \immediate\write\j@insplitout{\the\toks0}*
+       \fi
+     \fi
+   \ifn@teof\repeat
+   \immediate\closeout\j@insplitout
+ \fi\message{>}*
+}*
+\gdef\ch@ckbeginnewfile#1%Beginning-Of-File-Named:#2%#3\endcheck{*
+ \def\t@mp{#1}*
+ \ifx\@mpty\t@mp
+   \def\t@mp{#3}*
+   \ifx\@mpty\t@mp
+     \global\c@ntrollinefalse
+   \else
+     \immediate\closeout\j@insplitout
+     \warnopenout\j@insplitout{#2}*
+     \global\c@ntrollinetrue
+   \fi
+ \else
+   \global\c@ntrollinefalse
+ \fi}*
+\gdef\joinfiles#1\into#2{*
+ \message{< Joining following files into}*
+ \warnopenout\j@insplitout{#2}*
+ \message{:}*
+ {*
+ \edef\w@##1{\immediate\write\j@insplitout{##1}}*
+\w@{% This collection of files was produced with CERN psbox package}*
+\w@{% To decompose and tex it:}*
+\w@{%-save this with a filename CONTAINING ONLY LETTERS and a .TEX}*
+\w@{% extension (say, JOINTFIL.TEX), in some uncrowded directory;}*
+\w@{%-make sure you can \string\input\space psbox.tex (version>=1.3);}*
+\w@{%  (else ftp cs.nyu.edu(=128.122.140.24):pub/TeX/psbox/, then get}*
+\w@{%  and tex the file psboxall.tex; more info in psbREAD.ME)}*
+\w@{%-tex JOINTFIL.TEX using Plain, or LaTeX, or whatever is needed by}*
+\w@{%  the first file in the joining (after splitting JOINTFIL.TEX into}*
+\w@{%  it's constituents, TeX will try to process it as it stands).}*
+\w@{\string\input\space psbox.tex}*
+\w@{\string\splitfile{\string\jobname}}*
+\w@{\string\let\string\autojoin=\string\relax}*
+}*
+ \expandafter\tre@tfilelist#1, \endtre@t
+ \immediate\closeout\j@insplitout
+ \message{>}*
+}*
+\gdef\tre@tfilelist#1, #2\endtre@t{*
+ \readfilename#1\relax
+ \ifx\@mpty\lastreadfilename
+ \else
+   \immediate\openin\j@insplitin=\lastreadfilename\relax
+   \ifeof\j@insplitin
+     \errmessage{I couldn't find file \lastreadfilename}*
+   \else
+     \message{\lastreadfilename}*
+     \immediate\write\j@insplitout{%Beginning-Of-File-Named:\lastreadfilename}*
+     \executeinspecs{\global\read\j@insplitin to\oldj@ininline}*
+     \loop
+       \ifeof\j@insplitin\immediate\closein\j@insplitin\n@teoffalse
+       \else\n@teoftrue
+         \executeinspecs{\global\read\j@insplitin to\j@ininline}*
+         \toks0=\expandafter{\oldj@ininline}*
+         \let\oldj@ininline=\j@ininline
+         \immediate\write\j@insplitout{\the\toks0}*
+       \fi
+     \ifn@teof
+     \repeat
+   \immediate\closein\j@insplitin
+   \fi
+   \tre@tfilelist#2, \endtre@t
+ \fi}*
+}%
+% To be put at the end of a file, for making a tar-like file containing
+%   everything it used.
+\def\autojoin{%
+ \immediate\write\psbj@inaux{\string\into{psbjoint.tex}}%
+ \immediate\closeout\psbj@inaux
+ \expandafter\joinfiles\GlobalInputList\into{psbjoint.tex}%
+}%
+%----------------------------------------------------------------
+%  Annotations & Captions etc...
+%
+%
+% \centinsert{anybox} is just a centered \midinsert, but is included as
+%    people barely use the original inserts from TeX.
+%
+\def\centinsert#1{\midinsert\line{\hss#1\hss}\endinsert}%
+\def\psannotate#1#2{\vbox{%
+  \def\ps@nnotation{#2\global\let\ps@nnotation=\relax}#1}}%
+\def\pscaption#1#2{\vbox{%
+   \setbox\drawingBox=#1
+   \copy\drawingBox
+   \vskip\baselineskip
+   \vbox{\hsize=\wd\drawingBox\setbox0=\hbox{#2}%
+     \ifdim\wd0>\hsize
+       \noindent\unhbox0\tolerance=5000
+    \else\centerline{\box0}%
+    \fi
+}}}%
+% for compatibility with older versions, but \psfig is a bad name!
+%\def\psfig#1#2#3{\pscaption{\psannotate{#1}{#2}}{#3}}
+%\def\psfigurebox#1#2#3{\pscaption{\psannotate{\psbox{#1}}{#2}}{#3}}
+%
+% \at(#1;#2)#3 puts #3 at #1-higher and #2-right of the current
+%    position without moving it (to be used in annotations).
+\def\at(#1;#2)#3{\setbox0=\hbox{#3}\ht0=0pt\dp0=0pt
+  \rlap{\kern#1\vbox to0pt{\kern-#2\box0\vss}}}%
+%
+% \gridfill(ht;wd) makes a 1cm*1cm grid of ht by wd whose lower-left
+%   corner is the current point
+\newdimen\gridht \newdimen\gridwd
+\def\gridfill(#1;#2){%
+  \setbox0=\hbox to 1\pscm
+  {\vrule height1\pscm width.4pt\leaders\hrule\hfill}%
+  \gridht=#1
+  \divide\gridht by \ht0
+  \multiply\gridht by \ht0
+  \gridwd=#2
+  \divide\gridwd by \wd0
+  \multiply\gridwd by \wd0
+  \advance \gridwd by \wd0
+  \vbox to \gridht{\leaders\hbox to\gridwd{\leaders\box0\hfill}\vfill}}%
+%
+% Useful to measure where to put annotations
+\def\fillinggrid{\at(0cm;0cm){\vbox{%
+  \gridfill(\drawinght;\drawingwd)}}}%
+%
+% \textleftof\anybox: Sample text\endtext
+%   inserts "Sample text" on the left of \anybox ie \vbox, \psbox.
+%   \textrightof is the symmetric (not documented, too uggly)
+% Welcome any suggestion about clean wraparound macros from
+%   TeXhackers reading this
+%
+\def\textleftof#1:{%
+  \setbox1=#1
+  \setbox0=\vbox\bgroup
+    \advance\hsize by -\wd1 \advance\hsize by -2em}%
+\def\textrightof#1:{%
+  \setbox0=#1
+  \setbox1=\vbox\bgroup
+    \advance\hsize by -\wd0 \advance\hsize by -2em}%
+\def\endtext{%
+  \egroup
+  \hbox to \hsize{\valign{\vfil##\vfil\cr%
+\box0\cr%
+\noalign{\hss}\box1\cr}}}%
+%
+% \frameit{\thick}{\skip}{\anybox}
+%    draws with thickness \thick a box around \anybox, leaving \skip of
+%    blank around it. eg \frameit{0.5pt}{1pt}{\hbox{hello}}
+% \boxit{\anybox} is a shortcut.
+\def\frameit#1#2#3{\hbox{\vrule width#1\vbox{%
+  \hrule height#1\vskip#2\hbox{\hskip#2\vbox{#3}\hskip#2}%
+        \vskip#2\hrule height#1}\vrule width#1}}%
+\def\boxit#1{\frameit{0.4pt}{0pt}{#1}}%
+%
+%
+\catcode`\@=12 % cs containing @ are unreachable
+%
+% CUSTOMIZE YOUR DEFAULT DRIVER:
+%    Uncomment the line corresponding to your TeX system:
+%\psfortextures%     For TeXtures on the Macintosh
+%\psforoztex   %     For OzTeX shareware on the Macintosh
+%\psfordvitops %     For the DVItoPS converter for TeX on IBM mainframes
+ \psfordvips   %     For DVIPS converter on VAX and UNIX
+%\psfordvitps  %     For dvitps from TeXPS package under UNIX
+%\psfordvialw  %     For dvialw, UNIX public domain
+%\psonlyboxes  %     Blank Boxes (when all else fails).
+%Beginning-Of-File-Named:TrashMe
+%\nowarnopenout
+\splitfile{\jobname}%
+\let\autojoin=\relax
+%Beginning-Of-File-Named:psbsamp.tex
+% psbsamp.tex V-1.3: a sample use of the psbox macros from Plain TeX.
+%2345678 1 345678 2 345678 3 345678 4 345678 5 345678 6 345678 7 3456789
+%
+\input psbox.tex % 'told you it was necessary!
+%
+%
+% These are just to get a mini verbatim:
+  \def\\{\hbox{$\backslash$}}%
+  \edef\{{\hbox{$\{$}}%
+  \edef\}{\hbox{$\}$}}%
+\def\section#1{\ifnum\pageno=1\else\vfil\break\fi
+  \centerline{\frameit{1pt}{2pt}{\frameit{0.5pt}{3pt}{\hbox{#1}}}}%
+  \nobreak\medskip}%
+\def\LaTeX{{\rm L\kern-.36em\raise.3ex\hbox{a}\kern-.15em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}%
+%
+%
+\line{\hfil
+\frameit{1pt}{2pt}{\frameit{0.5pt}{3pt}{\hbox{PS}}}
+\frameit{1pt}{2pt}{\frameit{0.5pt}{3pt}{\hbox{BOX}}}
+\hfil \llap{V-\psboxversion, by Jean Orloff}}
+\line{\sevenrm e-mail: ORLOFF @ SURYA11.CERN.CH\hfil
+Updates available by anonymous ftp from:
+cs.nyu.edu:pub/tex/psbox/%;\hfil noa.huji.ac.il
+}
+\bigbreak
+\section{Crash Overview}
+{\def\nl{\hfil\break}\parindent=0pt\parskip=3ptplus3pt\def\im{\parindent=1cm}
+WHAT IS IT:\nl
+psbox is a set of machine-independent TeX macros to:
+{\im
+\item{1)\ }allow (Encapsulated) PostScript figure inclusion in all versions
+   of TeX (Plain, LaTeX) on all machines using a PostScript printer
+
+\item{2)\ }facilitate the communication (e-mail, ftp, ...) of all the files
+   (text, macros, figs) needed to reproduce a TeX document by grouping
+   them together into a single, TeXable file.
+
+\bigskip
+\noindent HOW TO GET IT TO WORK:
+\item{1)\ }get the file psboxall.tex by one of the following ways:\nl
+   -from outside CERN: ftp cs.nyu.edu(=128.122.140.24):pub/tex/psbox/\nl
+   -(if all else fails) send me a mail (orloff@surya11.cern.ch);
+\item{2)\ }tex psboxall.tex: this will produce a complete documentation
+dvi and a
+   set of files, including the raw macros named psbox.tex;
+\item{3)\ }adapt your psbox.tex to your system by uncommenting the appropriate
+   {\tt\%\\psfor...}-line at the end of the file;
+\item{4)\ }put it in your TeX Inputs directory
+}
+
+\bigskip
+MAJOR COMMANDS:
+
+\def\tag#1{\noindent\hbox{\tt #1\hss}\nl\hangindent1cm}
+\tag{\\psbox\{fname.eps\}}
+   makes a box having the right size to enclose the figure fname.eps;
+
+\tag{\\psboxto(xdim;ydim)\{fn.eps\}}
+   makes a box of the given size and rescales fn.eps so that it just fits;
+
+\tag{\\psboxto(\\hsize;0pt)\{fn.eps\}}
+   has the maximal width \& a height computed from a uniformal rescaling;
+
+\tag{\\centinsert\{\\pscaption\{\\psbox\{fn.eps\}\}\{Fig 1: the
+caption...\}\}}
+   recommended way to include a graphics between 2 paragraphs;
+
+\tag{\\begin\{figure\}[hbt]\\begin\{center\}%
+\\mbox\{\\psbox\{fn.eps\}\}\\caption\{Fig
+1:\} \\end\{figure\}}
+   recommended way in LaTeX;
+
+\tag{\\autojoin}
+   makes a single file called psbjoint.tex containing the currently tex'd
+   file plus all the files (macros \& figs) included since the \\input of
+   psbox.tex. Texing psbjoint.tex will split it into all these files with
+   their original names (so think of PC's:12345678.123!!) and tex the
+   first one (generally the one that issued \\autojoin).
+
+}
+\vfill\break
+\section{Introduction}
+\TeX{} and PostScript have become de-facto standards for
+producing scientific papers and figures. The reason for this perhaps
+lies in the success of electronic mail within the scientific
+community as both standards produce text files that easily propagate by
+e-mail and yet produce machine-independent result when printed from any
+computer on any PostScript printer\footnote{*}{You might think of
+sending directly the PostScript description of the whole document, but
+this would mean sending 15 times more caracters and moreover
+forbidding your correspondant to make any correction to the
+manuscript.}. Recently, these standards have been further sanctified in
+the Physics community with the advent of electronic ``Bulletin Boards"
+which spread like crazy and whose very existence precisely relies on
+such standards.
+
+In this rapidly evolving and modernish landscape, the
+inclusion of figures into papers still remains a dark spot: it is
+relatively uneasy and, worse, essentially non-universal. The purpose of the
+{\tt psbox} macros is to try and correct for this.
+
+To start with, let us show how to use the macros for including
+Encapsulated PostScript graphics-File (EPSF) into any \TeX\ document
+(Plain \TeX, Plain-based macros like Harvmac, Phyzzx,... or \LaTeX).
+To get this to work, you first need to produce an EPSF. This
+is different from a usual PostScript file. (For instance, with CERN's
+package PAW/HIGZ, the output device specified in the metafile is -111
+for simple postscript and -113 for EPSF). You can always check whether
+you succeeded by looking at your EPSF: it should start with {\tt\%!}
+and somewhere contain a line like:
+$$
+\hbox{\tt\%\%BoundingBox: llx lly urx ury\hfil}
+$$
+where llx \& lly (urx \& ury) are the positive integer coordinates of
+the lower-left (upper-right) corners of the smallest rectangle enclosing
+your graphics. If all else fails, you still have the opportunity of
+adding such a line by hand: you might then want to know that
+coordinates are given in ``Big Points'' (1in=72bp)%
+\footnote{**}{%
+Not to be confused with ``Points'' (1in=72.27pt): inventing units
+related by such crazy factors as 72.27/72 definitely is a perverse and
+deeply immoral sport!}
+from the bottom left
+corner of the printed page. You can always visualize the corresponding
+{\tt\%\%BoundingBox} using {\tt\\boxit} (see below). Once you have a
+good EPSF, you should save it in the same directory as the \TeX{}
+file in which you want to insert your graphics.
+
+Now you're ready for inserting. Here is how to do:
+\item{1)} Check you have a copy of the file {\tt psbox.tex} somewhere on
+  your system. If you don't, get it by ``anonymous ftp'' from the site
+  {\tt cs.nyu.edu}. In the directory pub/tex/psbox, you will find a file
+  called {\tt psboxall.tex} which is an ``archive'' containing the macros,
+  this documentation, a sample PostScript figure, etc... Just ``{\tt get}''
+  it by ftp, tex it on your system, and you will see how an archive splits
+  into it's original files.
+\item{2)} make sure the uncommented line at the end of the {\tt psbox.tex}
+  file corresponds to your particular way of translating \TeX{}
+  output into PostScript:
+$$\vbox{\halign{\tt\\ps#\hfil&\qquad#\hfil\cr
+fortextures& for TeXtures on the Macintosh\cr
+foroztex&    for OzTeX shareware soft on the Macintosh\cr
+fordvitops&  for IBM mainframes dvi to postscript converter DVITOPS\cr
+fordvips&    for Unix, PC and VAX dvi to postscript converter DVIPS\cr
+%fordvitps&   for dvitps from the TeXPS package under UNIX.\cr
+fordvialw&   for Unix free converter (part GNU software)\cr
+onlyboxes&   for poor people without any of these\cr
+}}
+$$
+\item{3)} in the
+  beginning of your \TeX{} file, type {\tt\\input psbox.tex}
+  in order to load the relevant \TeX{} macros;
+
+
+If you get the wrong postscript
+converter, you will just get extremely white(!) figures but the
+formatting of your text will be exactly the same.
+Now you can get your graphics where you want in the text by
+just typing:
+$$
+\hbox{\tt\$\$\\psbox\{box.ps\}\$\$}
+$$
+And this is what you get:
+$$
+\psbox{box.ps}
+$$
+The {\tt\\psbox\{EPSFilename\}} macro makes a \TeX{} \\vbox
+having the right size to contain the graphics and issues a \\special
+command for the postscript printer to put the EPSF graphics at the
+right place.
+
+\section{Scalings}
+You can moreover use Postscript to resize your graphics. This can be
+done via the {\tt\\psboxto} macro: here you
+specify the dimensions and \TeX{} uniformly scales the graphics to fit
+entirely in the given box. For instance
+$$\eqalign{\hbox{\tt\$\$}
+&\hbox{\tt\\boxit\{\\psboxto(3cm;7cm)\{box.ps\}\}}\cr
+&\hbox{\tt\\boxit\{\\psboxto(7cm;3cm)\{box.ps\}\}\$\$}\cr}
+$$
+gives
+$$
+\boxit{\psboxto(3cm;7cm){box.ps}}
+\boxit{\psboxto(7cm;3cm){box.ps}}
+$$
+(we have here materialized the \TeX boxes by the
+{\tt\\boxit\{anybox\}} command which can be useful for
+boxing not only psboxes, but any kind of text boxes. To
+control the thickness of the line and to have some white space
+between your box and it's framing, you can use
+{\tt\\frameit\{LineThickness\} \{WhiteSpaceThickness\} \{\\anybox\}}).
+
+If you specify one zero dimension in {\tt\\psboxto}, you get a box
+proportional to the natural one for your drawing, but with the scale
+specified by the non-zero dimension: $$\eqalign{\hbox{\tt\$\$}
+&\hbox{\tt\\boxit\{\\psboxto(3cm;0cm)\{box.ps\}\}}\cr
+&\hbox{\tt\\boxit\{\\psboxto(0cm;3cm)\{box.ps\}\}\$\$}\cr} $$ yields
+$$ \boxit{\psboxto(3cm;0cm){box.ps}} \boxit{\psboxto(0cm;3cm){box.ps}}
+$$
+Altenatively, you can specify a scale factor%
+\footnote{*}{This way
+you can be sure to get exactly the same size for the \TeX{} and EPSF
+box: with {\tt\\psboxto}, you can have the \TeX box 1/1000 too large
+because of rounding errors unavoidable for compatibility reasons}
+($\times1000$ in the usual \TeX{} way):
+$$\hbox{\tt\\psboxscaled\{250\}\{box.ps\}:}\psboxscaled{250}{box.ps}
+$$
+On certain occasions, the way PostScript computes it's BoundingBox may
+may be too conservative: the box turns out to be too large because of
+some invisible control point lying outside the visual bounding box.
+For most purposes, this won't harm. Certain perfectionists will
+nevertheless appreciate the possibility of correcting the bounding
+box by specifying an offset ({\tt\\psxoffset, \\psyoffset})
+for the lower left corner and incrementing the width and height
+({\tt\\pswdincr, \\pshtincr}) of the graphics. For instance,
+$$\hbox{\tt\\psxoffset=1cm\\psyoffset=20pt\\pswdincr=1cm\\pshtincr=20pt}
+$$
+will {\bf raise} the figure by 12pt, shift it to the right by
+0.3cm and change it's size so that it still fits. These dimensions
+get reset after each use of {\tt\\psbox...} so
+you should type this just before the one you want to modify. These
+dimensions also get scaled together with the figure if you later
+decide to
+use {\tt\\psboxto or \\psboxscaled}:
+$$
+\psxoffset=1cm\psyoffset=20pt
+\pswdincr=1cm\pshtincr=20pt
+\boxit{\psboxscaled{1200}{box.ps}}\kern2cm
+\psxoffset=1cm\psyoffset=20pt
+\pswdincr=1cm\pshtincr=20pt
+\boxit{\psboxto(3cm;0cm){box.ps}}
+$$
+Since a {\tt\\psbox} is a true \TeX box, nothing prevents you to have
+\psboxto(0cm;1em){box.ps} it in the middle of a line..(?) More
+seriously, if you want your graphics to be as large as possible, you
+can type
+$$\hbox{\tt\$\$\\psboxto(\\hsize;0cm)\{box.ps\}\$\$}
+$$
+which gives
+$$\psboxto(\hsize;0cm){box.ps}
+$$
+
+\section{Annotations}
+For certain figures, you might want to add something on top of the
+graphics (eg. a greek letter to name an axis, or other math symbols
+you use in the text). This is what
+{\tt\\psannotate\{\\psbox...\}\{annotation\}} was made for. For
+instance if you type
+$$\hbox{\tt\$\$%
+\\psannotate\{\\psboxto(10cm;3cm)\{box.ps\}\}%
+\{\\fillinggrid\\at(3\\pscm;1\\pscm)\{A sample at.\}\}\$\$}
+$$
+you get
+$$\psannotate{\psboxto(10cm;3cm){box.ps}} {\fillinggrid
+\at(3\pscm;1\pscm){A sample at.}}
+$$
+This example displays the 2 possible annotations:
+\item{-}{\tt\\at((xdim;ydim)\{annotation text\}} will place {\tt
+annotation text} xdim to the right of, and ydim higher than the
+current point without actually moving it (this may prove useful in
+other circumstances). The dimensions may be expressed in any valid
+\TeX{} unit, but here we used {\tt\\pscm} meaning scaled centimeters
+in order for the annotation to keep the same relative position inside
+the figure, whatever rescaling you might do later on.
+
+\item{-}{\tt\\fillinggrid}: in order to help you in the tedious task
+of determining the position of your annotations, you can use
+{\tt\\fillinggrid} as one particular annotation. This will produce a
+1\\pscm by 1\\pscm grid that roughly fills your figure. You will of
+course have to delete these in your final document\footnote{*} {To
+suppress all these grids at once in your final document, you may type
+{\tt\\let\\fillinggrid=\\relax} just after the line where you
+{\tt\\input psbox.tex}.}.
+
+\section{Figure Environment For Plain\TeX}
+If you have many large figures, the probability that \TeX{}
+barks at you about ``overfull or underfull vbox...'' becomes
+significant, because you give it a hard time trying to cut pages
+into a document that has many large unbreakable units. To
+overcome this problem, La\TeX{} users simply have to type:\hfil\break
+{\tt\\begin\{figure\}[hbt]\hfil\break
+\\begin\{center\}\\mbox\{\\psbox...\}\\end\{center\}\hfil\break
+\\caption\{Some caption\}\hfil\break \\end\{figure\}\hfil\break}
+In Plain\TeX{} you should use
+{\tt\\centinsert\{\\psbox...\}} instead of {\tt\$\$\\psbox...\$\$}.
+This will get your graphics precisely where you typed it except if
+there is not enough room in the current page, in which case you'll get
+it on top of the next one.
+
+However, you will then probably want to have a caption, in case your
+graphics and explanatory text get separated. You should then
+use {\tt\\pscaption\{\\psbox...\}\{caption\}}, for instance
+$$\vbox{\hsize=10cm\tt\hbox{
+\\centinsert\{%
+  \\pscaption\{%
+    \\psannotate\{%
+      \\psboxto(6cm;0cm)\{box.ps\}\}\{%
+}
+\hbox{\qquad\\fillinggrid\\at(3\\pscm;1\\pscm)\{A sample at.\}\}\}\{%
+    Figure 1: this is ...
+\}\}
+}}
+$$
+in order to get:
+\centinsert{
+  \pscaption{
+    \psannotate{
+      \psboxto(6cm;0cm){box.ps}}{
+      \fillinggrid\at(3\pscm;1\pscm){A sample at.}}}{%
+    Figure 1: this is probably the most stupid caption I can think of
+    but it can still be useful for illustrative purposes.
+}}%
+If your caption is short, it will automatically get centered:
+$$\pscaption{\psboxto(3cm;0cm){box.ps}}{\bf Figure 327.}
+$$
+When typing in the commands for catpion, annotations, etc, you may end
+up with long lines which you don't know how to break (a line break is
+essentially a space in \TeX, remember?). If you don't want these
+spurious spaces to sneek in your text, you should simply add \%{} just
+before the line break.
+
+\section{Multiple Files Management}
+Suppose you now have a few figures together with a paper, plus your favorite
+macros and reference files. You want to communicate the fruits of your hard
+work to the entire world, but you don't want to send ten separate files to
+each collaborator/potentially interested scientist. So you create a "master"
+file containing (you hope) all the files needed to re\TeX{} your paper. The
+receiver will also have to do some electronic cutting and pasting. Very
+quickly, it starts being a nuisance for everybody to assemble and disassemble
+a large file into it's constituents. This is why I thought the following
+macros might prove handy:
+
+\item{a.}{\tt\\joinfiles filename1, filename2, ..., filenamen \\into%
+\{JOINTFIL.TEX\}}\hfil\break
+joins several files into a big one that can be split later on. Since
+the goal here is universality, you should remember that PC's still form
+the majority of personal computers, and they like filenames of the form
+12345678.123 where you can only replace digits by a letter (no
+*,\&,\$,', etc...), without distinction between upper-case and
+lower-case. So, if you want portability, save your texts as
+{\tt12345678.tex} and your figures as {\tt12345678.eps} (ie. no
+empty extensions): this will save you from later troubles!
+The file {\tt JOINTFIL.TEX} has a header explaining how to split
+it (see below) and is in fact auto-splittable. Namely, you just have to
+run \TeX, or \LaTeX{} depending of what is required by the first file in
+the list. This should first split the file and then tex it while
+including properly the figures. You can edit the ``archive'' {\tt
+JOINTFIL.TEX}, for instance to change the header, or to modify the names
+under which files will be stored when split. For this you may need to
+know that each file in the archive has a header line containing it's
+name, eg:\hfil\break
+{\tt\%Beginning-Of-File-Named:box.ps}.
+
+\item{b.} {\tt\\autojoin}:\hfil\break
+since it is painful to remember the list of all figure's names, you can
+generate a joint file called {\tt psbjoint.tex} by simply typing
+{\tt\\autojoin} close to the end (ie. after all {\tt\\psbox...} and
+{\tt\\input ...} have been issued) of the file you want to tex. This
+will first close and then read in a file called {\tt psbjoin.aux} that is
+always generated automatically and that basically contains the list of
+all your inclusions (both figures and macro files {\tt\\input}ted). If
+you never say {\tt\\autojoin}, the file {\tt psbjoin.aux} will
+nevertheless be created and will by the end of the day contain the list
+of files needed for your texing session. This list will appear as an
+incomplete {\tt\\joinfiles}-command, which you can complete and tex to
+do the joining. Notice: all these macro and figure files do not need to
+be in the same directory to be found. If \TeX{} is able to find them
+for {\tt\\input} or {\tt\\psbox} (because they are in some directory
+named {\tt TeX Inputs} or pointed at by an environment variable {\tt
+TEXINPUTS}), it will be able to join them too. Unix users should resist
+the temptation of specifying explicit path in filenames (eg: {\tt
+../../TeX/mymacros.tex}): this makes their \TeX{} files non-portable.
+They should rather add an entry in their {\tt TEXINPUTS} list of paths.
+
+\item{c.}{\tt\\splitfile\{JOINTFIL.TEX\}}\hfil\break
+splits {\tt JOINTFIL.TEX} into it's constituents. Anything before the
+first {\tt\%Beginning-Of-File-Named:} line is trashed into a special
+file called {\tt TrashMe}: never store precious info in such a file
+anyhow!  You may fear what happens if one of the constituent-file
+names coincides with a previoulsy existing file on your disk. Does it
+silently replace it? Well, no, relax, all output produced by these
+macros use {\tt\\warnopenout} instead of the standard {\tt\\openout},
+which will give you a chance to break precisely in this case. Notice
+{\tt\\warnopenout} is sometimes too cautious: it can warn you before
+erasing a file that doesn't exist! This is because a file with the same
+name exists in some directory \TeX{} is searching in for input files,
+but relax, it will only write files in the same directory as {\tt
+JOINTFIL.TEX}. Finally,
+notice you can say {\tt\\splitfile \{\\jobname\}} in which case you will
+split the very file that issued such a command (this is in fact what
+makes the output of {\tt\\joinfiles} auto-splittable). However,
+watchout: {\tt\\jobname} has peculiar and machine-dependent
+definition. It gives the name of the file currently texed MINUS it's
+{\tt.tex} extension if it has one (and on most machines, minus any
+extension your filename could have). So, \TeX{} will not
+be able to read in from the file named {\tt\\jobname} (without
+extension). But it always tries to read in {\tt\\jobname.tex} (in fact,
+on IBM \& VAX machines, it doesn't even try to read {\tt\\jobname}
+without extension). This mess explains the
+precaution taken in the header of a joint file, reproduced below:
+{\obeylines\tt\def
+{\hfil\break}
+\% This collection of files was produced with CERN psbox package
+\% To decompose and tex it:
+\%-save this with a filename CONTAINING ONLY LETTERS and a .TEX
+\% extension (say, JOINTFIL.TEX), in some uncrowded directory;
+\%-make sure you can \string\input\space psbox.tex (version>=1.3);
+\%  (else ftp cs.nyu.edu(=128.122.140.24):pub/TeX/psbox/, then get
+\%  and tex the file psboxall.tex; more info in psbREAD.ME)
+\%-tex JOINTFIL.TEX using Plain, or LaTeX, or whatever is needed by
+\%  the first file in the joining (after splitting JOINTFIL.TEX into
+\%  it's constituents, TeX will try to process it as it stands).
+\\input psbox.tex
+\\splitfile\{\\jobname\}
+\\let\\autojoin\\=\\relax
+}
+\joinfiles psbREAD.ME, psboxOK.tex\into{TrashMe}
+\section{Errors}
+\message{RELAX!!!
+The following error messages should not frighten you, they are
+intentional tests. Just continue and see what comes out!}
+If \TeX{} cannot find the file you specified, you will get the following
+output:
+$$\psbox{in_exist.ps}$$
+On the other hand, an existing file which is not EPSF will produce:
+$$\psbox{psbsamp.tex}$$
+\autojoin
+\bye
+%Beginning-Of-File-Named:box.ps
+%!PS-Adobe-2.0 EPSF-1.2
+%%Creator:Adobe Illustrator(TM) 3.0
+%%For: (pascal) (ducul)
+%%Title: (box.ps)
+%%CreationDate: (8/5/92) (18:13)
+%%DocumentProcessColors: Black
+%%DocumentFonts: Helvetica-Oblique
+%%+ Times-Roman
+%%DocumentProcSets: Adobe_Illustrator_1.1 0 0
+%%DocumentSuppliedProcSets: Adobe_Illustrator_1.1 0 0
+%%BoundingBox:84 365 299 484
+%%ColorUsage: Black&White
+%%TemplateBox:288 360 288 360
+%%TileBox: 0 0 538 781
+%%DocumentPreview: Macintosh_Pic
+%%EndComments
+%%BeginProcSet:Adobe_Illustrator_1.1 0 0
+% Copyright (C) 1987-1990 Adobe Systems Incorporated.
+% All Rights Reserved.
+% Adobe Illustrator is a trademark of Adobe Systems Incorporated.
+/Adobe_Illustrator_1.1 dup 100 dict def load begin
+/Version 0 def
+/Revision 0 def
+% definition operators
+/bdef {bind def} bind def
+/ldef {load def} bdef
+/xdef {exch def} bdef
+% graphic state operators
+/_K {3 index add neg dup 0 lt {pop 0} if 3 1 roll} bdef
+/_k /setcmybcolor where
+{/setcmybcolor get} {{1 sub 4 1 roll _K _K _K setrgbcolor pop} bind} ifelse def
+/g {/_b xdef /p {_b setgray} def} bdef
+/G {/_B xdef /P {_B setgray} def} bdef
+/k {/_b xdef /_y xdef /_m xdef /_c xdef /p {_c _m _y _b _k} def} bdef
+/K {/_B xdef /_Y xdef /_M xdef /_C xdef /P {_C _M _Y _B _k} def} bdef
+/d /setdash ldef
+/_i currentflat def
+/i {dup 0 eq {pop _i} if setflat} bdef
+/j /setlinejoin ldef
+/J /setlinecap ldef
+/M /setmiterlimit ldef
+/w /setlinewidth ldef
+% path construction operators
+/_R {.25 sub round .25 add} bdef
+/_r {transform _R exch _R exch itransform} bdef
+/c {_r curveto} bdef
+/C /c ldef
+/v {currentpoint 6 2 roll _r curveto} bdef
+/V /v ldef
+/y {_r 2 copy curveto} bdef
+/Y /y ldef
+/l {_r lineto} bdef
+/L /l ldef
+/m {_r moveto} bdef
+% error operators
+/_e [] def
+/_E {_e length 0 ne {gsave 0 g 0 G 0 i 0 J 0 j 1 w 10 M [] 0 d
+/Courier 20 0 0 1 z [0.966 0.259 -0.259 0.966
+_e 0 get _e 2 get add 2 div _e 1 get _e 3 get add 2 div] e _f t T grestore} if}
+bdef
+/_fill {{fill} stopped
+{/_e [pathbbox] def /_f (ERROR: can't fill, increase flatness) def n _E} if}
+bdef
+/_stroke {{stroke} stopped
+{/_e [pathbbox] def /_f (ERROR: can't stroke, increase flatness) def n _E} if}
+bdef
+% path painting operators
+/n /newpath ldef
+/N /n ldef
+/F {p _fill} bdef
+/f {closepath F} bdef
+/S {P _stroke} bdef
+/s {closepath S} bdef
+/B {gsave F grestore S} bdef
+/b {closepath B} bdef
+% text block construction and painting operators
+/_s /ashow ldef
+/_S {(?) exch {2 copy 0 exch put pop dup false charpath currentpoint _g
+setmatrix
+_stroke _G setmatrix moveto 3 copy pop rmoveto} forall pop pop pop n} bdef
+/_A {_a moveto _t exch 0 exch} bdef
+/_L {0 _l neg translate _G currentmatrix pop} bdef
+/_w {dup stringwidth exch 3 -1 roll length 1 sub _t mul add exch} bdef
+/_z [{0 0} bind {dup _w exch neg 2 div exch neg 2 div} bind {dup _w exch neg
+exch neg} bind] def
+/z {_z exch get /_a xdef /_t xdef /_l xdef exch findfont exch scalefont
+setfont} bdef
+/_g matrix def
+/_G matrix def
+/_D {_g currentmatrix pop gsave concat _G currentmatrix pop} bdef
+/e {_D p /t {_A _s _L} def} bdef
+/r {_D P /t {_A _S _L} def} bdef
+/a {_D /t {dup p _A _s P _A _S _L} def} bdef
+/o {_D /t {pop _L} def} bdef
+/T {grestore} bdef
+% group construction operators
+/u {} bdef
+/U {} bdef
+% font construction operators
+/Z {findfont begin currentdict dup length dict begin
+{1 index /FID ne {def} {pop pop} ifelse} forall /FontName exch def dup length 0
+ne
+{/Encoding Encoding 256 array copy def 0 exch {dup type /nametype eq
+{Encoding 2 index 2 index put pop 1 add} {exch pop} ifelse} forall} if pop
+currentdict dup end end /FontName get exch definefont pop} bdef
+end
+%%EndProcSet
+%%EndProlog
+%%BeginSetup
+Adobe_Illustrator_1.1 begin
+n
+%%BeginEncoding: _Helvetica-Oblique Helvetica-Oblique
+[39/quotesingle 96/grave 128/Adieresis/Aring/Ccedilla/Eacute/Ntilde/Odieresis
+/Udieresis/aacute/agrave/acircumflex/adieresis/atilde/aring/ccedilla/eacute
+/egrave/ecircumflex/edieresis/iacute/igrave/icircumflex/idieresis/ntilde
+/oacute/ograve/ocircumflex/odieresis/otilde/uacute/ugrave/ucircumflex
+/udieresis/dagger/degree/cent/sterling/section/bullet/paragraph/germandbls
+/registered/copyright/trademark/acute/dieresis/.notdef/AE/Oslash
+/.notdef/plusminus/.notdef/.notdef/yen/mu/.notdef/.notdef
+/.notdef/.notdef/.notdef/ordfeminine/ordmasculine/.notdef/ae/oslash
+/questiondown/exclamdown/logicalnot/.notdef/florin/.notdef/.notdef
+/guillemotleft/guillemotright/ellipsis/.notdef/Agrave/Atilde/Otilde/OE/oe
+/endash/emdash/quotedblleft/quotedblright/quoteleft/quoteright/divide
+/.notdef/ydieresis/Ydieresis/fraction/currency/guilsinglleft/guilsinglright
+/fi/fl/daggerdbl/periodcentered/quotesinglbase/quotedblbase/perthousand
+/Acircumflex/Ecircumflex/Aacute/Edieresis/Egrave/Iacute/Icircumflex
+/Idieresis/Igrave/Oacute/Ocircumflex/.notdef/Ograve/Uacute/Ucircumflex
+/Ugrave/dotlessi/circumflex/tilde/macron/breve/dotaccent/ring/cedilla
+/hungarumlaut/ogonek/caron
+]/_Helvetica-Oblique/Helvetica-Oblique Z
+%%EndEncoding
+%%BeginEncoding: _Times-Roman Times-Roman
+[39/quotesingle 96/grave 128/Adieresis/Aring/Ccedilla/Eacute/Ntilde/Odieresis
+/Udieresis/aacute/agrave/acircumflex/adieresis/atilde/aring/ccedilla/eacute
+/egrave/ecircumflex/edieresis/iacute/igrave/icircumflex/idieresis/ntilde
+/oacute/ograve/ocircumflex/odieresis/otilde/uacute/ugrave/ucircumflex
+/udieresis/dagger/degree/cent/sterling/section/bullet/paragraph/germandbls
+/registered/copyright/trademark/acute/dieresis/.notdef/AE/Oslash
+/.notdef/plusminus/.notdef/.notdef/yen/mu/.notdef/.notdef
+/.notdef/.notdef/.notdef/ordfeminine/ordmasculine/.notdef/ae/oslash
+/questiondown/exclamdown/logicalnot/.notdef/florin/.notdef/.notdef
+/guillemotleft/guillemotright/ellipsis/.notdef/Agrave/Atilde/Otilde/OE/oe
+/endash/emdash/quotedblleft/quotedblright/quoteleft/quoteright/divide
+/.notdef/ydieresis/Ydieresis/fraction/currency/guilsinglleft/guilsinglright
+/fi/fl/daggerdbl/periodcentered/quotesinglbase/quotedblbase/perthousand
+/Acircumflex/Ecircumflex/Aacute/Edieresis/Egrave/Iacute/Icircumflex
+/Idieresis/Igrave/Oacute/Ocircumflex/.notdef/Ograve/Uacute/Ucircumflex
+/Ugrave/dotlessi/circumflex/tilde/macron/breve/dotaccent/ring/cedilla
+/hungarumlaut/ogonek/caron
+]/_Times-Roman/Times-Roman Z
+%%EndEncoding
+%%EndSetup
+u
+0.5 g
+0 G
+0 i 0 J 1 j 1 w 4 M [3 2 ]0 d
+%%Note:
+297 366 m
+297 483 L
+86 483 L
+86 366 L
+297 366 L
+b
+191.5 424.5 m
+B
+U
+u
+1 g
+0 j 0.3 w []0 d
+191.5 365.9999 m
+249.7652 365.9999 297.0001 392.1918 297.0001 424.5 c
+297.0001 456.8082 249.7652 483.0001 191.5 483.0001 c
+133.2347 483.0001 85.9999 456.8082 85.9999 424.5 c
+85.9999 392.1918 133.2347 365.9999 191.5 365.9999 c
+b
+191.5 424.5 m
+B
+U
+u
+u
+u
+0 g
+1 w
+/_Helvetica-Oblique 10 12 0 2 z
+[1 0 0 1 212 445]e
+(Postscript box:)t
+T
+U
+U
+u
+u
+/_Times-Roman 12 12 0 2 z
+[1 0 0 1 212 433]e
+()t
+(Sometimes surrounded)t
+T
+U
+U
+u
+u
+/_Times-Roman 12 12 0 0 z
+[1 0 0 1 138.0166 409]e
+( by a T)t
+T
+U
+U
+u
+u
+/_Times-Roman 12 12 0 0 z
+[1 0 0 1 171.6728 406]e
+(E)t
+T
+U
+U
+u
+u
+/_Times-Roman 12 12 0 0 z
+[1 0 0 1 179.0029 409]e
+(X box:)t
+T
+U
+U
+U
+0 G
+1 j [3 2 ]0 d
+226 448 m
+276 448 l
+S
+[]0 d
+225.5 410.5 m
+275.5 410.5 l
+S
+%%PageTrailer
+%%Trailer
+_E end
+%%EOF
+%Beginning-Of-File-Named:psbREAD.ME
+%                           PSBOX READ-ME
+%                           -------------
+% WHAT IS IT:
+% psbox is a set of machine-independent TeX macros to
+% 1) allow (Encapsulated) PostScript figure inclusion in all versions
+%    of TeX (Plain, LaTeX) on all machines using a PostScript printer
+% 2) facilitate the communication (e-mail, ftp, ...) of all the files
+%    (text, macros, figs) needed to reproduce a TeX document by grouping
+%    them together into a single, TeXable file.
+%
+% HOW TO GET IT TO WORK:
+% 1) get the file psboxall.tex by one of the following ways:
+%    -from outside CERN: ftp cs.nyu.edu(=128.122.140.24):pub/TeX/psbox/
+%    -(if all else fails) send me a mail (orloff@surya11.cern.ch);
+% 2) tex psboxall.tex: this will produce a complete documentation dvi and a
+%    set of files, including the raw macros named psbox.tex;
+% 3) adapt your psbox.tex to your system by uncommenting the appropriate
+%    %\psfor...-line at the end of the file;
+% 4) put it in your TeX Inputs directory
+%
+% MAJOR COMMANDS:
+% \psbox{fname.eps}
+%    makes a box having the right size to enclose the figure fname.eps;
+% \psboxto(xdim;ydim){fn.eps}
+%    makes a box of the given size and rescales fn.eps so that it just fits;
+% \psboxto(\hsize;0pt){fn.eps}
+%    has the maximal width & a height computed from a uniformal rescaling;
+% \centinsert{\pscaption{\psbox{fn.eps}}{Fig 1: the caption...}}
+%    recommended way to include a graphics between 2 paragraphs;
+% \begin{figure}[hbt]\begin{center}\mbox{\psbox{fn.eps}}\caption{Fig 1:}
+% \end{figure}
+%    recommended way in LaTeX;
+% \autojoin
+%    makes a single file called psbjoint.tex containing the currently tex'd
+%    file plus all the files (macros & figs) included since the \input of
+%    psbox.tex. Texing psbjoint.tex will split it into all these files with
+%    their original names (so think of PC's:12345678.123!!) and tex the
+%    first one (generally the one that issued \autojoin).
+%Beginning-Of-File-Named:psbug.tex
+                   PSBOX bug-report form
+                   ---------------------
+{}From:
+To: orloff@surya11.cern.ch (Jean Orloff)
+Subject: psbox BUG
+
+YOU     Name:
+        Email:
+PSBOX   version no:
+        source:
+MACHINE type: (NeXT, Mac LC,...)
+        Operating system:
+TEX     name:
+        version:
+TEX->PS name: (dvips, TeXtures,...)
+        version:
+DRAWING program: (Adobe Illustrator, xfig,...)
+        version:
+PRINTER type:
+	PostScript version:
+PREVIEW for postscript (if any): (ghostscript,...)
+
+Command(s) incriminated: (\psbox,\splitfile,...)
+Problem description:
+
+
+
+
+Log (TeX, TeX->PS, Printer) file(s) where you got insulted:
+
+%Beginning-Of-File-Named:psboxOK.tex
+                   PSBOX ANTI-bug report form
+                   --------------------------
+{}From:
+To: orloff@surya11.cern.ch (Jean Orloff)
+Subject: psbox ANIT-BUG
+
+PSBOX has been checked to work in the following environment:
+
+MACHINE		TEX		TEX->PS		PRINTER/PREVIEWER
+-------		---		-------		-----------------
+Macintosh*.*	TeXtures*.*			Apple LaserWriter (ALW)
+"		OzTeX 1.3			ALW
+UniX workst:	TeX 3.14t3	dvips 5.47	ALW
+ SUN4		"		"		ALW
+ NeXT		"		"		Preview
+		"		dvialw		ALW
+IBM370(VM/CMS)	TeX3.14/CMS1.3	DVItoPS		ALW
+"		"		dvips 5.483	ALW
+DOS PC		emTeX		dvips		GhostScript
+
+If your system is not listed here but nevertheless works fine, please
+add in a line, fill in the detailed form below and send it to me.
+
+YOU     Name:
+        Email:
+PSBOX   version no:
+        source:
+MACHINE type: (NeXT, Mac LC,...)
+        Operating system:
+TEX     name:
+        version:
+TEX->PS name: (dvips, TeXtures,...)
+        version:
+DRAWING program: (Adobe Illustrator, xfig,...)
+        version:
+PRINTER type:
+	version of PostScript used:
+PREVIEW for postscript (if any): (ghostscript,...)
+
+

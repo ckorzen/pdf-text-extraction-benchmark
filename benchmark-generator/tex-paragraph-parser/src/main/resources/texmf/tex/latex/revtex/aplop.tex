@@ -1,0 +1,344 @@
+%%% ======================================================================
+%%%  @LaTeX-file{
+%%%     filename        = "aplop.tex",
+%%%     version         = "3.0",
+%%%     date            = "October 20, 1992",
+%%%     ISO-date        = "1992.10.20",
+%%%     time            = "15:41:54.18 EST",
+%%%     author          = "Optical Society of America",
+%%%     contact         = "Frank E. Harris",
+%%%     address         = "Optical Society of America
+%%%                        2010 Massachusetts Ave., N.W.
+%%%                        Washington, D.C.  20036-1023",
+%%%     email           = "fharris@pinet.aip.org (Internet)",
+%%%     telephone       = "(202) 416-1903",
+%%%     FAX             = "(202) 416-6120",
+%%%     supported       = "yes",
+%%%     archived        = "pinet.aip.org/pub/revtex,
+%%%                        Niord.SHSU.edu:[FILESERV.REVTEX]",
+%%%     keywords        = "REVTeX, version 3.0, Applied Optics, sample,
+%%%                        Optical Society of America",
+%%%     codetable       = "ISO/ASCII",
+%%%     checksum        = "65456 344 2632 18152",
+%%%     docstring       = "This is a sample paper formatted for Applied
+%%%                        Optics under REVTeX 3.0 (release of November 10,
+%%%                        1992).
+%%%
+%%%                        The checksum field above contains a CRC-16
+%%%                        checksum as the first value, followed by the
+%%%                        equivalent of the standard UNIX wc (word
+%%%                        count) utility output of lines, words, and
+%%%                        characters.  This is produced by Robert
+%%%                        Solovay's checksum utility."
+%%% }
+%%% ======================================================================
+%%%%%%%%%%%%%%%%%%% file aplop.tex %%%%%%%%%%%%%%%%%%%%
+%                                                     %
+%   Copyright (c) Optical Society of America, 1992.   %
+%                                                     %
+%%%%%%%%%%%%%%%%%% October 20, 1992 %%%%%%%%%%%%%%%%%%%
+%
+\documentstyle[osa,aplop,manuscript]{revtex}
+\newcommand{\MF}{{\large{\manual META}\-{\manual FONT}}}
+\newcommand{\manual}{rm}        % Substitute rm (Roman) font.
+\newcommand\bs{\char '134 }     % add backslash char to \tt font
+%
+\begin{document}
+
+\title{Designing digital optical computing systems:      power
+distribution and cross talk}
+
+\author{Jonathan P. Pratt and Vincent P. Heuring }
+
+\address{
+When this work was performed, both the authors were with the Boulder
+Optoelectronic Computing Systems Center and Department of Electrical and
+Computer Engineering, University of Colorado, Campus Box 425, Boulder,
+Colorado 80309-0425.  They are now with the Department of Radiology,
+University of Colorado Health Sciences Center, Box A034, 4200 East Ninth
+Avenue, Denver, Colorado 80262.  }
+
+\maketitle
+
+\begin{abstract}
+Complex optical computer designs must implicitly or explicitly allow for
+power budgeting, to compensate for cross talk and loss in both devices and
+interconnections.  We develop algorithms for calculating the system cross
+talk and power loss in optical systems, using a graph-theoretic model.
+Devices are modeled as directed graphs with nodes representing inputs and
+outputs, and edges are weighted with the power relationships between nodes.
+Systems are modeled by interconnecting the individual device graphs in a
+manner that reflects the connectivity of the system.  A system's power
+budget is efficiently computed by a depth-first search of its graph.  The
+algorithms have been incorporated into an optical computer-aided design
+system that is now being used to design a bit-serial optical computer
+containing hundreds of components.
+
+Key words: Optical computing, optical systems, optical communications,
+power loss, cross talk, graphs.
+\begin{center}
+{\copyright\ Optical Society of America, 1992.}
+\end{center}
+\end{abstract}
+
+\section{ Introduction}
+We describe a technique that facilitates the design of digital optical
+computers and other complex optical circuitry, such as optical
+communications systems.  Although there has been some discussion in the
+literature of power budgeting in optical systems,\cite{1,2} the treatment
+has been limited to relatively uncomplicated applications, in which
+heuristics and simple analysis are sufficient to estimate power loss and
+cross talk of the system from the loss and cross talk of individual
+components.  The primary motivation for this research is to implement a
+stored-program bit-serial optical computer,\cite{3,4} containing hundreds
+of components, interconnected in quite complex fashion.  In such a system,
+simple heuristics for power loss and cross talk estimation such as are
+described in Refs.\ \onlinecite{1} and \onlinecite{2} are inadequate
+because a given optical signal might take any one of a multitude of paths
+before being detected and thus doing useful work.  The methods developed
+here are applicable to a wide variety of optical systems besides optical
+computing systems, such as optical communications systems and optical
+signal processors.
+
+In a previous paper\cite{5} we discussed the use of a graph-theoretic
+technique for synchronizing optical systems that rely on time of flight
+rather than latching or gating for synchronization.  In this paper we
+extend these graph-theoretic methods to the estimation of cross talk and
+loss in optical systems.
+
+\section{Power Loss and Cross Talk in the System}
+
+\subsection{ Introduction}
+Appropriate signal levels must be maintained in any digital optical system
+that uses signal level thresholds to encode transmitted information.
+Usually a high-level signal represents a logic 1 and a low-level signal
+represents a logic 0.  In these systems the device characteristics of
+importance are power loss and cross talk.  Power loss quantifies the
+attenuation of optical power in devices.  Cross talk represents the
+addition of extraneous optical power to signals transmitted by these
+devices.  \ldots
+
+\ldots We present a graph-theoretic device model that permits efficient and
+complete power analysis of optical systems.  By tracking certain
+power--related quantities, we can determine the worst--case operating
+conditions of a system, and optimal logic thresholds can be computed.
+
+The following discussion assumes either that loss and cross talk are
+independent of wavelength or that linewidths are small enough to permit
+these variations.
+
+\subsection{Power Levels and Correct Device Operation}
+
+Here we discuss the type of power information desired from a system model.
+Since the objective is to find weak points in the system power flow, only
+power extremes are considered.  Power extremes are the cross talk and
+signal levels obtained when the worst possible combinations of device
+states and input power levels are assumed.  The power extremes at detection
+points are of particular interest, because these are the locations where
+design flaws are expressed through signal misinterpretation.  Detection
+points are places where signal power is interpreted.  Detection points in a
+system may be control points where the signal level is used to control a
+device; at the input to a logic gate, for example.  Or they may be output
+points where the power level is detected and conveyed to an output
+subsystem as a data stream.  That distinction is irrelevant for this
+discussion, and we will refer to detection points in both of these cases.
+Consider the problem of correctly interpreting a bit stream at some
+arbitrary detection point.  Figure 1 depicts a stream of 1's and 0's
+arriving at a detection point.  $ P_D $ represents the power detection
+threshold of the detector: that power level below which the detector
+detects a 0 and above which it detects a 1.  $ P_{S1} $ and $ P_{S2} $
+define a safety zone around $ P_D$.  They are based on the uncertainty in $
+P_D$ and are established so that the chance of erroneous signal
+interpretation is negligible.  By definition, the device will operate
+correctly as long as all 1's arriving at the detection point have power
+levels greater than $ P_{S1}$ and all 0's arriving at the detection point
+have power levels less than $ P_{S2}$.  The weakest 1 arriving at the
+detection point under all conditions from all possible paths to the point
+is defined as $P_{1\rm min}$, and similarly, the strongest 0 is defined as
+$ P_{0\rm max}$.  Proper device operation can be ensured if the following
+relations are met:
+\begin{equation} P_{0\rm max} < P_{S2} < P_{D} < P_{S1} < P_{1\rm
+min}.\label{p0}
+\end{equation}
+It is also desirable to have information about $ P_{\rm max} $, the maximum
+power level that can occur at the inputs to a given device.  A power
+detector may provide erroneous results when the power of a logic 1 arriving
+at a detection point is too large; that is, when $ P_{\rm max} $ exceeds $
+P_D $ by some large amount.  A second and more important reason for
+computing $ P_{\rm max} $ is that it makes the major contribution to cross
+talk, as discussed below.  Knowledge of the power triple $ P_{0\rm max},
+P_{1\rm min}, $ and $ P_{\rm max} $ at each device in a system permits the
+tracking of power levels throughout the entire system.
+
+
+\subsection{ Modeling the Device}
+Here we discuss the means for calculating the power triples $ P_{0\rm
+max},\kern.5em P_{1\rm min}, $ and $ P_{\rm max}$ at the outputs of a given
+device, given the values of the triples at each of its inputs. \ldots
+
+\ldots The power triple for the $j$th output of a device is computed from
+the input triples and the coupling terms as follows:
+\begin{eqnarray}
+P_{1\rm min}({\rm out})_j & = & \begin{array}[t]{c} {\rm min} \\[-15pt]
+{s\in\rm states} \end{array}\, \{ \,  \begin{array}[t]{c}{\rm min}
+\\[-15pt] {\rm inputs}\, i \end{array} \;  [P_{1\rm min}({\rm in})_i -
+L_{ij}(s)]\}, L_{ij}(s) \; \in \;  {\rm loss},\label{p1min} \\ P_{0\rm
+max}({\rm out})_j & =& \begin{array}[t]{c}{\rm max} \\[-15pt] {s\in\rm
+states} \end{array}\, \sum_{{\rm inputs}\, i}\left\{ \begin{array}{l}P_{\rm
+max}{\rm (in)}_i - L_{ij}(s)\;  ,\; L_{ij}(s)\in {\rm cross\,
+talk},\label{p0max} \\  P_{0\rm max}({\rm in})_i - L_{ij}(s)\; ,\;
+L_{ij}(s)\in {\rm loss},   \end{array} \right. \\ P_{\rm max}({\rm out})_j
+&=& \begin{array}[t]{c}{\rm max} \\[-15pt] {s\in\rm states} \end{array}\,
+\sum_{{\rm inputs}\, i}  P_{\rm max}{\rm (in)}_i - L_{ij}(s) . \label{pmax}
+\end{eqnarray}
+Equation (\ref{p1min}) states that the power of the minimum 1 emerging from
+the {\it j}th output of the device will be the minimum over all possible
+states of the minimum over all possible inputs having loss terms of the
+minimum 1's arriving at those inputs minus the loss terms. Equation
+(\ref{p0max}) states that the power of the maximum 0 emerging from the {\it
+j}th output of the device will be the maximum over all possible states of
+the sum of the inputs of ($P_{\rm max} $ minus the cross talk term) for
+those inputs that have cross talk terms in that state, plus ($P_{0\rm max}
+$ minus the loss term) for those inputs that have loss terms in the
+particular state.  Equation (\ref{pmax}) states that $ P_{\rm max} $
+emerging from the {\it j}th output of the device will be the maximum over
+all the possible states of the sum over all the {\it i} inputs of $ P_{\rm
+max} $ minus the loss or cross talk between each of those inputs and the
+output {\it j}.  These equations are in representational format, as the
+subtraction of the loss parameters implies logarithmic units for power; so
+in practice the summations require conversion to linear units.  \ldots
+
+The loss and cross talk terms $ L_{ij} $ are the edge weights mentioned
+above.  Note that circuit heuristics are ignored because the extremes are
+taken over all device states.  That is, the power triple is guaranteed to
+be a bound on the worst case; but in a circuit, the worst case may not be
+as poor as the triple owing to the exclusion of some combinations of states
+and inputs.  Equation (\ref{p0max}) shows the most important reason for
+tracking $P_{\rm max}$: the greatest power produces the largest possible
+cross talk term in this model.  Thus $P_{\rm max}$ is essential for
+calculating subsequent $ P_{0\rm max} $ terms.
+
+As example system components, consider lithium niobate directional couplers
+and passive 3-dB couplers as logic devices and optical fiber and 3-dB
+splitters for interconnection.  Figure 3 shows a lithium niobate
+directional coupler configured as a five-terminal optical device.\cite{6}
+Of the three device inputs, a, b, and c, only the first two are
+transmitting inputs; inputs that couple power directly to the outputs.
+Input c, a detection point in our terminology, functions as a device
+control.  As the logic equation shows, when sufficient power is applied to
+c, the switch is placed in the bar state; otherwise it is in the cross
+state.  The graph model on the right of the figure makes c into a detection
+point that is independent of the two-state coupling between the other
+inputs and outputs.  Figure 4 illustrates at a more functional level how
+the transmission coupling occurs.
+
+
+3-dB couplers and splitters are modeled as devices with two inputs and two
+outputs, with 3-dB of loss from each input to each output, no cross talk, a
+single device state, and no detection points.  Lossy interconnections, such
+as optical fibers, are modeled as devices with one input, one output, a
+single loss term, no cross talk, a single device state, and no detection
+points.  There is no need to model loss-free interconnections, since they
+add nothing to the analysis. However, if it is desired to model them for
+clarity, or if a graphical system model already exists that contains them,
+they may be modeled exactly like lossy interconnections, but with zero loss
+and cross talk.
+
+\subsection{ Modeling the System}
+In this section we extend the applicability of the device graph model to
+complete systems.  \ldots The problem of finding critical paths is
+efficiently solvable with order ($n$) depth-first search (DFS)
+algorithms.\cite{9} The power triples are calculated by scanning the
+vertices in ascending order and applying Eqs.\ (\ref{p1min})--(\ref{pmax})
+to each.  When the search algorithm detects that the conditions of Eq.
+(\ref{p0}) are not met, it is desirable to know the critical path to the
+detector so that the problem can be corrected. \ldots
+
+\section{Discussion}
+The technique described above is indispensable in designing complex optical
+systems whose components have significant nonidealities.  It has been
+incorporated into a digital optical computer-assisted design system,
+HATCH,\cite{10} where it has proven invaluable in the design of optical
+counters\cite{11,12} and an optical delay line memory system.\cite{13} It
+is now being used in designing a bit-serial optical computer now under
+construction in our laboratories.  \ldots
+
+As we mentioned above, linear cross talk and loss behaviors are assumed in
+the device models for computing the power triples.  If the transfer
+functions of the devices are non-linear, then the three equations should be
+modified to incorporate the appropriate transfer characteristics.
+
+\acknowledgments
+This research was supported by the National Science Foundation Engineering
+Research Centers program under grant CDR 8622236 and by the Colorado
+Advanced Technology Institute.
+
+
+\begin{references}
+\bibitem{1} J. C. Palais, {\it Fiber Optic Communications}, 2nd ed.
+(Prentice-Hall, Englewood Cliffs, N.J., 1988), pp. 270-271.
+\bibitem{2} E. E. Bash and H. A. Carnes, ``Digital optical communications
+systems,''in {\it Fiber Optics,} J. Daly, ed. (CRC Press, Boca Raton, Fla.,
+1987), pp. 153-154.
+\bibitem{3} V. P. Heuring, H. F. Jordan, and J. P. Pratt, "A bit serial
+architecture for optical computing," \ao {\bf 31,} 3213-3224 (1992).
+\bibitem{4} V. P. Heuring, H. F. Jordan, and J. P. Pratt, "Bit serial
+optical computer design," in {\it Optical Computing 1988,} P. Chavel, J.
+W. Goodman, and G. Robin, eds., \pspie {\bf 963,} 346-353 (1988).
+\bibitem{5} V. P. Heuring and J. P. Pratt, "Designing continuous dataflow
+optical computing systems, I.\ synchronization," in {\it OSA Annual
+Meeting,} Vol.\ 15 of 1990 OSA Technical Digest Series (Optical Society of
+America, Washington, D.C., 1990), paper TuUU2.
+\bibitem{6} A. F. Benner, H. F. Jordan, and V. P. Heuring, "Digital optical
+computer with optically switched directional coupler," Opt.\ Eng.\ {\bf
+30,} 1936-1941 (1991).
+\bibitem{7} J. P. Tremblay, P. G. Sorenson, {\it The Theory and Practice of
+Compiler Writing} (McGraw-Hill, New York, 1987), pp. 635-640.
+\bibitem{8} C. Berge, {\it Graphs} (Elsevier, New York, 1985), pp. 143-152.
+\bibitem{9} W. M. Waite and G. Goos, {\it Compiler Construction}
+(Springer-Verlag, New York, 1987), pp. 398-399.
+\bibitem{10} J. P. Pratt, "HATCH instruction manual,"  OCS Tech. Rep. 89-31
+(Optoelectronic Computing Systems Center, University of Colorado,  Boulder,
+Colo., 1989).
+\bibitem{11} V. P. Heuring, "Systems considerations in the implementation
+of a bit serial optical computer," Opt. Eng. {\bf 30,} 1931-1935 (1991).
+\bibitem{12} A. F. Benner, J. Bowman, T. Erkkila, R. J. Feuerstein, V. P.
+Heuring, H. F. Jordan, J. Sauer, and T. Soukup, "Digital optical counter
+using directional coupler switches," \ao {\bf 30,} 4179-4189 (1991).
+\bibitem{13} T. J. Soukup, "Implementation of a fiber optic delay line
+memory," M.S.\ thesis (University of Colorado, Boulder, Colo., 1991).
+\end{references}
+\begin{figure}
+\caption{ Power fluctuations at a detection point.} \end{figure}
+
+\begin{figure}
+\caption{General device model.}
+\end{figure}
+\begin{figure}
+\caption{Modeling a lithium niobate switch.}
+\end{figure}
+\begin{figure}
+\caption{Modeling device loss and cross talk.}
+\end{figure}
+\begin{figure}
+\caption{Optical circuit.}
+\end{figure}
+\begin{figure}
+\caption{Graph model of optical circuit.}
+\end{figure}
+\begin{table}
+\caption{Minimum Signal Powers}
+\begin{tabular}{cc}
+Vertex&$P_{1\rm min} $ (dBm) \\ \tableline
+  1 &           0   \\
+  2 &          -3   \\
+  3 &          -5   \\
+  4 &          -5   \\
+  5 &          -8   \\
+  6 &          -11  \\
+  7 &          -8
+\end{tabular}
+\end{table}
+\end{document}
+
+%%% file aplop.tex %%%
