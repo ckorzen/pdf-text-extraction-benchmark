@@ -8,7 +8,6 @@ It provides (1) a benchmark generator, (2) a ready-to-use benchmark and (3) an e
 + identifies the following 16 *semantic units*: 
 title, author, affiliation, date, abstract, heading, paragraph of the body text, formula, figure, table, caption, listing-item, footnote, acknowledgements, references, appendix
 + serializes desired semantic units to *plain text*, *XML* or *JSON* format.
-+ is open source.
 
 For more details and usage, see [`benchmark-generator/`](https://github.com/ckorzen/arxiv-benchmark/tree/master/benchmark-generator).
 
