@@ -1,0 +1,117 @@
+=1
+
+IMAGE RESTORATION WITH LOCALLY SELECTED CLASS-ADAPTED MODELS
+
+Introduction
+
+Denoising is one of the oldest core problems in image processing; it is still very actively researched, although some argue that the current best generic methods are very close to the maximum possible performance [\cite=Chatterjee]. Most, if not all, state-of-the-art methods are patch-based, i.e., they process the noisy image on a patch-by-patch fashion, relying on techniques such as non-local means [\cite=Buades], collaborative filtering [\cite=dabov], dictionary learning [\cite=aharon], or statistical models of the patches [\cite=yu], [\cite=Teodoro2015], [\cite=zoran], [\cite=ZoranWeiss]. In more difficult imaging inverse problems, such as image deblurring or compressive imaging, to mention two classical examples, it may not be obvious how these patch-based techniques may be applied, and this has recently been a topic of a considerable amount of work [\cite=danielyan], [\cite=ZoranWeiss].
+
+Whereas the bulk of the work in image restoration aims at developing methods of general applicability, there has been some recent interest in developing class-specific methods [\cite=luo], [\cite=Teodoro2016]. As the name suggests, these methods are tailored to perform very well on a certain class of images, for example, text, faces, or a certain type of medical images. Indeed, if we knew the class of the image being processed/reconstructed, it would be expectable that a targeted method outperforms a generic one, i.e., one that does not take into account the specific class of the image in hand. Whereas in some cases, it is known that the image being estimated belongs to a certain class (e.g., brain MR or CT images, face images, fingerprints, text), in many others this is not the case and there may even be more than one class present in the image (for example, a document may contain text and one or more face or some other type of images). This second type of scenario (where several classes may be present in a given image) is the one addressed in this paper. Identifying the classes that are present in an image can be seen as a form of image segmentation, thus the problem formulated and addressed in this paper may be seen as that of simultaneous image restoration and segmentation.
+
+Recently [\cite=Teodoro2016], we have proposed a method for class-adapted image restoration/reconstruction, which builds upon the so-called plug-and-play approach [\cite=Venkatakrishnan], by plugging a class-adapted denoiser based on Gaussian mixture models (GMM) into the iterations of an alternating direction method of multipliers (ADMM) algorithm. Experiments have shown that the proposed method yields state-of-the-art results in deconvolving images known to contain text or a face, clearly outperforming the best generic techniques, such as IDD-BM3D [\cite=danielyan].
+
+In this paper, we extend the plug-and-play class-adapted approach to handle the scenario mentioned above: the image being restored is from an unknown class and/or may contain more than one class (for example, text and faces, or text and natural images). As mentioned above, this may be seen as a method to perform simultaneous segmentation and restoration, by exploiting synergies between these two tasks. Notice, however, that our goal is not to obtain a good or meaningful segmentation, but to use the segmentation to allow class-specific models to be exploited at each location of the image.
+
+The remaining sections of the paper are organized as follows. Section [\ref=sec:tools] reviews the classical formulation of image restoration and the basic tools on which the proposed method is built: the ADMM algorithm, the plug-and-play approach, and patch-based image denoising using GMM patch priors. The proposed method is described in Section [\ref=sec:method], while experimental results are reported in Section [\ref=sec:results]. Finally, Section [\ref=sec:conclusions] concludes the paper and gives pointers for future developments.
+
+Formulation and Tools
+
+Problem Formulation
+
+The classical formulation of image reconstruction/restoration problems is
+
+[formula]
+
+where [formula], [formula] are the observed data and underlying clean vectorized image, respectively, [formula] is the observation matrix, and [formula] is noise. For simplicity, we assume that the noise is Gaussian , with zero mean and known variance σ2. In the denoising case, the operator [formula] is the identity, but in more general cases it is non-invertible or ill-conditioned, making [\eqref=eq:1] an ill-posed inverse problem. Arguably, the most common approach to handle ill-posed problems of the form [\eqref=eq:1] is to seek a maximum a posteriori (MAP) estimate,
+
+[formula]
+
+where [formula] (with A an irrelevant constant) is the negative log-likelihood and [formula] is the negative log-prior. The same criterion may also be given a non-probabilistic interpretation, and seen as a regularization approach.
+
+ADMM and Plug-and-Play
+
+In recent years, variable splitting algorithms, such as ADMM, have received a lot of attention, in particular in the image processing and machine learning communities [\cite=boyd]. A notable feature of ADMM, as applied to [\eqref=eq:analysis], is that it separates the handling of the data term (log-likelihood) from that of the prior/regularizer. The standard instantiation of ADMM to tackle [\eqref=eq:analysis] consists in the cyclic application of the following steps [\cite=afonso], [\cite=Almeida2013]:
+
+[formula]
+
+Problem [\eqref=eq:x] is quadratic and has a closed-form solution, which requires solving a linear system (equivalently, inverting a matrix):
+
+[formula]
+
+Although this is sometimes seen as an obstacle (motivating, for example, the introduction of linearized versions of ADMM [\cite=LADMM]), there are cases in which this inversion can be computed very efficiently using fast transforms (namely the FFT) [\cite=afonso], [\cite=Almeida2013], and in those cases ADMM exhibits state-of-the-art speed. Image deconvolution (with periodic [\cite=afonso] or other boundary conditions [\cite=Almeida2013]) is one of those cases where ADMM excels.
+
+The update expression in [\eqref=eq:v] corresponds to the so-called Moreau proximity operator (MPO) of φ [\cite=Bauschke], computed at k + 1  -  k. Recall that the MPO of a convex function [formula] is defined as
+
+[formula]
+
+and can be seen as the solution of a denoising problem, where the argument of φ is the noisy data, the noise is Gaussian i.i.d. with unit variance, and the prior is [formula].
+
+In recent work, it has been suggested that the denoiser corresponding to the MPO in [\eqref=eq:v] can be replaced with an off-the-shelf state-of-the-art denoising algorithm, such as BM3D [\cite=dabov]; that approach has been termed plug-and-play [\cite=Venkatakrishnan]. Since a denoising algorithm may not correspond necessarily to the MPO of a convex regularizer/log-prior, convergence of the resulting algorithm requires further analysis; initial results have been presented in [\cite=Venkatakrishnan].
+
+Patch-Based Denoising with GMM Priors
+
+It has been shown that a simple GMM, estimated from a collection of clean images, is a remarkably effective patch prior [\cite=ZoranWeiss]. More recently, we have shown that excellent denoising performance is also obtained if the GMM prior is estimated directly from the patches of the noisy image to be denoised, and that the corresponding expectation-maximization (EM) algorithm is a very simple modification of the one for estimating the GMM from noiseless patches [\cite=Teodoro2015]. Moreover, since the prior is a GMM, it is simple to compute the conditional expectation of each patch, given its noisy version, which is is the optimal MMSE (minimum mean squared error) estimate; this is in contrast with [\cite=ZoranWeiss], where a MAP estimate is used. Letting [formula] and [formula] denote an arbitrary patch of images [formula] and [formula] (unknown clean image and noisy one, respectively), the probabilistic model for patch denoising is
+
+[formula]
+
+where [formula] denotes a Gaussian probability density function of mean [formula] and covariance [formula]. The resulting MMSE estimate of [formula] is given by
+
+[formula]
+
+where
+
+[formula]
+
+and
+
+[formula]
+
+Notice that [formula] is simply the posterior probability that the i-th patch was generated by the m-th GMM component, whereas [formula] is the conditional MMSE (and MAP) estimate of [formula], if we knew that it had been generated by the m-th GMM component.
+
+The final denoised image is assembled by putting the patch estimates in their locations. Since the patches typically overlap, the several estimates of each pixel are usually combined by straight averaging. In [\cite=Teodoro2015], we proposed to use the optimal weighted averaging, where the weights are the inverses of the posterior variances, which can be computed in closed-form. The use of weights based on the posterior variance of the patch estimates was also used in [\cite=Chatterjee], but with a single Gaussian per patch.
+
+Recently [\cite=Teodoro2016], we have proposed to use GMM patch-based denoising in a plug-and-play approach, to deblur images of specific classes. For that purpose, the GMM is estimated from a collection of clean images of the class of interest, and the denoising step [\eqref=eq:v] of the ADMM algorithm is replaced with the GMM-patch-based method described in the previous paragraphs. Experiments reported in [\cite=Teodoro2016] show that the method produces excellent results in deconvolving text and face images, outperforming the generic state-of-the-art method IDD-BM3D [\cite=danielyan].
+
+Proposed Method
+
+In this paper, we extend the method proposed in [\cite=Teodoro2016] to handle images of unknown classes or even containing more than one class. Rather than a single class-adapted GMM, estimated from a collection of clean images from that class, consider C classes, each of which modelled by a GMM,
+
+[formula]
+
+where ci∈{1,...,C} is the class label of the i-the patch, and C the total number of classes. To estimate the i-th patch, we begin by classifying it into one of the classes, and then use the corresponding GMM to obtain an MMSE estimate of that patch, given its noisy version.
+
+As mentioned in Section 1, classifying each patch into one of the classes can be seen as performing image segmentation. However, we stress again that segmentation is not the goal of the proposed approach, thus we will only focus on its performance in terms of denoising and deblurring. To classify the patches, we consider two alternatives:
+
+Simply classifying each patch independently using the maximum-likelihood criterion,
+
+[formula]
+
+Jointly classifying all the patches under a Markov random field prior [formula] (where [formula] denotes the field of all the patch class labels), more specifically a Potts prior [\cite=boykov98],
+
+[formula]
+
+To solve [\eqref=MRF] we use the α-expansion graph-cut algorithm proposed in [\cite=boykov]. For more details about MRF priors for image segmentation, see [\cite=boykov], [\cite=boykov98].
+
+In summary, for deblurring problems, the multi-class denoiser described in the two preceding paragraphs is used in the plug-and-play approach described in Subsection [\ref=sec:admm]. Below, we will also show experiments assessing the performance of the proposed muti-class denoiser in pure denoising problems.
+
+Experimental Results
+
+We start by presenting some results on image denoising. Table [\ref=tab:den1] compares the results obtained with the denoising algorithm, with and without classification of the patches. As a baseline, we also present the results of a state-of-the-art denoising algorithm, BM3D [\cite=dabov] (with default parameters). In every run, the patch size was set to 8 by 8, and we trained a GMM with 20 components using the noisy patches.Furthermore, the following classes were considered: text, faces, brain MRI, fingerprints, and generic. All of the external GMM, also with 20 components each, was trained with samples from the corresponding class, except the generic GMM which was trained using random images from the Berkeley dataset for image segmentation (BSDS300) [\cite=berkeley].
+
+We conclude that the proposed modification does not have a significant impact on the final result. That is due to the fact that, in the denoising problem, we are able to estimate a GMM from the noisy image itself. The resulting model is more adapted to the input image than if we would train another GMM from a different set of images.
+
+Figure [\ref=fig:den1] illustrates the difference in the patch labelling if we consider classifying each patch independently using maximum-likelihood criterion or using the α-expansion graph-cut algorithm. While we do not expect the latter labelling to perform better in terms of denoising or deblurring, it is more meaningful in the context of segmentation, since it is much smoother. In this example, we used three different models: one trained from the noisy image itself (black), one targeted to text images (grey), and one trained with generic images (white).
+
+Regarding the deblurring problem, we considered the same classes, where each GMM with 20 components was now trained using 6 by 6 patches. Table [\ref=tab:deb1] shows the results of ADMM-GMM algorithm, with and without classification, for all blur kernels in [\cite=danielyan]. We also present the results obtained with IDD-BM3D [\cite=danielyan] (default parameters). In this set up, we assumed that the class of the input image is unknown a priori, even in the text image and face image so, when no classification is done, the algorithm uses only the generic GMM. Otherwise, we let the algorithm decide which class should be used for each patch, which explains the discrepancy that exists relative to the results reported in [\cite=Teodoro2016]. Furthermore, after 100 iterations of the algorithm we switch the generic GMM by another GMM trained from the deblurred patches of the input image, which we assume to be reasonable estimates of the clean patches by then.
+
+Since we can not learn a GMM from the blurred input image, the improvement that is achieved with the proposed method is much more visible, when in fact the input image contains one or more of the considered classes.
+
+Figure [\ref=fig:deb1] shows the patch labelling at different iterations. At first, as one would expect, the classes are not correctly identified but, as the algorithm progresses, the labelling becomes more accurate. In this example, although we used six different classes, for visualization purposes Figure [\ref=fig:deb1] only shows three face (white), text (grey), and other (black).
+
+Conclusions and Future work
+
+Recent work [\cite=luo], [\cite=Teodoro2016] has shown that class-adapted image priors are able to outperform generic ones, when the input image in fact contains one or more of the considered classes. In this paper, we developed a method that automatically identifies which patches of the observed image should be reconstructed using class-adapted priors. This is an important feature for two main reasons: first, very often, we do not know whether the input image is from a particular class or not, and second, we may have more than one class combined in a single image.
+
+Nonetheless, several aspects of these method still need some improvement. First, although there is some very recent work regarding the convergence of ADMM with plug-and-play denoisers, there is a need to carefully analyse the convergence ADMM with GMM prior. Indeed, convergence of the algorithm is observed in practice but theoretical support would make it more credible. Second, there is a need to adjust the parameters of ADMM, namely μ, in an automatic way. In the experiments reported in Section [\ref=sec:results] the parameter was hand-tuned in order to achieve good results.
+
+Finally, in this paper we tested only a few very distinct image classes, but using more pre-computed models could eventually lead to better results. Some examples of possible classes are textures, sky, buildings, and so on.

@@ -1,0 +1,31 @@
+Autonomous Observing and Control Systems for PAIRITEL, a 1.3m Infrared Imaging Telescope
+
+Project background and constraints
+
+PAIRITEL, name for the late telescope operator Jim Peters, is an automated 1.3m telescope located at the ridge of Mt. Hopkins in Arizona. The telescope and simultaneous J,H,Ks camera were formerly used in the 2MASS project which ended data taking operations in 2001. Our refurbishing work began in mid-2003 using a small donation from the Harvard Milton Fund. Basic telescope automation was achieved by the dedication on October 21st, 2004.
+
+From the outset, PAIRITEL was designed for automated, queue based observing, with the ability to rapidly respond to targets of opportunity (ToOs) such as gamma-ray burst (GRB) alerts from space-based satellites. The best response thus far was 90 seconds from gamma-ray burst trigger (GRB 051109a) to the beginning of the first observation. Although rapid response telescopes require a significant amount of automation, the remote location of this telescope required additional levels of autonomy.
+
+We required that the observatory software be able to diagnose inclement weather and control system problems and respond appropriately, as if an observer were present. PAIRITEL determines the observing schedule using an intelligent queuing database which incorporates new observations into a dynamic scheduling system, while accounting for recently acquired observations. Software components must also rely upon cross communication. For example, a monitor of the transmission, acquisition/reduction software, and telescope pointing need complex interactions to maximize observing efficiency.
+
+Master daemon
+
+The key to coordinating our autonomous observatory is a program called the 'master daemon' (hereafter masterd). Based on a robotics state machine, masterd monitors the states of all other software processes. Then, using a template which defines actions for various state changes, it commands other software atoms to act.
+
+Separating each observatory task into individual software sub-processes ('daemons') allows them to be managed in a generalized way (Fig. 1). As daemons are initiated and restartable on a system level, we can then assume them always to be running. If a critical error occurs in a daemon, the master daemon will notice the timeout of a 'heartbeat', and restart it.
+
+The state machine design also allows for self-regulating actions. One example is determining the current accuracy of the telescope pointing. By monitoring a transmission daemon (which determines sky transparency) and possibly the time of the night, the master daemon can see when a pointing check/correction is needed. It then commands other daemons to do actions such as: halting an observation, performing a "soft" pointing check at a known bright star position, or initiating a hardware-based pointing check by using a custom set of codes designed to interact with opto-interruptors and a tiltometer. In this case, once the pointing state is "excellent", the master daemon will resume the observations.
+
+Observation software
+
+The observation software consists of three main parts: the observation database, the scheduling software, and the observing daemon. Although this software is controlled by the master daemon on the highest level, the queuing, acquisition, and time accounting takes place independent of it. The observation database is MySQL based and generally accessed remotely by astronomers using a PHP interface. The scheduling software accesses the database using the MySQLdb Python module. This database is organized as tables hierarchically by: project, then objects within projects, and observations of objects. Users can set priorities of objects within their projects; the projects themselves are assigned relative priorities and total awarded observing time. Bookkeeping for total time observed per project is performed in a realtime feedback system.
+
+The observation queue scheduler selects which programs and objects are observed during a night (Fig. 1). It calculates the observing plans on a daily basis, but can also be commanded to recalculate them realtime by an astronomer or by itself (for instance when a ToO arrives). The resulting queues are optimized using variables such as airmass, priority, and time since previous observation. The scheduler also dynamically updates its database by parsing recently acquired FITS files and adding the information to the corresponding programs. The observing daemon executes observation sequences sent by the scheduling software. It calculates all dithering sequences and using python interfaces, it controls both the telescope and camera controllers.
+
+The requested observation sequences (and the output metadata from the camera) are defined in XML files and are automatically queued by the observing daemon whenever the scheduler sends them. In the case that the observation is a ToO, the daemon aborts the current exposure, slews the telescope, and begins exposing. The PAIRITEL reduction pipeline is written in Python using the pyfits and pyraf modules. The image processing is fairly straight forward, using realtime created darks and archived twilight flats. In addition, bad pixels are fixed and the world coordinate WCS is calculated in the final mosaiced image. The 'status' web page (Fig. 3) displays an overview of all states monitored by the master daemon. The color coded boxes allow a quick assessment of the system. Additionally, clicking on any state gives a detailed history log of that state. Real-time quick-look reductions are also available with a click.
+
+Summary
+
+Automating the PAIRITEL telescope has been surprisingly fast due to quick software implementation. We attribute much of this to our choice of Python as our development language. Python has allowed easy coding of software hooks into electronic devices using serial, network, and parallel port modules. The high level aspects of the language also helped us design algorithms which are template based and thus easily configured and updateable. The overall ease in producing working code has allowed us to experiment with different approaches in solving problems. For these reasons, we were able to rapidly develop and test the master deamon and observation software.
+
+For more information, visit: http://www.pairitel.org/.

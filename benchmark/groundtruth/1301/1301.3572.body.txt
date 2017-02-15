@@ -1,0 +1,75 @@
+Indoor Semantic Segmentation using depth information
+
+* Performed the work at New York University.
+
+Introduction
+
+The recent release of the Kinect allowed many progress in indoor computer vision. Most approaches have focused on object recognition [\cite=berkeley] [\cite=Janoch11ICCVkinectworkshop] or point cloud semantic labeling [\cite=cornell], finding their applications in robotics or games [\cite=cruz2012kinectTutoriel]. The pioneering work of Silberman et al. [\cite=Silberman2011ICCVworkshop] was the first to deal with the task of semantic full image labeling using depth information. The NYU depth v1 dataset [\cite=Silberman2011ICCVworkshop] guathers 2347 triplets of images, depth maps, and ground truth labeled images covering twelve object categories. Most datasets employed for semantic image segmentation [\cite=gould09_iccv] [\cite=liu2010] present the objects centered into the images, under nice lightening conditions. The NYU depth dataset aims to develop joint segmentation and classification solutions to an environment that we are likely to encounter in the everyday life. This indoor dataset contains scenes of offices, stores, rooms of houses containing many occluded objects unevenly lightened. The first results [\cite=Silberman2011ICCVworkshop] on this dataset were obtained using the extraction of sift features on the depth maps in addition to the RGB images. The depth is then used in the gradient information to refine the predictions using graph cuts. Alternative CRF-like approaches have also been explored to improve the computation time performances [\cite=Coup1208:Multi]. The results on NYU dataset v1 have been improved by [\cite=Ren2012NYUdepthCVPR] using elaborate kernel descriptors and a post-processing step that employs gPb superpixels MRFs, involving large computation times.
+
+A second version of the NYU depth dataset was released more recently [\cite=Silberman:ECCV12], and improves the labels categorization into 894 different object classes. Furthermore, the size of the dataset did also increase, it now contains hundreds of video sequences (407024 frames) acquired with depth maps.
+
+Feature learning, or deep learning approaches are particularly adapted to the addition of new image modalities such as depth information. Its recent success for dealing with various types of data is manifest in speech recognition [\cite=speech], molecular activity prediction, object recognition [\cite=imagenet] and many more applications. In computer vision, the approach of Farabet et al. [\cite=FarabetICML2012] [\cite=FarabetPAMI] has been specifically designed for full scene labeling and has proven its efficiency for outdoor scenes. The key idea is to learn hierarchical features by the mean of a multiscale convolutional network. Training networks using multiscales representation appeared also the same year in [\cite=Ciresan:2012f] [\cite=Schulz2012learning].
+
+When the depth information was not yet available, there have been attempts to use stereo image pairs to improve the feature learning of convolutional networks [\cite=Lecun2004norb]. Now that depth maps are easy to acquire, deep learning approachs started to be considered for improving object recognition [\cite=SocherEtAl2012:CRNN]. In this work, we suggest to adapt Farabet et al.'s network to learn more effective features for indoor scene labeling. Our work is, to the best of our knowledge, the first exploitation of depth information in a feature learning approach for full scene labeling.
+
+Full scene labeling
+
+Multi-scale feature extraction
+
+Good internal representations are hierarchical. In vision, pixels are assembled into edglets, edglets into motifs, motifs into parts, parts into objects, and objects into scenes. This suggests that recognition architectures for vision (and for other modalities such as audio and natural language) should have multiple trainable stages stacked on top of each other, one for each level in the feature hierarchy. Convolutional Networks [\cite=Lecun1998gradient] (ConvNets) provide a simple framework to learn such hierarchies of features.
+
+Convolutional Networks are trainable architectures composed of multiple stages. The input and output of each stage are sets of arrays called feature maps. In our case, the input is a color (RGB) image plus a depth (D) image and each feature map is a 2D array containing a color or depth channel of the input RGBD image. At the output, each feature map represents a particular feature extracted at all locations on the input. Each stage is composed of three layers: a filter bank layer, a non-linearity layer, and a feature pooling layer. A typical ConvNet is composed of one, two or three such 3-layer stages, followed by a classification module. Because they are trainable, arbitrary input modalities can be modeled, such as the depth modality that is added to the input channel in this work.
+
+A great gain has been achieved with the introduction of the multiscale convolutional network described in [\cite=FarabetPAMI]. The multi-scale, dense feature extractor produces a series of feature vectors for regions of multiple sizes centered around every pixel in the image, covering a large context. The multi-scale convolutional net contains multiple copies of a single network that are applied to different scales of a Laplacian pyramid version of the RGBD input image.
+
+The RGBD image is first pre-processed, so that local neighborhoods have zero mean and unit standard deviation. The depth image, given in meters, is treated as an additional channel similarly to any color channel. The overview scheme of our model appears in Figure [\ref=model].
+
+Beside the input image which is now including a depth channel, the parameters of the multi-scale network (number of scales, sizes of feature maps, pooling type, etc.) are identical to [\cite=FarabetPAMI]. The feature maps sizes are 16,64,256, multiplied by the three scales. The size of convolutions kernels are set to 7 by 7 at each layer, and sizes of subsampling kernels (max pooling) are 2 by 2. In our tests we rescaled the images to the size 240  ×  320.
+
+As in [\cite=FarabetPAMI], the feature extractor followed by a classifier was trained to minimize the negative log-likelihood loss function. The classifier that follows feature extraction is a 2-layer multi-perceptron, with a hidden layer of size 1024. We use superpixels [\cite=Felzenszwalb04efficientgraph-based] to smooth the convnet predictions as a post-processing step, by agregating the classifiers predictions in each superpixel.
+
+Movie processing
+
+While the training is performed on single images, we are able to perform scene labeling of video sequences. In order to improve the performances of our frame-by-frame predictions, a temporal smoothing may be applied. In this work, instead of using the frame by frame superpixels as in the previous section, we employ the temporal consistent superpixels of [\cite=couprieCVPR2013]. This approach works in quasi-linear time and reduces the flickering of objects that may appear in the video sequences.
+
+Results
+
+We used for our experiments the NYU depth dataset - version 2 - of Silberman and Fergus [\cite=Silberman:ECCV12], composed of 407024 couples of RGB images and depth images. Among these images, 1449 frames have been labeled. The object labels cover 894 categories. The dataset is provided with the original raw depth data that contain missing values, with code using [\cite=Dani04colorizationusing] to inpaint the depth images.
+
+Validation on images
+
+The training has been performed using the 894 categories directly as output classes. The frequencies of object appearences have not been changed in the training process. However, we established 14 clusters of classes categories to evaluate our results more easily. The distributions of number of pixels per class categories are given in Table [\ref=classes_cat]. We used the train/test splits as provided by the NYU depth v2 dataset, that is to say 795 training images and 654 test images. Please note that no jitter (rotation, translations or any other transformation) was added to the dataset to gain extra performances. However, this strategy could be employed in future work. The code consists of Lua scripts using the Torch machine learning software [\cite=torch] available online at .
+
+To evaluate the influence of the addition of depth information, we trained a multiscale convnet only on the RGB channels, and another network using the additional depth information. Both networks were trained until the achievement of their best performances, that is to say for 105 epochs and 98 epochs respectively, taking less than 2 days on a regular server.
+
+We report in Table [\ref=classes_cat] two different performance measures:
+
+the "classwise accuracy", counting the number of correctly classified pixels divided by the number of false positive, averaged for each class. This number corresponds to the mean of the confusion matrix diagonal.
+
+the "pixelwise accuracy", counting the number of correctly classified pixels divided by the total number of pixels of the test data.
+
+We observe that considerable gains (15% or more) are achieved for the classes 'floor', 'ceiling', and 'furniture'. This result makes a lot of sense since these classes are characterized by a somehow constant appearance of their depth map. Objects such as TV, table, books can either be located in the foreground as well as in the background of images. On the contrary, the floor and ceiling will almost always lead to a depth gradient always oriented in the same direction: Since the dataset has been collected by a person holding a kinect device at a his chest, floors and ceiling are located at a distance that does not vary to much through the dataset. Figure [\ref=fig:results] provides examples of depth maps that illustrate these observations. Overall, improvements induced by the depth information exploitation are present. In the next section, these improvements are more apparent.
+
+Comparison with Silberman et al.
+
+In order to compare our results to the state-of-the-art on the NYU depth v2 dataset, we adopted a different selection of outputs instead of the 14 classes employed in the previous section. The work of Silberman et al. [\cite=Silberman:ECCV12] defines the four semantic classes Ground, Furniture, Props and Structure. This class selection is adopted in [\cite=Silberman:ECCV12] to use semantic labelings of scenes to infer support relations between objects. We recall that the recognition of the semantic categories is performed in [\cite=Silberman:ECCV12] by the definition of diverse features including SIFT features, histograms of surface normals, 2D and 3D bounding box dimensions, color histograms, and relative depth.
+
+As reported in Table [\ref=classes_perfs], the results achieved using the Multiscale convnet are improving the structure class predictions, resulting in a 4% gain in pixelwise accuracy over Silberman et al. approach. Adding the depth information results in a considerable improvement of the ground prediction, and performs also better over the other classes, achieving a 4% gain in classwise accuracy over previous works and improves by almost 6% the pixelwise accuracy compared to Silberman et al.'s results.
+
+We note that the class 'furniture' in the 4-classes evaluation is different than the 'furniture' class of the 14-classes evaluation. The furniture-4 class encompasses chairs and beds but not desks, and cabinets for example, explaining a drop of performances here using the depth information.
+
+Test on videos
+
+The NYU v2 depth dataset contains several hundreds of video sequences encompassing 26 different classes of indoor scenes, going from bedrooms to basements, and dining rooms to book stores. Unfortunately, no ground truth is yet available to evaluate our performances on this video. Therefore, we only present here some illustrations of the capacity of our model to label these scenes.
+
+The predictions are computed frame by frame on the videos and are refined using temporally smoothed superpixels using [\cite=couprieCVPR2013]. Two examples of results on sequences are shown at Figure [\ref=fig:results_videos].
+
+A great advantage of our approach is its nearly real time capabilities. Processing a 320x240 frame takes 0.7 seconds on a laptop [\cite=FarabetPAMI]. The temporal smoothing only requires an additional 0.1s per frame.
+
+Conclusion
+
+Feature learning is a particularly satisfying strategy to adopt when approaching a dataset that contains new image (or other kind of data) modalities. Our model, while being faster and more efficient than previous approaches, is easier to implement without the need to design specific features adapted to depth information. Different clusterings of object classes as the ones used in this work may be chosen, reflecting this work's flexibility of applications. For example, using the 4-classes clustering, the accurate results achieved with the multi-scale convolutional network could be applied to perform inference on support relations between objects. Improvements for specific object recognition could further be achieved by filtering the frequency of the training objects. We observe that the recognition of object classes having similar depth appearance and location is improved when using the depth information. On the contrary, it is better to use only RGB information to recognize objects with classes containing high variability of their depth maps. This observation could be used to combine the best results in function of the application. Finally, a number of techniques (unsupervised feature learning, MRF smoothing of the convnet predictions, extension of the training set) would probably help to improve the present system.
+
+Acknowledgments
+
+We would like to thank Nathan Silberman for his useful input for handling the NYU depth v2 dataset, and fruitful discussions.

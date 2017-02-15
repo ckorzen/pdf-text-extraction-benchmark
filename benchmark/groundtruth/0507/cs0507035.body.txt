@@ -1,0 +1,245 @@
+=0.50in
+
+Theorem Corollary Proposition
+
+Enhancing Global SLS-Resolution with Loop Cutting and Tabling Mechanisms
+
+Introduction
+
+There are two types of semantics for a logic program: a declarative semantics and a procedural semantics. The declarative semantics formally defines the meaning of a logic program by specifying an intended model among all models of the logic program, whereas the procedural semantics implements/computes the declarative semantics by providing an algorithm for evaluating queries against the logic program. Most existing procedural semantics are built upon the well-known resolution rule created by Robinson [\cite=Robinson65].
+
+Prolog is the first yet the most popular logic programming language [\cite=Kow74]. It adopts SLDNF-resolution as its procedural semantics [\cite=clark78]. One of the best-known properties of SLDNF-resolution is its linearity of derivations, i.e., its query evaluation (i.e., SLDNF-derivations) constitutes a search tree, called an SLDNF-tree, which can be implemented easily and efficiently using a simple stack-based memory structure [\cite=WAM83] [\cite=ZHOU96]. However, SLDNF-resolution suffers from two serious problems. First, its corresponding declarative semantics, i.e. the predicate completion semantics [\cite=clark78], is based on two truth values (either true or false) and thus incurs inconsistency for some logic programs like [formula] [\cite=Ld87] [\cite=sheph88]. Second, it may generate infinite loops and a large amount of redundant sub-derivations [\cite=BAK91] [\cite=DD93] [\cite=shen-tocl].
+
+To overcome the first problem with SLDNF-resolution, the well-founded semantics [\cite=VRS91] is introduced as an alternative to the predicate completion semantics. A well-founded model accommodates three truth values: true, false and undefined, so that inconsistency is avoided by letting atoms that are recursively connected through negation undefined. Several procedural semantics have been developed as an alternative to SLDNF-resolution to compute the well-founded semantics, among the most representative of which are Global SLS-resolution [\cite=Prz89] [\cite=Ross92] and SLG-resolution [\cite=CSW95] [\cite=chen96] [\cite=BD98].
+
+Global SLS-resolution is a direct extension of SLDNF-resolution. It evaluates queries under the well-founded semantics by generating a search tree, called an SLS-tree, in the same way as SLDNF-resolution does except that infinite derivations are treated as failed and infinite recursions through negation as undefined. Global SLS-resolution retains the linearity property of SLDNF-resolution, but it also inherits the problem of infinite loops and redundant computations. Moreover, Global SLS-resolution handles negation as follows: A ground atom A is false when all branches of the SLS-tree for A are either infinite or end at a failure leaf. Infinite branches make Global SLS-resolution not effective in general [\cite=Ross92].
+
+To resolve infinite loops and redundant computations, the tabling technique is introduced [\cite=TS86] [\cite=war92]. The main idea of tabling is to store intermediate answers of subgoals and then apply them to solve variants of the subgoals. With tabling no variant subgoals will be recomputed by applying the same set of clauses, so infinite loops can be avoided and redundant computations be substantially reduced. There are two typical ways to make use of tabling to compute the well-founded semantics. One is to directly enhance SLDNF-resolution or Global SLS-resolution with tabling while the other is to create a new tabling mechanism with a different derivation structure. SLG-resolution results from the second way [\cite=BD98] [\cite=chen96]. Due to the use of tabling, SLG-resolution gets rid of infinite loops and reduces redundant computations. However, it does not have the linearity property since its query evaluation constitutes a search forest instead of a search tree. As a result, it cannot be implemented in the same way as SLDNF-resolution using a simple stack-based memory structure [\cite=SSW94] [\cite=xsb98] [\cite=swift99].
+
+In [\cite=shen2002] an attempt is made to directly enhance SLDNF-resolution with tabling to compute the well-founded semantics, which leads to a tabling mechanism, called SLT-resolution. SLT-resolution retains the linearity property, thus is referred to as a linear tabling mechanism. Due to the use of tabling, it is free of infinite loops and has fewer redundant computations than SLDNF-resolution. However, SLT-resolution has the following two major drawbacks: (1) It defines positive loops and negative loops based on the same ancestor-descendant relation, which makes loop detection and handling quite costly since a loop may go across several (subsidiary) SLT-trees. (2) It makes use of answer iteration to derive all answers of looping subgoals, but provides no answer completion criteria for pruning redundant derivations. Note that answer completion is the key to an efficient tabling mechanism.
+
+In this paper, we develop a new procedural semantics, called SLTNF-resolution, for the well-founded semantics by enhancing Global SLS-resolution with tabling and loop cutting mechanisms. SLTNF-resolution retains the linearity property and makes use of tabling to get rid of all loops and reduce redundant computations. It defines positive and negative loops in terms of two different ancestor-descendant relations, one on subgoals within an SLS-tree and the other on SLS-trees, so that positive and negative loops can be efficiently detected and handled. It employs two effective criteria for answer completion of tabled subgoals so that redundant derivations can be pruned as early as possible. All these mechanisms are integrated into an algorithm quite like that for generating SLS-trees.
+
+The paper is organized as follows. Section 2 reviews Global SLS-resolution. Section 3 defines ancestor-descendant relations for identifying positive and negative loops, develops an algorithm for generating SLTNF-trees, establishes criteria for determining answer completion of tabled subgoals, and proves the correctness of SLTNF-resolution. Section 4 mentions some related work, and Section 5 concludes.
+
+Preliminaries and Global SLS-Resolution
+
+In this section, we review some standard terminology of logic programs [\cite=Ld87] and recall the definition of Global SLS-Resolution. We do not repeat the definition of the well-founded model here; it can be found in [\cite=VRS91] [\cite=Prz89] [\cite=Prz90] and many other papers.
+
+Variables begin with a capital letter, and predicate, function and constant symbols with a lower case letter. By a variant of a literal L we mean a literal L' that is identical to L up to variable renaming.
+
+A general logic program (logic program for short) is a finite set of clauses of the form
+
+A←L1,...,Ln
+
+where A is an atom and Lis are literals. A is called the head and L1,...,Ln is called the body of the clause. When n = 0, the "←" symbol is omitted. If a logic program has no clause with negative literals in its body, it is called a positive logic program.
+
+A goal G is a headless clause ←L1,...,Ln where each Li is called a subgoal. A goal is also written as G  =  ←Q where Q  =  L1,...,Ln is called a query. A computation rule (or selection rule) is a rule for selecting one subgoal from a goal.
+
+Let Gi  =  ←L1,...,Lj,...,Ln be a goal with Lj a positive subgoal. Let C  =  L←F1,...,Fm be a clause such that L and Lj are unifiable, i.e. Lθ  =  Ljθ where θ is an mgu (most general unifier). The resolvent of Gi and C on Lj is a goal Gk  =  ←(L1,...,Lj - 1,F1,...,Fm,Lj + 1,...,Ln)θ. In this case, we say that the proof of Gi is reduced to the proof of Gk.
+
+The initial goal, G0  =  ←L1,...,Ln, is called a top goal. Without loss of generality, we shall assume throughout the paper that a top goal consists only of one atom (i.e. n = 1 and L1 is a positive literal).
+
+Trees are used to depict the search space of a top-down query evaluation procedure. For convenience, a node in such a tree is represented by Ni:Gi where Ni is the node name and Gi is a goal labeling the node. Assume no two nodes have the same name, so we can refer to nodes by their names.
+
+Let P be a logic program and G0  =  ←Q a top goal. Global SLS-resolution is the process of constructing SLS-derivations from [formula] via a computation rule R. An SLS-derivation is a partial branch beginning at the root N0:G0 of an SLS-tree. Every leaf of an SLS-tree is either a success leaf or a failure leaf or a flounder leaf or an undefined leaf. Q is a non-floundering query if no SLS-tree for evaluating Q under R contains a flounder leaf.
+
+An SLS-tree is successful if it has a success leaf. It is failed if all of its branches are either infinite or end at a failure leaf. It is floundered if it contains a floundered leaf and is not successful. An SLS-tree is undefined if it is neither successful nor failed nor floundered.
+
+There are two slightly different definitions of an SLS-tree: Przymusinski's definition [\cite=Prz89] [\cite=Prz92] and Ross' definition [\cite=Ross92]. Przymusinski's definition requires a level mapping (called strata) to be associated with literals and goals, while Ross' definition requires the computation rule to be preferential, i.e. positive subgoals are selected ahead of negative ones and negative subgoals are selected in parallel. Both of the two definitions allow infinite branches and infinite recursion through negation. The following definition of an SLS-tree is obtained by combining the two definitions.
+
+Let P be a logic program, G0 a top goal, and R a computation rule. The SLS-tree TN0:G0 for [formula] via R is a tree rooted at N0:G0 such that for any node Ni:Gi in the tree with Gi  =  ←L1,...,Ln:
+
+If n = 0 then Ni is a success leaf, marked by [formula].
+
+If Lj is a positive literal selected by R, then for each clause C in P whose head is unifiable with Lj, Ni has a child Nk:Gk where Gk is the resolvent of C and Gi on Lj. If no such a clause exists in P, then Ni is a failure leaf, marked by [formula].
+
+Let [formula] be a negative literal selected by R. If A is not ground then Ni is a flounder leaf, marked by [formula], else let TNi + 1:←A be an (subsidiary) SLS-tree for [formula] via R. We consider four cases:
+
+If TNi + 1:←A is failed then Ni has only one child that is labeled by the goal ←L1,...,Lj - 1,Lj + 1,...,Ln.
+
+If TNi + 1:←A is successful then Ni is a failure leaf, marked by [formula].
+
+If TNi + 1:←A is floundered then Ni is a flounder leaf, marked by [formula].
+
+Otherwise (i.e. TNi + 1:←A is undefined), we mark Lj in Gi as skipped and use the computation rule R to select a new literal Lk from Gi and apply the resolution steps [\ref=l1] and [\ref=l2] to the goal Gi. If all literals in Gi were already marked as skipped then Ni is an undefined leaf, marked by [formula].
+
+We make two remarks. First, the level mapping/strata used in Przymusinski's definition is implicit in Definition [\ref=sls-tree]. That is, in case [\ref=l2] the level/stratum of A is less than the level/stratum of Gi if and only if either case [\ref=la] or case [\ref=lb] or case [\ref=lc] holds. Second, the preferential restriction of Ross' definition to the computation rule is relaxed by marking undefined subgoals as skipped and then continuing to select new subgoals from the remaining subgoals in Gi for evaluation (see case [\ref=ld]). A leaf is undefined if and only if all its subgoals are marked as skipped.
+
+A successful (resp. failed or undefined) derivation for a goal G is a branch beginning at the root of the SLS-tree for G and ending at a success (resp. failure or undefined) leaf. A correct answer substitution for G is the substitution θ  =  θ1...θn, where θis are the most general unifiers used at each step along the derivation, restricted to the variables in G.
+
+It has been shown that Global SLS-resolution is sound and complete with respect to the well-founded semantics for non-floundering queries.
+
+Let P be a logic program, R a computation rule, and G0←Q be a top goal with Q a non-floundering query under R. Let WF(P) be the well-founded model of P.
+
+[formula] if and only if the SLS-tree for [formula] via R is successful.
+
+[formula] if and only if there exists a correct answer substitution for G0 more general than the substitution θ.
+
+[formula] if and only if the SLS-tree for [formula] is failed.
+
+Let Ni:Gi be a node in an SLS-tree TNr:Gr where A is the selected positive subgoal in Gi. The partial branches of TNr:Gr beginning at Ni that are used to evaluate A constitute sub-derivations for A. All such sub-derivations form a sub-SLS-tree for A at Ni.
+
+By Theorem [\ref=sound-comp], for any correct answer substitution θ built from a successful sub-derivation for A, [formula].
+
+Since Global SLS-resolution allows infinite derivations as well as infinite recursion through negation, we may need infinite time to generate an SLS-tree. This is not feasible in practice. In the next section, we resolve this problem by enhancing Global SLS-resolution with both loop cutting and tabling mechanisms.
+
+SLTNF-Resolution
+
+We first define an ancestor-descendant relation on selected subgoals in an SLS-tree. Informally, A is an ancestor subgoal of B if the proof of A depends on (or in other words goes via) the proof of B. For example, let M:←A,A1,...,Am be a node in an SLS-tree, and N:←B1θ,...,Bnθ,A1θ,...,Amθ be a child node of M that is generated by resolving M on the subgoal A with a clause A'←B1,...,Bn where Aθ  =  A'θ. Then A at M is an ancestor subgoal of all Biθs at N. However, such relationship does not exist between A at M and any Ajθ at N. It is easily seen that all Biθs at N inherit the ancestor subgoals of A at M, and that each Ajθ at N inherits the ancestor subgoals of Aj at M. Note that subgoals at the root of an SLS-tree have no ancestor subgoals.
+
+Let Ni:Gi and Nk:Gk be two nodes and A and B be the selected subgoals in Gi and Gk, respectively. When A is an ancestor subgoal of B, we refer to B as a descendant subgoal of A, Ni as an ancestor node of Nk, and Nk as a descendant node of Ni. Particularly, if A is both an ancestor subgoal and a variant, i.e. an ancestor variant subgoal, of B, we say the derivation goes into a loop, where Ni and Nk are respectively called an ancestor loop node and a descendant loop node, and A (at Ni) and B (at Nk) are respectively called an ancestor loop subgoal and a descendant loop subgoal.
+
+The above ancestor-descendant relation is defined over subgoals and will be applied to detect positive loops, i.e. loops within an SLS-tree. In order to handle negative loops (i.e. loops through negation like [formula] and [formula]) which occur across SLS-trees, we define an ancestor-descendant relation on SLS-trees. Let [formula] be a node in TNr:Gr, with [formula] the selected subgoal, and let TNi + 1:←A be an (subsidiary) SLS-tree for [formula] via R. TNr:Gr is called an ancestor SLS-tree of TNi + 1:←A, while TNi + 1:←A is called a descendant SLS-tree of TNr:Gr. Of course, the ancestor-descendant relation is transitive.
+
+A negative loop occurs if an SLS-tree has a descendant SLS-tree, with the same goal at their roots. For convenience, we use dotted edges to connect parent and child SLS-trees, so that negative loops can be clearly identified. Let G0 be a top goal. We call TN0:G0 together with all of its descendant SLS-trees a generalized SLS-tree, denoted GTP,G0 (or simply GTG0 when no confusion would arise). Therefore, a branch of a generalized SLS-tree may come across several SLS-trees through dotted edges. A generalized SLS-derivation is a partial branch beginning at the root of a generalized SLS-tree.
+
+Assume that all loops are detected and cut based on the ancestor-descendant relations. This helps Global SLS-resolution get rid of infinite derivations and infinite recursion through negation. However, applying such loop cutting mechanism alone is not effective since some answers would be lost. In order to guarantee the completeness of Global SLS-resolution with the loop cutting mechanism, we introduce a tabling mechanism into SLS-derivations, leading to a tabulated SLS-resolution.
+
+In tabulated resolutions, the set of predicate symbols in a logic program is partitioned into two groups: tabled predicate symbols and non-tabled predicate symbols. Subgoals with tabled predicate symbols are then called tabled subgoals. A dependency graph [\cite=ABW88] is used to make such classification. Informally, for any predicate symbols p and q, there is an edge p  →  q in the dependency graph GP of a logic program P if and only if P contains a clause whose head contains p and whose body contains q. p is a tabled predicate symbol if GP contains a cycle involving p. It is trivial to show that subgoals involved in any loops in SLS-trees must be tabled subgoals.
+
+Intermediate answers of tabled subgoals will be stored in tables once they are produced at some derivation stages. Such answers are called tabled answers. For convenience of presentation, we organize a table into a compound structure like struct in pseudo C+  + language. That is, the table of an atom A, denoted TBA, is internally an instance of the data type TABLE defined as follows:    typ edef struct { string    atom; //for TBA, atom  =  A. int comp; //status of atom indicating if all answers have been tabled. set ans; //tabled answers of atom. } TABLE;
+
+Answers of a tabled subgoal A are stored in TBA  →  ans. We say TBA is complete if TBA  →  ans contains all answers of A. We use TBA  →  comp  =  1 to mark the completeness of tabled answers. Clearly, the case TBA  →  comp  =  1 and [formula] indicates that A is false.
+
+We introduce a special subgoal, u*, which is assumed to occur neither in logic programs nor in top goals. u* will be used to substitute for some ground negative subgoals whose truth values are temporarily undefined (i.e., whether they are true or false cannot be determined at the current stage of derivation). We assume such a special subgoal will not be selected by a computation rule.
+
+We also use a special subgoal, LOOP, to mark occurrence of a loop.
+
+Augmenting SLS-trees with the loop cutting and tabling mechanisms leads to the following definition of SLTNF-trees. Here "SLTNF" stands for " Linear Tabulated resolution using a Selection/computation rule with Negation as Finite Failure."
+
+Let P be a logic program, G0 a top goal, and R a computation rule. Let TP be a set of tables each of which contains a finite set of tabled answers. The SLTNF-tree TN0:G0 for [formula] via R is a tree rooted at N0:G0 such that for any node Ni:Gi in the tree with Gi  =  ←L1,...,Ln:
+
+If n = 0 then Ni is a success leaf, marked by [formula], else if L1 = u* then Ni is a temporarily undefined leaf, marked by [formula], else if L1 = LOOP then Ni is a loop leaf, marked by [formula].
+
+If Lj  =  p(.) is a positive literal selected by R, we consider two cases:
+
+If TBLj∈TP with TBLj  →  comp = 1, then for each tabled answer A in TBLj  →  ans, Ni has a child node Nk:Gk where Gk is the resolvent of A and Gi on Lj. In case that [formula], Ni is a failure leaf, marked by [formula].
+
+Otherwise, for each tabled answer A in TBLj  →  ans Ni has a child node Nk:Gk where Gk is the resolvent of A and Gi on Lj, and
+
+If Ni is a descendant loop node then it has a child node Nl:←LOOP.
+
+Otherwise, for each clause C in P whose head is unifiable with Lj Ni has a child node Nl:Gl where Gl is the resolvent of C and Gi on Lj. If there are neither tabled answers nor clauses applicable to Ni then Ni is a failure leaf, marked by [formula].
+
+Let [formula] be a negative literal selected by R. If A is not ground then Ni is a flounder leaf, marked by [formula], else we consider the following cases:
+
+If TBA∈TP with TBA  →  comp = 1 and [formula], then Ni has only one child node Nk:Gk with Gk  =  ←L1,...,Lj - 1,Lj + 1,...,Ln.
+
+If TBA∈TP with TBA  →  comp = 1 and TBA  →  ans  =  {A}, then Ni is a failure leaf, marked by [formula].
+
+Otherwise, if the current SLTNF-tree or one of its ancestor SLTNF-trees is with a goal ←A at the root, Ni has only one child node Nk:Gk where if Ln  ≠  u* then Gk  =  ←L1,...,Lj - 1,Lj + 1,..., Ln,u* else Gk  =  ←L1,...,Lj - 1,Lj + 1,...,Ln.
+
+Otherwise, let TNr:←A be an (subsidiary) SLTNF-tree for [formula] via R. We have the following cases:
+
+If TNr:←A has a success leaf then Ni is a failure leaf, marked by [formula].
+
+If TNr:←A has no success leaf but a flounder leaf then Ni is a flounder leaf, marked by [formula].
+
+( Negation As Finite Failure) If all branches of TNr:←A end at either a failure or a loop leaf where for each loop leaf generated from a descendant loop subgoal V, no successful sub-derivation for its ancestor loop subgoal has a correct answer substitution θ such that Vθ is not in TP, then Ni has only one child node Nk:Gk with Gk  =  ←L1,...,Lj - 1,Lj + 1,...,Ln.
+
+Otherwise, Ni has only one child node Nk:Gk where if Ln  ≠  u* Gk  =  ←L1,...,Lj - 1,Lj + 1,..., Ln,u* else Gk  =  ←L1,...,Lj - 1,Lj + 1,...,Ln.
+
+Note that some commonly used concepts, such as derivations (for goals), sub-derivations (for subgoals), sub-trees (for subgoals), generalized trees, and correct answer substitutions, have the same meanings as in SLS-trees (see Section [\ref=sec2]).
+
+Positive loops are broken simply by disallowing descendant loop nodes to apply clauses in P for expansion (see case [\ref=l4d]), while negative loops are broken by substituting u* for looping negative subgoals (see case [\ref=l5c]). This guarantees that SLTNF-trees are finite for logic programs with the bounded-term-size property (see Definition [\ref=bounded-term-size] and Theorem [\ref=tree-finite]).
+
+Note that u* is only introduced to signify existence of subgoals whose truth values are temporarily non-determined because of occurrence of positive or negative loops. So keeping only one u* in a goal is enough for such a purpose. From case [\ref=l20] of Definition [\ref=SLTNF-tree] we see that goals with u* cannot lead to a success leaf. However, u* may well appear in a failure leaf since one of the other subgoals may fail regardless of what truth values the temporarily undefined subgoals would take. This achieves the effect of what a preferential computation rule [\cite=Ross92] is supposed to achieve, although our computation rule is not necessarily preferential.
+
+Observe that SLTNF-trees implement an Negation As Finite Failure (NAF) rule (see case [\ref=l5d3-1]): A ground subgoal [formula] fails if A succeeds, and succeeds if A finitely fails after exhausting all answers of the loop subgoals involved in evaluating A. This NAF rule is the same as that used in SLDNF-resolution [\cite=clark78] except that loop leaves are considered.
+
+The following example illustrates the process of constructing SLTNF-trees.
+
+Consider the following program and let G0  =  ←p(a,Y) be the top goal. P1: p(X,Y)←p(X,Z),e(Z,Y). Cp1 [formula] Cp2 e(a,b). Ce1 e(b,c) Ce2 r←s,r. Cr [formula] Cs Let [formula], and for convenience, let us choose the widely-used left-most computation rule (i.e. we always select the left-most subgoal from a goal). The generalized SLTNF-tree GT←p(a,Y) for [formula] is shown in Figure [\ref=fig2], which consists of three finite SLTNF-trees that are rooted at N0, N5 and N8, respectively. Note that two positive loops are cut at N1 and N11, respectively, and one negative loop is cut at N9.
+
+TN5:←r has only one branch, which ends at a loop leaf N12. There is no successful sub-derivation for the ancestor loop subgoal r at N5, so the NAF rule is applicable. Thus, [formula] at N4 succeeds, leading to a successful sub-derivation for p(a,Y) at N0 with a correct answer substitution {Y / b}.
+
+A logic program has the bounded-term-size property if there is a function f(n) such that whenever a top goal G0 has no argument whose term size exceeds n, then no subgoals and tabled answers in any generalized SLTNF-tree GTG0 have an argument whose term size exceeds f(n).
+
+The following result shows that the construction of SLTNF-trees is always terminating for logic programs with the bounded-term-size property.
+
+Let P be a logic program with the bounded-term-size property, G0 a top goal and R a computation rule. The generalized SLTNF-tree GTG0 for [formula] via R is finite.
+
+Proof: First note that GTG0 contains no negative loops (see case [\ref=l5c]). The bounded-term-size property guarantees that no term occurring on any path of GTG0 can have size greater than f(n), where n is a bound on the size of terms in the top goal G0. Assume, on the contrary, that GTG0 is infinite. Since the branching factor of GTG0 (i.e. the average number of children of all nodes in the tree) is bounded by the finite number of clauses in P, GTG0 either contains an infinite number of SLTNF-trees or has an infinite derivation within some SLTNF-tree. Note that P has only a finite number of predicate, function and constant symbols. If GTG0 contains an infinite number of SLTNF-trees, there must exist negative loops in GTG0, a contradiction. If GTG0 has an infinite derivation within some SLTNF-tree, some positive subgoal A0 selected by R must have infinitely many variant descendants A1,A2,...,Ai,... on the path such that the proof of A0 needs the proof of A1 that needs the proof of A2, and so on. That is, Ai is an ancestor loop subgoal of Aj for any 0  ≤  i < j. This contradicts the fact that any descendant loop subgoal in GTG0 has only one ancestor loop subgoal because a descendant loop subgoal cannot generate descendant loop subgoals since no clauses will be applied to it for expansion (see case [\ref=l4d] of Definition [\ref=SLTNF-tree]). [formula]
+
+Consider Figure [\ref=fig2] again. Observe that if we continued expanding N1 (like Global SLS-resolution) by applying Cp1 and Cp2, we would generate another correct answer substitution {Y / c} for G0. This indicates that applying loop cutting alone would result in incompleteness.
+
+We use answer iteration [\cite=shen2000] to derive all answers of loop subgoals. Here is the basic idea: We first build a generalized SLTNF-tree for [formula] with [formula] while collecting all new tabled answers (for all tabled subgoals) into NEW0. Then we build a new generalized SLTNF-tree for [formula] with [formula] while collecting all new tabled answers into NEW1. Such an iterative process continues until no new tabled answers are available.
+
+The key issue with answer iteration is answer completion, i.e, how to determine if the table of a subgoal is complete at some derivation stages. Careful reader may have noticed that we have already used a completion criterion for ground subgoals in defining the NAF rule (see case [\ref=l5d] of Definition [\ref=SLTNF-tree]). We now generalize this criterion to all subgoals.
+
+Let GTG0 be the generalized SLTNF-tree for [formula] and NEW contain all new tabled answers in GTG0. The following completion criteria hold.
+
+For a ground tabled positive subgoal A, [formula] is complete for A if TBA  →  ans  =  {A}.
+
+For any tabled positive subgoal A, [formula] is complete for A if there is a node Ni:Gi in GTG0, where A is the selected subgoal in Gi and let TA be the sub-SLTNF-tree for A at Ni, such that (1) TA has no temporarily undefined leaf, and (2) for each loop leaf in TA, the sub-SLTNF-tree for its ancestor loop subgoal V has neither temporarily undefined leaf nor success leaf with a correct answer substitution θ such that Vθ is not in TP.
+
+Proof: The first criterion is straightforward since A is ground. We now prove the second. Note that there are only two cases in which a tabled subgoal A may get new answers via iteration. The first is due to that some temporarily undefined subgoals in the current round would become successful or failed in the future rounds of iteration. This case is excluded by conditions (1) and (2). The second case is due to that some loop subgoals in TA in the current round would produce new answers in the future rounds of iteration. Such new answers are generated in an iterative way, i.e., in the current round descendant loop subgoals in TA consume only existing tabled answers in TP and help generate new answers (which are not in TP) for their ancestor loop subgoals. These new answers are then tabled (in NEW) for the descendant loop subgoals to consume in the next round. In this case, TA must contain at least one descendant loop subgoal V' such that the sub-SLTNF-tree for its ancestor loop subgoal V has a success leaf with a new correct answer substitution not included in TP (this new answer is not consumed by V' in the current round but will be consumed in the next round). Obviously, this case is excluded by condition (2). As a result, conditions (1) and (2) together imply that further iteration would generate no new answers for A. Therefore, TBA is complete for A after merging TP with the new tabled answers NEW in GTG0. [formula]
+
+Consider Figure [\ref=fig2]. We cannot apply Theorem [\ref=comp-thm] to determine the completeness of TBp(a,Y) since the ancestor loop subgoal p(a,Y) at N0 has a successful sub-derivation with an answer p(a,b) not in TP1. As we can see, applying this new answer to the descendant loop subgoal at N1 would generate another new answer p(a,c). The completeness of TBs is not determinable either, since both the two sub-SLTNF-trees for s (rooted at N6 and N8, respectively) contain a temporarily undefined leaf. However, by Theorem [\ref=comp-thm], TBr is complete.
+
+Let P be a logic program, G0  =  ←A a top goal with A an atom, and R a computation rule. Let [formula]. SLTNF-resolution evaluates G0 by calling the function SLTNF(P,G0,R,TP0), defined as follows. function SLTNF(P,G0,R,TPi) returns a table TBA {    Build a generalized SLTNF-tree GTiG0 for [formula] while collecting all new tabled answers into NEWi; [formula]; Check completeness of all tables in TPi + 1 and update their status; if [formula] or TBA  →  comp  =  1 then return TBA; return SLTNF(P,G0,R,TPi + 1); }
+
+First execute SLTNF(P1,G0,R,TP01) where [formula], G0  =  ←p(a,Y) and R is the left-most computation rule. The procedure builds a generalized SLTNF-tree for [formula] as shown in Figure [\ref=fig2]. It also collects the following new tabled answer into NEW0: p(a,b) for TBp(a,Y). Moreover, it has TBr completed by setting TBr  →  comp to 1 (note that [formula]).
+
+Next execute SLTNF(P1,G0,R,TP11) where [formula]. It builds a generalized SLTNF-tree GT1←p(a,Y) for [formula] as shown in Figure [\ref=fig3], and collects the following new tabled answer into NEW1: p(a,c) for TBp(a,Y).
+
+Finally execute SLTNF(P1,G0,R,TP21) where [formula]. The procedure builds a generalized SLTNF-tree GT2←p(a,Y) for [formula] in which no new tabled answer is produced. Therefore, it returns with two tabled answers, p(a,b) and p(a,c), to the top goal G0.
+
+Let P be a logic program with the bounded-term-size property, G0 a top goal and R a computation rule. [formula] terminates in finite time.
+
+Proof: Let n be the maximum size of arguments in any top goal. Since P has the bounded-term-size property, neither subgoals nor tabled answers have arguments whose size exceeds f(n) for some function f. Let s = f(n). Since P has a finite number of predicate symbols, the number of distinct subgoals (up to variable renaming) occurring in all GTiG0s is bounded by a finite number N(s). Therefore, SLTNF-resolution performs at most N(s) iterations (i.e. generates at most N(s) generalized SLTNF-trees). By Theorem [\ref=tree-finite], each iteration terminates in finite time, hence SLTNF-resolution terminates in finite time. [formula]
+
+Let P be a logic program with the bounded-term-size property, A an atom, and G0  =  ←A a top goal with A a non-floundering query. Let TBA be the tabled answers returned from [formula], and let TN0:G0 be the SLS-tree for [formula] via R.
+
+Aθ is in TBA if and only if there is a correct answer substitution θ for G0 in TN0:G0.
+
+TBA  →  comp  =  1 and [formula] if and only if TN0:G0 is failed.
+
+Proof: We first prove that SLS-trees with negative loops can be transformed into equivalent SLS-trees without negative loops. Let TNi:←B be an SLS-tree with a descendant SLS-tree TNj:←B. Obviously, this is a negative loop. Observe that B at Ni being successful or failed must be independent of the loop SLS-tree TNj:←B, for otherwise the truth value of B would depend on [formula] so that B is undefined. This strongly suggests that using a temporarily undefined value u* as the truth value of TNj:←B does not change the answer of B at Ni. In other words, any SLS-trees with negative loops can be transformed into equivalent SLS-trees where all descendant loop SLS-trees are assumed to return a temporarily undefined value u*.
+
+Let TiN0:G0 and GTiG0 be respectively the SLTNF-tree and the generalized SLTNF-tree for [formula], where [formula] and for each i  ≥  0, [formula] where NEWi contains all new tabled answers collected from GTiG0. We prove this theorem by showing that answers over SLS-derivations can be extracted in an iterative way and such iterations are the same as those of SLTNF-resolution. Therefore, both resolutions extract the same set of answers to G0. We distinguish between three cases:
+
+For any answer Aθ that is generated without going through any loops, we must have the same successful derivations for A in T0N0:G0 as in TN0:G0.
+
+Let us consider answers to G0 that are generated without going through any negative loops. Without loss of generality, assume the SLS-derivations for the answers involve positive loops as shown in Figure [\ref=fig4], where for any j > k  ≥  0, Bk is an ancestor loop subgoal of Bj and each Tk together with the branch leading to Nik + 1 is a sub-SLS-tree for Bk at Nik. Obviously, all Tks are identical up to variable renaming and thus they have the same set SB0 of correct answer substitutions for Bk (up to variable renaming).
+
+Observe that besides SB0, the other possible correct answer substitutions for Bk must be generated via the infinite loops in an iterative way: For any l > 0, the correct answer substitutions for Bl,El1,...,Eln at Nil combined with δl, when restricted to the variables in Bl - 1, are also correct answer substitutions for Bl - 1 at Nil - 1. These substitutions are obtained by applying each correct answer substitution θl for Bl to El1,...,Eln and then evaluating (El1,...,Eln)θl. Since P has the bounded-term-size property, no correct answer substitution requires performing an infinite number of such iterations. That is, there must exist a depth bound d such that any correct answer substitution θ for B0 is in the following closure (fixpoint):
+
+The initial set of correct answer substitutions is Sd  =  SB0.
+
+For each 0 < l  ≤  d, the set of correct answer substitutions for Bl - 1 at Nil - 1 is [formula] and θ  =  δlθlα where α is a correct answer substitution for (El1,...,Eln)θl}.
+
+Apparently, SLTNF-resolution performs the same iterations by making use of the loop cutting and tabling mechanisms: In the beginning, TBB0 is empty. The loop is cut at Ni1, so TBB0  =  Sd  =  SB0 after T0N0:G0 is generated (note B0 and Bk (resp., T0 and Tk) are variants). Then for the l-th iteration (0 < l  ≤  d) TBB0 obtains new answers by applying the already tabled answers to B1 at Ni1 in TlN0:G0; i.e., TBB0  =  Sl - 1. As a result, SLS-resolution and SLTNF-resolution derive the same set of correct answer substitutions for all subgoals involving no negative loops.
+
+Let us now consider answers to G0 that are generated involving negative loops. As we discussed earlier, loop descendant SLS-trees TNi:←B can be removed by assuming they return a temporarily undefined value u*. Then we get equivalent SLS-trees without any negative loops. By point [\ref=pr-2] above, we can exhaust all answers to G0 from these (negative loop free) SLS-trees in an iterative way, as SLTNF-resolution does. If no single answer to A in G0 is generated after the iteration, we have two cases. The first is that no SLS-derivation for A at N0 ends at a leaf with u*. This means that the truth value of A does not depend on any negative loop subgoal, so TN0:G0 is failed and thus TBA  →  comp  =  1 and [formula]. The second case is that some SLS-derivation for A at N0 ends at a leaf with u*. This means that the truth value of A recursively depends on some negative loop subgoal, so A is undefined. In this case, SLTNF-resolution stops with TBA  →  comp  =  0 and [formula]. [formula]
+
+Since Global SLS-resolution is sound and complete w.r.t. the well-founded semantics (see Theorem [\ref=sound-comp]), we have the following immediate corollary.
+
+Let P be a logic program, R a computation rule, and G0←Q be a top goal with Q a non-floundering query under R. SLTNF-resolution is sound and complete w.r.t. the well-founded semantics.
+
+Related Work
+
+Existing procedural semantics for the well-founded model can be divided into two groups in terms of the way they make derivations: (1) bottom-up approaches, such as the alternating fixpoint approach [\cite=VG89-1] [\cite=lt2001], the magic sets approach [\cite=kem95] [\cite=mor96] and the transformation-based bottom-up approach [\cite=brass98] [\cite=brass2001] [\cite=brass01], and (2) top-down approaches. Our method belongs to the second group. Existing top-down methods can be further divided into two groups: (1) non-tabling methods, such as Global SLS-resolution, and (2) tabling methods. Our method is one with tabling. Several tabling methods for positive logic programs have been proposed, such as OLDT-resolution [\cite=TS86], TP-resolution [\cite=shen2000] [\cite=zhou2000] and the DRA tabling mechanism [\cite=guo2001]. However, to the best of our knowledge, only SLG-resolution and SLT-resolution use tabling to compute the well-founded semantics for general logic programs.
+
+SLG-resolution is the state-of-the-art tabling mechanism. It is based on program transformations, instead of on standard tree-based formulations like SLDNF- or Global SLS-resolution. Starting from the predicates of the top goal, it transforms (instantiates) a set of clauses, called a system, into another system based on six basic transformation rules. Such a system corresponds to a forest of trees with each tree rooted at a tabled subgoal. A special class of literals, called delaying literals, is used to represent and handle temporarily undefined negative literals. Negative loops are identified by maintaining an additional dependency graph of subgoals [\cite=CSW95] [\cite=chen96]. In contrast, SLTNF-resolution generates an SLTNF-tree for the top goal in which the flow of the query evaluation is naturally depicted by the ordered expansions of tree nodes. Such a tree-style formulation is quite easy for users to understand and keep track of the computation. It can also be implemented efficiently using a simple stack-based memory structure. The disadvantage of SLTNF-resolution is that it is a little more costly in time than SLG-resolution due to the use of answer iteration in exchange for the linearity of derivations.
+
+SLT-resolution is a tabling mechanism with the linearity property. Like SLTNF-resolution, it expands tree nodes by first applying tabled answers and then applying clauses. It also uses answer iteration to derive missing answers caused by loop cuttings. However, it is different from SLTNF-resolution both in loop handling and in answer completion (note that loop handling and answer completion are two key components of a tabling system).
+
+Recall that SLT-resolution defines positive and negative loops based on the same ancestor-descendant relation: Let A be a selected positive subgoal and B be a subgoal produced by applying a clause to A, then B is a descendant subgoal of A and inherits all ancester subgoals of A; let [formula] be a selected ground subgoal with TNr:←A being its subsidiary SLT-tree, then the subgoal A at Nr inherits all ancester subgoals of [formula]. A (positive or negative) loop occurs when a selected subgoal has an ancestor loop subgoal. Observe that the ancestor and descendant subgoals may be in different SLT-trees.
+
+When a positive loop occurs, SLTNF-resolution will apply no clauses to the descendant loop subgoal for node expansion, which guarantees that any ancestor loop subgoal has just one descendant loop subgoal. However, SLT-resolution will continue expanding the descendant loop subgoal by applying those clauses that have not yet been applied by any of its ancestor loop subgoals. As an illustration, in Figure [\ref=fig2], SLT-resolution will apply Cp2 to expand N1, leading to a child node N1' with a goal [formula]. Observe that if the subgoal e(a,Z) at N1' were p(a,Z), another loop would occur between N0 and N1'. This suggests that in SLT-resolution, an ancestor loop subgoal may have several descendant loop subgoals. Due to this, SLT-resolution is more complicated and costly than SLTNF-resolution in handling positive loops.
+
+SLT-resolution is also more costly than SLTNF-resolution in handling negative loops. It checks negative loops in the same way as positive loops by comparing a selected subgoal with all of its ancester subgoals across all of its ancestor SLT-trees. However, in SLTNF-resolution a negative loop is checked simply by comparing a selected ground negative subgoal with the root goals of its ancestor SLTNF-trees. Recall that a negative loop occurs if a negative ground subgoal [formula] is selected such that the root of the current SLTNF-tree or one of its ancestor SLTNF-trees is with a goal ←A.
+
+SLT-resolution provides no mechanism for answer completion except that when a generalized SLT-tree GTiG0 is generated which contains no new tabled answers, it evaluates each negative ground subgoal [formula] in GTiG0 in a way such that (1) [formula] fails if A is a tabled answer, and (2) [formula] succeeds if (i) all branches of its subsidiary SLT-tree TNr:←A end with a failure leaf and (ii) for each loop subgoal in TNr:←A, all branches of the sub-SLT-trees for its ancestor loop subgoals end with a failure leaf. Not only is this process complicated, it is also quite inefficient since the evaluation of [formula] may involve several ancestor SLT-trees. In contrast, SLTNF-resolution provides two criteria for completing answers of both negative and positive subgoals. On the one hand, the criteria are applied during the construction of generalized SLT-trees so that redundant derivations can be pruned as early as possible. On the other hand, checking the completion of a subgoal involves only one SLTNF-tree.
+
+Conclusions and Further Work
+
+Global SLS-resolution and SLG-resolution represent two typical styles in top-down computing the well-founded semantics; the former emphasizes the linearity of derivations as SLDNF-resolution does while the latter focuses on making full use of tabling to resolve loops and redundant computations. SLTNF-resolution obtains the advantages of the two methods by enhancing Global SLS-resolution with loop cutting and tabling mechanisms. It seems that the existing linear tabling mechanism SLT-resolution has similar advantages, but SLTNF-resolution is simpler and more efficient due to its distinct mechanisms for loop handling and answer completion.
+
+Due to its SLDNF-tree like structure, SLTNF-resolution can be implemented over a Prolog abstract machine such as WAM [\cite=WAM83] or ATOAM [\cite=ZHOU96]. In particular, it can be implemented over existing linear tabling systems for positive logic programs such as [\cite=zhou2000] [\cite=zhou2003] [\cite=zhou2004], simply by adding two more mechanisms, one for identifying negative loops and the other for checking answer completion of tabled subgoals. We are currently working on the implementation. Experimental analysis of SLTNF-resolution will then be reported in the near future.
+
+Acknowledgment
+
+We thank the anonymous referees for their helpful comments. Yi-Dong Shen is supported in part by Chinese National Natural Science Foundation and Trans-Century Training Programme Foundation for the Talents by the Chinese Ministry of Education.

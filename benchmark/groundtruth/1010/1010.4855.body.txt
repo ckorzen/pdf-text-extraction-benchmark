@@ -1,0 +1,225 @@
+Towards a communication-theoretic understanding of system-level power consumption
+
+Results in this work have been presented in part at ISIT 2008 [\cite=greencodes] and ISTC 2010 [\cite=ISTC10Paper]. This work is the outcome of many discussions with students and faculty at the Berkeley Wireless Research Center and the Wireless Foundations. Those with Elad Alon, Bora Nikolic, Hari Palaiyanur, Jan Rabaey and Matt Wiener are especially acknowledged. We are also thankful for comments on the paper draft by Sudeep Kamath, Sameer Pawar and Salim El Rouayheb. This work is supported by NSF grants CCF-0917212 and CNS-0403427.
+
+Introduction
+
+The first transistor started the field of modern circuits [\cite=Transistor] around the same time as the foundations of modern communication theory were being laid [\cite=ShannonOriginalPaper]. These twin discoveries led the world into the digital revolution we witness today. Traditionally, the development of wireless communication has followed a division of labor: the design of techniques (e.g. error-correcting codes) that minimize transmit power was complemented by the development of power and area-efficient circuit-infrastructure that could process signals at the transmitter and the receiver. This division of labor was justified at the time: since the distances of communication were large for most practical applications (e.g. deep-space communication [\cite=Massey92DeepSpace] was very influential in the development of the theory), transmit power dominated the processing power consumed in circuits, and therefore received most of the theoretical attention.
+
+However, two developments are upsetting the justification for this division of labor. The first is the development of capacity-approaching sparse-graph codes with low decoding complexity. Because the decoding algorithms for sparse-graph codes have an efficient and intuitive parallel implementation, circuit engineers can design codes and decoding architectures simultaneously (e.g. "architecture-aware" LDPC codes in [\cite=MansourShanbhag]) so that the decoders are easy to implement and still promise good performance.
+
+Perhaps more significant is the second development: battery-powered devices that communicate at short distances (e.g. bluetooth, wireless sync, personal area networks, etc.). As Fig. [\ref=fig:transmitpower] illustrates, for distances smaller than 10 meters, transmit power is often comparable to, or much smaller than, the power required by most state-of-the-art decoders (see example implementations in [\cite=zhengyaJournal] [\cite=zhengyaThesis]). Indeed, uncoded transmission is commonly used (e.g. in Wireless LANs [\cite=hanzo], 60 GHz band [\cite=marcu], etc.) to reduce power consumed in processing despite increased transmit power. As shown in Fig. [\ref=fig:interfaces], a code interfaces to the physical world not only in the channel, but also in the encoding/decoding implementation. Both of these interfaces consume power. Just as we have channel models that help us understand transmit power, we need models of decoding implementation in order to understand decoding power. A corresponding total power extension of communication theory that unifies transmit and processing power is required to guide such implementation efforts. Without such a theory, We would not even know, for example, whether approaching traditional Shannon-capacity is still a worthy goal to pursue.
+
+The difficulty in developing a unified theory lies in developing good models for power consumed in processing. How do we abstract the power consumed by various possible processing algorithms, circuit designs, and architectures? As a first step, the authors in [\cite=goldsmithbahai] [\cite=massaadJournal] model the transmitter and receivers as black-boxes that consume a fixed amount of energy per unit time powered 'on'. Whether the problem is one of constellation design, as considered by Cui, Goldsmith and Bahai [\cite=goldsmithbahai], or of coded transmissions, as considered by Massaad, Medard and Zheng [\cite=massaadJournal], the message is the same: since keeping systems powered 'on' consumes processing energy, transmissions should be "bursty" -- both receiver and transmitter are shut 'off' for some time -- in order to reduce processing power. However, the power required in transmission increases exponentially with burstiness (because capacity scales logarithmically in power), so the transmission must not be too bursty. The existence of an optimal non-zero level of burstiness is surprising: traditional transmit power analysis [\cite=VerduCost] for a non-fading channel predicts that the transmission rate should be made as small as possible, and the signals least bursty, for minimum energy consumption.
+
+Because it lumps together all of the power used in processing the signal, the black-box model does not yield much insight into code choice or decoder design. It has been observed [\cite=marcu] that for high data rate communication, the power required for decoding tends to dominate the other sinks of power (e.g. ADC, DAC, encoding, modulation/demodulation, amplification, etc.) in processing at the transmitter and the receiver. As a first-order approximation, the theory of system-power minimization can therefore focus on just decoding power. Still, the existence of many different codes and multiple decoding algorithms for each code complicates the modeling problem. Modern coding theory ensures that this complication will only grow as it continues to be enriched by increasingly practical codes (e.g. turbo codes, LDPC codes, IRA codes, ARA codes, etc. [\cite=ModernCodingTheory]) that approach capacity, have low-decoding complexity, and have been implemented with various decoding architectures (see [\cite=zhengyaThesis] for some of the possible architectures).
+
+One approach to deal with the plethora of codes and decoding architectures is to perform an empirical study of existing codes and decoders. To the best of our knowledge, the work of Howard et al [\cite=HowardSchlegel] is the first to attempt a comprehensive survey of coding/decoding strategies from a total (transmit and decoding) power perspective. They use empirical power-consumption numbers for certain chosen code/decoder implementations at moderately low probabilities of error. They observe that at sufficiently small distances (depending on the choice of the code and the decoding), the increase in power consumption due to decoding is larger than the savings in transmit power because of coding. This provides a justification for the use of uncoded transmission in cases such as [\cite=marcu].
+
+This empirical approach breaks down when the application at hand desires a different error probability, or operates in an environment with different path loss. Do the same codes continue to be the most power-efficient? Howard et al [\cite=HowardSchlegel] chart out the performance of a few families of codes at different error probabilities. However, even if all existing possibilities could be listed for the designer, empirical studies cannot rule out the possibility of better codes yet to be discovered. Furthermore, short-distance communication need not happen in isolation. Other communication links in the same frequency band will also complicate matters. Just as without Shannon-theory, empirical approaches would have been insufficient on their own for designing power-efficient long-distance communication systems, a theoretical framework is required to guide the code/decoder design to minimize total power consumption in the short-range context.
+
+In this paper we take the first steps towards such a theoretical foundation. We examine the problem from two perspectives: the simplest case of an isolated point-to-point link, and a collection of non-cooperating links transmitting simultaneously. Our model for the decoding process is based on the observation that practical decoders for modern codes are all extremely parallelized: they are all based on some form of message-passing decoding (for instance, in belief-propagation [\cite=urbankecapacity], likelihood values are passed as messages). Message-passing architectures have been abstracted in the VLSI-theory literature [\cite=lengauer] (starting with the pioneering work of Thompson [\cite=thompson]) by a model that closely resembles message-passing decoding. As shown in Fig. [\ref=fig:VLSIModel], the architecture has Processing Elements (PEs) that perform the desired computation by passing messages to each other to access information computed by other PEs and/or stored in the register of another PE.
+
+Adapting this model to parallelized message-passing decoding, in a companion paper [\cite=ComplexityITPaper] we derive information-theoretic lower bounds on the neighborhood size of a bit for decoding any code to attain a specified error probability while operating at a given gap from capacity. The basic idea is simple: the "visible universe" for decoding any bit in message-passing decoding is the set of nodes it could have communicated with directly or indirectly, i.e. its decoding neighborhood. "Sphere-packing" bounds in traditional information theory [\cite=BlahutHypothesis] [\cite=SahaiDelayBlocklength] are lower bounds on error-probability given the entire block. However, if the visible universe for a bit is smaller, the error probability should decrease with the size of the visible universe, and not the entire block. The "local" sphere-packing derivation in [\cite=ComplexityITPaper] formalizes this idea.
+
+In Section [\ref=sec:isolated], we focus on the case of an isolated point-to-point link. In Section [\ref=sec:vlsi], we adapt Thompson's model to a model of decoder power consumption. In Section [\ref=sec:lowbound], by making use of the connectivity constraint in the VLSI model of decoding, we translate our bounds on required neighborhood size in [\cite=ComplexityITPaper] to bounds on the required number of iterations. Although bounds on iterations have been derived by Sason and Wiechman [\cite=sason], their bounds hold only for specific code families and specific decoding algorithm (belief-propagation). Thus conceptually, the bounds of [\cite=sason] fall between our completely code-and-decoding-algorithm-agnostic results and the completely empirical results of Howard et al [\cite=HowardSchlegel].
+
+Using our model of power consumption from Section [\ref=sec:vlsi] and the bounds on the number of iterations from Section [\ref=sec:lowbound], we obtain lower bounds on decoding power consumption and total power consumption. Using these bounds, we show that the promise of Shannon-waterfall curves (see Fig. [\ref=fig:waterfall1]) -- that the transmit power can remain bounded even as the error probability converges to zero -- does not extend to total power consumption. In contrast, our "waterslide" curves show that the total power must diverge to infinity as the error probability falls to zero. Further, there is a tradeoff between transmit power and decoding power, and the transmit power must therefore be strictly larger than the Shannon limit in order to keep the total power consumption small.
+
+How good are these power bounds? In Section [\ref=sec:ldpc], we show that regular LDPCs (and not their capacity-achieving counterparts) attain within a constant factor of the optimal total power even as 〈Pe〉  →  0. Even so, the gap between the power they consume and our lower bounds is large enough to warrant a deeper look into the code design. Since regular codes cannot achieve capacity (under belief-propagation decoding) [\cite=burshteinBP], and hence consume relatively large transmit power, redesigning of codes is required for short distance applications.
+
+While point-to-point communication is a good starting point, in practical situations, short-distance links often exist in the company of other such links (for instance, the devices in license-free ISM bands are known to cause significant interference to each other [\cite=ISMInterference]). In the isolated link case, there are two ways of reducing the error-probability: increase the number of iterations at the decoder (thereby increasing the required decoding power), or simply increasing the transmit power and improving the SNR. What happens when a collection of point-to-point links communicate simultaneously in the same geographic area? An increase in transmit power is no longer sufficient because the transmit power of the interfering transmitters presumably increases as well, saturating the signal to interference and noise ratio (SINR). How can we increase SINR in this case? One way is to separate the transmitters by larger distances so that the collective interference is reduced. This is what MAC-protocols do, but it comes at the cost of a reduced density of point-to-point links. Is there a better way, and if so, how well can we do? To investigate this, we introduce a simplistic model in Section [\ref=sec:collectionmodel]. Assuming that the interference is treated as Gaussian noise, we observe that coding has an important benefit in this case: it reduces the required transmit power thereby allowing the transmitters to operate closer to each other, increasing the supportable density of transmitter-receiver pairs. Bringing decoding power into the picture, in Section [\ref=sec:largepower] and [\ref=sec:finite] we propose an approach to investigate which code/decoder should be used, and whether we should use any coding at all. Within this context, the importance of the twin goals of coding theory shows up naturally: a code's gap from capacity limits the maximum link density that can be supported, while high decoding complexity (and consequently high decoding power) prevents the code from supporting good densities at small total power. Furthermore, even the coarse bounds explored here show that when the target link density is not maximal, it is best to operate codes away from capacity to minimize total power consumption.
+
+An isolated point-to-point link
+
+Models, definitions and problem formulation for an isolated point-to-point link
+
+A VLSI model for decoding
+
+A model for synchronous VLSI, called the "VLSI model of computation," was introduced in [\cite=thompson] [\cite=thompsonthesis] by Thompson. An example is shown in Fig. [\ref=fig:VLSIModel]. The model contains registers, each of which has an accompanying processor that can perform read/write operations on the register and other computational tasks. A register-processor pair is called a Processing Element (PE) [\cite=thompson] [\cite=lengauer]. The PEs are connected to each other by a set of wires. At each iteration -- a clock-cycle or a multiple thereof -- each PE communicates (sends and/or receives messages) with the PEs it is connected to. Thompson's goal was to be able to compare various architectures and algorithms against the best possible. This model has been used to explore the implementation and time complexity of the Discrete Fourier Transform [\cite=thompson], sorting [\cite=cole88], multiplication [\cite=sinhamultiply] and computing boolean functions [\cite=kramerboolean]. Universal VLSI models that can simulate any other VLSI implementation at some additional area and time cost have also been studied [\cite=BhattUniversal].
+
+We adapt the VLSI model of computation to the problem of decoding an error correcting code. The PEs are either 'message' PEs that store the decoded bits after decoding, 'channel output' PEs that store the channel outputs, 'helper' PEs that act as intermediaries of processing by improving connectivity (see Fig. [\ref=fig:VLSIModel]), or any combination thereof. We further assume that each PE is connected to at most ζ other PEs, an implementation constraint that arises from practical limitations on wire-density in microchips.
+
+To obtain lower bounds on power consumption, we first provide lower bounds on the time-complexity (i.e. the number of iterations) by assuming a completely parallel decoding architecture. In practice, the required chip-area is often reduced by making the same PE act as two or more different PEs (of the same kind) in alternating iterations [\cite=zhengyaJournal]. In this paper, for simplicity, we will ignore this possibility and pretend that a fully parallel implementation is used.
+
+As was observed by Thompson [\cite=thompson], one can abstract the decoder implementation as a decoder-connectivity graph. Each node in the graph represents a PE, and each wire connecting two PEs is an edge connecting the two nodes that represent the respective PEs. The structure of the resulting decoding graph imposes limitations on the information that can be passed between the PEs. We observe that this decoding overlay graph may not be the same as the constraint graph that conventionally [\cite=ModernCodingTheory] defines a sparse-graph code. In fact, parallelized graphical decoding algorithms have been developed for many codes not based on sparse-graphs, for instance Reed-Muller codes and polar codes [\cite=arikanBP]. To maintain greatest generality, we make no assumptions on the code structure.
+
+VLSI model of decoding power consumption
+
+For simplicity, we assume that each PE consumes a fixed Enode joules of energy per iteration, irrespective of the decoding throughput Rdec. We also assume that the Rdec is the same as the data-rate Rdata across the channel, measured in information-bits per second. The data-rate in bits per channel-use is denoted by Rch.
+
+The power received at distance x meters is given by
+
+[formula]
+
+where [formula] is the wavelength of transmission, c = 3  ×  108 meters per second is the speed of light, fc is the center frequency in Hertz, and α is the path-loss exponent, which is larger than 2 in practical situations. As a reality-check, we limit the maximum received power PR by the transmit power PT. Let PT  =  ξTPR be the actual power used in transmission, where PR denotes the received power, and [formula] represents the path-loss between the transmitter and the receiver. Let let PD be the power consumed in the operation of the decoder. In this paper, we ignore the power consumed in encoding in the hope that it is much smaller than the decoding power. In the spirit of [\cite=Vasudevan], we assume that the goal of the system designer is to minimize a weighted combination Ptotal  =  ξTPR  +  ξDPD where the vector [formula] has strictly positive elements. The weights can be different depending on the application. ξT is tied to the distance between the transmitter and receiver as well as the propagation environment. To understand why we include the weight ξD, consider the example of an RFID application. The energy used by the tag is also supplied wirelessly by the reader. If the tag is the decoder, then it is natural to make ξD even larger than ξT in order to account for the inefficiency of the power transfer from the reader to the tag. One-to-many transmission of multicast data is another example of an application that can increase ξD. The ξD in that case should be increased in proportion to the number of receivers that are listening to the message.
+
+For any rate Rdata and average probability of bit-error 〈Pe〉  >  0, we assume that the system designer will minimize the weighted combination above to get an optimized [formula] as well as constituent [formula] and [formula].
+
+Definitions and Notation
+
+We use the conventional information-theoretic model (see e.g. [\cite=Gallager]) of fixed-rate discrete-time communication with k total information bits, m channel uses, and the rate of [formula] bits per channel use. As is traditional, the rate Rch (bits/channel-use) is held constant while k and m are allowed to become asymptotically large. 〈Pe,i〉 is the average probability of bit-error of the i-th message bit and [formula] is used to denote the overall average probability of bit-error. No restrictions are assumed on the codebook aside from the obvious requirements imposed by the channel-input alphabet.
+
+The neighborhood size ni for the i-th message bit Bi, after l decoding iterations, is the number of channel output nodes that the message node can receive messages from (directly or relayed; see Fig. [\ref=fig:decodingnbd]). The maximum neighborhood size, denoted by n, is the maximum of the neighborhood sizes over all message nodes.
+
+Two channels are considered in this paper. The first is an AWGN channel with complex Gaussian thermal noise of noise-variance σ20 = kT per complex-sample, where k is the Boltzmann constant, T = 300 Kelvin is the room-temperature, and Wused is the bandwidth being used. The second is an AWGN channel where the transmitter uses QPSK symbols and the receiver performs a hard decision on the I and Q channel outputs before decoding. The resulting channel has two parallel Binary Symmetric Channels (BSCs) of crossover probability governed by the transmit power relative to the thermal noise.
+
+Lower bounds on the number of decoding iterations and decoding power
+
+In this section, we provide lower bounds on the number of iterations and the required decoding power in the VLSI model of decoding for decoding any code given the rate Rch and the desired error probability 〈Pe〉. These bounds reveal that the decoding neighborhoods must grow unboundedly as the system tries to approach capacity. Since the size of decoding neighborhoods is directly related to the number of iterations, these bounds also yield bounds on the number of iterations, and hence also on the decoding power consumption and total power consumption. The total power consumption bounds are then optimized numerically to obtain plots of the optimizing transmit power and the total power as the average probability of bit-error goes to zero. Our bounds predict that while the optimizing transmit power can stay bounded in this limit, the decoding power must diverge to infinity.
+
+Lower bounds on the probability of error as a function of maximum neighborhood size
+
+This section provides lower bounds on 〈Pe〉 error probability as a function of the maximum neighborhood size n. These bounds build on the "sphere-packing" analysis for error-probabilities of block-codes as a function of their blocklength [\cite=BlahutHypothesis]. In message-passing decoding, the visible universe for a message-node is not the entire block, but just the decoding neighborhood (see Fig. [\ref=fig:decodingnbd]).
+
+Because of space-limitations, rigorous derivations of these bounds appear in a companion paper [\cite=ComplexityITPaper]. The intuition behind these bounds is as follows. Analogous to "sphere-packing" analysis for blocklength [\cite=BlahutHypothesis], we first show that the average probability of error for any code must be significant if the channel behaves atypically in a manner that the effective capacity of the resulting atypical channel falls below the target rate. We then observe that for a bit to be decoded in error, such atypical behavior is not required for the entire block, but just the visible universe, i.e. the decoding neighborhood of the bit [\cite=grover]. Since the probability of this atypical behavior falls at best exponentially with the neighborhood size, so does the error probability of the bit. The precise statements of the bounds now follow.
+
+Consider a BSC with crossover probability [formula]. Let n be the maximum size of the decoding neighborhood of any individual message bit. The following lower bound holds on the average probability of bit error.
+
+[formula]
+
+where [formula] is the binary entropy function, [formula] is the KL-divergence, and [formula], where Cbsc(g)  =  1  -  hb(g) and [formula]where [formula].
+
+For the AWGN channel and the decoder model in Section [\ref=sec:vlsi], let n be the maximum size of the decoding neighborhood of any individual message bit. The following lower bound holds on the average probability of bit-error.
+
+[formula]
+
+where δawgn(σ2G)  =  1 - Cawgn(σ2G) / Rch, the capacity [formula], and the KL divergence [formula].
+
+Observe that the right-hand sides of [\eqref=eq:peip] and [\eqref=eq:lbnawgn] are monotonically decreasing in the maximum neighborhood size n. For a specified bit-error probability 〈Pe〉, the equations can thus be solved numerically to obtain lower bounds on n. These bounds are then used to obtain lower bounds on the number of iterations. Numerical evaluations are in Section [\ref=sec:joint].
+
+We can get a sense of the qualitative behavior of these bounds by considering the limit 〈Pe〉  →  0, for which n must diverge to infinity. Taking [formula] on both sides of [\eqref=eq:lbnawgn], for small 〈Pe〉, the term [formula] dominates the other terms in the RHS. Further, σ2G can be taken close to σ * G2 that satisfies Cawgn(σ * G2) = Rch. The other two terms decrease to zero relatively slowly, yielding [\cite=ComplexityITPaper]
+
+[formula]
+
+for the AWGN channel. Similarly, for the BSC we get,
+
+[formula]
+
+It is well known (see, for instance, [\cite=Gallager]) that the divergence terms [formula] and [formula] behave like K(C - Rch)2 in the limit of low error probability, where C is the capacity of the underlying channel, and K is a constant that can depend on the channel and is closely related to the "channel dispersion" [\cite=PolyanskiyDispersion]. The neighborhood size, therefore, must diverge to infinity as the error probability converges to zero or the rate approaches capacity.
+
+Joint optimization of the weighted total power
+
+Let the number of decoding iterations be denoted by l. The number of computational nodes can be lower bounded by m, the number of received channel outputs. Since each node consumes Enode joules of energy in each iteration, the decoding energy ED is lower bounded by
+
+[formula]
+
+While sphere-packing tools allow us to investigate the impact of random channel-fluctuations, there is no channel in encoding. Therefore, the sphere-packing based lower bound techniques do not seem to apply directly. Further, empirical evidence suggests that it is significantly smaller than the decoding power [\cite=marcu]. Thus we assume that encoding is "free". This results in the following lower bound on the weighted total power
+
+[formula]
+
+where [formula] is the time consumed in decoding. Thus,
+
+[formula]
+
+We now need to lower bound the number of iterations l. This bound is derived by understanding how fast the visible universe for each bit can increase with the number of iterations. After the first iteration, each node has communicated with at most ζ other neighbors. In each subsequent iteration, each neighbor communicates with at most ζ - 1 new neighbors (see Fig. [\ref=fig:decodingnbd] for an illustration). The actual number of neighbors may be smaller because a) each node may not have ζ neighbors, b) each PE may not store a distinct channel output, and c) there might be cycles (and hence repetition of nodes) in the decoding neighborhoods. Thus, for l  ≥  1 and ζ > 2,
+
+[formula]
+
+Using [\eqref=eq:totalpower2], and observing that l  ≥  0,
+
+[formula]
+
+Alternatively, when ζ = 2, n  ≤  2l + 1, and thus [formula]. For numerical results in this paper, we will assume that ζ = 4.
+
+The actual maximum neighborhood size n depends on the coding/decoding technique and on PT. However, it can be lower bounded for any code and for a specified PT by plugging the desired 〈Pe〉 and PT into Theorems [\ref=thm:basicBSCbound] and [\ref=thm:basicAWGNbound]. For a fixed transmit power (and hence a fixed gap from capacity), using [\eqref=eq:approx] the error probability falls at most exponentially in the maximum neighborhood size. Since the neighborhood size can grow at best exponentially in the number of iterations, these bounds show that the error probability can fall at best doubly-exponentially in the number of iterations. Because decoding power scales linearly with the number of iterations under our model of Section [\ref=sec:vlsi], the decoding power must scale at least doubly-logarithmically with the error-probability.
+
+Numerical evaluation
+
+For numerical evaluation, we assume fc = 60 GHz, W = 3 GHz, the rate Rdata = 1.5 Gbps, ξD = 1, path-loss exponent α = 3, and the maximum connectivity ζ = 4. Figures [\ref=fig:waterslidebsc], [\ref=fig:waterslidebscvarious] and [\ref=fig:waterslideawgn] show the total power waterslide curves for fixed technology parameters ξT, ζ, and ξD (ξD is assumed to be 1 in all our curves). The plotted scale is chosen to clearly illustrate the double-exponential relationship between decoding power and probability of error.
+
+From [\eqref=eq:approx] and [\eqref=eq:approx2], for a given rate Rch, if the transmit power PT is extremely close to that required for channel capacity to be Rch, then the neighborhood size n, and so also the number of iterations l, would have to be large. From [\eqref=eq:totalpower2], a large number of iterations require high decoding power. Therefore, the optimized encoder should transmit at a power larger than that predicted by the Shannon limit in order to decrease the decoding power. It is illustrated in Fig. [\ref=fig:waterslideawgn] and Fig. [\ref=fig:waterslidebscvarious] that this optimizing transmit power is bounded as 〈Pe〉  →  0. Thus, from [\eqref=eq:peip], as 〈Pe〉  →  0, the required neighborhood size n  →    ∞  . This implies that for any fixed value of transmit power, the power expended at the decoder (and hence the total power) must diverge to infinity as the probability of error converges to zero.
+
+Why is the optimizing transmit power bounded? To get intuition into this, notice that at low error probabilities,
+
+[formula]
+
+where [formula]. Clearly, any minimizing PT must satisfy
+
+[formula]
+
+Thus the asymptotically optimizing PT does not depend on 〈Pe〉. Further, it can be shown that in [\eqref=eq:must], the solution PT is unique for both AWGN and BSC.
+
+It is important to note that only the weighted total power curve is a true bound on what a real system could achieve. The constituent PT curve is merely an indicator of what the qualitative behavior would be if the true tradeoff behaved like the lower bound. However, our lower bound shows that the decoding power must blow up if you actually approach capacity.
+
+Regular LDPCs attain within a constant factor of the optimal power
+
+How far do current constructions operate from this lower bound? In Fig. [\ref=fig:ldpcwaterslide], the total power required to decode a regular (3,4)-LDPC code using a simple 1-bit message-passing decoding algorithm called Gallager-B decoding (which is the same as Gallager-A for a (3,4)-LDPC [\cite=urbankecapacity]) is plotted along with the lower bound. Interestingly, this upper bound is separated from the lower bound by a bounded number of dBs even as the error probability falls to zero, suggesting that this (3,4)-LDPC code might be order optimal. Further, as predicted, the optimal transmit power is bounded, but it exhibits a saw-tooth behavior because the number of iterations is an integer for an actual decoder.
+
+How general is this order-optimality? Our lower bounds on decoding power suggest that the decoding power scales approximately as [formula]. If we are operating at a finite gap from capacity (as any practical code does), then in order to have order optimal decoding power (as 〈Pe〉  →  0), our code must have decoding power that scales as [formula]. It is well known [\cite=Lentmaier05] that for regular LDPCs, and indeed for any randomized LDPC code with no degree-2 variable nodes, the error probability falls doubly exponentially with the number of iterations, i.e. [formula] in the asymptotic limit of infinite blocklength. Thus regular LDPCs have order optimal decoding power.
+
+What about total power? Although regular LDPCs codes do not achieve capacity under belief-propagation-based message-passing decoding [\cite=burshteinBP], they can be used to communicate reliably at non-zero-rate [\cite=Lentmaier05], that is, there exists a finite transmit power PT for which 〈Pe〉  →  0 as l  →    ∞   (in the limit of infinite blocklengths), as long as the variable node degree is greater than 2 [\cite=Lentmaier05]. Thus, we only require a constant increase in transmit power. This constant depends on the code's gap from capacity, but is bounded even as 〈Pe〉  →  0.
+
+Thus, as 〈Pe〉  →  0, regular LDPCs indeed require order-optimal total power (within bounded dBs of the optimal). However, in the case of (3,4)-LDPC, the gap between the upper and lower bounds is still about 4.8 dB. We emphasize that this difference is not because of the required increase in transmit power: that increase is only additive and its effect on total power will die down to zero (in dB sense) as 〈Pe〉  →  0. Partly, there is a gap because we do not count the power consumed by check nodes in the lower bound. This accounts for a looseness of about 2.43 dB. The number of output nodes a (3,4)-LDPC decoder reaches in two clock-cycles is 2  ×  3  =  6. The lower bound assumes that the number of output nodes reached in two clock-cycles is 3  ×  3  +  3 = 12. This leads to a further loss of [formula] dB. We suspect that the remaining 0.95 dB loss is likely due to the use of the Gallager-B algorithm, rather than full belief-propagation, for decoding the LDPC code.
+
+A collection of point-to-point links
+
+System model for a collection of point-to-point links
+
+In this section we consider a situation where the system is assumed to be a collection of point-to-point links. We further assume that the links do not cooperate, and they treat the collective interference from other links as Gaussian noise. If the transmitters are modeled as placed randomly and uniformly, they could be arbitrarily close to each other. These situations are avoided in practice by using a MAC protocol to have some minimum separation between active transmitters [\cite=BaccelliMonograph]. This pushing away of neighbors reduces the interference, thereby allowing for communication at higher rates. The resulting topology is often modeled using a Matérn hard-core process [\cite=HaenggiSurvey], or (for analytical simplicity) using a regular grid model (for instance, a square-grid or a triangular-grid [\cite=HaenggiNOW]). In this paper, we assume that the transmitters lie on a triangular grid, as shown in Fig. [\ref=fig:gridLattice]. Nearest transmitters are separated by a distance d.
+
+Each node transmits at the same power PT to its receiver located at a distance r from the transmitter. This distance is assumed to be fixed, and does not scale with the density of these transmitter-receiver pairs. The communication rate Rdata (bits per second) and the desired bit-error probability are assumed to be fixed, and equal for all links.
+
+The question we are interested in is: given a particular total power, what strategies allow us to support the maximum number of communication links? In particular, to what extent does the core insight from the point-to-point problem -- that the code should operate at a gap to capacity -- still hold?
+
+To address the problem in the simplest possible setting, we consider the case of multiple transmitters sending messages to their respective receivers in which :
+
+no multi-hop relaying is allowed (unlike that in [\cite=GuptaKumar]).
+
+there is no use of cooperative interference-management strategies (such as those in [\cite=CadambeJafar]) beyond frequency-reuse.
+
+the aggregate interference is assumed to behave like additive white Gaussian noise.
+
+the rate of each link is assumed to be fixed at Rdata.
+
+For this setup, more meaningful than the waterfall curve in Fig. [\ref=fig:waterfall1] is Fig. [\ref=fig:reversewaterfall], that plots the maximum density of transmitter-receiver pairs that can be supported for a given error probability (the generation of these plots is explained in Section [\ref=sec:largepower]). The waterfall in Fig. [\ref=fig:waterfall1] translates into a non-zero density of simultaneously active transmitter-receiver pairs whose simultaneous operation can be supported using coded transmissions, even in the limit of tiny bit-error probabilities. By contrast, under the same limit, the supportable density using uncoded transmissions decreases to zero. Because the tolerated interference in uncoded transmissions must go to zero as 〈Pe〉  →  0, the transmitters are forced to be far from each other. The maximum density plot of Fig. [\ref=fig:reversewaterfall] is obtained in the limit of infinite power. Since decoding power, while substantial, causes no interference, it has no impact on this maximum density.
+
+Because the density of transmitter-receiver pairs is of primary interest, we allow for the transmitters to be stacked closely together so that potentially interfering transmitters can exist in the middle of a transmitter-receiver pair. Consider a smart phone wirelessly tethered to a farther laptop while a nearer bluetooth headset is communicating to its own laptop. The thermal noise observed by a receiver operating in bandwidth Wused has a power spectral density of intensity [formula] in each dimension. A given distance d between transmitters immediately translates into the following densities (as explained in Fig. [\ref=fig:gridLattice])
+
+[formula]
+
+Let x(i)  =  id - r cos θ, and [formula] for integers i and j, where θ is as shown in Fig. [\ref=fig:gridLattice]. Then the total interference is given by
+
+[formula]
+
+Interference terms do not have closed-form expressions here, unlike those in [\cite=HaenggiNOW], because we consider non-zero distances between a transmitter and its receiver which leads to asymmetric terms in the summation.
+
+Following the work of Alouini and Goldsmith [\cite=AlouiniGoldsmith], we allow both coded and uncoded transmissions to split the band into multiple sub-bands (of equal bandwidth, each allocated to a different user) in order to reduce co-channel interference while keeping density high. The multiple bands are noninteracting worlds that are assumed to have the same grid structure. The distance d is redefined to be the distance between the nearest transmitters transmitting in the same band.
+
+Attained density for uncoded transmission
+
+For uncoded transmission, we assume that the transmission uses quadrature phase-shift keying (QPSK) modulation with Gray encoding. The bandwidth occupied by the transmissions is assumed to be equal to the data-rate (assuming ideal sinc pulse-shapes).
+
+If the total available bandwidth is larger than the data rate, the users will obviously split the entire band amongst themselves to reduce interference. The number of sub-bands therefore equals B = W / Rdata. Allowing for this frequency reuse, we obtain the following expression for bit-error probability
+
+[formula]
+
+where I(PT,λ,r,d) is the interference function given by [\eqref=eq:interferenceTri]. For a fixed 〈Pe〉, one can now calculate the required distance d and the maximum density ρ of transmitters that will support rate Rdata.
+
+Attained density for coded transmissions
+
+We assume that the entire band is split into B equal-sized sub-bands. The maximum allowed interference is now given by the inequality
+
+[formula]
+
+where I(PT,λ,r,d) is the interference function given by [\eqref=eq:interferenceTri]. The term 1 - hb(〈Pe〉) in the right-hand side of [\eqref=eq:wb] is to account for the fact that at finite bit-error probabilities, one could conceivably communicate at rates above capacity. For fixed 〈Pe〉 and Rdata, the distance d and density ρ can again be calculated. Notice that because of the choice of modulation scheme, there is freedom in the choice of B. This freedom is much more curtailed for uncoded transmission, where the bandwidth and rate are intimately tied. There can, however, be flexibility in choice of the constellation which we ignore for simplicity.
+
+Maximum attainable density at infinite power
+
+To understand the limits of what is possible with coding, we first find the asymptotic density in the limit of infinite power. Because decoding power does not pollute, it is ignored in the analysis. In Fig. [\ref=fig:reversewaterfall], we compare the maximum achievable density of transmitter-receiver pairs using coded and uncoded transmissions for a fixed rate. Reflecting the waterfall curve, the attainable density does not decrease to zero for coded transmission even as the error probability decreases to zero, unlike the behavior for uncoded transmissions. Therefore, to support higher densities of high-quality links, the designer must use coded transmissions even if that means incurring a large decoding power cost.
+
+Attainable density at finite total power
+
+In practice, the available total power per link is finite. Coding thus needs to be penalized for using decoding power. In particular, at the low densities that are achievable using uncoded transmissions, there is a possibility that uncoded transmissions could use less total power despite needing more transmit power. Further, we must ask whether at densities that require coding, should we use capacity achieving codes?
+
+We plot the performance of the code/decoder pair of [\cite=zhengyaJournal] in Fig. [\ref=fig:comparison]. At low densities, uncoded transmission indeed outperforms coded -- after all, the decoders run at least one iteration, so they require a minimum power to run! As expected, the high densities are only supportable by coded transmission, even though Fig. [\ref=fig:densityvsgap] shows that the codes must still operate at a gap from capacity for any finite power. How much could we gain by changing the code? We could certainly improve the maximum attainable density by building codes that approach capacity. The challenge is that decoding power depends on both the code and the decoding architecture. It is here that the lower bounds on power consumption of Section [\ref=sec:isolated] prove useful. These bounds are turned into upper bounds on density for given total power, and are also plotted in Fig. [\ref=fig:comparison]. They show that at low transmit power, uncoded transmission outperforms any code that is decoded with the architecture of [\cite=zhengyaJournal] (and hence has Enode = 3 picojoules [\cite=zhengyaJournal]). A more important observation, illustrated in Fig. [\ref=fig:densityvsgap] is that we again should not operate the codes at capacity to optimize the link density given a total power constraint.
+
+Discussions and conclusions
+
+In this paper, we used a very simple model to account for decoding implementation and decoding power. But even this simplistic model suffices to show that operating close to capacity will fundamentally require a large decoding power. For obtaining deeper insights into design of codes, a more refined modeling of the decoding implementation is required. Implementation models and results for specific code/decoder families (for example, see [\cite=sason]) is needed to complement our fundamental analysis.
+
+In case of an isolated point-to-point link, if the communication distance is small, keeping a sufficient gap from capacity becomes significantly more important because the decoding power and transmit power are comparable. Nevertheless, the total (transmit+decoding) power must diverge to infinity as 〈Pe〉  →  0.
+
+Because we assume almost nothing about the code structure, the bounds here are much more optimistic than those in [\cite=sason] (because of space constraints here, a comparison appears in [\cite=ComplexityITPaper]). However, it is unclear to what extent the optimism of our bound is an artifact of our derivation technique. After all, [\cite=Lentmaier05] does get double-exponential reductions in probability of error with additional iterations, but for a family of codes that does not seem to approach capacity. It is here that code constructions of [\cite=LentmaierITAPaper] may prove useful -- these codes have a doubly-exponential fall in error probability with iterations, while seemingly attaining rates close to capacity.
+
+In an environment where a collection of links is operating simultaneously, the challenge is pictorially captured in Fig. [\ref=fig:comparison]. While improvements in codes to make them capacity approaching will bring the high-power performance of links closer to optimal, low-complexity designs may outperform uncoded transmission at lower power. As we show, there are tradeoffs between the two, and obtaining improved bounds on this tradeoff is a challenge for information and coding theorists.

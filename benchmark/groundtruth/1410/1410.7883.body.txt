@@ -1,0 +1,131 @@
+=1
+
+Sub-threshold CMOS Spiking Neuron Circuit Design for Navigation Inspired by C. elegans Chemotaxis
+
+Introduction
+
+Spiking Neural Networks (SNNs) form a special sub-class of Artificial Neural Networks (ANNs) which use the timing of arrival of spikes as the main mechanism for communication and computation. It has been shown that SNNs have higher computational capabilities as compared to previous generations of NNs for performing many computational tasks [\cite=Maass19971659]. SNNs allow for rapid decoding of information as they rely on the timing of individual spikes rather than average firing rate. Further, hardware implementations of large SNNs are easier as all computations are performed based on binary spikes in an event-triggered manner. There is hence significant interest to develop SNN based circuits to solve various engineering problems such as signal processing, pattern recognition & classification and navigation control.
+
+All higher biological organisms employ neurons that issue spikes for cognitive tasks. However, the enormity of the network size of these systems has motivated the use of organisms with simpler connectivity statistics such as Caenorhabditis elegans [\cite=Brenner01051974] for experimental analysis to decipher the computational motifs of nature. C. elegans, with 302 neurons and ≈   5000 chemical synapses, 2000 neuromuscular junctions and 600 gap junctions [\cite=White12111986], has presumably one of the simplest and most well-understood nervous systems today. Despite this simplicity, it shows sophisticated functionality with the ability to perform chemotaxis [\cite=Ward01031973]-[\cite=Dusenbery01051973], thermotaxis, etc and to learn, adapt and remember.
+
+In this paper we develop a SNN which can track contours of physical variables such as chemical concentration, temperature, etc. inspired by the NaCl chemotaxis circuit in C. elegans. We create an artificial model of a spiking neuron pair inspired by the underlying dynamics of ASE neurons in C. elegans, which is believed to play a pivotal role in the chemotaxis to NaCl. We have created a simple network model incorporating these neurons, that can effectively perform contour tracking. We study the performance of our network for various concentration profiles as well as in noisy environments. We then develop a VLSI circuit design for the ASE neurons based on analog sub-threshold CMOS circuits, which could be integrated with other standard neuronal circuitry for achieving energy efficient hardware for performing navigation and contour tracking.
+
+Modeling ASEL and ASER dynamics
+
+Laser ablation experiments show that one specific neuron pair denoted as the ASE neurons, when ablated cause C. Elegans to have severely reduced chemotaxis towards NaCl [\cite=Bargmann1991729]. It is widely believed that the ASE neuron pair is crucial towards chemotaxis with residual functionality spread over numerous other neurons. There is experimental evidence to support that the ASEL neuron responds to up-steps and the ASER responding to down-steps in NaCl concentration [\cite=Bargmann1991729]- [\cite=Miller30032005]. Most published literature on neural networks inspired by chemotaxis of the C. elegans doesnt accommodate this key neuron pair and most capture information regarding the local NaCl concentration in a current input to a single sensory neuron. The model we have implemented, which is based on [\cite=PA], captures information about the local concentration of the tracking variable is captured via depolarizing and hyperpolarizing ion channels. The membrane potential of ASE neurons is modeled as
+
+[formula]
+
+τm is the membrane time constant, V0 is the resting membrane potential, kd,h and Vd,h capture the conductivity and reversal potential of the depolarizing and hyperpolarizing ion channels respectively.
+
+The depolarizing ion channels follow a three-state model - an initial unbound state, the conducting bound state and the final inactive state. Transitions from the unbound to bound state are triggered when the local concentration exceeds/goes below the threshold concentration CL / R of the ASEL/R neuron. The thresholds, CL,R, adapt to the tracking variables local concentration, without which the worm would not chemotax. As the fraction of channels in the bound state increases, conductivity of depolarizing channels and membrane potential of the neuron increases. The magnitude of the response of ASEL/R to a step in concentration depends on the transition rate from unbound to bound state which is proportional to the concentration step. The hyperpolarizing ion channels, which are present only in the ASER, follow a simpler two-state model - an initial unbound state and a conducting bound state. When the local concentration is greater than the threshold CR, these ion channels transition to the bound state and the conductivity of the hyperpolarizing channels increases causing a decrease in the membrane potential. These channels do not adapt to the local concentration of the tracking variable, i.e, αh is not a function of local concentration (C) unlike αd. The state transition equations for the depolarizing and hyperpolarizing ion channels respectively are
+
+[formula]
+
+The dimensionless variable, kd,h, that captures conductivity dependence is modeled as
+
+[formula]
+
+The transition rates αh,βd,h,γd,δd are constants.
+
+The rate αd determines the response of ASEL/R to an up/down-step and is modeled as where αdL0 and αdR0 are scaling factors. The threshold concentrations-CL,R adapt to the ambient concentration C according to the adaptation rules given by:
+
+[formula]
+
+For the ASER neuron we have modified the adaptation model from that presented in [\cite=PA]. To ensure that threshold CR doest get stuck at 0, we must impose a minimum on the threshold value, i.e.,
+
+[formula]
+
+where the value of CR is given by [\ref=eq:asel_thresh] The parameter αh is modeled as αhR  =  αh0H(C  -  ηR) where ηR is the threshold concentration above which hyperpolarizing ion channels are active for the ASER neuron and H(x) is the Heaviside function and sgn(x) is the Signum function.
+
+Figure [\ref=fig:biodata] shows results of experiments to test the response of the ASE neurons to different concentration up-steps and down-steps. Figure [\ref=fig:aselr_resp] shows the response of the numerically simulated neurons to similar concentration profiles. As can be seen, there is excellent agreement between the model and experimentally observed behavior. Figure [\ref=fig:aselr_resp] shows the behavior of the neurons when presented with different concentration gradients. A strong change in membrane potential is observed for sharper and stronger gradients in input concentration.
+
+Modeling the Chemotaxis Network
+
+In standard chemotaxis, C. elegans navigates towards its cultivation concentration, or towards a concentration where it received food in the past [\cite=kun]. In order to convert the sensory cues into directed movement, it is believed that C. elegans adopts two key strategies - (i) Klinokinesis or biased random walk[\cite=Pierce-Shimomura01111999]-[\cite=Pierce-Shimomura15122005] and (ii) Klinotaxis which is the sinusoidal movement of the worm biased towards higher attractant concentration. The worm shows no bias in klinokinesis when it is placed at concentration equal to the desired set-point, but it shows weakly negative klinotaxis [\cite=kun].
+
+As mentioned in Section [\ref=sec:intro], SNNs offer many advantages over their non-spiking counterparts motivating the transformation the ASE neuron pair developed in Section [\ref=sec:model] into spiking neurons. These neurons can then be used in conjunction with other spiking neuron models, for instance the leaky-integrate-and-fire (LEIF) neurons to develop a SNN model for contour tracking. We now discuss the essential aspects of the navigation control for our worm, which relies on information about temporal gradients in concentration sensed (C) to make decisions in order to track a desired target set-point (CTrack). [formula] When the worm is on a roughly flat surface (in terms of concentration) away from CTrack, it should rapidly explore the space by random walk or foraging until a favorable direction is identified. [formula] When moving in an unfavorable direction, away from CTrack, it should alter its direction of motion, similar to the rapid pirouettes in C. elegans. In our design, we chose to assign a clockwise turn when moving up the gradient (dC / dt  >  0) and it is already above the set-point (C  >  CTrack) and an anti-clockwise turn in the opposite case when dC / dt  <  0 and C  <  CTrack . [formula] When the worm is moving in a favorable direction towards CTrack, i.e., (i) dC / dt  >  0 and C  <  CTrack, (ii) dC / dt  <  0 and C  >  CTrack or (iii) C  =  CTrack, the direction of motion should be unaltered, similar to the rare pirouettes in C. elegans. The overall block diagram for our network is shown in Figure [\ref=fig:circuit].
+
+Concentration Sensing Neurons
+
+We employ two concentration sensing neurons, N1 to detect if concentration is above the set-point (C  >  CTrack), and N2 to detect if concentration is below the set-point (C  <  CTrack). These neurons are modeled as LEIF neurons, where the membrane potential V(t) is governed by
+
+[formula]
+
+C and gL are the membrane capacitance and conductance respectively, V0 is the resting potential, VT is the threshold voltage. Iapp(t) represents the externally applied current and Isyn(t) represents current due to synaptic connections with other neurons. Isyn(t) due to a spike at time tk is given by
+
+[formula]
+
+where wsynapse denotes the strength (weight) of the synapse, and τ and τs are characteristic time constants of the synapse. The concentration sensing neurons are modeled as independent input neurons receiving only external input current and zero synaptic current from any other neurons in the network. The input current for N1 and N2 respectively is modeled as
+
+[formula]
+
+N1 and N2 spike at a fixed frequency if concentration is greater (or lesser) than the threshold. The simplicity of these two input neurons makes it extremely easy to tune the set-point and hence our worm is able to track any specified concentration. Note that these input neurons could be sensing concentration or intensity of any physical variable such as noxious gases, radiation, temperature etc.
+
+Gradient Detectors
+
+We develop spiking gradient detector neurons N3 and N4, whose spike-frequency encodes information about the temporal gradient of the concentration using the underlying dynamics of the ASE neurons of C. elegans. While computing V(t) using equation [\ref=eq:pot], we apply this additional constraint
+
+[formula]
+
+Figure [\ref=fig:ase] shows the response of N3 and N4 to an arbitrary concentration profile and captures the dependence of spike frequency on the temporal gradient. The variation of spike frequency for the ASE neurons as a function of temporal derivative of concentration is shown for different VT values in Figure [\ref=fig:spike_freq]. We observe that as VT decreases, smaller temporal gradients can be sensed, making N3 and N4 very versatile gradient detectors. This provides a simple mechanism to modulate the sensitivity and performance of our model by simply controlling VT.
+
+Navigation Control
+
+[formula] The worm needs to sense when it is moving in the wrong direction, i.e., away from CTrack, so that it can alter its direction, for which we use two LEIF neurons N5 and N6. N5 receives a constant negative bias current Ibias,5 and is connected to neurons N1 and N3 via excitatory synapses. The bias current is applied such that N5 spikes if and only if both N1 and N3 spike. This ensures that N5 spikes only if the positive gradient detector is spiking and local concentration is greater than CTrack. The worm then makes a turn in the clockwise direction with an angle which we chose to be [formula]. N6 is similarly designed with a negative bias current Ibias,6 and excitatory connections from N2 and N4 such that it would spike if the concentration sensed is less than the set-point and the worm is moving down the gradient. In this case, the worm makes an anti-clockwise turn with an angle of [formula]. The spiking of N5 and N6, and hence the turning of the worm depends on the spike rate of N3 and N4 which in turn depends on the temporal gradient. Therefore if the worm deviates a large amount from Ctrack, there will be a stronger tendency to turn and return to a favorable course. [formula] The worm should make rapid exploratory motion when it is lost. It can be considered lost when not at CTrack and its gradient detectors are not spiking, i.e., when not receiving any feedback whether it is on a favorable or unfavorable course. In our model, the worm makes decisions to random walk based on the spiking of N7 which is implemented as an LEIF neuron. N7 has excitatory synapses from N1 and N2 and inhibitory synapses from N3 and N4. N1 and N2 spiking indicates the concentration sensed does not match the set-point. N3 and N4 not spiking indicates that the worm is on a flat concentration profile, with gradient less than detection threshold of the gradient detectors and hence must randomly explore to find a favorable direction. When N7 spikes, the worm makes a turn with a randomly chosen angle from the interval [formula]. [formula] While the worm is in a phase of random exploration, i.e., when N7 is spiking, it is desirable that the worm rapidly explore a large area and hence the velocity of the worm is chosen to be relatively high, v1  =  0.3  mm/s. When N5 or N6 spike, the worm moves with a reduced velocity of v2  =  0.09  mm/s so as to reduce deviation about CTrack and improve tracking accuracy. The velocity of the worm is thus either v1 or v2 depending on which neuron spiked last.
+
+Results
+
+Simulation Results
+
+Figure [\ref=fig:forage_55] shows a typical track of motion traced by our model worm. The arena for exploration is a 10  cm ×  10   cm square plate with several hills and valleys of concentration ranging from 10  mM to 70  mM. The worm starts its track from a roughly flat region with concentration 40  mM, with desired set-point for tracking CTrack  =  55  mM. It initially performs random exploration in pursuit of a favorable direction. Once a favorable direction is detected, it travels straight till it reaches the vicinity of the desired set-point. Subsequently it tracks the desired set-point with an accuracy of about ≈  0.6  mM. Figure [\ref=fig:ons] shows the response of the navigation control neurons, N5, N6 and N7 to an exemplary concentration profile during this track of the worm. N5 and N6 spike when the worm is moving away from set-point and C  >  CTrack or C  <  CTrack respectively. N7 spikes when the worm is on an almost flat concentration profile away from the set-point and causes the worm to random walk. It has been shown previously [\cite=Pappleby2013] that the performance degrades drastically in the presence of noise, if non-spiking ASE neurons [\cite=PA] are used to build similar tracking networks. Figure  [\ref=fig:noise_ct] shows the performance of our model in an extremely noisy environment, with absolute value of noise in the range of ≈  0 - 12  mM. Despite the environment being noisy, the worm is able to track the contour effortlessly.
+
+Performance Evaluation
+
+To evaluate the performance of our worm to identify a set-point by foraging, we perform several experiments where the worm starts from the same initial position with the tracking set-point set to 55  mM. For the 200 simulations performed, the model worm identified the tracking set-point in 89.5% cases within 1500  s. Further, we observed that in 63% of the cases, our worm reaches the desired set-point in under 530  s. Once the worm locates the desired set-point, it tracks it with an average deviation of 0.6  mM. In order to evaluate the efficiency of our foraging strategy, we compare it to the optimal search strategy for finding randomly distributed targets. This entails making flight-lengths between random turns follow the heavy-tailed Lévy distribution [\cite=nolan:2015]. We simulated this strategy by drawing run lengths from a truncated Lévy distribution with [formula] in the interval
+
+[formula]
+
+VLSI Circuit Design for ASEL Neuron
+
+In order to show that the complex set of differential equations necessary to model the dynamics of the ASE neurons can be implemented in energy efficient hardware, we designed a circuit block to capture the non-spiking graded potential response described in section [\ref=sec:model]. The basic processing elements in the circuit implementation are 180  nm CMOS transistors biased in the sub-threshold regime. We use variants of the basic Tau cell [\cite=schaik2003] to implement differential equations in our circuit, with all the variables represented as currents. In these circuits, the current relationship, as dictated by the translinear principle is
+
+[formula]
+
+where VC is the capacitor voltage. If [formula], this circuit can be exploited to implement
+
+[formula]
+
+The major sub-blocks of our circuit implementation are : [formula] Adaptation Block: Equation [\ref=eq:asel_thresh] captures the adaptation of the threshold concentration CL to the ambient tracking variable concentration, which is vital for chemotaxis. To model this behaviour in our circuit we compare Equation [\ref=eq:asel_thresh] with [\ref=eq:de] and observe that if Iout represents CL, then
+
+[formula]
+
+where C represents the input current coming from the concentration sensor. This input current is generated by the InputBlock in Figure [\ref=fig:c1] wherein M1 carries current coming from concentration sensor with information about the tracking variable, M2 carries a mirrored version of this current and M3 carries a mirrored version of [formula]. M4 and M5 act as resistors (R) and the voltage difference V2  -  V1, which represents (C  -  Iout)R is used to control an ideal switch. When the switch is turned on (V2  -  V1  >  0), current through M6 is C since M6 mirrors current from M1. When the switch is off, the current through M6 is zero. Hence the current flowing through M6 represents Iin as governed by Equation [\ref=eq:iin], represented in the figures as Iin,CL. The CLBlock of Figure [\ref=fig:c1] captures the adaptation characteristics of Equation [\ref=eq:asel_thresh] to evaluate CL. [formula] Computing [formula]: The parameter αd is crucial in the rate transition equations since it determines the graded response of the ASEL neuron due to its dependence on the concentration sensed by the worm as shown in Equation [\ref=eq:alphad]. In the αdBlock of Figure [\ref=fig:c1] current through M13 is obtained by mirroring the input current C and current through M14 is a mirrored version of CL, which is the output of CLBlock. As a result, current through the NMOS transistor M15 is C  -  CL if C  >  CL and 0 otherwise as required and hence represents αd  /  αdLO, where αdLO is a constant scaling factor. [formula]Rate Transition Equations: We now develop a circuit to implement the rate transition equations that govern the behavior of the depolarizing ion channels (Equation [\ref=eq:dep]). The differential equation for unbound state, ud is given by
+
+[formula]
+
+Comparing Equations [\ref=eq:ud] and [\ref=eq:de], the translinear relationship needed to implement Equation [\ref=eq:ud] is
+
+[formula]
+
+with ud as the output current of this circuit and βdbd  +  δdid is the input current. We have chosen to accelerate the performance of our circuit by a factor of ~  106, and hence the characteristic time scale of our circuit is in the order of a few micro-seconds. This is done by changing the scale of all time dependent parameters such as time constants, rate constants and velocity to micro-seconds instead of seconds. Hence in order to implement Equation [\ref=eq:ud], τ  =  1  μs and the values of C and Ir are taken to obtain this τ while keeping the transistors in the sub-threshold regime. The udBlock of Figure [\ref=fig:c1] implements Equation [\ref=eq:ud]. In order to determine bd, the relevant differential equation is
+
+[formula]
+
+which on comparison with Equation [\ref=eq:de] gives Iin  =  (αdud) / (βd  +  γd) and τ  =  1 / (βd  +  γd). The product (αdud) is computed by the circuit shown in MultiplierBlock of Figure [\ref=fig:c2]. The bdBlock of Figure [\ref=fig:c2] implements the above differential equation. A similar methodology is used to design the block to compute id which is shown in Figure [\ref=fig:c2]
+
+[formula] Membrane Potential Computation: As described in Equation [\ref=eq:cond], the conductance dependent term kd for the depolarizing ion channels is km  ×  (bd)2. Hence computing kd is simply a matter of computing the square of a scaled version of the output current of the bdBlock, equivalently the current flowing through M34. This is done by the translinear circuit - SquaringBlock of Figure [\ref=fig:c2]. To calculate the membrane potential of the ASEL neuron, Equation [\ref=eq:pot] could be simplified by ignoring the terms corresponding the hyperpolarising ion channels since they are not present in ASEL and by setting the resting membrane potential to 0, as done for the numerically simulated neuron.
+
+[formula]
+
+Comparing Equation [\ref=eq:redpot] to Equation [\ref=eq:de], representing membrane potential as Iout, the translinear relationship required to implement this differential equation would be
+
+[formula]
+
+This gives Iin  =  kdVd and Ir  =  CVt  /  kτm, where C and Ir are suitably selected. OutputBlock of Figure [\ref=fig:c2] shows the circuit to generate the membrane potential of ASEL. Figures [\ref=fig:nr] and [\ref=fig:cr] show the responses of the numerically simulated and circuit implementation of the ASEL neuron respectively. Though we have described only the circuit for the ASEL neuron here, a similar circuit for the ASER neuron could be obtained through minor modifications. Figure [\ref=fig:steps] shows the response of designed circuits for ASEL and ASER neurons to upsteps and downsteps in concentration respectively. Our circuit, designed using 180  nm technology node operates at a supply voltage of 0.8  V and contains a total of 63 transistors, 5 capacitors (285  fF) and consumes [formula]nW power. The developed neuron circuit could be easily converted to a spiking neuron via simple thresholding circuitry [\cite=indiveri2011]. The developed neuron pair could be integrated with existing circuits for LEIF neurons to develop a complete circuit for contour tracking and navigation.
+
+Conclusions
+
+In this paper, we have developed a spiking neural network inspired by chemotaxis in C. elegans. Our network receives its input from a single concentration sensor and with merely 7 spiking neurons in the network, our worm is able to explore, detect and track a desired concentration set-point. We have developed a pair of spiking neurons inspired by the ASE neurons in the C. elegans to act as gradient detectors. Simulations show that our worm is able to detect the set-point with ≈  4 times higher probability than the optimal memoryless Lévy foraging model. Once the worm reaches the desired set-point, it tracks it with minimal deviation from the set-point. The developed network model is extremely versatile and changing the set-point or the temporal or spatial ranges over which the worm navigates is straightforward.
+
+The developed network can be also modified to track other environmental variables such as temperature, radiation, etc by choosing appropriate sensors. The robustness of our model to noise strengthens its practical applicability. Our model could also be extended to three-dimensions since the worm only uses temporal gradients to make decisions and is oblivious to whether its motion is in two or three dimensions. The only modification required would be in determining the new position vector for the worm for which we would need to generate the turn angles appropriately to ensure three-dimensional motion. Our network responds in time scales similar to C. elegans and all neurons spike at frequencies in the range of 1-10 Hz which would make for extremely energy efficient computation. We have also designed an analog sub-threshold CMOS circuit for capturing the graded potential dynamics of the ASE neurons accurately. The average power consumed by this circuit is 185  nW and it could be converted to a spiking circuit with already existing thresholding circuits. We are currently designing an integrated circuit with the other LEIF neurons to create a complete circuit for contour tracking and navigation. The developed algorithm and hardware could find applicability as a potentially power efficient and fault tolerant alternative to conventional navigation algorithms for robotic control.

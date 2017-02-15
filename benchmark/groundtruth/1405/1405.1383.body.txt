@@ -1,0 +1,457 @@
+Moment based gene set tests
+
+Introduction
+
+In a genome-wide expression study, researchers often compare the level of gene expression in thousands of genes between two treatments groups (e.g., disease, drug, genotype, etc.). Many individual genes may trend toward differential expression, but will often fail to achieve significance. This could happen for a set of genes in a given pathway or system (a gene set). A number of significant and related genes taken together can provide strong evidence of an association between the corresponding gene set and treatment of interest. Gene set methods can improve power by looking for small, coordinated expression changes in a collection of related genes, rather than testing for large shifts in many individual genes.
+
+Additionally, single gene methods often assume that all genes are independent of each other; this is not likely true in real biological systems. With known gene sets of interest, researchers can use existing biological knowledge to drive their analysis of genome-wide expression data, thereby increasing the interpretability of their results.
+
+[\cite=moothetal:2003] first introduced gene set enrichment analysis (GSEA) and calculated gene set p-values based on Kolmogorov-Smirnov statistics. Since then, there have been many methodological proposals for GSEA; no single one is always the best. For example, some tests are better for a large number of weakly associated genes, while others have better power for a small number of strongly associated genes [\citep=newt:quin:fern:denb:seng:ahlq:2007].
+
+One of the most important differences among gene set methods is the definition of the null hypothesis. Tian et al., 2005 and Goeman and Bühlmann, 2007 (among others) introduce two null hypotheses that differentiate the general approaches for gene set methods. The first measures whether a gene set is more strongly related with the outcome of interest than a comparably sized gene set. Methods of this type typically rely on randomizing the gene labels to test what is often called the competitive null hypothesis. This is problematic because genes are inherently correlated (especially those within a set) and permuting them does not give a rigorous test [\citep=goem:buhl:2007].
+
+The second type of approach is used to determine whether the genes within a set associate more strongly with the outcome of interest than they would by chance, had they been independent of the outcome. Methods that test this self-contained null hypothesis usually judge statistical significance by randomizing the phenotype with respect to expression data and assume that gene sets are fixed. While we acknowledge that the competitive hypothesis is often of interest, we focus on methods that test the self-contained hypothesis in this paper.
+
+A popular self-contained GSEA method is the JG-score [\citep=jian:gent:2007], which determines the the level of enrichment based on averaging linear model statistics. Recently, [\cite=acke:stri:2009] compared 261 different gene set tests, and found particularly good performance from a sum of squared single gene regression coefficients. We extend both the sum and the sum of squared linear statistics approaches with a new method in this paper.
+
+All current GSEA methods are based on permutation approaches. The initial GSEA [\citep=moothetal:2003] and JG-score [\citep=jian:gent:2007] methods both have closed form null distributions for their enrichment statistics, Gaussian and Kolmogorov-Smirnov, respectively; however, even the authors of these methods acknowledge that these distributions do not give the correct p-values and suggest the use of permutation. [\cite=lehm:roma:2005] give a concise explanation of how permutation inference works. It is common to approximate the permutation distribution by a large Monte Carlo sample (Eden and Yates, 1933; David, 2008).
+
+Permutation tests are simple to program and do not make parametric distributional assumptions. They also can be applied to almost any statistic we might wish to investigate. However, permutation approaches are often computationally expensive, are subject to random inference, and fail to achieve continuous p-values. Each of these drawbacks is described in more depth below.
+
+We have developed a new gene set enrichment approach that approximates the permutation distribution of our corresponding test statistics. We find that our method of moments techniques result in almost exactly the same p-values as permutation approaches, but in much less computation time. Through our approach, we are able to obtain refined p-values and achieve stringent significance thresholds. We applied our approach to three public expression analyses, and found disease-associated gene sets not previously discovered in these studies.
+
+Methods
+
+The data
+
+For definiteness, we present our notation using the language of gene expression experiments. Let g, h, r, and s denote individual genes and G be a set of genes. The cardinality of G is denoted |G|, or sometimes p. That is the same letter we use for p-value, but the usages are distinct enough that there should be no confusion. Our experiment has n subjects. The subjects may represent patients, cell cultures, or tissue samples.
+
+The expression level for gene g in subject i is Xgi, and Yi is the target variable on subject i. Yi is often a treatment, disease, or other phenotype. We center the variables so that
+
+[formula]
+
+The Xgi are not necessarily raw expression values, nor are they restricted to microarray values. In addition to the centering [\eqref=eq:centered] they could have been scaled to have a given mean square. The scaling factor for Xgi might even depend on the sample variance for some genes h  ≠  g if we thought that shrinking the variance for gene j towards the others would yield a more stable test statistic [\citep=smyth:2005]. We might equally use a quantile transformation, replacing the j'th largest of the raw Xgi by Φ- 1((j - 1 / 2) / n) where Φ is the Gaussian cumulative distribution function. Further preprocessing may be advised to handle outliers in X or Y. We do require that the preprocessing of the X's does not depend on the Y's and vice versa.
+
+Test statistics
+
+Our measure of association for gene g on our treatment of interest is
+
+[formula]
+
+If both Xgi and Yi are centered and standardized to have variance 1, then g  =  g, the sample correlation between Y and gene g. The usual t-statistic for testing a linear relationship between these variables is [formula], which is a monotone transformation of g.
+
+For reasons of power and interpretability, we apply gene set testing methods instead of just testing individual genes. Linear and quadratic test statistics have been found to be the best performers for gene set enrichment analyses; we thus consider two statistics for our approach:
+
+[formula]
+
+The statistic T̂G,w can approximate the JG score of [\cite=jian:gent:2007]. The JG score is [formula]. Taking [formula], where [formula] denotes a standard deviation, weights genes similarly to the JG score. Although T̂G,w with these weights sums statistics equivalent to t statistics, it is not exactly equivalent to the sum of those statistics because of the way g appears in the denominator of each tg.
+
+The statistic ĈG,w is a weighted sum of squared sample covariances. [\cite=acke:stri:2009] conducted an extensive simulation of gene set methods and found good results for quadratic combinations of per gene test statistics.
+
+The letters T and C are mnemonics for the t and χ2 distributions that resemble the permutation distributions of these quantities. The wg are scalar weights. For the quadratic statistics we will suppose that [formula]. We won't need that condition to find moments of CG,w, but because we will compare CG,w to a χ2 distribution, it is reasonable to avoid negative weights. Non-negative weights are also used to simplify our algorithm.
+
+Although linear and quadratic test statistics are fairly restricted, they do allow a reasonable amount of customization through the weights wg, and they are very interpretable compared to more ad hoc statistics.
+
+Permutation procedure
+
+A permutation of [formula] is a reordering of [formula]. There are n! permutations. We call π a uniform random permutation of [formula] if it equals each distinct permutation with probability 1 / n!.
+
+In a permutation analysis, we replace Yi by [formula] where [formula] for [formula]. Then [formula], and when [formula] is substituted for Y, T̂G,w becomes [formula] and ĈG,w becomes [formula].
+
+The n! different permutations form a reference distribution from which we can compute p-values. There are often so many possible permutations that we cannot calculate or use all of them. Instead, we independently sample uniform random permutations M times, getting statistics [formula], and similarly [formula], for [formula]. We then compute p-values by comparing our observed statistics to our permutation distribution:
+
+[formula]
+
+where pQ and pC are p-values for two-sided inferences on the quadratic and linear statistic, respectively, and pL (left) and pR (right) are for one-sided inferences based on the linear statistic. We use the mnemonic C in pC to denote the central (or two-sided) p-value, which corresponds to a central confidence interval. The + 1 in numerator and denominator of the p-values corresponds to counting the sample test statistic as one of the permutations. That is, we automatically include an identity permutation.
+
+Permutation disadvantages
+
+There are three main disadvantages to permutation-based analyses: cost, randomness, and granularity.
+
+Testing many sets of genes becomes computationally expensive for two reasons. First, there are many test statistics to calculate in each permuted version of the data. Second, to allow for multiplicity adjustment, we require small nominal p-values to draw inference about our sets, which in turn requires a large number of permutations. That is, to obtain a small adjusted p-value (e.g., via FDR, FWER, Bonferroni methods), one first needs a small enough raw p-value. In order to obtain small raw p-values, the number of permutations (M) must be large, thereby increasing computational cost.
+
+Because permutations are based on a random shuffling of the data, there is a chance that we will obtain a different p-value for our set of interest each time we run our permutation analysis. That is, our inference is subject to a given random seed.
+
+Permutations also have a granularity problem. If we do M permutations, then the smallest possible p-value we can attain is 1 / (M + 1). At or below this minimum p-value permutation tests have no power. [\cite=knij:wess:rein:shmu:2009] suggest that for a reliable p-value, there should be at least 10 permuted values more extreme than the sample. That requires [formula] and when it is necessary, due to test multiplicity, to use small p such as 10- 6 or smaller, the permutation approach becomes computationally expensive. We call this the sample granularity problem.
+
+There is also a population granularity problem. In an experiment with n observations, the smallest possible p-value is at least 1 / n!. Sometimes the attainable minimum is much larger. For instance, when the target variable Y is binary with n / 2 positive and n / 2 negative values then the smallest possible p-value is [formula]. For n = 10 we necessarily have [formula]. Rotation sampling methods such as ROAST are able to get around this population granularity problem [\citep=wu:lim:vail:asse:visv:smyt:2010]. Increased Monte Carlo sampling can mitigate the sample granularity problem but not the population granularity problem.
+
+Another aspect of the granularity problem is that permutations give us no basis to distinguish between two gene sets that both have the same p-value 1 / (M + 1). There may be many such gene sets, and they have meaningfully different effect sizes. Many current approaches solve this problem by ranking significantly enriched gene sets by their corresponding test statistics. This practice only works if all test statistics have the same null distribution and correlation structure, which is not the case for many current GSEA methods. Additionally, the resulting broken ties do not have a p-value interpretation and cannot be directly used in multiple testing methods. To break ties in this way also requires the retention of both a p-value and a test statistic for inference, rather than just one value.
+
+Because of each of these limitations of permutation testing, there is a need to move beyond permutation-based GSEA methods. The methods we present below are not as computationally expensive, random, or granular as their permutation counterparts. Our proposal results in a single number on the p-value scale.
+
+Moment based reference distributions
+
+To avoid the issues discussed above, we approximate the distribution of the permuted test statistics [formula] by Gaussians or by rescaled beta distributions. For quadratic statistics [formula] we use a distribution of the form σ2χ2(ν) choosing σ2 and ν to match the second and fourth moments of [formula] under permutation.
+
+For the Gaussian treatment of [formula] we find [formula] under permutation using equation [\eqref=eq:varT] of Section [\ref=sec:costs] and then report the p-value
+
+[formula]
+
+where T̂G,w is the observed value of the linear statistic. The above is a left tail p-value. Two-tailed and right-tailed p values are analogous.
+
+When we want something sharper than the normal distribution, we can use a scaled Beta distribution, of the form [formula]. The [formula] distribution has a continuous density function on 0 < x < 1 for α,β > 0. We choose A, B, α and β by matching the upper and lower limits of [formula], as well as its mean and variance. Using equation [\eqref=eq:varT] from our theory section we have
+
+[formula]
+
+The observed left-tailed p-value is
+
+[formula]
+
+It is easy to find the permutations that maximize and minimize [formula] by sorting the X and Y values appropriately as described in Section [\ref=sec:costs]. The result has A  <  0 < B. For the beta distribution to have valid parameters we must have σ2 <  - AB. From the inequality of [\cite=bhat:chan:2000], we know that [formula]. There are in fact degenerate cases with σ2 =  - AB, but in these cases [formula] only takes one or two distinct values under permutation, and those cases are not of practical interest.
+
+Like us, Zhou et al. (2009) have used a beta distribution to approximate a permutation. They used the first 4 moments of a Pearson curve for their approach. Fitting by moments in the Pearson family, it is possible to get a beta distribution whose support set (A,B) does not even include the observed value. That is, the observed value is even more extreme than it would have to be to get p = 0; it is almost like getting p < 0. We chose (A,B) based on the upper and lower limits of [formula] to prevent our observed test statistic from falling outside the range of possible values of our reference distribution (Section [\ref=sec:costs]).
+
+For the quadratic test statistic ĈG,w we use a σ2χ2(ν) reference distribution reporting the two-tailed p-value [formula] after matching the first and second moments of σ2χ2(ν) to [formula] and [formula] respectively. The parameter values are
+
+[formula]
+
+Our formulas for [formula] and [formula] under permutation are given in equation [\eqref=eq:targetmoments] of Section [\ref=sec:lemmas]. Those formulas use [formula] and [formula] which we give in Corollaries [\ref=cor:cov] and [\ref=cor:cov2] of Section [\ref=sec:lemmas].
+
+All of our reference distributions are continuous and unbounded and hence they avoid the granularity problem of permutation testing. We have prepared a publicly available Bioconductor [\citep=gentleman:2004] package, npGSEA, which implements our algorithm and calculates the corresponding statistics discussed in this section.
+
+Theoretical results
+
+Permutation moments of test statistics
+
+Under permutation, [formula] by symmetry, and so [formula] too. We easily find that,
+
+[formula]
+
+The means, variances and covariances in [\eqref=eq:targetmoments] are taken with respect to the random permutations with the data X and Y held fixed. We adopt the convention that moments of permuted quantities are taken with respect to the permutation and are conditional on the X's and Y's. This avoids cumbersome expressions like [formula].
+
+We will need the following even moments of X and Y:
+
+[formula]
+
+for g,h,r,s∈G. Although our derivations involve O(p4) different moments when the gene set G has p genes, our computations do not require all of those moments.
+
+For an experiment with [formula] including genes g and h,
+
+[formula]
+
+See Appendix 1. [formula]
+
+For an experiment with [formula] including genes g and h,
+
+[formula]
+
+This follows from Lemma [\ref=lem:moment1] because [formula].
+
+From Corollary [\ref=cor:cov], we see that the correlation between permuted test statistics [formula] and [formula] is simply the correlation between expression values for genes g and h.
+
+For an experiment with [formula] including genes g,h,r,s,
+
+[formula]
+
+where X̄*ghrs  =  X̄ghX̄rs  +  X̄gsX̄hr  +  X̄grX̄hs, with [formula] given by
+
+[formula]
+
+and
+
+[formula]
+
+See Appendix 2. [formula]
+
+The expression is complicated, but it is simple to compute; we need only two moments of Y, two cross-moments of X, and the 2  ×  2 matrix [formula]. The matrix A depends on the experiment through n. Using Lemma [\ref=lem:moment2] we can obtain the covariance between [formula] and [formula].
+
+For an experiment with [formula] and genes g,h,
+
+[formula]
+
+where X̄*gghh  =  X̄ggX̄hh  +  2X̄2gh with A and B as given in Lemma [\ref=lem:moment2].
+
+The covariance is [formula]. Applying Lemma [\ref=lem:moment2] to the first expectation and Lemma [\ref=lem:moment1] to the other two yields the result.  [formula]
+
+Rotation moments of test statistics
+
+Rotation sampling [\citep=wedd:1975] [\citep=lang:2005] provides an alternative to permutations, and is justified if either X or Y has a Gaussian distribution. It is simplest to describe when Y  ~  N(μ,σ2In) and even simpler for Y  ~  N(0,σ2In). In the latter case we can replace Y by [formula] where [formula] is a random orthogonal matrix (independent of both X and Y), and the distribution of our test statistics is unchanged under the null hypothesis that X and Y are independent.
+
+Rotation tests work by repeatedly sampling from the uniform distribution on random orthogonal matrices and recomputing the test statistics using [formula] instead of Y. They suffer from sample granularity but not population granularity because Q has a continuous distribution (for [formula]).
+
+To take account of centering we need to use a rotation test appropriate for Y  ~  N(μ,σ2In). [\cite=lang:2005] does this by choosing rotation matrices that leave the population mean fixed. He rotates the data in an n - 1 dimensional space orthogonal to the vector 1n. To get such a rotation matrix, he first selects an orthogonal contrast matrix [formula]. This matrix satisfies [formula] and [formula]. Then he generates a uniform random rotation [formula] and delivers [formula], where [formula]. More generally if Y  ~  N(Zγ,σ2In), for a linear model Zγ, [\cite=lang:2005] shows how to rotate Y in the residual space of this model, leaving the fits unchanged.
+
+[\cite=wu:lim:vail:asse:visv:smyt:2010] have implemented rotation sampling for microarray experiments in their method, ROAST. They speed up the sampling by generating a random vector instead of a random matrix. For some tests, permutations and rotations have the same moments, and so our approximations are approximations of rotation tests as much as of permutation tests.
+
+Our rotation method approximation performs very similarly to the permutation method. We let [formula] for [formula] where Q* is a uniform random n - 1  ×  n - 1 rotation matrix and the contrast matrix [formula] satisfies [formula] and [formula] and then [formula], [formula] and [formula] are defined as for permutations, substituting [formula] for Y.
+
+The variance of the quadratic test statistic depends on which contrast matrix W one chooses, and it cannot always match the permutation variance. This difference disappears asymptotically as n  →    ∞  .
+
+For an experiment with [formula] including genes g and h, the moments [formula] and [formula] are identical to their permutation counterparts, regardless of the choice for W.
+
+See Appendix 3 and 4. [formula]
+
+For an experiment with [formula], [formula], [formula] and [formula] are the same whether [formula] is formed by permutation or rotation of Y.
+
+Computation and costs
+
+To facilitate computation for the linear statistic, we reduce each gene set to a single pseudo-gene [formula] and then let
+
+[formula]
+
+The weights w have been absorbed into the pseudo-gene to simplify notation. We define
+
+[formula]
+
+Our permuted linear test statistic is [formula], with
+
+[formula]
+
+For the beta approximation, we need the range of [formula]. Let the sorted Y values be [formula] and the sorted XGi values be [formula]. Then the range of [formula] is
+
+[formula]
+
+Parkinson's Disease
+
+We illustrate our method using publicly available data from three expression studies in Parkinson's Disease (PD) patients (Moran et al., 2006, Zhang et al., 2005, and Scherzer et al., 2007; Table [\ref=tab:expts]). All three experiments contain genome wide expression values measured via a microarray experiment. PD is a common neurodegenerative disease; clinical symptoms often include rigidity, resting tremor and gait instability [\citep=abousleiman:2006]. Pathologically, PD is characterized by neuronal-loss in the substantia nigra and the presence of α-synuclein protein aggregates in neurons [\citep=abousleiman:2006].
+
+Using a selected set from the Broad Institute's mSigDB v3.1 [\citep=subramanian:2005] and the presence of PD as a response variable from the [\cite=zhang2] dataset, we visualized both permutation distributions and our approximation of these distributions (Figure [\ref=fig:mnexamp]). As discussed above, we use a linear test statistic, [formula], and a quadratic test statistic, [formula], where g is a sample covariance between gene expression and, in this case, disease status. Figure [\ref=fig:mnexamp] shows these two test statistics with a histogram of 99,999 recomputations of those statistics for permutations of treatment status versus gene expression. In principle, histograms of permuted test statistics can be very complicated, but in practice, they often resemble familiar parametric distributions, as in Figure [\ref=fig:mnexamp].
+
+Using the fitted normal distribution to determine the rarity of the observed gene set statistic results in a two-tailed p-value of 0.0604 for the linear statistic while permutations yield p  =  0.0595. A fitted σ2χ2(ν) distribution results in p = 0.0425 for the sum of squares gene set statistic, while permutations yield p  =  0.0458. The p-values are a quite close despite the somewhat higher peak for the permutation histogram relative to the χ2 density.
+
+We compared our non-permutation p-values to p-values for linear and quadratic statistics for the 6,303 gene sets from mSigDB's curated gene sets and Gene Ontology (GO, Ashburner et al., 2000) gene sets collections (v3.1). One gene set was removed because it contained only one gene in our experiments. The average size of these gene sets is 79.40 genes. For our gold standard we ran 999,999 permutations of the linear statistic and 499,999 permutations of the quadratic statistic. For all of our permutations, we first calculated the observed test statistic for each of the 6,303 gene sets and then permuted the Yi's M times to obtain 6,303 ×   M permuted test statistics. We next compared the pre-computed test statistic vector to our matrix of permuted test statistics.
+
+For each set, we computed left-sided p-values, pL, for the linear statistic and two-sided p-values, pQ, for the quadratic statistic using these permutations. We also computed the normal and beta approximations of pL with our method. (Figure [\ref=fig:corr], left panel). We converted these one-sided p-values to two-sided p-values via p = 2 min (pL,1 - pL). The beta approximation p-values are almost identical to the permutation p-values.
+
+For our quadratic test statistic, we fit our moment based σ2χ2(ν) approximation and computed two-sided tailed p-values across all sets (Figure [\ref=fig:corr], right panel). We see that the smallest χ2 non-permutation p-values are slightly conservative. This may reflect the boundedness of the permutation distribution combined with the unbounded right tail of the χ2 distribution.
+
+In each of the three experiments, there is a tight correlation between the permutation-based p-values of all sets and both of our moment-based methods (Table [\ref=tab:corrs]). The beta and normal approximations are almost identical. Our beta approximations are slightly closer to the gold standard than the normal approximations, but not by a practically important amount. The beta approximation has shorter tails than the Gaussian approximation. It yielded p-values somewhat smaller than permutations did, while the Gaussian approximation yielded p-values somewhat larger than the permutations did. The χ2 approximations also reproduce the ranking of the gold standard quite well, though not as well as the normal and beta approximations to the linear statistic.
+
+For these data sets and 6,303 gene sets, both of the linear statistics, which have more or less the same rank-ordering of p-values as 999,999 permutations, could be approximated in about than the amount of time it takes to compute 100 permutations (Table [\ref=tab:timelin], top block). Our gene sets had an average size of about 80 genes. This lead us to expect that the cost of the linear approximation would be comparable to doing 80 permutations. We found that the Gaussian approximation cost about as much as 100 permutations. While this is a close match, we remark that the time to do M permutations is nearly an affine function a  +  bM with positive intercept a. At such small M the overhead costs dominated the total cost making the per permutation costs hard to resolve. The beta approximation was slightly slower than the Gaussian one because it involves the sorting of the data.
+
+The χ2 approximation to the quadratic statistic has a computational cost about as much as 35,000 to 45,000 permutations, yet has a similar rank-ordering of p-values 499,999 permutations (Table [\ref=tab:timelin], bottom block). For the quadratic statistic we expected our algorithm to cost as much as doing a number of permutations equal to a small multiple of the mean square gene set size. It cost about as much as 35,000 to 45,000 permutations while the mean square set size was 27,171.
+
+After applying our permutation approximation methods to each dataset in 6,303 mSigDB gene sets, we found many significantly enriched gene sets, even after correcting for multiple testing (two-sided adjusted p-value <   0.05). The most significantly enriched sets are associated with metabolism and mitochondrial function, neuronal transmitters and serotonin, epigenetic modifications, and the transcription factor FOXP3 Supplemental Table 1 Each of these categories has some previously discovered association with PD, although not through traditional gene set methods (metabolism and mitochondrial function: [\cite=abousleiman:2006]; neuronal transmitters and serotonin: [\cite=fox:2009]; epigenetic modifications: [\cite=berthier:2013]; FOXP3: [\cite=stone:2009]). Through our new gene set enrichment method, we discovered a relationship between the expression of these gene sets and PD.
+
+Discussion
+
+Gene set methods are able to pool weak single gene signals over a set of genes to get a stronger inference. These methods and their corresponding permutation-based inferences are a staple of high throughput methods in genomics. Because an experiment for this purpose may have a few to hundreds of microarrays or RNA-seq samples, permutation can be computationally costly, and yet still result in granular p-values. In this paper, we introduce an approximation gene set method, which performs as well as permutation methods, in a fraction of the computation time and which generates continuous p-values.
+
+Permutation methods have some valuable properties that our approach does not share. Permutation based inferences give exact p-values. Our approximations are not ordinarily exact because the permutation histogram is not in the parametric family we use.
+
+The second advantage of permutations is that they apply to arbitrarily complicated statistics. In our view, many of those complicated statistics are much harder to interpret and are less intuitive than the plain sum and sum of squared statistics we present. Others have observed that simple linear and squared statistics outperform more complex approaches [\citep=acke:stri:2009]. Our method allows for the weighting of coefficients in our statistics, granting users access to additional useful and interpretable patterns.
+
+Because of the disadvantages discussed above, there has long been interest in finding approximations to permutation tests. [\cite=eden:yate:1933] noticed that the permutation distribution closely matched a parametric distribution that one would get running an F-test on the same data. It has also been known since the 1940s that the permutation distribution of the linear test is asymptotically normal as n increases [\citep=good:2004]. More recently, [\cite=knij:wess:rein:shmu:2009] approach the granularity issue by taking a random sample of permutations and fitting a generalized extreme value (GEV) distribution to the tail of their distribution.
+
+Our work differs from these previous permutation approximation approaches. We use Gaussian or beta distributions for the linear statistic and a χ2 distribution for the quadratic statistic. These choices never place the observed test statistic strictly outside the possible range of our reference distribution. In this way, we also avoid nonsensical p-values.
+
+We have developed a new and intuitive method for gene set enrichment analysis that is computationally inexpensive, as accurate as permutation methods, and avoids the sample granularity issue. A Gaussian, beta, or χ2 approximation gives a principled way to break ties among genes or gene sets whose test statistics are larger than any seen in the M permutations. We applied our moment based approximations to three human Parkinson's Disease data sets and discovered the enrichment of several gene sets in this disease, none of which were mentioned in the original publications.
+
+Acknowledgement
+
+We thank Nicholas Lewin-Koh, Joshua Kaminker, Richard Bourgon, Sarah Kummerfeld, Thomas Sandmann, and John Robinson for helpful comments. ABO thanks Robert Gentleman, Jennifer Kesler and other members of the Bioinformatics and Computational Biology Department at Genentech for their hospitality during his sabbatical there.
+
+Funding:
+
+JLL is funded by Genentech, Inc. ABO was supported by Genentech, Inc. and by Stanford University while on a sabbatical.
+
+Appendix 1: Proof of Lemma 1
+
+This appears in [\cite=owen:2005] but we prove it here to keep the paper self-contained. First
+
+[formula]
+
+Recall that [formula]. Then
+
+[formula]
+
+and so
+
+[formula]
+
+proving Lemma 1. [formula]
+
+Appendix 2: Proof of Lemma 2
+
+The fourth moment contains terms of the form
+
+[formula]
+
+and there are different special cases depending on which pairs of indices among i, j, k and [formula] are equal. We need the following fourth moments of Y in which all indices are distinct:
+
+[formula]
+
+and where the subscripts are mnemonics for terms four of a kind, three of a kind, two pair, one pair and nothing special.
+
+We can express all of these moments in terms of μ2 and [formula]. Each moment is a normalized sum over distinct indices. We can write these in terms of normalized sums over all indices. Many of those terms vanish because [formula].
+
+Let [formula] represent summation over distinct indices, as in
+
+[formula]
+
+and so on. We can write these sums in terms of unrestricted sums:
+
+[formula]
+
+See Gleich and Owen (2011) for details.
+
+We will use the last expression in a context where [formula] vanishes when summed over the entire range of any one of its indices. In that case
+
+[formula]
+
+We also use the notation [formula], often called 'n to k factors', where k is a positive integer. Now
+
+[formula]
+
+Finally using [\eqref=eq:fourhom], [formula] equals
+
+[formula]
+
+so that
+
+[formula]
+
+We may summarize these results via
+
+[formula]
+
+where the matrix A is given in the statement of Lemma 2.
+
+Now
+
+[formula]
+
+Next, we write the terms of [formula] using X̄ghrs and similar moments.
+
+The coefficient of μ4k is [formula]. The coefficient of μ3k contains
+
+[formula]
+
+and after summing all four such terms, the coefficient is - 4nX̄ghrs. The coefficient of μ2p contains
+
+[formula]
+
+and accounting for all three terms yields - 3nX̄ghrs.
+
+The coefficient of μ1p contains
+
+[formula]
+
+Summing all 6 terms, we find that the coefficient is
+
+[formula]
+
+The coefficient of [formula] is, using [\eqref=eq:fourhom],
+
+[formula]
+
+We may summarize these results via
+
+[formula]
+
+where X̄*gh,rs  =  X̄ghX̄rs  +  X̄grX̄hs  +  X̄gsX̄hr, completing the proof of Lemma 2.
+
+Appendix 3: moments of orthogonal random matrix elements.
+
+We will need low order moments of orthogonal random matrices to study the moments of linear and quadratic test statistics under rotation sampling.
+
+For integers [formula], let [formula], known as the Stiefel manifold. We will make use of the uniform distributions on Vn,k. There is a natural identification of Vn,1 with the unit sphere.
+
+Let [formula] be a uniform random rotation matrix. This implies, among other things, that each column of Q is a uniform random point on the unit sphere in n dimensions.
+
+By symmetry, we find that [formula]. Similarly [formula] and [formula] unless i = r and j = s.
+
+[\cite=ande:olki:unde:1987] give
+
+[formula]
+
+We are interested in all fourth moments [formula] of Q. If any of [formula] appears exactly once then the fourth moment is 0 by symmetry. To see this, suppose that index [formula] appears exactly once. Now define the matrix [formula] with elements
+
+[formula]
+
+If [formula] then [formula] too by invariance of [formula] to multiplication on the right by the orthogonal matrix [formula], with a - 1 in the j'th position. Then
+
+[formula]
+
+Similarly, because [formula] is also uniformly distributed on Vn,n we find that if any of i,k,r,t appear exactly once the moment is zero. If one index appears exactly three times, then some other moment must appear exactly once. As a result, the only nonzero fourth moments are products of squares and pure fourth moments. Their values are given in the Lemma below.
+
+Let [formula]. Then
+
+[formula]
+
+The first case was given by [\cite=ande:olki:unde:1987].
+
+For the second case, there is no loss of generality in computing [formula]. The vector [formula] is uniformly distributed on the sphere. Given Q11, the point [formula] is uniformly distributed on the n - 1 dimensional sphere of radius [formula]. Therefore [formula] and so
+
+[formula]
+
+For the remaining case we let [formula] for i  ≠  r and j  ≠  s. Summing over n4 combinations of indices we find that
+
+[formula]
+
+by orthogonality of Q. Therefore
+
+[formula]
+
+Solving for θ we get
+
+[formula]
+
+Appendix 4: proof of Lemma 3.
+
+Let [formula] where p = |G| and [formula] for [formula]. Both Xi and Yi are centered: [formula] and [formula].
+
+The sample coefficients for genes g∈G are given by the vector [formula]. The reference distribution is formed by sampling values of [formula] where [formula] is a rotated version of Y.
+
+The rotation is one that preserves the mean of Y while rotating in the n - 1 dimensional space of contrasts. As in [\cite=lang:2005], we let [formula] be any fixed contrast matrix satisfying [formula] and [formula]. Then the rotated version of Y is
+
+[formula]
+
+is a uniform random n - 1 dimensional rotation matrix.
+
+It is convenient to introduce centered quantities [formula], [formula] and [formula]. These sum to zero even when X, Y and [formula] do not. Their main difference from those variables is that they have n - 1 rows, not n.
+
+Now [formula], so
+
+[formula]
+
+For the rest of the proof, we need the covariance matrix of [formula]. Now
+
+[formula]
+
+where [formula].
+
+The ij element of [formula] is [formula] which has expected value
+
+[formula]
+
+where [formula]. That is
+
+[formula]
+
+and so
+
+[formula]
+
+In particular [formula], matching the value under permutation.
+
+Appendix 5: cost analysis of [formula]
+
+Recall from Corollary 2 that in an experiment with [formula] and genes g,h,
+
+[formula]
+
+where X̄*gghh  =  X̄ggX̄hh  +  2X̄2gh and [formula] is a given 2  ×  2 matrix.
+
+To compute
+
+[formula]
+
+we need μ2, μ4 and [formula] which are very inexpensive. We also need
+
+[formula]
+
+By expressing S1 as a square, we find that it can be computed in O(np) work, not O(np2) which a naive implementation would provide. We can compute all of the X̄gg's in np multiplications and this is the largest part of the cost. If gene g belongs to many gene sets G we only need to compute X̄gg once and so the cost per additional gene set could be lower.
+
+A similar analysis yields that
+
+[formula]
+
+is also an O(np) computation. Unfortunately [formula] does not reduce to an O(np) computation. As written it costs O(np2). In cases where p > n, we can however reduce the cost to O(n2p) via
+
+[formula]
+
+In terms of these sum quantities,
+
+[formula]

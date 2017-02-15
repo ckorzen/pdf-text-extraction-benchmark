@@ -1,0 +1,199 @@
+Computing the Force Distribution on the Surface of Complex, Deforming Geometries using Vortex Methods and Brinkman Penalization
+
+, Gabriele Abbati
+
+, Guido Novati
+
+and Petros Koumoutsakos
+
+Introduction
+
+The distribution of surface-forces, and its dependence on the shape and motion of biological organisms and engineering devices, is among the most valuable information that can be acquired through numerical simulations. Such information may not be easy to obtain experimentally, particularly for biological organisms, such as swimmers that involve complex deforming bodies. The measurement of surface-forces was the subject of some of the pioneering observations concerned with swimming organisms by Gray [\cite=Gray1957], and experiments by DuBois & Ogilvy [\cite=Dubois1978]. Theoretical studies of fish-swimming by Lighthill [\cite=Lighthill1970] and Wu [\cite=Wu1971] employed potential flow theory to provide estimates for the pressure field on the body-surface. More recent work [\cite=Dabiri2005] [\cite=Dabiri2014] has provided new impetus for the measurement of such quantities, which are deemed to be essential for answering some of the most critical questions concerning our understanding of fish-swimming [\cite=Lauder2009].
+
+Simulations can complement experiments by providing complete information regarding the distribution of surface-forces on swimming organisms. Direct Numerical Simulations of swimming organisms were first performed using Arbitrary Lagrangian-Eulerian (ALE) methods [\cite=Liu1996] [\cite=Liu1997] [\cite=Carling1998]. ALE methods [\cite=Hirt1974] [\cite=Hughes1981] [\cite=Liu1999] [\cite=Kern2006] utilize body-fitted grids, where the surface of the solid is delineated explicitly by the mesh. This makes enforcing boundary-conditions relatively straightforward. However, body-fitted grids may encounter difficulties with bodies experiencing large deformations, and the grid must be reconstructed frequently to account for moving and deforming objects. Frequent mesh regeneration is undesirable, as it entails significant computational overhead. This overhead can be especially prohibitive when performing shape and motion optimisation of fish-swimming using evolutionary algorithms [\cite=Kern2006]. Alternative approaches, referred to as Immersed Boundary (IB) methods [\cite=Peskin1972] [\cite=Peskin2002] [\cite=Mittal2005] [\cite=Gilmanov2005] [\cite=Hieber2008] [\cite=Borazjani2009], reduce computational cost by using simple, non-body-fitted meshes. The no-slip condition is imposed on curved boundaries using appropriate interpolation of the velocity field across the fluid-solid interface. In a different approach, Cartesian grids have been combined with penalisation techniques [\cite=Angot1999] for simulations of fish-swimming [\cite=Gazzola2011] [\cite=Bergmann2011]. Penalisation techniques allow for easy computation of the rotational and translational motion of self-propelled swimmers, via integrals of the flow field over the body volume. However, penalisation techniques present challenges when detailed distributions of the pressure-induced and viscous forces are required on the body surface. Such force fields may be noisy owing to the irregular intersection of the curved body-geometry with the Cartesian grid.
+
+Early developments of Immersed Boundary methods were coupled with vortex methods [\cite=McCracken1980] for enforcing the no-slip boundary condition. Vortex methods primarily discretize the vorticity present in the flow field, and can prove to be advantageous in flows involving a limited support of the vorticity field, such as fish wakes. These early simulations were abandoned due to inaccuracies of vortex methods at that time. Such limitations were overcome in later work that employed re-meshing to enforce the regularisation of particle locations [\cite=Koumoutsakos1997], or utilized a vorticity flux algorithm for the enforcement of the no-slip condition [\cite=Koumoutsakos1994], and made use of variable kernel sizes and domain-decomposition techniques to account for multiple bodies [\cite=Cottet2000]. However, their applicability to 3D and multiple deforming bodies was limited due to the requirement of body fitted grids, or due to limitations imposed on the Cartesian meshes by remeshing.
+
+Recent work utilizing the combination of vortex methods with Brinkman penalization has demonstrated that the approach is extremely effective in simulating fluid-structure interaction of complex, temporally deforming geometries [\cite=Coquerelle2008] [\cite=Gazzola2011] [\cite=Rossinelli2015]. A number of studies have relied on this technique for coupling simulations of self-propelled swimmers with machine-learning algorithms [\cite=Gazzola2014], and for design optimization of swimmer morphology and kinematics [\cite=vanRees2013] [\cite=Gazzola2012] [\cite=Gazzola2012PoF] [\cite=vanRees2015]. These studies demonstrate the capability of the penalization algorithm to handle multiple, complex and deforming geometries with relative ease. Nonetheless, these studies have not overcome the difficulty of determining pointwise forces exerted on a solid surface. Surface-forces are the primary means through which fluids exert an influence on solid objects, and knowledge of these forces is essential for analyzing fluid-solid interactions. The absence of an explicit calculation for the pressure term in vortex methods, and the smooth interface used for the penalization algorithm, pose considerable challenges when determining surface-forces. These issues are overcome in the current work. A complete methodology is presented to accurately compute surface-forces in simulations of two-dimensional flows past complex deforming geometries, using Cartesian grids.
+
+The paper is organised as follows. The equations for determining surface-forces, and the numerical techniques used, are described in Section [\ref=sec:numMeth]. Validations with simulations of impulsively started two-dimensional cylinders, simulations of flow over a rigid streamlined profile, and simulations of a self-propelled swimmer, are discussed in Section [\ref=sec:results]. Section [\ref=sec:summary] summarizes the results and the numerical techniques outlined in the paper.
+
+Numerical Methods
+
+This work is concerned with two-dimensional, viscous, incompressible flows past complex, rigid and deforming geometries. In this section, we provide a brief description of the equations governing the interaction between fluid-flow and solid objects, and the numerical procedure used to compute the pressure-induced and viscous forces on a solid.
+
+Vortex methods and Brinkman penalization
+
+The spatial and temporal evolution of the velocity field in our simulations is based on the incompressible Navier-Stokes equations:
+
+[formula]
+
+The interaction between fluid-flow and solid objects is achieved by introducing a penalty term in the momentum equation (Brinkman penalization [\cite=Angot1999]), which enforces the no-slip boundary condition at the fluid-solid interface:
+
+[formula]
+
+Here, λ is the penalization parameter, and χ is the characteristic function which represents the discretized solid on a Cartesian grid. Grid points with χ = 0 are occupied entirely by the fluid, and those with χ = 1 are occupied entirely by the solid. To minimize numerical oscillations, χ transitions smoothly from 0 to 1 within 2 grid-points at the fluid-solid interface, using a discrete representation of the Heaviside function [\cite=Towers2009]. The symbol [formula] in Eq. [\ref=eq:penalNS] denotes the pointwise velocity of the discretized solid, and accounts for translation, rotation, and deformation of the body.
+
+To solve the motion resulting from fluid-solid interaction, we use an open-source solver [\cite=Rossinelli2015] based on re-meshed vortex methods [\cite=Koumoutsakos1995]. These methods use the vorticity form of the momentum equation, which may be obtained by taking the curl of Eq. [\ref=eq:penalNS]:
+
+[formula]
+
+In deriving Eq. [\ref=eq:penalNSvort], we have used the fact that [formula] (incompressibility), and [formula], since we restrict our investigation to neutrally buoyant solids (i.e., ρsolid  =  ρliquid). Furthermore, the vortex-stretching term ([formula]) is absent from the momentum equation for two-dimensional cases. A detailed description of the time-splitting steps involved in solving Eq. [\ref=eq:penalNSvort] may be found in [\cite=Gazzola2011] [\cite=Rossinelli2015].
+
+Recovering pressure from the velocity field
+
+Advancing the vorticity field in time using Eq. [\ref=eq:penalNSvort] requires the computation of velocity at every time step ([formula]). The pressure field can be recovered from the velocity by taking the divergence of the penalized momentum equation (Eq. [\ref=eq:penalNS]):
+
+[formula]
+
+The colon operator in [formula] denotes the tensor dot product, which can be written in index notation as uj,iui,j. Using the incompressibility condition ([formula]) and the fact that [formula] (neutrally buoyant solid), Eq. [\ref=eq:PoissonDerive] simplifies to a Poisson's equation for the pressure term:
+
+[formula]
+
+This Poisson's equation is solved using a fast tree-code algorithm based on multipole expansions [\cite=Greengard1987], as described in Appendix [\ref=sec:PoissonNumerics]. The penalty term in this equation ([formula]) accounts for the pressure-source contribution induced by fluid-solid interactions.
+
+Determining the surface-forces
+
+When using Brinkman penalization, the absence of a sharply defined fluid-solid interface poses the biggest obstacle in determining the forces exerted on a solid surface. To overcome this difficulty, we consider the pressure-induced (isotropic) and viscosity-induced (deviatoric) parts of the forces separately.
+
+Pressure-induced forces
+
+Pressure-induced forces act on a surface immersed in a fluid, even when both the fluid and the solid are at rest. Computing these forces ([formula]) requires knowledge of the pressure, the surface normal ([formula]), and the infinitesimal surface area (dS):
+
+[formula]
+
+The surface coordinates ([formula]) and normals defining the solid boundary are known precisely at each time step in simulations. These exact surface-coordinates ([formula]), which may not necessarily coincide with the grid nodes, are used as target locations [formula] for computing [formula] using Eq. [\ref=eq:expandedFinal]. Evaluating the pressure at the body-surface coordinates instead of the entire computational domain reduces the cost of the Poisson solver significantly.
+
+Once the pointwise pressure-induced surface-forces are known from Eq. [\ref=eq:Fpress], their resultant on the entire body can be determined using a closed surface integral:
+
+[formula]
+
+[formula] can be projected along the velocity vector to obtain the contribution of pressure-induced forces to thrust and drag. For stationary solid objects, the pressure-induced drag and the corresponding drag coefficient are defined as follows:
+
+[formula]
+
+where [formula] is the free-stream velocity, and A represents the reference area ([formula] for two-dimensional cylinders).
+
+Viscous forces
+
+To compute viscous forces ([formula]) resulting from relative motion between the fluid and the solid, we use the pointwise strain-rate tensor [formula]:
+
+[formula]
+
+Here, μ is the dynamic viscosity of the fluid. For simulations involving deforming objects (i.e., self-propelled swimmers), [formula] in Eq. [\ref=eq:Fvisc] is evaluated at the surface of the solid. However, in the case of rigid objects, smoothing of the solid boundary on the computational grid leads to inaccurate estimation of velocity gradients. To overcome this difficulty, [formula] is computed on a 'lifted' body surface via nearest-neigbour interpolation. The lifted-surface is formed by moving the original solid surface outward along the surface-normal. Our tests indicate that a distance of 2h from the exact edge of rigid objects yields the best accuracy for determining [formula]. With the pointwise viscous forces known from Eq. [\ref=eq:Fvisc], the resultant quantities [formula], [formula], and Cdν may be determined as follows:
+
+[formula]
+
+Results
+
+In this section, we present results obtained using the numerical procedure described in Section [\ref=sec:numMeth]. All the simulations discussed were run using an open-source 2D incompressible Navier Stokes solver [\cite=Rossinelli2015]. The penalization-parameter in Eq. [\ref=eq:penalNSvort] was set to λ  =  106, and the multipole expansion in Eq. [\ref=eq:pressTruncated] was truncated to p = 12.
+
+Surface-force computations for rigid objects are validated first using data available in the literature for impulsively started cylinders. This is followed by simulations of rigid fish-like profiles, where the drag force computed using surface-forces is compared to the drag obtained using the penalization algorithm. Validation for deforming geometries (self-propelled swimmers) is done by comparing the unsteady acceleration computed using surface-forces, to the acceleration determined using the penalization algorithm. We emphasize that the penalization algorithm yields just the resultant-force acting on a body, whereas the surface-force computations provide a detailed picture of pointwise forces acting on the object's surface.
+
+Impulsively started cylinders
+
+We first examine impulsively started flow over rigid cylinders, for diameter-based Reynolds numbers of Re = 550 and 1000 ([formula]). Both these simulations were run in a unit square domain using a uniform grid of 40962 points, with [formula] and R = 0.05. A snapshot of the resulting vorticity field, and the corresponding pressure field, is shown in Fig. [\ref=fig:cylVortPress]. To verify the accuracy of the spatial distribution of pressure, the surface-pressure coefficient ([formula]) is plotted as a function of the azimuthal angle in Fig. [\ref=fig:CpVsTheta] (θ = 0 at the rear stagnation point). The pressure distribution compares well with reference data from [\cite=Li2004], at the three different time instances shown. To ensure that the velocity derivatives used for estimating the viscous forces (section [\ref=sec:viscForces]) are computed accurately, we examine the spatial distribution of vorticity on the lifted-surface of the cylinder (Fig. [\ref=fig:vortCyl]). The distribution compares well with reference data from [\cite=Koumoutsakos1995] at two different time instances, for both Re = 550 (Fig. [\ref=fig:vortRe550]) and Re = 1000 (Fig. [\ref=fig:vortRe1000]). The temporal evolution of the pressure-induced and viscous contributions to the net drag force (Eqs. [\ref=eq:CdP] and [\ref=eq:CdNu]) is shown in Fig. [\ref=fig:CdCylinder], and agrees reasonably well with reference data from [\cite=Koumoutsakos1995]. The results discussed in this section suggest that the numerical algorithms described for determining pressure-induced and viscous forces work well for the case of rigid cylindrical objects.
+
+Impulsively started flow over a rigid streamlined object
+
+To ensure that the surface-force computations perform well for non-cylindrical shapes, we examine impulsively started flow over a rigid streamlined object. The profile shape, shown in Fig. [\ref=fig:deadFishVort], is based on a simplified 2D model of zebrafish [\cite=Carling1998] [\cite=Kern2006] [\cite=Gazzola2011]. The half-width of the profile is described as follows:
+
+[formula]
+
+where s is the arc-length along the midline of the geometry, L is the body length, wh = sb = 0.04L, st = 0.95L, and wt = 0.01L. The relevant drag coefficient, the normalized time, and the Reynolds number are defined below:
+
+Figure [\ref=fig:CdDeadFish] shows the temporal evolution of drag coefficients for the body at a Reynolds number of 400, with L = 0.1 and [formula]. The simulation was run on an adaptive grid with an effective resolution of 40962 grid points. The viscous-drag coefficient (Cdν) was obtained by evaluating [formula] on a lifted-surface, as described in Section [\ref=sec:viscForces]. The net drag coefficient (the solid line in Fig. [\ref=fig:CdDeadFish]) was computed as the sum of Cdν and CdP. The symbols in Fig. [\ref=fig:CdDeadFish] indicate drag determined by integrating the penalization term in Eq. [\ref=eq:penalNS] (with [formula]) [\cite=Coquerelle2008]:
+
+[formula]
+
+At the start of the simulation (T  ≪  1), the static body experiences a large amount of drag, owing to the impulsively started flow. As the flow approaches steady state (T > 2), the drag coefficients asymptote to constant values. We observe that the pressure-induced drag is small, even in the early stages of the simulation, which is a consequence of the streamlined shape of the body. This is not the case for blunt-shaped profiles (e.g., cylinders: Fig. [\ref=fig:CdCylinder]), where the pressure-induced drag (or form-drag) dominates throughout the simulation. Overall, the time-evolution of Cd determined using surface-forces compares well with that computed using Eq. [\ref=eq:dragPenal], which suggests that the numerical procedures outlined in Section [\ref=sec:numMeth] are suitable for use with rigid streamlined geometries.
+
+Self-propelled swimmers
+
+To validate the surface-force computations for dynamically deforming objects, simulations of self-propelled swimmers were performed by imposing time-varying deformations on 2D models of zebrafish [\cite=Carling1998] [\cite=Kern2006] [\cite=Gazzola2011]. The half-width of the swimmer's profile is defined by Eq. [\ref=eq:fishWidth]. The traveling-wave that describes the lateral displacement of the swimmer's midline is given as [\cite=Carling1998] [\cite=Gazzola2011]:
+
+[formula]
+
+where Tp represents the tail-beat period imposed on the swimmer. Further details regarding the deformation and discretization of the profile may be found in [\cite=Gazzola2011].
+
+The simulation of the swimmer was conducted at a Reynolds number of 4000, on an adaptive grid with an effective resolution of 81922 grid points. This Re value corresponds to the swimming of adult zebrafish, and is based on the length of the fish L = 0.1, and the tail-beat period Tp = 1 (Re = L2 / Tpν). The resulting time-evolution of the velocity of the center of mass of the swimmer ([formula]) is shown in Fig. [\ref=fig:fishVel]. The swimmer accelerates from rest in the first few tail-beat periods ([formula]), before settling down to steady, periodically varying motion. The vorticity and pressure fields resulting from the simulation are shown in Fig. [\ref=fig:fishFull]. The pressure field was computed by evaluating Eq. [\ref=eq:expandedFinal] with all grid nodes in the domain designated as target locations. A high pressure region develops in front of the head owing to the presence of a stagnation point. Acceleration of fluid around the head creates regions of low pressure on either side of the head, and the vortex-cores visible in Fig. [\ref=fig:fishFullVort] give rise to regions of low pressure in the fish's wake (Fig. [\ref=fig:fishFullPress]).
+
+In Fig. [\ref=fig:fishSurfPlots], we examine the spatial distribution of pressure and shear-based quantities on the surface of the swimmer's body. Figure [\ref=fig:fishKinematics] depicts the shape of the fish-midline at three different instances during a tail-beat period. Figure [\ref=fig:fishSurfPress] shows the corresponding distribution of pressure coefficient on the right lateral surface of the fish's body. Figure [\ref=fig:fishSurfShear] depicts the magnitude of the shear (viscous) traction vector ([formula]) on the right lateral surface. Both the pressure and the traction vector magnitude have been non-dimensionalized with M / LT2P (M represents the mass of the swimmer) to obtain the respective coefficients Cp and Cν shown in the plots. From Figs. [\ref=fig:fishSurfPress] and [\ref=fig:fishSurfShear], we can surmise that the pointwise contribution from pressure is much larger ([formula]) than the contribution from shear stress ([formula]), which is expected for moderately large Reynolds numbers (Re = 4000). The shear stress contribution is largest close to the tip of the head, followed by a pronounced drop along the midsection of the body, and a recovery towards the tail-end. The most dominant pressure contribution occurs at the head tip, followed by a persistent negative-Cp region at the side of the head, and periodically varying Cp along the rest of the body. The pointwise forces that emerge as a consequence of these stress distributions are depicted in an animation provided as part of the supplementary materials (Movie 1).
+
+The time-evolution of the resultant of the surface-forces (Eqs. [\ref=eq:FpressNet] and [\ref=eq:FviscNet]) is shown in Fig. [\ref=fig:forcePlots]. We observe that the contribution of viscous forces is small compared to the contribution of pressure-induced forces, which matches our observation in Fig. [\ref=fig:fishSurfPlots]. The spikes in (FP)x for T < 1 suggest that the pressure distribution created by undulations of the swimmer plays a major role in accelerating the body from rest. For quantitative validation of the pressure-induced and viscous force computations, the horizontal (x) and vertical (y) components of net acceleration determined using surface-forces are compared to the acceleration predicted by the penalization algorithm. The acceleration at timestep 'n' from the penalization algorithm is recovered from the object's center-of-mass-velocity using 2nd order centered difference:
+
+[formula]
+
+The acceleration corresponding to surface-forces is computed as follows:
+
+[formula]
+
+where M is the total mass of the solid object. The temporal evolution of [formula] and [formula] is shown in Fig. [\ref=fig:accelPlots]. The plots indicate that the net acceleration computed using surface-forces compares well with that determined using the penalization algorithm. The noise observed in the case of [formula] can be attributed to the use of finite-differences for computing the temporal derivative (Eq. [\ref=eq:aPenal]). The spikes in ax for T < 1 correlate with the large (FP)x values observed in Fig. [\ref=fig:forcePlots]. At later stages in the simulation, both ax and ay oscillate about a mean value of 0, which corresponds to the horizontal and vertical velocities approaching a steady mean value. Overall, the trends in ax and ay follow those observed for (FP)x and (FP)x in Fig. [\ref=fig:forcePlots]. To ensure that the algorithm works well on coarse grids, we compare the swimmer's net acceleration computed using surface-forces on four different grid resolutions (Fig. [\ref=fig:accelPlotsGridConvg]). The acceleration exhibits increased levels of noise at lower resolutions, however, the values compare well to the data computed at higher resolutions. This result, as well as the good agreement between [formula] and [formula] in Fig. [\ref=fig:accelPlots], confirms that the surface-forces computations described in Section [\ref=sec:numMeth] work well for the case of dynamically deforming solid objects.
+
+Summary
+
+In this paper, we describe numerical procedures for determining flow-induced surface-forces on rigid and deforming bodies, when using vortex methods combined with Brinkman penalization. The pressure-Poisson equation is solved using a fast tree-code algorithm based on multipole expansions. Viscous forces are computed by evaluating the strain-rate tensor either on the object's surface, or on a lifted-surface, depending on whether a deforming or a rigid object is being simulated. Numerical tests involving impulsively started cylinders, a streamlined rigid fish-shaped body, and a self-propelled swimmer, are used to assess the efficacy of the method described. For the case of impulsively started cylinders, the spatial distribution of surface-pressure compares well with the results of benchmark simulations. Moreover, the temporal evolution of the pressure-induced and viscous drag coefficients shows good agreement with reference data. For streamlined fish-shaped profiles, drag measurements computed using surface-forces match those determined using the penalization algorithm. In simulations of self-propelled swimmers, the net unsteady acceleration calculated using the surface-force computations agrees well with the acceleration determined from the penalization algorithm. The tests presented indicate that the numerical procedures described are quite effective for determining pointwise surface-forces on complex, temporally evolving geometries. Future work involves the extension of this method to three-dimensional flows.
+
+We gratefully acknowldge support by the European Research Council Advanced Investigator Award, and the Swiss National Science Foundation Sinergia Award (CRSII3_147675). This work utilized computational resources granted by the Swiss National Supercomputing Centre (CSCS) under project ID 's436'.
+
+Numerical solution of the pressure Poisson equation
+
+The Green's function
+
+There are several ways of numerically solving the Poisson's equation shown in Eq. [\ref=eq:PoissonFinal], for instance, using Fourier-based fast Poisson solvers [\cite=Hockney1965], using multigrid methods [\cite=Stuben1982] [\cite=Gupta1997], or using tree-code algorithms [\cite=Appel1985] [\cite=Rokhlin1985] [\cite=Barnes1986] [\cite=Greengard1987]. For solving the Poisson's equation on the multi-resolution adaptive grids [\cite=Rossinelli2015] used in our simulations, we use the tree-code algorithm, which requires knowledge of the Green's function (or the fundamental solution) for the Laplacian.
+
+The free-space Green's function [formula] for the Laplacian is the solution of the following equation, with the Neumann boundary condition specified at infinity:
+
+[formula]
+
+Physically, the Neumann boundary condition in Eq. [\ref=eq:greenNeumann] corresponds to the pressure-forces being zero at infinity. The Green's function that satisfies Eqs. [\ref=eq:greenDelta] and [\ref=eq:greenNeumann] in two-dimensions is:
+
+[formula]
+
+This fundamental solution can be used to solve the inhomogeneous pressure-Poisson equation, by computing its convolution with the forcing term on the right hand side of Eq. [\ref=eq:PoissonFinal]:
+
+[formula]
+
+where [formula], [formula], and χ are functions of [formula]. Discretizing the integral in Eq. [\ref=eq:greenConv] yields the following summation:
+
+[formula]
+
+where h2 represents the area of the grid-cell at location [formula] , and
+
+[formula]
+
+Note that h is a function of [formula], as the cell size may vary spatially when using adaptive grids.
+
+Equation [\ref=eq:greenSum] sums up contributions from source-points located throughout the domain (hence the summation over [formula]), to compute the pressure at location [formula]. Evaluating this sum directly is computationally intractable even for problems that are relatively modest in size, and a tree-code [\cite=Barnes1986] combined with multipole expansions [\cite=Greengard1987] is used to speed-up the computation.
+
+Multipole Expansion
+
+Tree-codes and multipole methods have been used extensively for solving 'N-body' problems involving gravitational and electric fields [\cite=Barnes1986] [\cite=Greengard1987] [\cite=Greengard1990], and for fluid-simulations based on vortex dynamics [\cite=Pepin1990] [\cite=Koumoutsakos1995] [\cite=Gazzola2011]. These methods can be used to reduce the computational complexity of the summation in Eq. [\ref=eq:greenSum] from O(N2) to O(N log N) [\cite=Barnes1986], or to O(N) [\cite=Greengard1987] [\cite=Greengard1990], depending on the specific algorithm used. The computational savings result from the combined use of a hierarchical quadtree data structure, and a truncated series expansion for [formula]. To obtain the multipole expansion for the logarithmic function in Eq. [\ref=eq:green2D], the coordinates [formula] and [formula] are expressed as complex numbers [formula] and [formula]. To facilitate series expansion of the resulting expression ([formula]), we express the difference [formula] in terms of polar coordinates reiθ (where [formula] and [formula]). The complex logarithm [formula] and the real-valued function in Eq. [\ref=eq:green2D] are related as follows:
+
+[formula]
+
+Equation [\ref=eq:logRealToComplex] suggests that [formula] can be represented as the real part of the series expansion for [formula]:
+
+[formula]
+
+Assuming that the computation for [formula] involves N source particles, we combine Eqs. [\ref=eq:green2D], [\ref=eq:greenSum], [\ref=eq:logRealToComplex], and [\ref=eq:logExpansion] to get:
+
+[formula]
+
+The summation in the first term in Eq. [\ref=eq:expanded1] simplifies to a constant value, which represents the total contribution S from all source-points. The summation signs in the second term are interchanged, and the summation over k is truncated to p terms: Note that S and the coefficients αk are evaluated and stored in a single pass through the quadtree, as they do not depend on [formula]. The choice of truncation parameter 'p' depends on the desired level of accuracy [\cite=Greengard1987].
+
+The multipole expansion in Eq. [\ref=eq:expandedFinal] and the hierarchical quadtree allow us to group source-points together, as depicted in Fig. [\ref=fig:multipole]. Each group is perceived as a single source-point (the red dots located at [formula] in Fig. [\ref=fig:multipole]) at sufficiently large distances [\cite=Appel1985] [\cite=Barnes1986] [\cite=Greengard1987] [\cite=Greengard1990]. Due to the linear nature of Eq. [\ref=eq:greenSum], the contributions from individual groups can be combined to obtain [formula]:
+
+[formula]
+
+The group contributions [formula] can be evaluated by replacing [formula] with [formula], and [formula] with [formula] in Eq. [\ref=eq:expandedFinal], and by limiting the summation over 'i' to the sources contained within each group.
+
+The multipole expansions for parent-clusters (i.e., large clusters composed of smaller clusters) can be generated by combining their childrens' expansions. This reduces the computational cost, since we no longer need to repeatedly evaluate the contributions from all source-points enclosed within larger clusters. The multipole expansion of a child-cluster centered at [formula] can be shifted to the appropriate parent-cluster's center at [formula], using an exact formula [\cite=Greengard1987]:
+
+[formula]
+
+where
+
+[formula]
+
+Starting from the finest level in the quadtree, Eqs. [\ref=eq:expandedShift] and [\ref=eq:expandedBeta] can be used to generate the expansions for all parent nodes recursively. Further details regarding the implementation of tree-codes may be found in [\cite=Barnes1986] [\cite=Greengard1987] [\cite=Greengard1990].

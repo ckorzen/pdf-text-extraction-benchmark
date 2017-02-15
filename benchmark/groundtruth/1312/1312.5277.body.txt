@@ -1,0 +1,221 @@
+Numerical solution of saddle point problems by block Gram-Schmidt orthogonalization
+
+Keywords: saddle point problem, block Q-R factorization, Householder transformation, condition number, numerical stability.
+
+AMS Subj. Classification: 15A12, 15A23, 15A60, 65H10.
+
+Introduction
+
+We consider a symmetric saddle point problem
+
+[formula]
+
+where [formula] is symmetric positive definite (A > 0), [formula] is symmetric semipositive definite (C  ≥  0), [formula] has full column rank, n = rank(B)  ≤  m. Then M is nonsingular and there exists a unique solution (x*,y*) of ([\ref=M]) (i.e. Mz* = f) .
+
+These problems feature in many contexts; for example, in nonlinearly constrained optimization, structural mechanics, computational fluid dynamics, elasticity problems, mixed (FE) formulations of II and IV order elliptic PDE's, weighted least squares (image restoration), FE formulations of coupled problem (see [\cite=Benzi:_05]). Coupled problems are common in the real world; description of different mechanical phenomena, such as flow and thermal effects, leads to coupled systems of differential equations. The finite element method (FEM) is widely used to solve such problems, and the most important part of the finite element method algorithm is the procedure for solving the set of linear equations possesing saddle point structure (see [\cite=Dlu] [\cite=Oku1] [\cite=Oku2]).
+
+This problem structure is naturally suited to the application of block algorithms, and block algorithms are suitable for parallel implementation, as they allow the splitting of data and computation onto separate memories and computation devices. Block methods operate on groups of columns of M instead of columns, to create a BLAS-3 compatible algorithm, that is, an algorithm built upon matrix-matrix operations.
+
+It is known (see [\cite=Benzi:_05]) that the block LU factorization of M is in general unstable, and so in this paper we study the numerical properties of block Q-R orthogonalization for the solving of ([\ref=M]). This approach may be a satisfactory alternative to iterative methods, where often the number of iterative steps is unknown, and further it is not always possible to find a proper preconditioner. For a recent account of the theory we refer the reader to [\cite=Benzi:_05], [\cite=Arioli:_00] and [\cite=GolGreif]. In contrast to iterative methods, we prove that the proposed method is numerically stable, under a mild assumption on the matrix M.
+
+The paper is organized as follows. Section 2 describes two block Q-R decompositions of the matrix M, BCGS (Block Gram-Schmidt) and BCGS2 (Reorthogonalized Block Gram-Schmidt). Section 3 examines the numerical stability of these methods when used for solving the system ([\ref=M]). Section 4 is devoted to numerical experiments and comparisons of the methods.
+
+Throughout the paper, [formula] denotes the matrix or vector two-norm depending upon context, and [formula] is the standard condition number of M.
+
+Algorithms
+
+We derive error bounds for the solution of the system ([\ref=M]) using the block Q-R methods BCGS (Block Classical Gram-Schmidt) and BCGS2 (Block Classical Gram-Schmidt with reorthogonalization). These algorithms produce a Q-R factorization of the matrix [formula], where l = m + n. Then M = QR, where [formula] is orthogonal (QTQ = I) and [formula] is upper triangular matrix with positive diagonal entries.
+
+Given the block Q-R decomposition of M, the solution z to a system ([\ref=M]) can be obtained by computing first the vector g = QTf and then by solving the system Rz = g with upper triangular matrix R by back-substitution.
+
+At the core of the orthogonalization methods BCGS and BCGS2 is a orthogonal factorization routine the thin Householder, which for a matrix [formula], where l  ≥  k = rank(X), produces a left orthogonal matrix [formula] (QTQ = I), and upper triangular matrix [formula] such that X = QR. In MATLAB we use the statement [formula]. It is well known (see, e.g., [\cite=Golub96], [\cite=Bjor96]) that Householder Q-R is unconditionally stable. In floating-point arithmetic with machine precision εM, the thin Householder Q-R produces the factors [formula] and [formula] such that
+
+[formula]
+
+for some modest constant L = L(l,k). Instead of the thin Householder Q-R we can use other stable Q-R factorizations, for example Givens Q-R (see [\cite=Bjor96], [\cite=Golub96]).
+
+Now we present the Reorthogonalized Block Gram-Schmidt (BCGS2) method, which is a generalization of the classical Gram-Schmidt method with reorthogonalization (CGS2), first analysed by Abdelmalek (see [\cite=Abd71], [\cite=leon]).
+
+Notice that, since M2 = Q1S1 + Q2R2 and Q2 = Q1S2  +  Q(new)2, we have
+
+[formula]
+
+This leads to the Q-R decomposition
+
+[formula]
+
+It is clear that in the theory these two methods BCGS and BCGS2 are equivalent; however, their numerical properties are different. This is highlighted in our numerical experiments in Section 4.
+
+Error analysis
+
+We prove that the algorithm BCGS2 (Reorthogonalized Block Classical Gram-Schmidt), using the thin Householder Q-R decomposition, satisfying ([\ref=house1])-([\ref=house2]), implemented in floating point arithmetic, is backward stable as a method of solving linear system of equations ([\ref=M]) under natural conditions. This means that the computed vector [formula] is the exact solution to a slightly perturbed system Mz = f. The precise definition is as follows.
+
+An algorithm for solving nonsingular system of equations Mz  =  f, where [formula], and [formula], is backward stable, if the computed result [formula] in floating point arithmetic with machine precision εM satisfies
+
+[formula]
+
+where ci = ci(l) (i = 1,2) are small constants depending upon l.
+
+An algorithm for solving nonsingular system of equations Mz  =  f, where [formula], and [formula], is forward stable, if the computed result   ≠  0 in floating point arithmetic satisfies
+
+[formula]
+
+where [formula] is the condition number of M, c3 = c3(l) is a small constant depending upon l, and z* denotes the exact solution to Mz = f.
+
+It is well known that backward stability implies forward stability. However, opposite implication is not true (for examples for problem ([\ref=M]), see Section 4).
+
+We turn now to the issue of stability of algorithms for solving nonsingular system Mz = f using the Q-R decomposition of the matrix M. We assume that if M = QR, then the solution of the linear system of equations Mz = f is obtained from the triangular system Rz = QTf. In floating point arithmetic the computed [formula] is not exactly orthogonal. How does departure [formula] from the orthogonality influence the computed solution [formula]?
+
+We begin with the following useful lemma.
+
+Assume that [formula] satisfies
+
+[formula]
+
+Then [formula] is nonsingular and we have
+
+[formula]
+
+[formula]
+
+[formula]
+
+Denote F = I - T. Then we get
+
+[formula]
+
+so ([\ref=eqs301]) holds. Since [formula] we conclude that I - F is nonsingular. Thus, the matrix [formula] also is nonsingular.
+
+Notice that [formula], and ([\ref=eqs302]) is proved.
+
+We observe that I  -  T  =  - T(I - T)T. We see that
+
+[formula]
+
+where ρ(.) denotes the spectral radius. This together with ([\ref=eqs300]) completes the proof of ([\ref=eqs303]).
+
+Let [formula] be nonsingular and suppose that [formula] and [formula] satisfy
+
+[formula]
+
+and
+
+[formula]
+
+Moreover, assume that there exist ΔR and ΔQ such that
+
+[formula]
+
+where
+
+[formula]
+
+Then we have
+
+[formula]
+
+where
+
+[formula]
+
+Let E = M -  and F = I - T. Since ακ(M) < 1 we see that M - E =  is nonsigular. Thus, [formula] and [formula] also are nonsingular. Multiplying ([\ref=eqs11]) by [formula] gives the identity (  +  ΔR)  =  (  +  ΔQ)Tf, which we rewrite as follows
+
+[formula]
+
+Let us introduce
+
+[formula]
+
+Then (M + ΔM)  =  f + Δf. It remains to prove that ΔM and Δf satisfy ([\ref=eqs13])-([\ref=eqs14]).
+
+Taking norms in ([\ref=eqs15]), we get
+
+[formula]
+
+This together with ([\ref=eqs10a]) and ([\ref=eqs12]) gives
+
+[formula]
+
+Notice that M - E = , hence [formula]. Taking norms, we obtain
+
+[formula]
+
+This together with ([\ref=eqs16]) and Lemma [\ref=Lemat1] gives ([\ref=eqs13])-([\ref=eqs14]). This completes the proof.
+
+Now we apply the results on the numerical properties of the Q-R factorization. The detailed error analysis of Algorithms 1-2 was given in [\cite=AlaJesse]. In particular, J .L. Barlow and A. Smoktunowicz proved the following theorem.
+
+Let [formula], where [formula], [formula]. Assume that M is nonsingular. Then Algorithm 1 (BCGS), implemented in floating point arithmetic with machine precision εM, produces computed   =  (1,2) and [formula] that satisfy
+
+[formula]
+
+and
+
+[formula]
+
+Algorithm 2 (BCGS2) produces computed [formula] and [formula] such that
+
+[formula]
+
+Moreover, if
+
+[formula]
+
+then
+
+[formula]
+
+where Li(  ·  ) ([formula]) are modestly growing function on m and n.
+
+Notice that [formula] and [formula], so ([\ref=eqs4]) holds for stronger assumption that εML6(m,n)κ(M)  <  1, where L6(m,n) is modestly growing function on m and n. This assumption is both natural and typical for this context.
+
+Applying the results for the standard methods for solving triangular systems of equations (see [\cite=Golub96]) , we see that the quantities α, δ and γ defined in Theorem [\ref=tw1] are at the level machine precision εM. This together with Theorems [\ref=tw1] and [\ref=tw2] implies that Algorithm 2 (BCGS2) is backward stable, i.e. ([\ref=bstab]) holds. However, our numerical tests in Section 4 show that Algorithm 1 (BCGS) is unstable, in general.
+
+Numerical experiments
+
+We present a comparison of Algorithms 1 and 2. Numerical tests were performed in MATLAB, with machine precision εM  ≈  2.2  ·  10- 16.
+
+In our tests we chose z*, formed f = M * z*, computed a Q-R factorization M = QR using Algorithm 1 (Block Classical Gram-Schmidt- BCGS) and Algorithm 2 (Reorthogonalized Block Classical Gram-Schmidt- BCGS2) respectively, and solved the system of equations Mz = f from the triangular system of equations Rz = QTf, using the MATLAB command:
+
+We report the following statistics for each algorithm:
+
+[formula] (the orthogonality error),
+
+[formula] (the decomposition error),
+
+[formula] (the backward stability error),
+
+[formula] (the forward stability error).
+
+Note that, in the theory, stabAlgorithm  ≤  resAlgorithm, that is, the backward stability implies the forward stability.
+
+We consider several test matrices. The function [formula] returns the matrix X(m  ×  n), where m  ≥  n, from the singular value decomposition X  =  PDQ, where P(m  ×  n) is left orthogonal (PTP = I) and Q(n  ×  n) is an orthogonal matrix. They are generated by the [formula] subroutine in MATLAB. Here D(n  ×  n) is a diagonal matrix, computed as D = diag(logspace(0, - s,n)). The MATLAB command [formula] generates n points between decades 1 and 10- s. Then the condition number of X will be approximately equal to κ(X) = 10s.
+
+The function [formula] returns the symmetric positive definite matrix X(n  ×  n), from the spectral decomposition X = PDP, where P(n  ×  n) is orthogonal and D is diagonal, generated in the same way as in the function [formula].
+
+The MATLAB codes for these functions are as follows.
+
+The MATLAB command +randn('state',0)+ is used to reset the random number generator to its initial state.
+
+In all of our tests we use the scaling to change the condition number of the matrix M of ([\ref=M]). More precisely, for given parameter [formula] and given initial matrices A1, B1 and C1, we form new matrices as follows:
+
+[formula]
+
+Note that the condition numbers κ(A), κ(B) and κ(C) remain unchanged, but the condition number of the matrix M of ([\ref=M]) can be very large for a particular t. Then we compute f = M * z*, where
+
+[formula]
+
+Let A1 = H, where H is the Hilbert matrix:
+
+[formula]
+
+We take [formula], with m = 12, n = 6, sB = 10, and C1 = eeT, where [formula] and then we form the matrices A, B, C and the vectors z* and f, according to ([\ref=At])-([\ref=zt]).
+
+Table 1 reports all statistics for Algorithms 1 and 2. We observe that in the above example A is very ill-conditioned. We see that Algorithm 1 produces a backward stable solution only for t = 0.01, otherwise Algorithm 1 (BCGS) is unstable. It is evident that Algorithm 2 is perfectly backward stable.
+
+We take [formula], [formula] and [formula] for large values of m and n. Here sA = sB = sC = 10. The results are shown in Tables 2 and 3. We see that a more severe instability of Algorithm 1 than in Example [\ref=example1]. Clearly it depends on the orthogonality of BCGS. Algorithm 2 gives very satisfactory results.
+
+Conclusions
+
+We proposed and analyzed two algorithms for solving symmetric saddle point problems. Although the {Block Classical Gram-Schmidt (BCGS is unstable), the Reorthogonalized Block Classical Gram-Schmidt (BCGS2) gives acceptable results in floating point arithmetic. Algorithm BCGS2 is suitable for parallel implementation. In order to refine the numerical solutions of linear systems, one can apply some iterative refinement techniques (see [\cite=smok3] ).
+
+Acknowledgements. The authors are grateful to Mike Peter West for the many suggestions, which helped to improve the paper.

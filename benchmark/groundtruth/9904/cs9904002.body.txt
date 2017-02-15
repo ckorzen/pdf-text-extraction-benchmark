@@ -1,0 +1,153 @@
+= ptmb scaled 1100
+
+Corollary Lemma Proposition Definition Notes Remark Remarks Example Examples
+
+.
+
+A Geometric Framework for Modelling Similarity Search Vladimir Pestov
+
+Abstract
+
+We suggest a geometric framework for modelling similarity search in large and multidimensional data spaces of general nature, formed by the concept of the similarity workload, which is a probability metric space Ω (query domain) with a distinguished finite subspace X (dataset), together with an assembly of concepts, techniques, and results from metric geometry. As some of the latter are being currently reinvented by the database community, it seems desirable to try and bridge the gap between database research and the relevant work already done in geometry and analysis.
+
+. Introduction
+
+Mathematical modelling of similarity search is still very much in its infancy, and the modest aim of this paper is to spot a few mathematical structures clearly emerging in the present practice of similarity search and point in the direction of some relevant and well-established concepts, ideas, and techniques which belong to geometric and functional analysis and appear to be relatively little known in the database community.
+
+For the most part, there is a long way to go before (and if) the outlined ideas and methods are put into a workable shape and made relevant to the concrete needs of similarity search. This is certainly the case with the phenomenon of concentration of measure on high-dimensional structures, which might potentially have the greatest impact of all on both theory and practice of similarity search, through offering a possible insight into the nature of the curse of dimensionality. However, in some other instances the established mathematical methods can be used directly and, we believe, most profitably, in order to improve the existing algorithms for similarity retrieval based on ad hoc, though often highly ingenious, mathematical techniques. This could well be the case with the technique of metric transform as applied to histogram indexing for image search by colour content. Even here the gap separating theory and practice of database research (discussed in [\cite=Papa] in a highly colourful manner) has to be bridged yet. Nevertheless, as the size of datasets grows exponentially with time, attempts to understand the underlying, very complex, geometry of similarity search through joint efforts of mathematicians and computer scientists seem to have no credible alternative.
+
+. Data sets and metrics .. Data structures An undisputable -- though often downplayed in theoretical analysis -- fact is that a query point, [formula], need not belong to an actual dataset, X. This is why we make a distinction between the collection of query points (domain) and the actual dataset. A domain is a metric space, Ω = (Ω,ρ), whose elements are query points, and the metric ρ is the dissimilarity measure. An actual dataset (or instance), X, is a finite metric subspace of Ω.
+
+We have borrowed the concept of a domain from [\cite=HKP], where it is defined as 'a set such as [formula] together with methods such as x-component, order, etc.' Even if dissimilarity measures not satisfying the triangle inequality are sometimes considered [\cite=FS], namely metrics, or else pseudometrics (for which the condition (ρ(x,y) = 0)  ⇒  (x = y) is dropped), are of overwhelming importance. Many metric spaces appearing in this context are non-Hilbert, e.g. the Hamming cube {0,1}n equipped with the string edit distance, or l1. In fact, it is hardly possible to come up with any apriori restrictions that distinguish metric spaces 'relevant for applications' from those that are not.
+
+.. Similarity queries and indexing Two major types of similarity queries are range queries and nearest neighbour queries. Let [formula] be the query centre. A generic ε-range query is of the form: given an ε > 0, find all x∈X with [formula]. A generic k-nearest neighbour (k-NN) query is of the form: given a natural k and an [formula], find k elements of [formula] closest to [formula] in the sense of metric ρ.
+
+A k-NN query can be reduced to a series of range queries with varying radii ε > 0 chosen by some sort of a binary procedure.
+
+A general index structure [\cite=HKP] on a dataset X is just any cover Γ of X (that is, [formula]) with a collection of blocks A∈Γ of uniform and 'manageable' size.
+
+This scheme apparently includes as particular cases k-d tree, metric tree, vp-tree, gh-tree, GNAT, M-tree, pyramid technique, etc. (See e.g. [\cite=pyr] [\cite=Brin] [\cite=CPZ] [\cite=U1] [\cite=WSB] and references therein.)
+
+.. Processing range queries To process a range query of radius ε > 0 centred at [formula] using a hierarchical tree indexing structure Γ on X, one employs the following algorithm. Below
+
+[formula]
+
+is the ε-neighbourhood of A in Ω.
+
+Set t = 0.
+
+Set A = At.
+
+If A is a leaf, use exhaustive search to find all x∈A with [formula].
+
+Else, if it can be certified that [formula], prune the sub-tree descending from the internal node t.
+
+Else, for every [formula], where [formula] are descendants of t, do: set t = ti and go to 2.
+
+If we had means to certify at each step that [formula], then the algorithm could be modified so as to return one of the ε-neighbours in time O(h), where h is the height of the tree T (typically, O( log n), with n the number of objects in the dataset), by traversing down one branch and selecting at each step an arbitrary node t such that A and [formula] have a non-empty intersection.
+
+Unfortunately, even if the possibility of such certification was (implicitely) assumed by some authors, it is computationally unfeasible. Instead, the following technique is employed.
+
+A function [formula] is called 1-Lipschitz if
+
+[formula]
+
+for each x,y∈Ω. For each t∈T, choose computationally inexpensive 1-Lipschitz functions ft and numbers at,bt > 0 such that ft(At)  ⊆  [at,bt]. If x∈O(At), then the Lipschitz-1 property of ft implies ft(x)∈(at  -  ε,bt  +  ε). Thus, the property ft(x)∉(at  -  ε,bt  +  ε) is a certificate for x∉At. Yet, the condition ft(x)∈(at  -  ε,bt  +  ε) does not allow one to make a conclusion about whether or not x is in O(At), and every such node has to be followed through.
+
+An example of such kind is the distance function dt from some vt∈Ω, called a vantage point (for the node t):
+
+[formula]
+
+where a =  min {dv(x):x∈A} and b =  max {dv(x):x∈A} are the corresponding precomputed constants.
+
+In fact, every subset A  ⊆  X admits an exact Lipschitz-1 certification function -- namely, the distance from A:
+
+[formula]
+
+with constants a = b = 0. However, the function dA is normally far too expensive computationally to be used.
+
+. Changing the distance .. The first complexity issue Processing a similarity query requires a large number of computations of the values of certification functions, typically distances between points. Often performing even a single computation of the value of the original dissimilarity measure, ρ, is time-consuming. This is why the following technique is often applied -- so often, in fact, that we consider it to form a major component of the abstract geometric framework.
+
+1. The 'exact' dissimilarity measure ρ on Ω is replaced with a computationally cheaper distance d.
+
+2. For given [formula] and ε > 0 one chooses a δ > 0 such that for every x∈X, the condition [formula] implies [formula]. Now, instead of processing the ε-range query in (Ω,ρ,X) centred at [formula], one processes the δ-range query in (Ω,d,X) centred at [formula].
+
+3. For each returned x∈X, the condition [formula] is verified and the false hits discarded.
+
+Dimensionality reduction and the projection search paradigm (see e.g. [\cite=NN]) are examples of the above technique. If Ω is a metric subspace of a high-dimensional Euclidean space lN2 (that is, [formula], where [formula] is the Euclidean distance) and π denotes the projection onto a Euclidean subspace ln2  ⊂  lN2 of a lower dimension n < N, then d is defined by the formula
+
+[formula]
+
+More generally, this is the case with every distance d used for prefiltering [\cite=SW]. In this case, d(x,y)  ≤  ρ(x,y) for all x,y.
+
+.. Metric transform A rich source of new metrics d on X leading to the same nearest neighbour graph [\cite=EPY] as the original metric ρ is the classical construction of metric transform [\cite=DL]. Let (X,ρ) be a metric space and let [formula] be a concave non-decreasing function satisfying F(0) = 0. A metric transform of X by means of F is a pair F(X) = (X,F(ρ)), where F(ρ) is a metric on X defined by F(ρ)(x,y) = F(ρ(x,y)).
+
+The theory of metric transform is fairly advanced. Often the metric transform of a non-Euclidean metric space turns out to be Euclidean and therefore computationally simple. At the same time, the metric transform itself can be performed at the database population stage.
+
+.. Example: quadratic distance If [formula] is a finite set, then a histogram on C is an element of the convex hull of C, which we will denote by P(C), that is, a linear combination [formula], λi  ≥  0, [formula]. An example we will have in mind is that of a colour histogram, showing the colour content of an image. Here C is a colour space, which is typically a convex subset of a low-dimensional Euclidean space equipped with the induced distance, ρC, and in practice replaced with a finite metric subspace through a suitable colour segmentation procedure. Histograms over C are exactly the distributions of image functions taking values in C. The most natural distances on the space of histograms, P(C), are probability metrics [\cite=Rach], in particular the well-known Kantorovich distance, defined for each μ1,μ2∈P(C) by:
+
+[formula]
+
+The Kantorovich metric has the following 'universal property.' Recall that a map is affine if images of segments of straight lines are again such.
+
+Every non-expansive mapping f from a finite metric space C to a normed space E extends to a unique affine mapping :P(C)  →  E, which is 1-Lipschitz with respect to the Kantorovich distance.
+
+The Kantorovich distance is computationally expensive. The QBIC project [\cite=HSEFN] employs instead the so-called quadratic distance, which is Euclidean and obtained by means of metric transform (though neither fact was realized by its inventors and a full advantage of them never taken).
+
+A quadratic distance [\cite=HSEFN], d, on the convex hull P(C) of a finite set [formula] is the distance determined by the inner product
+
+[formula]
+
+on the linear space spanned by C, where A is a symmetric n  ×  n-matrix satisfying a certain positive (semi)definiteness condition. Every mapping f from C to a Hilbert space H extends to an affine map :P(C)  →  H, and the distance [formula] is easily verified to be quadratic. Moreover, one can prove that every quadratic distance on P(C) is obtained in this way. If now C is equipped with a metric and the mapping f:C  →  H is an isometric embedding of some metric transform of C, then one obtains quadratic distances of the type used in the QBIC project [\cite=HSEFN]. One of the two main distances of this kind used in [\cite=HSEFN] was determined by the matrix aij = 1 - dij, where dij are normalized Euclidean distances between elements of the colour space C. Using [\cite=BG], one can prove that this distance is obtained (up to a scalar multiple) in the above way via applying to the Euclidean colour space the metric transform [formula]. In addition, C with this distance is contained in the unit sphere of a Euclidean space.
+
+. Geometry vs complexity
+
+.. Measure concentration phenomenon From now on we will equip the query domain Ω with a probability Borel measure, μ. (That is, μ is a sigma-additive measure with μ(Ω) = 1, defined on all sets that can be obtained from open balls through countable unions, intersections, and complements.) We will think of μ as reflecting the query distribution.
+
+The quadruple (Ω,d,μ,X) will be called a similarity workload.
+
+Recall that a pair formed by a metric space (Ω,ρ) and a probability measure μ on it is called a probability metric space. The concentration function, α  =  αΩ, of a probability metric space Ω is defined by
+
+[formula]
+
+for each ε > 0 and αΩ(0) = 1 / 2. It is a decreasing function in ε. If α decreases sharply, then most points of Ω are close to every subset A  ⊆  Ω containing at least a half of all points. Most 'naturally occuring' high-dimensional probability metric spaces have sharply decreasing concentration functions. High-dimensional spheres, balls, Hamming cubes, Euclidean cubes, Euclidean spaces equipped with the Gaussian measure, groups of unitary matrices and numerous other objects all have concentration functions not exceeding C1 exp ( - C2nε2), where n is the dimension and C1,C2 > 0. This observation is known as the phenomenon of concentration of measure on high-dimensional structures [\cite=GrM] [\cite=M] [\cite=Ta1]. Very large random structures, such as spin glasses, also exhibit this sort of behaviour [\cite=Ta2].
+
+Assuming a typical multidimensional dataset to have a sharply decreasing concentration function allows one to explain at least some aspects of the dimensionality curse. At the same time, such an assumption on the geometry of data is much broader than that of uniformity and independence type (cf. [\cite=WSB]). For an approach based on the concept of query instability, proposed in [\cite=BGRS], we refer the reader to our note [\cite=P]. (This is why we do not discuss the paper [\cite=BGRS] here.)
+
+Notice that in some concrete large datasets the distribution density of the distance functions (which are 1-Lipschitz) is known to sharply peak near one value. And this is exactly the kind of behaviour one would expect in the presence of concentration property, in view of the following well-known result.
+
+Let [formula] be a 1-Lipschitz function, and denote by M a median of f, that is, a real number with μ({x∈X:f(x)  ≤  M}) = μ({x∈X:f(x)  ≥  M}). Then for every ε > 0, [formula].
+
+What is still missing, is a series of computational experiments allowing one to estimate the concentration functions of large real datasets.
+
+.. False hits and metric entropy Within the outlined paradigm, the phenomenon of concentration of measure can contribute towards the curse of dimensionality through a massive amount of false hits returned by similarity search algorithms.
+
+To illustrate this on a simple example, consider the projection search paradigm where [formula] and [formula] is the projection on the chosen coordinate axis (that is, n = 1). It follows from Proposition [\ref=conc] that for some [formula] query points x with the property [formula] form a set of measure ≥  1 - 2α(ε). If the concentration function of Ω is exponential in dimension, it means that the NN search along a single coordinate will return all datapoints located in a region of Ω having nearly full measure.
+
+To formulate a general result, assume that the query domain Ω is compact. (This assumption does not seem to be at all restrictive.) For an ε > 0 denote by NΩ(ε) the minimal number of open ε-balls needed to cover Ω. (Usually instead of this quantity one considers its base 2 logarithm, denoted by [formula] and called the ε-entropy of Ω.) Let α denote the concentration function of the probability metric space (Ω,ρ,μ).
+
+Let ρ and d be two distances on the same probability space (Ω,μ). Then there is a query point [formula] with the following property. Let ε,δ > 0 be such that (ρ(x,y) < ε / 3)  ⇒  (d(x,y) < δ / 3) for all x,y. Then the open ball formed in (Ω,d) of radius δ has measure
+
+[formula]
+
+If now the query domain (Ω,ρ) has the sharply decreasing concentration function, while the 'capacity' of the adjusted metric space, (Ω,d), is low, then for some query point, [formula], every d-ball centred at [formula] and containing the ρ-ball of radius ε, would contain most of the query points and therefore quite probably a large amount of data points as well. The transition from ρ to d results in an highly undesirable 'blow-up' of the mass of the query domain.
+
+The trade-off between the complexity of computing the distance d and the suitably interpreted 'capacity' of the space (Ω,d) could be an important issue in optimising algorithms for similarity search. Given a similarity workload (Ω,ρ,μ,X), does there exist an approximate distance d which is computationally simple and yet leaves ample space for the dataset to fit in (Ω,d) without 'overcrowding'?
+
+.. Example: average colour prefiltering In our simplified model the colour space C will form an equilateral triangle with side one having R, G, B as its vertices and equipped with the Euclidean distance. It is segmented and replaced with a finite subset C arranged in a hexagonal lattice. By k we will denote the number of pixels in the image frame. A colour image is an arbitrary function (picture function) from [formula] to C. The set Ck of all colour images is given the normalized counting measure [formula]. For every image x∈Ck denote by σ(x)∈P(C) its colour histogram. One can prove that σ is a 1-Lipschitz map. Denote Pk(C) = σ(Ck) and endow Pk(C) with the direct image measure [formula], that is, the measure of a subset A  ⊆  Pk(C) equals [formula]. The probability measure space [formula] forms the query domain for image query by colour content. It follows from results of [\cite=Sch] that the concentration function, α, of [formula] satisfies
+
+[formula]
+
+The embedding [formula] extends, by Proposition [\ref=mapping], to an affine 1-Lipschitz map i:P(C)  →  C, which is called the average colour map in [\cite=HSEFN] and used for prefiltering in the QBIC project.
+
+Using the same technique as in Proposition [\ref=two], one can show that if [formula] is any colour histogram whose average colour is [formula], then the ε-range query by colour content, preprocessed using the average colour distance, will return all images contained in a region of Ck having measure at least
+
+[formula]
+
+For example, if k = 100  ×  100 and ε = 0.1, the measure of the above region exceeds 0.99999. Notice at the same time that the area of the corresponding open ball inside the colour space C is at most 0.073 of the area of the triangle.
+
+. Conclusion
+
+To quote [\cite=HKP], "What seems to be needed is a kind of theory of indexability, a mathematical methodology which, in analogy with tractability, would evaluate rigorously the power and limitations of the indexing techniques in diverse contexts."
+
+This note is a fragment of what might develop into geometric theory of indexability -- and, most importantly, an invitation for collaboration as well.

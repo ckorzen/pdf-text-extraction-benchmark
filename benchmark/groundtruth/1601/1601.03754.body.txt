@@ -1,0 +1,397 @@
+Introduction
+
+Of all the clustering algorithms in use today, among the simplest and most utilized is the venerated k-means clustering algorithm, usually implemented via Lloyd's algorithm: given a dataset S, repeat the following two steps (a 'Lloyd iteration') until the centroids of each of the k clusters converge:
+
+Assign each point pi∈S to the cluster with nearest centroid.
+
+Recalculate the centroids for each cluster using the assignments of each point in S.
+
+Clearly, a simple implementation of this algorithm will take O(kN) time where N  =  |S|. However, the number of iterations is not bounded unless the practitioner manually sets a maximum, and k-means is not guaranteed to converge to the global best clustering. Despite these shortcomings, in practice k-means tends to quickly converge to reasonable solutions. Even so, there is no shortage of techniques for improving the clusters k-means converges to: refinement of initial centroids [\cite=bradley1998refining] and weighted sampling of initial centroids [\cite=arthur2007k] are just two of many popular existing strategies.
+
+There are also a number of methods for accelerating the runtime of a single iteration of k-means. In general, these ideas use the triangle inequality to prune work during the assignments step. Algorithms of this sort include the work of Pelleg and Moore , Elkan , Hamerly , and Ding et al. . However, the scaling of these algorithms can make them problematic for the case of large k and large N.
+
+In this paper, we describe a dual-tree k-means algorithm tailored to the large k and large N case that outperforms all competing algorithms in that setting; this dual-tree algorithm also has bounded single-iteration runtime in some situations (see Section [\ref=sec:theory]). This algorithm, which is our main contribution, has several appealing aspects:
+
+Empirical efficiency. In the large k and large N setting for which this algorithm is designed, it outperforms all other alternatives, and scales better to larger datasets. The algorithm is especially efficient in low dimensionality.
+
+Runtime guarantees. Using adaptive runtime analysis techniques, we bound the single-iteration runtime of our algorithm with respect to the intrinsic dimensionality of the centroids and data, when cover trees are used. This gives theoretical support for the use of our algorithm in large data settings. In addition, the bound is dependent on the intrinsic dimensionality, not the extrinsic dimensionality.
+
+Generalizability. We develop our algorithm using a tree-independent dual-tree algorithm abstraction [\cite=curtin2013tree]; this means that our algorithm may be used with any type of valid tree. This includes not just kd-trees but also metric trees, cone trees, octrees, and others. Different trees may be suited to different types of data, and since our algorithm is general, one may use any type of tree as a plug-and-play parameter.
+
+Separation of concerns. The abstraction we use to develop our algorithm allows us to focus on and formalize each of the pruning rules individually (Section [\ref=sec:strategies]). This aids understanding of the algorithm and eases insertion of future improvements and better pruning rules.
+
+Section [\ref=sec:scaling] shows the relevance of the large k case; then, in Section [\ref=sec:trees], we show that we can build a tree on the k clusters, and then a dual-tree algorithm [\cite=curtin2013tree] can be used to efficiently perform an exact single iteration of k-means clustering. Section [\ref=sec:strategies] details the four pruning strategies used in our algorithm, and Section [\ref=sec:algorithm] introduces the algorithm itself. Sections [\ref=sec:theory] and [\ref=sec:empirical] show the theoretical and empirical results for the algorithm, and finally Section [\ref=sec:conclusion] concludes the paper and paints directions for future improvements.
+
+Scaling k-means
+
+Although the original publications on k-means only applied the algorithm to a maximum dataset size of 760 points, the half-century of relentless progress since then has seen dataset sizes scale into billions. Due to its simplicity, though, k-means has remained relevant, and is still applied in many large-scale applications.
+
+In cases where N scales but k remains small, a good choice of algorithm is a sampling algorithm, which will return an approximate clustering. One sampling technique, coresets, can produce good clusterings for n in the millions using several hundred or a few thousand points [\cite=coresets]. However, for large k, the number of samples required to produce good clusterings can become prohibitive.
+
+For large k, then, we turn to an alternative approach: accelerating exact Lloyd iterations. Existing techniques include the brute-force implementation, the blacklist algorithm [\cite=pelleg1999accelerating], Elkan's algorithm , and Hamerly's algorithm , as well as the recent Yinyang k-means algorithm [\cite=ding2015yinyang]. The blacklist algorithm builds a kd-tree on the dataset and, while the tree is traversed, blacklists individual clusters that cannot be the closest cluster (the owner) of any descendant points of a node. Elkan's algorithm maintains an upper bound and a lower bound on the distance between each point and centroid; Hamerly's algorithm is a memory-efficient simplification of this technique. The Yinyang algorithm organizes the centroids into groups of about 10 (depending on algorithm parameters) using 5 iterations of k-means on the centroids followed by a single iteration of standard k-means on the points. Once groups are built, the Yinyang algorithm attempts to prune groups of centroids at a time using rules similar to Elkan and Hamerly's algorithms.
+
+Of these algorithms, only Yinyang k-means considers centroids in groups at all, but it does not consider points in groups. On the other hand, the blacklist algorithm is the only algorithm that builds a tree on the points and is able to assign multiple points to a single cluster at once. So, although each algorithm has its own useful region, none of the four we have considered here are particularly suited to the case of large N and large k.
+
+Table [\ref=tab:runtimes] shows setup costs, worst-case per-iteration runtimes, and memory usage of each of these algorithms as well as the proposed dual-tree algorithm. The expected runtime of the blacklist algorithm is, under some assumptions, O(k  +  k log N  +  N) per iteration. The expected runtime of Hamerly's and Elkan's algorithm is O(k2  +  αN) time, where α is the expected number of clusters visited by each point (in both Elkan and Hamerly's results, α seems to be small).
+
+However, none of these algorithms are specifically tailored to the large k case, and the large k case is common. Pelleg and Moore report several hundred clusters in a subset of 800k objects from the SDSS dataset. Clusterings for n-body simulations on astronomical data often involve several thousand clusters [\cite=kwon2010scalable]. Csurka et al. extract vocabularies from image sets using k-means with k  ~  1000. Coates et al. show that k-means can work surprisingly well for unsupervised feature learning for images, using k as large as 4000 on 50000 images. Also, in text mining, datasets can have up to 18000 unique labels [\cite=bengio2010label]. Can and Ozkarahan suggest that the number of clusters in text data is directly related to the size of the vocabulary, suggesting k  ~  mN / t where m is the vocabulary size, n is the number of documents, and t is the number of nonzero entries in the term matrix. Thus, it is important to have an algorithm with favorable scaling properties for both large k and N.
+
+Tree-based algorithms
+
+The blacklist algorithm is an example of a single-tree algorithm: one tree (the reference tree) is built on the dataset, and then that tree is traversed. This approach is applicable to a surprising variety of other problems, too [\cite=bentley1975multidimensional] [\cite=moore1998very] [\cite=curtin2013fast]. Following the blacklist algorithm, then, it is only natural to build a tree on the data points. Tree-building is (generally) a one-time O(N log N) cost and for large N or k, the cost of tree building is often negligible compared to the time it takes to perform the clustering.
+
+The speedup of the blacklist algorithm comes from the hierarchical nature of trees: during the algorithm, we may rule out a cluster centroid for many points at once. The same reason is responsible for the impressive speedups obtained for other single-tree algorithms, such as nearest neighbor search [\cite=bentley1975multidimensional] [\cite=liu2004investigation]. But for nearest neighbor search, the nearest neighbor is often required not just for a query point but instead a query set. This observation motivated the development of dual-tree algorithms, which also build a tree on the query set (the query tree) in order to share work across query points. Both trees are recursed in such a way that combinations of query nodes and reference nodes are visited. Pruning criteria are applied to these node combinations, and if a combination may be pruned, then the recursion does not continue in that direction.
+
+This approach is applicable to k-means with large k: we may build a tree on the k cluster centroids, as well as a tree on the data points, and then we may rule out many centroids for many points at once.
+
+A recent result generalizes the class of dual-tree algorithms, simplifying their expression and development [\cite=curtin2013tree]. Any dual-tree algorithm can be decomposed into three parts: a type of space tree, a pruning dual-tree traversal, and a point-to-point BaseCase() function and node-to-node Score() function that determines when pruning is possible. Precise definitions and details of the abstraction are given by [\citet=curtin2013tree], but for our purposes, this means that we can describe a dual-tree k-means algorithm entirely with a straightforward BaseCase() function and Score() function. Any tree and any traversal can then be used to create a working dual-tree algorithm.
+
+The two types of trees we will explicitly consider in this paper are the kd-tree and the cover tree [\cite=langford2006], but it should be remembered that the algorithm as provided is sufficiently general to work with any other type of tree. Therefore, we standardize notation for trees: a tree is denoted with [formula], and a node in the tree is denoted by [formula]. Each node in a tree may have children; the set of children of [formula] is denoted [formula]. In addition, each node may hold some points; this set of points is denoted [formula]. Lastly, the set of descendant points of a node [formula] is denoted [formula]. The descendant points are all points held by descendant nodes, and it is important to note that the set [formula] is not equivalent to [formula]. This notation is taken from [\citet=curtin2013tree] and is detailed more comprehensively there. Lastly, we say that a centroid c owns a point p if c is the closest centroid to p.
+
+Pruning strategies
+
+All of the existing accelerated k-means algorithms operate by avoiding unnecessary work via the use of pruning strategies. Thus, we will pursue four pruning strategies, each based on or related to earlier work [\cite=pelleg1999accelerating] [\cite=elkan2003using] [\cite=hamerly2010making].
+
+These pruning strategies are meant to be used during the dual-tree traversal, for which we have built a query tree [formula] on the points and a reference tree [formula] on the centroids. Therefore, these pruning strategies consider not just combinations of single points and centroid pq and ci, but the combination of sets of points and sets of centroids, represented by a query tree node [formula] and a centroid tree node [formula]. This allows us to prune many centroids for many points simultaneously.
+
+Strategy one. When visiting a particular combination [formula] (with [formula] holding points in the dataset and [formula] holding centroids), the combination should be pruned if every descendant centroid in [formula] can be shown to own none of the points in [formula]. If we have cached an upper bound [formula] on the distance between any descendant point of [formula] and its nearest cluster centroid that satisfies
+
+[formula]
+
+where cq is the cluster centroid nearest to point pq, then the node [formula] can contain no centroids that own any descendant points of [formula] if
+
+[formula]
+
+This relation bears similarity to the pruning rules for nearest neighbor search [\cite=curtin2013tree] and max-kernel search [\cite=curtin2014dual]. Figure [\ref=fig:prune-1] shows a situation where [formula] can be pruned; in this case, ball-shaped tree nodes are used, and the upper bound [formula] is set to [formula].
+
+Strategy two. The recursion down a particular branch of the query tree should terminate early if we can determine that only one cluster can possibly own all of the descendant points of that branch. This is related to the first strategy. If we have been caching the number of pruned centroids (call this [formula]), as well as the identity of any arbitrary non-pruned centroid (call this [formula]), then if [formula], we may conclude that the centroid [formula] is the owner of all descendant points of [formula], and there is no need for further recursion in [formula].
+
+Strategy three. The traversal should not visit nodes whose owner could not have possibly changed between iterations; that is, the tree should be coalesced to include only nodes whose owners may have changed.
+
+There are two easy ways to use the triangle inequality to show that the owner of a point cannot change between iterations. Figures [\ref=fig:prune-2] and [\ref=fig:prune-3] show the first: we have a point pq with owner cj and second-closest centroid ck. Between iterations, each centroid will move when it is recalculated; define the distance that centroid ci has moved as mi. Then we bound the distances for the next iteration: d(pq,cj)  +  mj is an upper bound on the distance from pq to its owner next iteration, and d(pq,ck)  -   max imi is a lower bound on the distance from pq to its second closest centroid next iteration. We may use these bounds to conclude that if
+
+[formula]
+
+then the owner of pq next iteration must be cj. Generalizing from individual points pq to tree nodes [formula] is easy. This pruning strategy can only be used when all descendant points of [formula] are owned by a single centroid, and in order to perform the prune, we need to establish a lower bound on the distance between any descendant point of the node [formula] and the second closest centroid. Call this bound [formula]. Remember that [formula] provides an upper bound on the distance between any descendant point of [formula] and its nearest centroid. Then, if all descendant points of [formula] are owned by some cluster cj in one iteration, and
+
+[formula]
+
+then [formula] is owned by cluster cj in the next iteration. Implementationally, it is convenient to have [formula] store a lower bound on the distance between any descendant point of [formula] and the nearest pruned centroid. Then, if [formula] is entirely owned by one cluster, all other centroids are pruned, and [formula] holds the necessary lower bound for pruning according to the rule above.
+
+The second way to use the triangle inequality to show that an owner cannot change depends on the distances between centroids. Suppose that pq is owned by cj at the current iteration; then, if
+
+[formula]
+
+then cj will own pq next iteration [\cite=elkan2003using]. We may adapt this rule to tree nodes [formula] in the same way as the previous rule; if [formula] is owned by cluster cj during this iteration and
+
+[formula]
+
+then [formula] is owned by cluster cj in the next iteration. Note that the above rules do work with individual points pq instead of nodes [formula] if we have a valid upper bound [formula] and a valid lower bound [formula]. Any nodes or points that satisfy the above conditions do not need to be visited during the next iteration, and can be removed from the tree for the next iteration.
+
+Strategy four. The traversal should use bounding information from previous iterations; for instance, [formula] should not be reset to ∞   at the beginning of each iteration. Between iterations, we may update [formula], [formula], [formula], and [formula] according to the following rules:
+
+[formula]
+
+Special handling is required when descendant points of [formula] are not owned by a single centroid (Equation [\ref=eqn:special]). It is also true that for a child node [formula] of [formula], [formula] is a valid upper bound for [formula] and [formula] is a valid lower bound for [formula]: that is, the upper and lower bounds may be taken from a parent, and they are still valid.
+
+The dual-tree k-means algorithm
+
+These four pruning strategies lead to a high-level k-means algorithm, described in Algorithm [\ref=alg:high_level]. During the course of this algorithm, to implement each of our pruning strategies, we will need to maintain the following quantities:
+
+[formula]: an upper bound on the distance between any descendant point of a node [formula] and the nearest centroid to that point.
+
+[formula]: a lower bound on the distance between any descendant point of a node [formula] and the nearest pruned centroid.
+
+[formula]: the number of centroids pruned during traversal for [formula].
+
+[formula]: if [formula], this holds the owner of all descendant points of [formula].
+
+[formula]: whether or not [formula] can change owners next iteration.
+
+[formula]: an upper bound on the distance between point pq and its nearest centroid.
+
+[formula]: a lower bound on the distance between point pq and its second nearest centroid.
+
+[formula]: the closest centroid to pq (this is also the owner of pq).
+
+[formula]: whether or not pq can change owners next iteration.
+
+At the beginning of the algorithm, each upper bound is initialized to ∞  , each lower bound is initialized to ∞  , [formula] is initialized to 0 for each node, and [formula] is initialized to an invalid centroid for each node and point. [formula] is set to true for each node and point. Thus line 6 does nothing on the first iteration.
+
+First, consider the dual-tree algorithm called on line 9. As detailed earlier, we can describe a dual-tree algorithm as a combination of tree type, traversal, and point-to-point BaseCase() and node-to-node Score() functions. Thus, we need only present BaseCase() (Algorithm [\ref=alg:base_case]) and Score() (Algorithm [\ref=alg:score]).
+
+The BaseCase() function is simple: given a point pq and a centroid cr, the distance d(pq,cr) is calculated; [formula], [formula], and [formula] are updated if needed.
+
+Score() is more complex. The first stanza (lines 4-6) takes the values of [formula] and [formula] from the parent node of [formula]; this is necessary to prevent [formula] from undercounting. Next, we prune if the owner of [formula] is already known (line 7). If the minimum distance between any descendant point of [formula] and any descendant centroid of [formula] is greater than [formula], then we may prune the combination (line 16). In that case we may also improve the lower bound (line 14). Note the special handling in line 15: our definition of tree allows points to be held in more than one node; thus, we must avoid double-counting clusters that we prune.. If the node combination cannot be pruned in this way, an attempt is made to update the upper bound (lines 17-20). Instead of using [formula], we may use a tighter upper bound: select any descendant centroid c from [formula] and use [formula]. This still provides a valid upper bound, and in practice is generally smaller than [formula]. We simply set [formula] to c (line 20); [formula] only holds the owner of [formula] if all centroids except one are pruned--in which case the owner must be c.
+
+Thus, at the end of the dual-tree algorithm, we know the owner of every node (if it exists) via [formula] and [formula], and we know the owner of every point via [formula]. A simple algorithm to do this is given here as Algorithm [\ref=alg:update_centroids] (UpdateCentroids()); it is a depth-first recursion through the tree that terminates a branch when a node is owned by a single cluster.
+
+Next is updating the bounds in the tree and determining if nodes and points can change owners next iteration; this work is encapsulated in the UpdateTree() algorithm, which is an implementation of strategies 3 and 4 (see the appendix for details). Once UpdateTree() sets the correct value of [formula] for every point and node, we coalesce the tree for the next iteration with the CoalesceTree() function. Coalescing the tree is straightforward: we simply remove any nodes from the tree where [formula] is false. This leaves a smaller tree with no nodes where [formula] is false. Decoalescing the tree (DecoalesceTree()) is done by restoring the tree to its original state. See the appendix for more details.
+
+Theoretical results
+
+Space constraints allow us to only provide proof sketches for the first two theorems here. Detailed proofs are given in the appendix.
+
+A single iteration of dual-tree k-means as given in Algorithm [\ref=alg:high_level] will produce exactly the same results as the brute-force O(kN) implementation.
+
+(Sketch.) First, we show that the dual-tree algorithm (line 9) produces correct results for [formula], [formula], [formula], and [formula] for every point and node. Next, we show that UpdateTree() maintains the correctness of those four quantities and only marks [formula] to false when the node or point truly cannot change owner. Next, it is easily shown that CoalesceTree() and DecoalesceTree() do not affect the results of the dual-tree algorithm because the only nodes and points removed are those where [formula]. Lastly, we show that UpdateCentroids() produces centroids correctly.
+
+Next, we consider the runtime of the algorithm. Our results are with respect to the expansion constant ck of the centroids [\cite=langford2006], which is a measure of intrinsic dimension. cqk is a related quantity: the largest expansion constant of C plus any point in the dataset. Our results also depend on the imbalance of the tree [formula], which in practice generally scales linearly in N [\cite=curtin2015plug]. As with the other theoretical results, more detail on each of these quantities is available in the appendix.
+
+When cover trees are used, a single iteration of dual-tree k-means as in Algorithm [\ref=alg:high_level] can be performed in [formula] time.
+
+(Sketch.) Cover trees have O(N) nodes [\cite=langford2006]; because CoalesceTree(), DecoalesceTree(), UpdateCentroids(), and UpdateTree() can be performed in one pass of the tree, these steps may each be completed in O(N) time. Building a tree on the centroids takes O(c6kk log k) time, where ck is the expansion constant of the centroids. Recent results show that dual-tree algorithms that use the cover tree may have their runtime easily bounded [\cite=curtin2015plug]. We may observe that our pruning rules are at least as tight as nearest neighbor search; this means that the dual-tree algorithm (line 11) may be performed in [formula] time. Also, we must perform nearest neighbor search on the centroids, which costs [formula] time. This gives a total per-iteration runtime of [formula].
+
+This result holds intuitively. By building a tree on the centroids, we are able to prune many centroids at once, and as a result the amortized cost of finding the nearest centroid to a point is O(1). This meshes with earlier theoretical results [\cite=langford2006] [\cite=curtin2015plug] [\cite=ram2009] and earlier empirical results [\cite=gray2003nonparametric] [\cite=gray2001nbody] that suggest that an answer can be obtained for a single query point in O(1) time. Note that this worst-case bound depends on the intrinsic dimension (the expansion constant) of the centroids, ck, and the related quantity cqk. If the intrinsic dimension of the centroids is low--that is, if the centroids are distributed favorably--the dual-tree algorithm will be more efficient.
+
+However, this bound is generally quite loose in practice. First, runtime bounds for cover trees are known to be loose [\cite=curtin2015plug]. Second, this particular bound does not consider the effect of coalescing the tree. In any given iteration, especially toward the end of the k-means clustering, most points will have [formula] and thus the coalesced tree will be far smaller than the full tree built on all N points.
+
+Algorithm [\ref=alg:high_level] uses no more than O(N  +  k) memory when cover trees are used.
+
+This proof is straightforward. A cover tree on N points takes O(N) space. So the trees and associated bounds take O(N) and O(k) space. Also, the dataset and centroids take O(N) and O(k) space.
+
+Experiments
+
+The next thing to consider is the empirical performance of the algorithm. We use the publicly available kmeans program in mlpack [\cite=mlpack2013]; in our experiments, we run it as follows:
+
+where $k is the number of clusters and $algorithm is the algorithm to be used. Each algorithm is implemented in C++. For the yinyang algorithm, we use the authors' implementation. We use a variety of k values on mostly real-world datasets; details are shown in Table [\ref=tab:datasets] [\cite=uci] [\cite=birch3] [\cite=lcdm]. The table also contains the time taken to build a kd-tree (for blacklist and dualtree-kd) and a cover tree (for dualtree-ct). Cover trees are far more complex to build than kd-trees; this explains the long cover tree build time. Even so, the tree only needs to be built once during the k-means run. If results are required for multiple values of k--such as in the X-means algorithm [\cite=pelleg2000x]--then the tree built on the points may be re-used.
+
+Clusters were initialized using the Bradley-Fayyad refined start procedure ; however, this was too slow for the very large datasets, so in those cases points were randomly sampled as the initial centroids. k-means was then run until convergence on each dataset. These simulations were performed on a modest consumer desktop with an Intel i5 with 16GB RAM, using mlpack's benchmarking system [\cite=edel2014automatic].
+
+Average runtime per iteration results are shown in Table [\ref=tab:runtime]. The amount of work that is being pruned away is somewhat unclear from the runtime results, because the elkan and hamerly algorithms access points linearly and thus benefit from cache effects; this is not true of the tree-based algorithms. Therefore, the average number of distance calculations per iteration are also included in the results.
+
+It is immediately clear that for large datasets, dualtree-kd is fastest, and dualtree-ct is almost as fast. The elkan algorithm, because it holds kN bounds, is able to prune away a huge amount of work and is very fast for small datasets; however, maintaining all of these bounds becomes prohibitive with large k and the algorithm exhausts all available memory. The blacklist algorithm has the same issue: on the largest datasets, with the largest k values, the space required to maintain all the blacklists is too much. This is also true of the yinyang algorithm, which must maintain bounds between each point and each group of centroids. For large k, this burden becomes too much and the algorithm fails. The hamerly and dual-tree algorithms, on the other hand, are the best-behaved with memory usage and do not have any issues with large N or large k; however, the hamerly algorithm is very slow on large datasets because it is not able to prune many points at once.
+
+Similar to the observations about the blacklist algorithm, the tree-based approaches are less effective in higher dimensions [\cite=pelleg1999accelerating]. This is an important point: the performance of tree-based approaches suffer in high dimensions in part because the bound dmin(  ·  ,  ·  ) generally becomes looser as dimension increases. This is partly because the volume of nodes in high dimensions is much higher; consider that a ball has volume that is exponential in the dimension.
+
+Even so, in our results, we see speedup in reasonable dimensions (for example, the phy dataset has 78 dimensions). Further, because our algorithm is tree-independent, we may use tree structures that are tailored to high-dimensional data [\cite=arya1998optimal]--including ones that have not yet been developed. From our results we believe as a rule of thumb that the dual-tree k-means algorithm can be effective up to a hundred dimensions or more.
+
+Another clear observation is that when k is scaled on a single dataset, the dualtree-kd and dualtree-ct algorithms nearly always scale better (in terms of runtime) than the other algorithms. These results show that our algorithm satisfies its original goals: to be able to scale effectively to large k and N.
+
+Conclusion and future directions
+
+Using four pruning strategies, we have developed a flexible, tree-independent dual-tree k-means algorithm that is the best-performing algorithm for large datasets and large k in small-to-medium dimensions. It is theoretically favorable, has a small memory footprint, and may be used in conjunction with initial point selection and approximation schemes for additional speedup.
+
+There are still interesting future directions to pursue, though. The first direction is parallelism: because our dual-tree algorithm is agnostic to the type of traversal used, we may use a parallel traversal [\cite=curtin2013tree], such as an adapted version of a recent parallel dual-tree algorithm [\cite=lee2012distributed]. The second direction is kernel k-means and other spectral clustering techniques: our algorithm may be merged with the ideas of [\citet=curtin2014dual] to perform kernel k-means. The third direction is theoretical. Recently, more general notions of intrinsic dimensionality have been proposed [\cite=houle2013dimensionality] [\cite=amsaleg2015estimating]; these may enable tighter and more descriptive runtime bounds. Our work thus provides a useful and fast k-means algorithm and also opens promising avenues to further accelerated clustering algorithms.
+
+Supplementary material
+
+Unfortunately, space constraints prevent adequate explanation of each of the points in the main paper. This supplementary material is meant to clarify all of the parts of the dual-tree k-means algorithm that space did not permit in the main paper.
+
+Updating the tree
+
+In addition to updating the centroids, the bounding information contained within the tree must be updated according to pruning strategies 3 and 4. Unfortunately, this yields a particularly complex recursive algorithm, given in Algorithm [\ref=alg:update_tree].
+
+The first if statement (lines 4-10) catches the case where the parent cannot change owner next iteration; in this case, the parent's upper bound and lower bound can be taken as valid bounds. In addition, the upper and lower bounds are adjusted to account for cluster movement between iterations, so that the bounds are valid for next iteration.
+
+If the node [formula] has an owner, the algorithm then attempts to use the pruning rules established in Equations 4 and 6 in the main paper, to determine if the owner of [formula] can change next iteration. If not, [formula] is set to false (line 18). On the other hand, if the pruning check fails, the upper bound is tightened and the pruning check is performed a second time. It is worth noting that [formula] may not actually be less than the current value of [formula], which is why the min  is necessary.
+
+After recursing into the children of [formula], if [formula] could have an owner change, each point is individually checked using the same approach (lines 31-45). However, there is a slight difference: if a point's owner can change, the upper and lower bounds must be set to ∞   (lines 44-45). This is only necessary with points; BaseCase() does not take bounding information from previous iterations into account, because no work can be avoided in that way.
+
+Then, we may set [formula] to false if every point in [formula] and every child of [formula] cannot change owners (and the points and nodes do not necessarily have to have the same owner). Otherwise, we must set [formula] to 0 for the next iteration.
+
+Coalescing the tree
+
+After UpdateTree() is called, the tree must be coalesced to remove any nodes where [formula]. This can be accomplished via a single pass over the tree. A simple implementation is given in Algorithm [\ref=alg:coalesce]. DecoalesceTree() may be implemented by simply restoring a pristine copy of the tree which was cached right before CoalesceTree() is called.
+
+Correctness proof
+
+As mentioned in the main document, a correctness proof is possible but difficult. We will individually prove the correctness of various pieces of the dual-tree k-means algorithm, and then we will prove the main correctness result. For precision, we must introduce the exact definition of a space tree and a pruning dual-tree traversal, as given by Curtin et al. [\cite=curtin2013tree].
+
+A space tree on a dataset [formula] is an undirected, connected, acyclic, rooted simple graph with the following properties:
+
+Each node (or vertex), holds a number of points (possibly zero) and is connected to one parent node and a number of child nodes (possibly zero).
+
+There is one node in every space tree with no parent; this is the root node of the tree.
+
+Each point in S is contained in at least one node.
+
+Each node [formula] has a convex subset of [formula] containing each point in that node and also the convex subsets represented by each child of the node.
+
+A pruning dual-tree traversal is a process that, given two space trees [formula] (the query tree, built on the query set Sq) and [formula] (the reference tree, built on the reference set Sr), will visit combinations of nodes [formula] such that [formula] and [formula] no more than once, and call a function Score([formula], [formula]) to assign a score to that node. If the score is ∞   (or above some bound), the combination is pruned and no combinations ([formula], [formula]) such that [formula] and [formula] are visited. Otherwise, for every combination of points (pq, pr) such that [formula] and [formula], a function BaseCase(pq, pr) is called. If no node combinations are pruned during the traversal, BaseCase(pq, pr) is called at least once on each combination of pq∈Sq and pr∈Sr.
+
+For more description and clarity on these definitions, refer to [\cite=curtin2013tree].
+
+A pruning dual-tree traversal which uses BaseCase() as given in Algorithm 2 in the main paper and Score() as given in Algorithm 3 in the main paper which starts with valid [formula], [formula], [formula], and [formula] for each node [formula], and [formula] for each point pq∈S, will satisfy the following conditions upon completion:
+
+For every pq∈S that is a descendant of a node [formula] that has been pruned ([formula]), [formula] is an upper bound on the distance between pq and its closest centroid, and [formula] is the owner of pq.
+
+For every pq∈S that is not a descendant of any node that has been pruned, [formula] is an upper bound on the distance between pq and its closest centroid, and [formula] is the owner of pq.
+
+For every pq∈S that is a descendant of a node [formula] that has been pruned ([formula]), [formula] is a lower bound on the distance between pq and its second closest centroid.
+
+For every pq∈S that is not a descendant of any node that has been pruned, [formula] where [formula] is a node such that [formula] is a lower bound on the distance between pq and its second closest centroid.
+
+It is easiest to consider each condition individually. Thus, we will first consider the upper bound on the distance to the closest cluster centroid. Consider some pq and suppose that the closest cluster centroid to pq is c*.
+
+Now, suppose first that the point pq is a descendant point of a node [formula] that has been pruned. We must show, then, that c* is [formula]. Take [formula] to be the set of reference nodes visited during the traversal with [formula] as a query node; that is, the combinations [formula] were visited for all [formula]. Any [formula] is pruned only if
+
+[formula]
+
+according to line 10 of Score(). Thus, as long as [formula] is a valid upper bound on the closest cluster distance for every descendant point in [formula], then no nodes are incorrectly pruned. It is easy to see that the upper bound is valid: initially, it is valid by assumption; each time the bound is updated with some node [formula] (on lines 19 and 20), it is set to [formula] where c is some descendant centroid of [formula]. This is clearly a valid upper bound, since c cannot be any closer to any descendant point of [formula] than c*. We may thus conclude that no node is incorrectly pruned from R; we may apply this reasoning recursively to the [formula]'s ancestors to see that no reference node is incorrectly pruned.
+
+When a node is pruned from R, the number of pruned clusters for [formula] is updated: the count of all clusters not previously pruned by [formula] (or its ancestors) is added. We cannot double-count the pruning of a cluster; thus the only way that [formula] can be equal to k  -  1 is if every centroid except one is pruned. The centroid which is not pruned will be the nearest centroid c*, regardless of if [formula] was set during this traversal or still holds its initial value, and therefore it must be true that [formula] is an upper bound on the distance between pq and c*, and [formula].
+
+This allows us to finally conclude that if pq is a descendant of a node [formula] that has been pruned, then [formula] contains a valid upper bound on the distance between pq and its closest cluster centroid, and [formula] is that closest cluster centroid.
+
+Now, consider the other case, where pq is not a descendant of any node that has been pruned. Take [formula] to be any node containing pq. We have already reasoned that any cluster centroid node that could possibly contain the closest cluster centroid to pq cannot have been pruned; therefore, by the definition of pruning dual-tree traversal, we are guaranteed that BaseCase() will be called with pq as the query point and the closest cluster centroid as the reference point. This will then cause [formula] to hold the distance to the closest cluster centroid--assuming [formula] is always valid, which it is even at the beginning of the traversal because it is initialized to ∞  --and [formula] to hold the closest cluster centroid.
+
+Therefore, the first two conditions are proven. The third and fourth conditions, for the lower bounds, require a slightly different strategy.
+
+There are two ways [formula] is modified: first, at line 14, when a node combination is pruned, and second, at line 6 when the lower bound is taken from the parent. Again, consider the set [formula] which is the set of reference nodes visited during the traversal with [formula] as a query node. Call the set of reference nodes that were pruned Rp. At the end of the traversal, then,
+
+[formula]
+
+where Cp is the set of centroids that are descendants of nodes in Rp. Applying this reasoning recursively to the ancestors of [formula] shows that at the end of the dual-tree traversal, [formula] will contain a lower bound on the distance between any descendant point of [formula] and any pruned centroid. Thus, if [formula], then [formula] will contain a lower bound on the distance between any descendant point in [formula] and its second closest centroid. So if we consider some point pq which is a descendant of [formula] and [formula] is pruned ([formula]), then [formula] is indeed a lower bound on the distance between pq and its second closest centroid.
+
+Now, consider the case where pq is not a descendant of any node that has been pruned, and take [formula] to be some node that owns pq (that is, [formula]). In this case, BaseCase() will be called with every centroid that has not been pruned. So [formula] is a lower bound on the distance between pq and every pruned centroid, and [formula] will be a lower bound on the distance between pq and the second-closest non-pruned centroid, due to the structure of the BaseCase() function. Therefore, [formula] must be a lower bound on the distance between pq and its second closest centroid.
+
+Finally, we may conclude that each item in the theorem holds.
+
+Next, we must prove that UpdateTree() functions correctly.
+
+In the context of Algorithm 1 in the main paper, given a tree [formula] with all associated bounds [formula] and [formula] and information [formula], [formula], and [formula], a run of UpdateTree() as given in Algorithm [\ref=alg:update_tree] will have the following effects:
+
+For every node [formula], [formula] will be a valid upper bound on the distance between any descendant point of [formula] and its nearest centroid next iteration.
+
+For every node [formula], [formula] will be a valid lower bound on the distance between any descendant point of [formula] and any pruned centroid next iteration.
+
+A node [formula] will only have [formula] if the owner of any descendant point of [formula] cannot change next iteration.
+
+A point pi will only have [formula] if the owner of pi cannot change next iteration.
+
+Any point pi with [formula] that does not belong to any node [formula] with [formula] will have [formula], as required by the dual-tree traversal.
+
+Any node [formula] with [formula] at the end of UpdateTree() will have [formula].
+
+Each point is best considered individually. It is important to remember during this proof that the centroids have been updated, but the bounds have not. So any cluster centroid ci is already set for next iteration. Take cli to mean the cluster centroid ci before adjustment (that is, the old centroid). Also take [formula], [formula], [formula], and [formula] to be the values at the time UpdateTree() is called, before any of those values are changed. Due to the assumptions in the statement of the lemma, each of these quantities is valid.
+
+Suppose that for some node [formula], [formula] is some cluster cj. For [formula] to be valid for next iteration, we must guarantee that [formula] at the end of UpdateTree(). There are four ways [formula] is updated: it may be taken from the parent and adjusted (line 8), it may be adjusted before a prune attempt (line 14), it may be tightened after a failed prune attempt (line 21), or it may be adjusted without a prune attempt (line 25). If we can show that each of these four ways always results in [formula] being valid, then the first condition of the theorem holds.
+
+If [formula] is adjusted in line 14 or 25, the resulting value of [formula], assuming [formula], is
+
+[formula]
+
+where the last step follows by the triangle inequality: d(cj,clj)  =  mj. Therefore those two updates to [formula] result in valid upper bounds for next iteration. If [formula] is recalculated, in line 21, then we are guaranteed that [formula] is valid because
+
+[formula]
+
+We may therefore conclude that [formula] is correct for the root of the tree, because line 8 can never be reached. Reasoning recursively, we can see that any upper bound passed from the parent must be valid. Therefore, the first item of the lemma holds.
+
+Next, we will consider the lower bound, using a similar strategy. We must show that
+
+[formula]
+
+where Cp is the set of centroids pruned by [formula] and ancestors during the last dual-tree traversal. The lower bound can be taken from the parent in line 9 and adjusted, it can be adjusted before a prune attempt in line 15 or in a similar way without a prune attempt in line 26. The last adjustment can easily be shown to be valid:
+
+[formula]
+
+which follows by the triangle inequality: d(clp,cp)  ≤   max kmk. Line 15 is slightly more complex; we must also consider the term min k  ≠  jd(ck,cj)  /  2. Suppose that
+
+[formula]
+
+We may use the triangle inequality (d(pq,ck)  ≤  d(cj,ck)  +  d(pq,cj)) to show that if this is true, the second closest centroid ck is such that d(pq,ck)  >  2d(ck,cj) and therefore min k  ≠  jd(ck,cj)  /  2 is also a valid lower bound. We can lastly use the same recursive argument from the upper bound case to show that the second item of the lemma holds.
+
+Showing the correctness of [formula] is straightforward: we know that [formula] and [formula] are valid for next iteration by the time any checks to set [formula] to false happens, due to the discussion above. The situations where [formula] is set to false, in line 18 and 22, are simply applications of Equations 4 and 6 in the main paper, and are therefore valid. There are two other ways [formula] can be set to false. The first is on line 10, and this is easily shown to be valid: if a parent's owner cannot change, then a child's owner cannot change either. The other way to set [formula] to false is in line 53. This is only possible if all points in [formula] and all children of [formula] have [formula] set to false; thus, no descendant point of [formula] can change owner next iteration, and we may set [formula] to false.
+
+Next, we must show that [formula] only if the owner of pi cannot change next iteration. If [formula], then due to Lemma [\ref=lem:dt_correct], [formula] and [formula] will be valid bounds. In this case, we may use similar reasoning to show that [formula] and [formula] are valid, and then we may see that the pruning attempts at line 35 and 40 are valid. Now, consider the other case, where [formula]. Then, [formula] and [formula] will not have been modified by the dual-tree traversal, and will hold the values set in the previous run of UpdateTree(). As long as those values are valid, then the fourth item holds.
+
+The checks to see if [formula] can be set to false (from lines 31 to 45) are only reached if [formula] is true. We already have shown that [formula] and [formula] are set correctly in that stanza. The other case is if [formula] is false. In this case, lines 47 to 51 are reached. It is easy to see using similar reasoning to all previous cases that these lines result in valid [formula] and [formula]. Therefore, the fourth item does hold.
+
+The fifth item is taken care of in line 44 and 45. Given some point pi with [formula], and where pi does not belong to any node [formula] where [formula], these two lines must be reached, and therefore the fifth item holds.
+
+The last item holds trivially--any node [formula] where [formula] has [formula] set to 0 on line 55.
+
+Showing that CoalesceTree(), DecoalesceTree(), and UpdateCentroids() function correctly follows directly from the algorithm descriptions. Therefore, we are ready to show the main correctness result.
+
+A single iteration of dual-tree k-means as given in Algorithm 1 in the main paper will produce exactly the same results as the standard brute-force O(kN) implementation.
+
+We may use the previous lemmas to flesh out our earlier proof sketch.
+
+First, we know that the dual-tree algorithm (line 9) produces correct results for [formula], [formula], [formula], and [formula] for every point and node, due to Lemma [\ref=lem:dt_correct]. Next, we know that UpdateTree() maintains the correctness of those four quantities and only marks [formula] to false when the node or point truly cannot change owner, due to Lemma [\ref=lem:update_correct]. Next, we know from earlier discussion that CoalesceTree() and DecoalesceTree() do not affect the results of the dual-tree algorithm because the only nodes and points removed are those where [formula]. We also know that UpdateCentroids() produces centroids correctly. Therefore, the results from Algorithm 1 in the main paper are identical to those of a brute-force O(kN) k-means implementation.
+
+Runtime bound proof
+
+We can use adaptive algorithm analysis techniques in order to bound the running time of Algorithm 1 in the main paper, based on [\cite=curtin2015plug] and [\cite=langford2006]. This analysis depends on the expansion constant, which is a measure of intrinsic dimension defined below, originally from [\cite=karger2002finding].
+
+Let BS(p,Δ) be the set of points in S within a closed ball of radius Δ around some p∈S with respect to a metric d:
+
+[formula]
+
+Then, the expansion constant of S with respect to the metric d is the smallest c  ≥  2 such that
+
+[formula]
+
+The expansion constant is a bound on the number of points which fall into balls of increasing sizes. A low expansion constant generally means that search tasks like nearest neighbor search can be performed quickly with trees, whereas a high expansion constant implies a difficult dataset. Thus, if we assume a bounded expansion constant like in previous theoretical works [\cite=langford2006] [\cite=ram2009] [\cite=karger2002finding] [\cite=curtin2014dual] [\cite=curtin2015plug], we may assemble a runtime bound that reflects the difficulty of the dataset.
+
+Our theoretical analysis will concern the cover tree in particular. The cover tree is a complex data structure with appealing theoretical properties. We will only summarize the relevant properties here. Interested readers should consult the original cover tree paper [\cite=langford2006] and later analyses [\cite=ram2009] [\cite=curtin2015plug] for a complete understanding.
+
+A cover tree is a leveled tree; that is, each cover tree node [formula] is associated with an integer scale si. The node with largest scale is the root of the tree; each node's scale is greater than its children's. Each node [formula] holds one point pi, and every descendant point of [formula] is contained in the ball centered at pi with radius 2sr  +  1. Further, every cover tree satisfies the following three invariants [\cite=langford2006]:
+
+(Nesting.) When a point pi is held in a node at some scale si, then each smaller scale will also have a node containing pi.
+
+(Covering tree.) For every point pi held in a node [formula] at scale si, there exists a node with point pj and scale si  +  1 which is the parent of [formula], and d(pi,pj)  <  2si  +  1.
+
+(Separation.) Given distinct nodes [formula] holding pi and [formula] holding pj both at scale si, d(pi,pj)  >  2si.
+
+A useful result shows there are O(N) points in a cover tree (Theorem 1, [\cite=langford2006]). Another measure of importance of a cover tree is the cover tree imbalance, which aims to capture how well the data is distributed throughout the cover tree. For instance, consider a tree where the root, with scale sr, has two nodes; one node corresponds to a single point and has scale -    ∞  , and the other node has scale sr  -  1 and contains every other point in the dataset as a descendant. This is very imbalanced, and a tree with many situations like this will not perform well for search tasks. Below, we reiterate the definition of cover tree imbalance from [\cite=curtin2015plug].
+
+The cover node imbalance [formula] for a cover tree node [formula] with scale si in the cover tree [formula] is defined as the cumulative number of missing levels between the node and its parent [formula] (which has scale sp). If the node is a leaf child (that is, si  =    -    ∞  ), then number of missing levels is defined as the difference between sp and smin  -  1 where smin is the smallest scale of a non-leaf node in [formula]. If [formula] is the root of the tree, then the cover node imbalance is 0. Explicitly written, this calculation is
+
+[formula]
+
+This simple definition of cover node imbalance is easy to calculate, and using it, we can generalize to a measure of imbalance for the full tree.
+
+The cover tree imbalance [formula] for a cover tree [formula] is defined as the cumulative number of missing levels in the tree. This can be expressed as a function of cover node imbalances easily:
+
+[formula]
+
+Bounding [formula] is non-trivial, but empirical results suggest that imbalance scales linearly with the size of the dataset, when the expansion constant is well-behaved. A bound on [formula] is still an open problem at the time of this writing.
+
+With these terms introduced, we may introduce a slightly adapted result from [\cite=curtin2015plug], which bounds the running time of nearest neighbor search.
+
+(Theorem 2, [\cite=curtin2015plug].) Using cover trees, the standard cover tree pruning dual-tree traversal, and the nearest neighbor search BaseCase() and Score() as given in Algorithms 2 and 3 of [\cite=curtin2015plug], respectively, and also given a reference set Sr with expansion constant cr, and a query set Sq, where the range of pairwise distances in Sr is completely contained in the range of pairwise distances in Sq, the running time of nearest neighbor search is bounded by [formula], where cqr  =   max (( max pq∈Sqcr'),cr), where cr' is the expansion constant of the set [formula].
+
+Now, we may adapt this result slightly.
+
+The dual-tree k-means algorithm with BaseCase() as in Algorithm 2 in the main paper and Score() as in Algorithm 3 in the main paper, with a point set Sq that has expansion constant cq and size N, and k centroids C with expansion constant ck, takes no more than [formula] time.
+
+Both Score() and BaseCase() for dual-tree k-means can be performed in O(1) time. In addition, the pruning of Score() for dual-tree k-means is at least as tight as Score() for nearest neighbor search: the pruning rule in Equation 2 in the main paper is equivalent to the pruning rule for nearest neighbor search. Therefore, dual-tree k-means can visit no more nodes than nearest neighbor search would with query set Sq and reference set C. Lastly, note that the range of pairwise distances of C will be entirely contained in the range of pairwise distances in Sq, to see that we can use the result of Theorem [\ref=thm:nns]. Adapting that result, then, yields the statement of the algorithm.
+
+The expansion constant of the centroids, ck, may be understood as the intrinsic dimensionality of the centroids C. During each iteration, the centroids change, so those iterations that have centroids with high intrinsic dimensionality cannot be bounded as tightly. More general measures of intrinsic dimensionality, such as those recently proposed by Houle [\cite=houle2013dimensionality], may make the connection between cq and ck clear.
+
+Next, we turn to bounding the entire algorithm.
+
+A single iteration of the dual-tree k-means algorithm on a dataset Sq using the cover tree [formula], the standard cover tree pruning dual-tree traversal, BaseCase() as given in Algorithm 2 in the main paper, Score() as given in Algorithm 3 in the main paper, will take no more than
+
+[formula]
+
+time, where ck is the expansion constant of the centroids, cqk is defined as in Theorem [\ref=thm:dtkm], and [formula] is the imbalance of the tree as defined in Definition [\ref=def:imbalance].
+
+Consider each of the steps of the algorithm individually:
+
+CoalesceNodes() can be performed in a single pass of the cover tree [formula], which takes O(N) time.
+
+Building a tree on the centroids ([formula]) takes O(c6kk log k) time due to the result for cover tree construction time [\cite=langford2006].
+
+The dual-tree algorithm takes [formula] time due to Theorem [\ref=thm:dtkm].
+
+DecoalesceNodes() can be performed in a single pass of the cover tree [formula], which takes O(N) time.
+
+UpdateCentroids() can be performed in a single pass of the cover tree [formula], so it also takes O(N) time.
+
+UpdateTree() depends on the calculation of how much each centroid has moved; this costs O(k) time. In addition, we must find the nearest centroid of every centroid; this is nearest neighbor search, and we may use the runtime bound for monochromatic nearest neighbor search for cover trees from [\cite=ram2009], so this costs O(c9kk) time. Lastly, the actual tree update visits each node once and iterates over each point in the node. Cover tree nodes only hold one point, so each visit costs O(1) time, and with O(N) nodes, the entire update process costs O(N) time. When we consider the preprocessing cost too, the total cost of UpdateTree() per iteration is O(c9kk  +  N).
+
+We may combine these into a final result:
+
+[formula]
+
+and after simplification, we get the statement of the theorem:
+
+[formula]
+
+Therefore, we see that under some assumptions on the data, we can bound the runtime of the dual-tree k-means algorithm to something tighter than O(kN) per iteration. As expected, we are able to amortize the cost of k across all N nodes, giving amortized O(1) search for the nearest centroid per point in the dataset. This is similar to the results for nearest neighbor search, which obtain amortized O(1) search for a single query point. Also similar to the results for nearest neighbor search is that the search time may, in the worst case, degenerate to O(kN  +  k2) when the assumptions on the dataset are not satisfied. However, empirical results [\cite=ram2009rank] [\cite=gray2001nbody] [\cite=march2010euclidean] [\cite=langford2006] show that well-behaved datasets are common in the real world, and thus degeneracy of the search time is uncommon.
+
+Comparing this bound with the bounds for other algorithms is somewhat difficult; first, none of the other algorithms have bounds which are adaptive to the characteristics of the dataset. It is possible that the blacklist algorithm could be refactored to use the cover tree, but even if that was done it is not completely clear how the running time could be bounded. How to apply the expansion constant to an analysis of Hamerly's algorithm and Elkan's algorithm is also unclear at the time of this writing.
+
+Lastly, the bound we have shown above is potentially loose. We have reduced dual-tree k-means to the problem of nearest neighbor search, but our pruning rules are tighter. Dual-tree nearest neighbor search assumes that every query node will be visited (this is where the O(N) in the bound comes from), but dual-tree k-means can prune a query node entirely if all but one cluster is pruned (Strategy 2). These bounds do not take this pruning strategy into account, and they also do not consider the fact that coalescing the tree can greatly reduce its size. These would be interesting directions for future theoretical work.

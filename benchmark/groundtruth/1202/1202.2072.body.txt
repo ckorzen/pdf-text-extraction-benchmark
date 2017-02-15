@@ -1,0 +1,225 @@
+Introduction
+
+The heliophysics community embraces a number of existing disciplines - solar and heliospheric physics, magnetospheric and ionospheric physics for the Earth and other planets - and thus must deal with very large sets of heterogeneous data from ground- and space-based instruments. The Heliophysics Integrated Observatory (HELIO: ) is a virtual observatory dedicated to the solar physics and heliophysics [\citep=Bentley_AdSpR_2011]. HELIO provides a distributed network of services, which helps the researchers to easily mine relevant information and data. Especially, the Heliospheric Feature Catalogue (HFC: ) is a database-oriented service that allows access to a large amount of solar and heliospheric features data. Extraction of feature information stored in the HFC is realized using an increasing number of recognition codes [\citep=FullerSoPh2005] [\citep=Zharkov_jasp_2005] [\citep=Barra_aa_2009] [\citep=Krista_solphy_2009] [\citep=Lobzin_sw_2009] [\citep=Higgins_aph_2011].
+
+We present here a new algorithm for the solar-filament tracking. It has been initially developed in the framework of the HELIO project in order to provide tracking data, as a supplementary information, to the description of filaments already available in the HFC. The filaments are large-scale structures of relatively dense and cool plasma suspended in the hot and thin corona. They are particularly visible on Hα observations, where they appear as elongated dark features with several barbs on the solar chromosphere [\citep=TandbergASSL1995] [\citep=MackaySSR2010]. During their lifetime, their shape and intensity can be subject to a number of modifications, especially, part or all of a filament can sometimes undergo sudden disappearances (which may be followed in some cases by re-appearances) at some wavelengths, probably due to changes in their background characteristics - temperature, pressure, etc. - or caused by eruptive process. Hence, this sudden and unpredictable behaviour can make filaments difficult to track over the Sun surface. However, following these features over time is relevant, notably for space weather, since erupting disappearances can play a role in the triggering of coronal mass ejections (CMEs) [\citep=GilbertApj2000ApJ] [\citep=GopalswamyApj2003]. Many automated methods have been successfully developed during the last ten years to detect filaments, including [\citet=GaoSoPh2002], [\citet=FullerSoPh2005], [\citet=BernasconiSoPh2005], [\citet=ZharkovaSoPh2005a], and more recently [\citet=JoshiSoPh2010]. In addition to their recognition algorithms, [\citet=GaoSoPh2002] [\citet=BernasconiSoPh2005] [\citet=JoshiSoPh2010] also propose tracking capabilities that allow to identify disappearances by following feature locations day by day. In particular, [\citet=GaoSoPh2002] have tracked filament disappearances over a full year, and the code of [\citet=BernasconiSoPh2005] is currently applied to detect and track filaments on Big Bear Solar Observatory (BBSO) images, providing among others data to the Heliophysics Events Knowledgebase (HEK: ). In all cases the basics of the methods are quite similar: starting from heliocentric positions of the filaments detected at a given time (i.e., on a given image), they estimate the coordinates of their respective centroids on the previous and/or next adjacent images using equations that correct for the solar rotation [\citep=Cox2000]. Then, they check if detected filament lies within a given circle area from the predicted locations; if it does, the two filaments are considered to be the same. In the case of [\citet=BernasconiSoPh2005], where no filament is found they then extend the search up to three days to confirm that the filament actually disappears or not. As highlighted by the authors, the 3-day search is motivated by the fact that filaments sometimes change shape so much between times of observation, that their location may fall out of the search area, temporarily loosing the tracking. A consequence is that during this period of time it is not possible to know if the filament actually disappears, or if its shape is just strongly deformed due to splitting or partial disappearance. A tracking algorithm based on time, position, but also shape matching would permit to distinguish between the different possible behaviour. This capability appears to be essential to detect, among others, erupting disappearance.
+
+In our method, filaments are first detected on Hα images by an automated recognition code that extracts, among other things, the pruned skeletons of filaments. A pruned skeleton can be defined as the thickest curve inside the feature area that preserves the shape topology; in terms of image processing it results of a thinning followed by a pruning operation [\citep=GonzalezDip2002] applied on the feature pixels. Then, the coordinates of the resulting skeleton pixels are converted to a more appropriate reference frame that rotates with the solar surface. In such a frame, the skeleton of a filament observed on successive images appears as a cluster of close curves [\citep=MouradianASPC1998]. Hence, a comparison in this frame of each skeleton curve with its closer neighbours using a curve-matching algorithm, allows us to calculate probabilities that all of these features actually belong to the filament. The algorithm demonstrates its ability to track filaments on large data sets, limiting the number of false tracking detections. Section [\ref=S:Detection] will introduce the observations used to test the technique, and briefly describe the filament detection process; Section [\ref=S:Tracking] is devoted to the explanation of the tracking algorithm; Section [\ref=S:Performances] will present the resulting performances of the code. Finally applications will be discussed in Section [\ref=S:Conclusions].
+
+Detection of Filaments
+
+Observations
+
+The Meudon spectroheliograph of the Observatoire de Paris performs daily observations of the solar photosphere and chromosphere at three wavelengths: blue wing of the Ca  ii K 393.4 nm line, or K1v ; centre of the Ca  ii K 393.4 nm line, or K3 ; and Hα 656.3 nm. More than fifteen years of data are accessible from the BASS2000 website (), which permits us to apply the tracking algorithm over a large period of time. The images produced are 2D heliocentric projections of the full solar disk as seen from the Earth, with a typical size of 1024 by 1024 pixels, and a spatial resolution of ≈   2.28 arcsecs. The origin of the reference frame corresponds to the disk centre, x-axis is aligned with the Sun's Equator and points towards the west limb, and y-axis is aligned with the rotation axis and points towards the North. Figure [\ref=fig:MeudonSpectro] shows such an image before (left panel) and after (right panel) cleaning processes [\citep=FullerSoPh2005] ; these pre-processes are required to avoid false detections, but also to optimize the efficiency of the region-growing process used by the detection algorithm, by increasing the contrast between the filaments and quiet-sun intensities.
+
+Recognition Code
+
+In order to retrieve the location and morphology of filament skeletons required to perform tracking, an automated recognition code is first run over the full data set available. We use here an algorithm developed in the framework of the European Grid of Solar Observations (EGSO: ) project, and successfully applied on Hα data from the Meudon Spectroheliograph and BBSO [\citep=FullerSoPh2005]. This code is now also used in HELIO to provide to the HFC, a description of the filaments detected on Meudon images. (Filaments detected on BBSO observations are planned to be added in HFC in few months.) The recognition method requires three main steps to be completed:
+
+Since images are sometimes blurred, which can reduce the efficiency of the filament segmentation, a Laplacian spatial filter [\citep=RussIph2002] is first used to enhance the clearness of filament contours.
+
+Then, a region-growing algorithm [\citep=GonzalezDip2002] permits us to group pixels of a same filament together. Starting from a seed region (found using an appropriate threshold value), the procedure searches the connected pixels for which the intensities are within a range defined by the mean and standard deviation of their neighbours.
+
+A morphological-closing operator [\citep=GonzalezDip2002] will finally merge resulting nearby regions that could be considered as a single filament on the segmented images.
+
+From the boundary detection, several parameters can be extracted concerning the intensity, location, or morphology of filaments. In particular, the algorithm uses thinning and pruning methods [\citep=GonzalezDip2002] in order to compute skeleton shapes (results of a skeleton computation is illustrated on Figure [\ref=fig:filament]). Two conditions are required to produce such shapes: all skeleton parts should be connected, and the full extent of the region must be contained in the skeletonized representation. Knowing this characteristic will permit us to define, among others, the length, the centre, and the curvature of the filaments. At the end, all of these parameters will be ingested in the HFC from where they can be downloaded using dedicated query interfaces. For our purpose, the shape of the skeletons will serve as a matching criterion to identify a filament from an image to the following one.
+
+Tracking of Filaments
+
+Description of the Algorithm
+
+In this section we present in detail the tracking algorithm. In addition to the coordinates of skeleton pixels provided by the recognition code, two types of indices are also required to follow co-rotating features over time. The first index, called feature identification number
+
+[formula]
+
+extracted by the recognition code. All of its values are unique (the values of the feature identification number follow typically the order of detection of the filaments) in order to identify and retrieve in the HFC, a feature detected at a given time on a given image. The second index, called tracking identification number
+
+[formula]
+
+by the tracking code. As opposed to νi several filaments can have the same value for τi, which will be an indication that these filaments are actually components of the same co-rotating feature observed on successive images. The values of τi are set by the tracking code, comparing and associating filaments two by two (as explained in Section [\ref=S:Probability]). At the beginning of the execution, all of the tracking indexes
+
+[formula]
+
+by default.
+
+The main steps of the tracking method can be summarized as follows:
+
+We select the time
+
+[formula]
+
+for which we want to perform tracking.
+
+We then define a time window
+
+[formula]
+
+. (In practice, the corresponding tracking identification numbers
+
+[formula]
+
+taken at time tι + 1, saving all of the tracking numbers
+
+[formula]
+
+. This operation allows us to conserve tracking information from a processed image to the following.
+
+Reference Frame used for Tracking
+
+The tracking for filaments detected at time t = tι is performed on a specific reference frame [formula] that follows the solar rotation between t0 and t1. Such a frame has the advantage to: i) stabilize the coordinates of co-rotating filaments around the same position, by correcting the translation of heliocentric longitudes for the rotation, ii) make appear all the segments of a filament visible between t0 and t1, which may suffer full or partial disappearance during its lifetime, iii) since along the first dimension time and space are intermingled, offer fast computation time by working in two dimensions instead of three. (The computation for all of the filaments detected over one solar rotation takes less than ≈  30 seconds on average on a 3.06 GHz Intel duo core machine.) For each image processed the detection code returns the heliocentric coordinates (X,Y) of skeleton pixels (as defined in Section [\ref=S:Observations]), which must be converted in the proper coordinates system associated to [formula] before being usable by the matching algorithm. To achieve this goal, the heliographic longitudes and latitudes (φh,λh) of skeleton pixels on the Sun's surface are first computed using an appropriate transformation matrix [\citep=ThompsonAA2006], then the coordinates (φ,λ) in the co-rotating frame [formula] are deduced using the relations:
+
+[formula]
+
+where [formula] is the Carrington rotation speed in degrees.day- 1, t is the time when the filament was detected in decimal days (i.e., the time of the observation), t0 is the start time of the tracking period in decimal days, [formula] is the longitude of the central meridian in [formula] at t0, and φDRC(λh) is a term that corrects the effects caused by differential rotation [\citep=UlrichSoPh2006]. These effects are not significant here, but will become important when the algorithm will be run to track filaments from one solar rotation to the following (see Section [\ref=S:SeveralRotations]). We note that the coordinates system defined here is quite similar to the Carrington one, but starting at φt0.
+
+The steps of calculation of the skeleton coordinates in the reference frame [formula] are illustrated on Figure [\ref=fig:mh2re]. In this example, we want to track filaments detected on a Meudon spectroheliogram on 21 August 2002 at 11:59:00 UT; date that defines here the time of observation
+
+[formula]
+
+and the end time
+
+[formula]
+
+. The longitude axis uses the Carrington convention starting at [formula], and ending at [formula], with [formula], corresponding to the longitude of the central meridian on 21 August 2002 at 11:59:00 UT. At this stage of the procedure, the heliocentric and co-rotating pixel coordinates of features, as well as their corresponding identification numbers
+
+[formula]
+
+Curvilinear Interpolation
+
+To be consistent, the curve-matching algorithm must be applied on two curve segments having the same number of points and the same length. However, due at least to the coordinates' projections, the distribution of points along the skeleton curves is not necessarily uniform, hence, we need to interpolate the curves in such a way that the distance
+
+[formula]
+
+to use in the co-rotating frame has to be a compromise between the spatial resolution (i.e., minimum distance between two points) and the length of the skeletons: too small a value can significantly increase the computation time, but also the possible spatial fluctuations along the curve at small scales, whereas too large a value decreases the number of points along the curve, and so the spatial resolution used to define its shape. Once an acceptable value of
+
+[formula]
+
+centred on (φ1,λ1), and the line passing through the two points (φk,λk) and (φk + 1,λk + 1) of the curve, which satisfy the condition:
+
+[formula]
+
+When the intersection point [formula] is known, the process is then repeated replacing (φ1,λ1) by [formula] as the new circle centre, and calculating the next intersection point [formula] with the curve. The interpolation finally stops when the other end of the curve is reached. At the same time, the lengths of the skeletons are estimated by simply summing the distances
+
+[formula]
+
+Curve Matching Algorithm
+
+In order to significantly reduce the computation time, the matching algorithm is only applied on skeletons that are close enough on the reference frame. To achieve this goal, for each coordinates (φki,λki) of a first skeleton i, we search the coordinates (φkj,λkj) of others skeletons j (j  ≠  i) for which the distance [formula] is less than a maximum value [formula] (defined in degrees in [formula]). If the condition [formula] is fulfilled, then the curve matching algorithm is applied. In practice the value of the input parameter [formula] does not affect significantly the efficiency of the algorithm, because it will automatically dissociate features that are too much distant.
+
+Given two curves C1 and C2 of close skeletons 1 and 2 from the same filament observed on two different images at two different times, there should be a Euclidean transformation E, such that EC1 matches C2. However, since during its lifetime a filament can be subject to shape deformation, segmentation, but also translation and/or rotation, no exact match is likely to occur, and so we look for a transformation E giving the best match in the least-squares sense. Let C1 and C2 be represented by the vectorial sequences [formula] and [formula] respectively, where n is the number of points of the curves (we assume here that the two curves have the same length). Matching consists of finding a Euclidean transformation E of the plane that will minimize the distance
+
+[formula]
+
+that the skeletons
+
+[formula]
+
+for the sub-segment returning the best match is finally retained. This technique becomes actually consistent only if the lengths of the two curves do not differ significantly, we therefore introduce an additional condition to the minimum on maximum lengths ratio: if this ratio is too small, then the matching algorithm is not applied.
+
+Confidence of Tracking
+
+For each set of best-fitted parameters (a,θ,l)ij, we calculate a normalized probability
+
+[formula]
+
+, rotation
+
+[formula]
+
+parameters, and Wa, Wθ, and Wl are the corresponding probability weights, which satisfy Wa  +  Wθ  +  Wl  =  1. Pij can be seen as the level of trust of the tracking; the larger it is, the more the automated code is confident about the fact the two skeletons
+
+[formula]
+
+decreases when the three parameters a, θ, and l increase:
+
+[formula]
+
+where a0, θ0, and l0 are input parameters that satisfy Pa = a0  =  PΘ, Pθ  =  θ0  =  PΘ, and Pl = l0  =  PΘ) respectively. At the same time, the three conditions [formula], [formula], and [formula] will ensure that Pa, Pθ, and Pl have always positive values. The determination of these three parameters' values will be explained later in Section [\ref=S:Results]. Concerning PΘ, we take PΘ  =  0.5 which is actually also the value of the respective probability
+
+[formula]
+
+are not associated together (i.e., τi  ≠  τj), but both are associated with a third one
+
+[formula]
+
+we finally calculate the average value
+
+[formula]
+
+where Nj is the number of matchings realized between the skeleton
+
+[formula]
+
+(j  ≠  i) for which τj  =  τi. This value will be used as an average tracking confidence level for the corresponding filament
+
+[formula]
+
+Tracking Filaments over Two Successive Solar Rotations
+
+The algorithm can also be adapted to track filaments that perform two consecutive crossings on the solar disk. If we assume that a given filament is observed around a time tι, but also around [formula], then we can extend the previous time range
+
+[formula]
+
+of skeletons
+
+[formula]
+
+of skeletons
+
+[formula]
+
+is found, then the matching algorithm is run between the skeletons of both groups only. In practice, to start the matching process, the average gravity center ( <  φj  > , <  λj  > ) of the group
+
+[formula]
+
+that is proportional to the difference Δt of the observation times between the two skeletons to match. (Since one solar rotation period separates the two features, Δt should be normally around [formula].) Hence, the resulting probability
+
+[formula]
+
+falls below a given value PΘ  =  0.5. The value of Δt0 is also estimated empirically as explained in the next section. Finally, the code will associate the two groups
+
+[formula]
+
+of the first group
+
+[formula]
+
+, which will be equal to the tracking identification number of the group
+
+[formula]
+
+to be identified on a image, to be tracked over the solar disk, and to be possibly linked to another feature on the previous rotation respectively. This information will be written in a dedicated tracking table of the HFC.
+
+Filaments Behaviour
+
+In addition to the tracking algorithm, a module has been implemented in the code to characterize the behaviour of the filaments during their crossing the solar disk. To achieve this goal, the procedure checks, using the tracking identification numbers, that each co-rotating filament is well detected on every image between its first and last times of observation. If during this period the filament disappears (i.e., is not seen on one or more successive images), then the times corresponding to the last observation before its disappearance and the first observation after its re-appearance are saved. Moreover, if the filament appears once it has crossed the east limb, and/or disappears before reaching the west limb, the information is also returned by the code. To proceed in this case, average heliographic coordinates ( <  φh  > , <  λh   >   of the filament skeleton centres on the first/last image are used to calculate the predicted longitudes on the observation just before/after; if these longitudes are less than [formula] (in absolute value), then we assume that there is an appearance/disappearance after/before the limb. As for the tracking data, the results of the analysis are stored in the tracking table of the HFC.
+
+Performances of the Algorithm
+
+Assessments
+
+To optimize the tracking code, we need to define the combination of input parameters
+
+[formula]
+
+after each run (as explained below). To find the best set of input parameters, we compared the code results with a representative sample of filaments manually tracked. This sample contains approximately 2000 filaments, detected by the recognition code between 2000 and 2009 on Meudon spectroheliograms. The tracking was then performed identifying "by-hand" the co-rotating filaments on synthetic synoptic maps, such as the one displayed on Figure [\ref=fig:SynopticMap]. Direct checking on corresponding Hα images was also done to confirm the first choice. In order to keep a track of this selection, the results are written in ASCII format files using identification numbers [formula] as in the automatic code. In practice, since all filaments were loaded from the HFC, the identification numbers
+
+[formula]
+
+was systematically calculated to evaluate the performance of the automated process compared to the manual one. In order to estimate Rp, we compare two by two the groups of filaments from both manual and automatic sets, which can be identified by their own tracking identification numbers [formula] and τi respectively. For two filaments
+
+[formula]
+
+Results
+
+Table [\ref=tbl:results1] shows the results of a first series of comparisons between the automated and the manual processes. As explained in the previous section, this first series does not take account of the tracking from one rotation to another using [formula]. The values of the input parameters given the highest rate Rp are in this case: [formula], [formula], and [formula]. Rp and the corresponding numbers of tracked filaments, which have a length of skeleton
+
+[formula]
+
+(given in percent) and the corresponding numbers of tracked filaments, which have a length of skeleton
+
+[formula]
+
+Conclusions
+
+We have presented here a new method to track filaments on solar images. This technique is based on a curve-matching algorithm, applied to the skeletons of filaments in a reference frame rotating with the Sun's surface. The comparison of the automated code results with a representative sample of filaments tracked manually confirms the good performance (close to ≈  90% ; depending on the length of the skeletons) of the method. Moreover, the results show the good aptitude of the process to identify the main parts of a segmented filament (as a complementary tool to the detection codes, that often offer such a process on each image). Application of the code to track features over two successive rotations gives also good results, but appears to be less efficient, especially for the smaller filaments; improvements to include smaller filaments cases are in progress. For now, a version of the code is already used to provide tracking information to the filaments table of the HFC. Stored content only concerns filaments detected on the Meudon Hα spectroheliograms, but efforts are currently made to also include BBSO observations. Joint use of these data sets will allow us to improve the ability of the code to follow filaments, by increasing the temporal resolution (Meudon Observatory provides only one image per day on average), but also will refine the analysis of the filament behaviour, since a low cadence limits the capability of the algorithm to accurately detect the occurrence time of events such as filament disappearances. In addition, several applications of this method are envisaged in the future. Firstly, automated tracking will be a primary step to the creation of filaments synthetic synoptic maps [\citep=MouradianASPC1998] [\citep=AboudarhamASPC2007] ; these maps provides useful information about solar features to the community. Since the detection and tracking codes can be run independently (and insofar as a dedicated detection code can previously provide the pruned skeletons), investigations are in progress to apply this technique to filament extraction codes working on other wavelengths observations [\citep=BuchlinSF2A2010]. Finally, an extension to others solar features such as active regions or coronal holes, could be reasonably envisaged using appropriate matching algorithms.

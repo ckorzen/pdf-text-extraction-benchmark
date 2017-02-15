@@ -1,0 +1,119 @@
+Excitation energies from ground-state density-functionals by means of generator coordinates
+
+Introduction
+
+Density-functional theory (DFT) [\cite=kohnrmp] [\cite=dftbook] [\cite=parryang] is the most widely used first-principles method for the calculation of ground-state properties of a wide variety of atomic, molecular and solid systems. Common local and nonlocal density functionals make highly precise predictions for ground-state densities, energies and quantities that can be derived from these. Efficient algorithms for solving the Kohn-Sham (KS) equations are implemented in many common electronic-structure codes, and provide computational access to ground-state densities by means of an auxiliary set of single-particle orbitals.
+
+The Kohn-Sham equations, as well as most common density functionals, were designed with ground-state properties in mind. The underlying theorems of density-functional theory, however, are more general. The usual proofs of the Hohenberg-Kohn theorem by contradiction [\cite=hk] or by constrained search [\cite=levylieb] guarantee that the ground-state wave function is a functional of the ground-state density, but it takes only one simple additional step to prove that the density also determines the external potential [\cite=dftbook] [\cite=levy] [\cite=nonunprl] and thus all wave functions and energies, including those of excited states [\cite=footnote01].
+
+DFT thus holds the promise to become a versatile and powerful tool for the calculation of excited-state energies, too. In practice, however, this promise turned out to be much harder to fulfill than for the ground state. In fact, the most commonly employed DFT approaches to excited states are formulated in the conceptually rather different frameworks of time-dependent DFT [\cite=tddftex] or ensemble DFT [\cite=ogk]. For a comparison of these methods, and a variety of other DFT-based approaches to excited states, see Ref. [\cite=otherex]. What TDDFT and ensemble DFT have in common is that by design they go, from the outset, beyond static (ground-state) DFT. In this paper we propose and test an alternative method that allows one to extract excited-state energies from ordinary ground-state functionals.
+
+The generator coordinate variational principle
+
+The key ingredient in this development is the generator coordinate variational principle. The generator-coordinate method (GCM) arose in nuclear physics, as a way to build collective behaviour of nuclei into a trial wave function written in terms of single-particle orbitals [\cite=ghw]. In this method, the (nuclear) many-body wave function Ψ is cast as
+
+[formula]
+
+where the Φ are auxiliary wave functions arising from a deformed Hamiltonian, and the degree of deformation is characterized by the deformation parameter α, which plays the role of a generator coordinate. It is a crucial feature of the method that the generator coordinate appears in the auxiliary (seed) functions Φ, but not in the wave function Ψ. Variation of the energy with respect to the weight function f(α) leads to an integral equation whose eigenvalues are the many-body energies of the system,
+
+[formula]
+
+Equation ([\ref=ghweq]), known as the Griffin-Hill-Wheeler (GHW) equation, contains Hamiltonian and overlap kernels K(α,α') = 〈Φ(α)|Ĥ|Φ(α')〉 and S(α,α') = 〈Φ(α)|Φ(α')〉 of standard form, and can be solved straightforwardly by discretizing the α integral and obtaining the eigenvalues E and eigenfunctions f(α) by matrix algebra.
+
+The GHW method is also used in quantum chemistry to construct highly precise basis sets for Hartree-Fock and Dirac-Fock calculations [\cite=ghwhf]. In these applications the single-particle orbitals are written in GCM form as
+
+[formula]
+
+where ξ(α) is a set of suitable single-body functions, α is identified with a basis set exponent, and φ(x) is the Hartree-Fock (or Dirac-Fock) orbital. The resulting GHW equation produces numerically defined basis sets of high accuracy [\cite=ghwhf].
+
+In 2003 one of the present authors proposed a way to combine the GCM variational principle with DFT [\cite=gencoojcp], by identifying the deformation potential of the original GCM with the KS potential of DFT, the generating function with the KS Slater determinant, and the generator coordinate with any parameter in the effective single-particle potential. Hence,
+
+[formula]
+
+where Ψ now is the electronic many-body wave function, and Φ is the KS Slater determinant. Conceptually, this is much more similar to the original use of GCM in nuclear physics [\cite=ghw] than to its more recent applications in quantum chemistry [\cite=ghwhf].
+
+A first implementation of GCM-DFT [\cite=gencoojcp] showed that even simple approximations to the full formalism result in ground-state energies that are comparable to those obtained from more sophisticated density functionals. Moreover, unlike standard DFT methods, GCM-DFT also provides an approximation to the many-body wave function, not just to the energies. The final expressions obtained for these wave functions are formally similar to CI expansions, but whereas in CI each determinant represents a different excited-state configuration of one fixed Hamiltonian, in the GCM-DFT method of Ref. [\cite=gencoojcp] each determinant comes from a ground-state calculation of a differently deformed Hamiltonian, and can thus be viewed as a resummation of many CI determinants. As these GCM determinants come from different Hamiltonians they are not necessarily orthogonal, in contrast with CI determinants. While at first sight this increases the computational effort involved in constructing the GCM-DFT expansion relative to that for constructing the CI expansion, the fact that each GCM determinant can be viewed as a resummation of many CI determinants suggests that much smaller expansions may be sufficient with GCM than with CI, in particularly if the seed functions are cleverly chosen.
+
+Ref. [\cite=gencoojcp] also showed that approximations to the energies of excited states could be obtained as by-products of the ground-state calculation, but the numerical example given there showed that this method performs rather poorly. Here we present a reformulation of GCM-DFT which performs much better for excited states - in fact, even in its simplest form it is already competitive with standard TDDFT based methods.
+
+GCM-DFT for excited states
+
+To introduce the key idea, let us first briefly review the way ground-state energies are obtained from GCM-DFT [\cite=gencoojcp]. The seed wave functions (or generator functions) Φ(α;x1,..,xN) are chosen to be the Slater determinants arising from Kohn-Sham orbitals of the N lowest-lying levels of the deformed KS Hamiltonian, i.e., are KS N-particle ground states. The particular deformation chosen in Ref. [\cite=gencoojcp] was
+
+[formula]
+
+i.e., the exchange-only LDA was modulated by α, for which the five-point mesh {0,0.5,1,1.5,2} was used. We stress that this is not a Xα calculation, although the last term in Eq. ([\ref=valpha0]) is of Xα form: α here is a generator coordinate, which appears as integration variable in the integral-representation of the wave function ([\ref=ghwansatz3]). Upon discretization of the integral, α assumes more than one value, none of which is fitted to experiment. For each α we selfconsistently solve the KS equations, construct Φ(α) from the resulting orbitals and calculate the kernels K(α,α') and S(α,α').
+
+The benchmark He ground-state energy EHe0 =  - 2.904a.u. was reproduced in this way to within 1.1%. A further improvement on the ground-state energy, reducing the deviation to - 0.24%, is reported below. (For comparison, the LDA, when used in the standard DFT way without generator coordinates, predicts EHe,LDA0 =  - 2.8348a.u., which deviates by -2.4% from EHe0.)
+
+In principle, the five eigenvalues arising from the 5  ×  5 matrix problem allow one to obtain four excited-state energies, in addition to the ground state, but the lowest-lying excitation energy was found [\cite=gencoojcp] to deviate by 16.7% from the exact value, which is too much to be useful in practice.
+
+However, we note that the trial function Ψ inherits its symmetries and structure from the seed functions Φ(α). We can thus target a particular excited state of the many-body system by using seed functions of the corresponding excited KS state, and solving the GHW equation with kernels obtained from these excited-state determinants or configuration-state functions. This procedure can be used for all many-body excitations that have a counterpart in the noninteracting KS system. (Excitations not having such a counterpart can be dealt with by using a generator coordinate in TDDFT [\cite=tdgcm], or by using more sophisticated seed functions in static GCM-DFT.)
+
+Determinants corresponding to excited states of the noninteracting KS system are rarely used in DFT, because the KS formalism is tailored to provide ground-state properties. However, in the context of GCM-DFT, the KS equation is not used to obtain the ground-state density, but to obtain a set of continuously parametrized N-particle determinants that are employed as seed functions Φ(α) in the GCM ansatz Eq. ([\ref=ghwansatz1]), and for this purpose the use of excited-state KS determinants is perfectly legitimate.
+
+Applications to representative two- and three-electron systems
+
+In this section we report numerical results for different types of excitation energies (singlet/doublet/triplet) as well as ground-state energies, for various two- and three-electron systems from the He and Li isoelectronic series, compared to a variety of other computational approaches, including TDDFT.
+
+Excited-state energies for atoms from the He isoelectronic series
+
+First, we present illustrative applications to excited states of the Helium isoelectronic series, and to the lowest singlet and triplet excitations of the He atom. We chose the deformation potential to be
+
+[formula]
+
+i.e., let the generator coordinate modulate the LDA for exchange and correlation. Many other choices are possible, e.g., introducing α in the correlation potential, Hartree potential, external potential, kinetic energy term, or in the angular or spin-dependent part of the orbitals, or using other functionals than LDA. Each of the resulting deformations has its own physical meaning and consequences. Each also implies a, generally distinct, range of values of α, and, consequently, different meshes for discretizing the integral equation.
+
+Some choices of where to place α in the KS equations, and some discretization schemes for the α integral, give excellent results for specific quantities or some particular system. Below we do not report such special choices or best results, but focuse on a simple and generally usable scheme [\cite=footnote02]. Systematic exploration of the many possibilities that arise upon combining the GCM idea with DFT remains work for the future.
+
+In Table [\ref=table1], we report lowest triplet excited-state energies of the Helium isoelectronic series, obtained from solving the discretized GHW eigenvalue equation with [formula] chosen as in Eq. ([\ref=valpha]), on the mesh {4.5,5,5.5,6,6.5}. (Denser meshes lead to only marginal improvements of the results, or may even worsen them if the resulting overlap matrix S(α,α') becomes singular.) The seed wave functions were constructed from the KS orbitals arising selfconsistently in potential ([\ref=valpha]), selected to form the lowest KS excited state of triplet symmetry. Near-exact theoretical data are also reported, and show that the resulting excited-state energies are surprisingly close. Table [\ref=table2] makes the same comparison for the lowest singlet excitation, 21S.
+
+For spectroscopy, the interesting quantities are not primarily the excited-state energies, but the excitation energies. In Table [\ref=table3] we thus present selected excitation energies of the He atom: the lowest singlet and triplet excitation energies, and the singlet-triplet splitting. GCM-DFT can be used as a stand-alone method to obtain excitation energies if it is used to calculate the energies of the ground state and of the excited state of interest. Alternatively, it can be used as an add-on method by adding excitation energies obtained from GCM-DFT to ground-state energies obtained by traditional methods. Both procedures are compared in Table [\ref=table3] to six other computational schemes and near-exact benchmark data.
+
+The columns KS exact and KS LDA report the KS single-particle gap between the highest occupied and lowest unoccupied KS eigenvalue, arising from the exact [\cite=pgg] KS potential and from the LDA potential for He, respectively. Note that neither the LDA nor the exact KS eigenvalues predict any singlet-triplet splitting. The column labeled ΔSCF reports LDA total-energy differences between the ground state and the total energy obtained from a standard KS calculation fixing the occupation of KS levels at that of the corresponding KS excited state.
+
+The two columns labelled TDDFT**EXX and TDDFT**ALDA report data obtained in Ref. [\cite=pgg] from TDDFT using adiabatic exact-exchange (AEXX) and adiabatic LDA (ALDA), respectively. These TDDFT data were obtained from a numerically exact potential [\cite=pgg], approximating only the xc kernel, and in this sense are not fully representative of standard TDDFT calculations. ALDA results obtained from the standard TDDFT procedure, using approximate potentials and kernels, are reported in the column labelled TDDFT ALDA. Our LDA and TDDFT ALDA data were obtained with the GAUSSIAN 03 [\cite=gaussian] program, using the VWN5 parametrization of the LDA and the aug - ccpV5Z basis set, and with the mesh-based atomic DFT code opmks [\cite=opmks].
+
+The column labeled GCM-DFT* reports differences between GCM-DFT excited-state energies and the exact ground-state energy, whereas the column labelled GCM-DFT reports differences between GCM-DFT excited-state energies and GCM-DFT ground-state energies, the latter being obtained from Eq. ([\ref=valpha]) on the mesh {4.7,5.05,5.4,5.75,6.1}. The He ground-state energy obtained on this mesh is - 2.897a.u., which deviates from the exact result - 2.904a.u. by - 0.24%. The column labeled GCM-DFT* thus measures the add-on performance of generator-coordinate DFT, in our simple implementation, purely for excited states, while the column labeled GCM-DFT quantifies its stand-alone performance for excitation energies.
+
+As the data in the lines labelled 3S and 2S of Table [\ref=table3] show, GCM-DFT, both in its add-on and its stand-alone version, is capable of producing similar or better singlet and triplet excited-state energies than the other tested methods. As the line labelled Δ shows, it also produces realistic singlet-triplet splittings. Still better singlet-triplet splittings are obtained from TDDFT/ALDA, both with approximate and exact single-particle potentials, but this improvement is due to error cancellation between the energy of the singlet and the triplet excited state, each of which individually has larger errors.
+
+Note that we have not separately optimized the mesh for singlet excitations and triplet excitations, but used the same five values of α for both. In other calculations, we have obtained better excitation energies by employing different meshes for different states, but our purpose here is to keep the procedure as simple and generally applicable as possible, and we thus used the same set of α's for all excited states of He.
+
+Ground-state and excitation energies for atoms from the Li isoelectronic series
+
+As an initial exploration of three-electron systems, we now present GCM-DFT calculations of the ground-state energy and excitation energies of atoms from the Li isoelectronic series. In principle, one could choose a new placement of the generator coordinate in the KS equation, and a new mesh, for each new system. In this initial exploration, we maintained for Li the choices made for He. Ground-state energies obtained in this way are reported in the first column of Table [\ref=table4], labelled 'He mesh'. Clearly, the deviations from the experimental energies are much larger than they were for the He series.
+
+Next, in recognition of the fact that the average radius 〈r〉 of an atom shrinks as Z increases (for one-electron atoms, [formula]), and taking into account that the generator coordinate in Eq. ([\ref=valpha]) modifies only the radial wave function, we constructed downscaled radial meshes for Li by applying a simple power-law scaling factor to the mesh for He,
+
+[formula]
+
+where the exponent 3 / 4 was chosen after some experimentation (but not optimized variationally). This scaling approach is quite successful: The second set of data in Table [\ref=table4] has much reduced deviations from the benchmark data.
+
+Finally, instead of adjusting the exponent of the mesh scaling law ([\ref=HeLigsLaw1]), we also constructed a new discretization mesh for neutral Li, which was subsequently used also for the ions. The free parameters here are the starting value and the increment, i.e. one more than in the scaling approach. Results are shown in the third data set in Table [\ref=table4], labelled 'emp', for empirical (but not fitted). As expected, the agreement with benchmark data is further improved. We stress that in using these modified meshes we still employed the same generator coordinate as in Eq. ([\ref=valpha]) and still constrained the wave function to be a sum of five terms, corresponding to five values of α, i.e., our choice of mesh is an exploration of the capabilities of the GCM method, not an arbitrary construction designed to produce the best possible agreement with reference data.
+
+Turning now from ground states to excited states, Table [\ref=table5] presents KS, ΔSCF, TDDFT and GCM-DFT data for excitation energies corresponding to the ground-state to doublet-excited-state 2S transition 1s22s1  →  1s23s1. As in Table [\ref=table4], the first group of Li GCM-DFT data represent the stand-alone approach, employing the He mesh, a power-law scaled He mesh and a mesh whose initial value and step size were chosen to deliver values close to the benchmark data for neutral Li, but subject to the constraints of same placement of the generator coordinate and same number of mesh points. The only difference is that for the excited states the scaling law exponent 1 / 3, leading to the mesh
+
+[formula]
+
+was found to be more suitable than 3 / 4. The second group of GCM-DFT data, labelled GCM-DFT*, reports corresponding results from the add-on use of GCM, in which only the excited-state energy was obtained from GCM-DFT, the ground-state energy employed was the exact one.
+
+As for He, GCM-DFT produces realistic excitation energies, but the agreement with the reference values is less good than for He. Nevertheless, since we have not fitted, and neither variationally optimized, the mesh of α values, but just explored some simple and generalizable discretization schemes, the agreement achieved is still rather encouraging. Moreover, we note that the smaller errors TDDFT achieved for the 22S  →  32S excitation energies are a consequence of error cancellation between the ground-state energy and the excited-state energy, each of which is less well reproduced by TDDFT/ALDA than by the GCM-DFT calculations. This is reminiscent of the error cancellation that occured between singlet and triplet excited-state energies for He.
+
+Conclusions
+
+Whether GCM-DFT will ever be competitive with more established TDDFT or CI approaches to excited states is, at present, an open question, but from the present analysis it seems safe to conclude that, as a matter of principle, excitation energies can indeed be obtained from static ground-state density functionals, without requiring time- or temperature-dependent generalizations, as anticipated by the original Hohenberg-Kohn theorem.
+
+In our opinion, what is missing to turn the presently proposed approach into a viable and transferable method for calculating ground-state and excitation energies (and other properties [\cite=footnote03]) of many-electron systems is a systematic and nonempirical way of constructing suitable meshes for discretizing the α integral in the GHW equation. Different ways of achieving this are conceivable:
+
+(i) Much denser meshes, employing hundreds or more values of α, would lead to an ever more faithful representation of the GHW integral itself, but in this case much care must be taken in inverting the overlap matrix, because closely spaced values of α lead to near linear dependence of rows and columns and thus to potentially ill-conditioned eigenvalue problems.
+
+(ii) Variational optimization of a set of α values may be useful for the ground-state energy, and produces a mesh that can be used as a starting point also for excited states.
+
+(iii) Scaling laws, as our present Eqs. ([\ref=HeLigsLaw1]) and ([\ref=HeLigsLaw2]), provide a way to use chemical or physical intuition to pre-select a suitable set of values of the generator coordinate without data-fitting or optimization.
+
+This discussion shows that the great strength of the GCM approach is also its Achilles heel: the fact that the generator coordinate does not explicitly appear in the wave function makes it a particularly powerful and flexible formulation of the variational principle, but also implies that there is no direct way to make an a priori reasonable choice of placement and range of the generator coordinate.
+
+We end this paper by noting that, very recently, generator coordinates have also been introduced in TDDFT in order to describe retardation effects and memory by means of a time-dependent generalization of the GHW equations [\cite=tdgcm]. A further interesting possibility is to introduce a generator coordinate also in the TDDFT approach to excited states in order to obtain the time-dependent many-body wave function, or improved excitation energies.
+
+This work was supported by FAPESP, CAPES and CNPq. We thank C. A. Ullrich for useful discussions.

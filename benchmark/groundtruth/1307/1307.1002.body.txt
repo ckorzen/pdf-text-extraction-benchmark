@@ -1,0 +1,227 @@
+Variational optimization of the 2DM: approaching three-index accuracy using extended cluster constraints.
+
+Introduction
+
+Although the underlying physical laws and mathematical formalism describing many-electron systems are fully understood, solving the associated quantum many-body problem remains a very challenging task. This is because the dimension of the associated Hilbert space increases exponentially with system size. To obtain results for correlated electron systems one therefore resorts to approximate techniques, which try to capture the relevant parts of the physics in the system. This paper deals with variational density matrix optimization (v2DM), a many-body method which removes the wave function from quantum mechanics by replacing it wth the two-body reduced density matrix (2DM), at the benefit of having nicer scaling properties. This appealing idea originates from the 1940's with Husimi [\cite=husimi] and was brought to focus by Coleman in his excellent review paper [\cite=coleman]. In subsequent years a lot of effort was put in the formulation of the problem [\cite=garrod] [\cite=kummer] and the first numerical calculations were performed [\cite=fusco] [\cite=garrod_mih_ros]. However, some disappointing results [\cite=mihailovic] [\cite=rosina] and the computational complexity of the problem caused activity in the field to drop. It wasn't until Nakata et al. [\cite=nakata_first] and Mazziotti [\cite=mazziotti] introduced a numerical technique called semidefinite programming to v2DM, that interest in the field was renewed. Since then a lot of progress has been made, both by developing better algorithms suited to the physics problem at hand [\cite=primal_dual] [\cite=maz_bp] [\cite=maz_prl] [\cite=nakata_last], as well as by increasing the accuracy of the approximation by deriving new constraints [\cite=zhao] [\cite=mazz_T_con] [\cite=dimi] [\cite=qsep] [\cite=shenvi]. A large variety of systems has been studied using v2DM, mostly atomic and molecular systems [\cite=hammond] [\cite=nakata_last] [\cite=mazz_T_con] [\cite=Gido_T_con] [\cite=mazz_book] [\cite=braams_book], but also nuclear [\cite=mihailovic] [\cite=rosina], and spin and lattice systems [\cite=maz_hub] [\cite=barthel] [\cite=shenvi] [\cite=nakata_last] [\cite=hubbard_bv] [\cite=gutz_sdp]. Recently it was observed that this standard approach fails to describe the dissociation limit of certain diatomic molecules [\cite=helen_1]. This failure was shown to originate from the lack of size-extensivity of the method [\cite=qsep] [\cite=nakata_se], and several ways to cure this behaviour have been set forth [\cite=qsep] [\cite=helen_2] [\cite=nakata_li].
+
+This paper focuses on how the standard v2DM approach performs for the 2D Hubbard model, and proposes a computationally much cheaper way in which these results can be approximated. It should be noted that the proposed new conditions are approximations to the standard non-negativity constraints, and as such they do not intend to cure the non-size extensivity of the method.
+
+The Hubbard model is a schematic model [\cite=hubbard] developed to describe electron correlation in solids by means of the Hamiltonian:
+
+[formula]
+
+in which the sum 〈ij〉 goes over nearest neighbouring sites only, and using second-quantized notation where [formula] creates/annihilates a fermion in a single-particle state α  =  {iσ} with i the lattice label and σ the spin projection ([formula]), see e.g. [\cite=bijbel] [\cite=fetter_walecka]. The 2D version is of particular interest because it is thought to exhibit high-temperature superconductivity [\cite=anderson] [\cite=scalapino]. This simple model has a rich phase diagram and is therefore challenging to solve. This is due to the competition between the delocalizing first term (see Eq. [\ref=hub_ham]), which allows for hopping from one site to its neighbours, and the second term, which locally repels electrons that are on the same site. A lot of numerical studies have been carried out for this system, using various methods such as quantum Monte Carlo [\cite=qmc_2dhub], and the density matrix renormalization group (DMRG) [\cite=xiang]. For an excellent overview of numerical studies performed on the 2D Hubbard model, we refer to the review by Scalapino [\cite=scalapino]. In spite of all these numerical studies, surprisingly few reference results exist for the ground-state energy on finite size lattices. An earlier v2DM study focussed on the [formula] lattice and was limited to the half-filled case [\cite=nakata_2dhub]. In this paper we present results obtained by v2DM with the accurate three-index (') conditions (see Section [\ref=intro]) on a [formula] lattice at various fillings and for different values of the on-site repulsion U. In Section [\ref=intro] we give a short introduction to the general framework behind v2DM, and show how the symmetry present in the model can be exploited to obtain a substantial computational speed up. Subsequently we present and discuss the exact variational lower bound results on the [formula] lattice obtained using the computationally heavy ' conditions and the much faster but less accurate two-index ([formula]) conditions. We compare these with an exact variational upper bound obtained through a DMRG framework developed by one of us [\cite=sebastian]. In Section [\ref=pure_cluster] we look for a way to recover three-index precision without losing computational efficiency, by imposing three-index constraints on local clusters. In Section [\ref=extcluster] we derive new constraints which extend these local cluster constraints in a way that reflects the open-system nature of a cluster. We demonstrate the feasibility of this approach by performing a proof-of-principle calculation imposing a subset of these constraints. It is shown that the computationally very expensive ' results can be closely approximated by imposing only a limited subset of the extended clutser constraints, at a fraction of the computational cost.
+
+Theoretical Framework
+
+Introduction to v2DM
+
+The Hamiltonian of a system interacting in up to two-body terms is:
+
+[formula]
+
+so the expectation value of the energy corresponding to an arbitrary N-particle state |ΨN〉 can be expressed using but the 2DM of that state:
+
+[formula]
+
+with the 2DM defined as:
+
+[formula]
+
+and the reduced two-body Hamiltonian:
+
+[formula]
+
+The key idea underpinning v2DM is to use Eq. ([\ref=E_2DM]) to determine the 2DM variationally. Once the approximate ground-state 2DM is found, we can extract all one- and two-body ground-state properties. This approach eliminates the need to reference the exponentially scaling wave function, and requires only the much more compact 2DM. A complication arises because the variation has to be performed over a limited set of 2DM's, i.e. those that are derivable from an ensemble of N-particle wave functions. This is known as the N-representability problem [\cite=coleman]. Using the variational principle and the fact that the set of N-representable 2DM's is convex, one can derive a formal solution to the N-representability problem. This necessary and sufficient condition states that a 2DM is N-representable if and only if
+
+[formula]
+
+for all 2-particle Hamiltonians H(2)ν, with corresponding ground-state energies EN0(H(2)). These conditions are obviously not practically implementable, but can be used to derive a set of necessary constraints. Consider the class of positive Hamiltonians:
+
+[formula]
+
+Inserting this class of Hamiltonians into Eq. ([\ref=eq_dual_n_rep]) leads to the inequality:
+
+[formula]
+
+from which the matrix-positivity condition [\cite=garrod]
+
+[formula]
+
+follows. In this fashion one can derive two more necessary conditions [\cite=coleman], one is simply the non-negativity condition on the 2DM itself, another requires the non-negativity of:
+
+[formula]
+
+These three combined form the so-called two-index conditions, often referred to as [formula].
+
+Another class of constraints is derived using the positive Hamiltonian [\cite=zhao] [\cite=hammond] [\cite=erdahl]:
+
+[formula]
+
+in which the [formula] is a three-body operator. Two conditions are derived in this way:
+
+[formula]
+
+These are matrix-positivity constraints on respectively three-particle and two-particle-one-hole space, and are referred to as three-index constraints. Enforcing these conditions usually greatly improves the accuracy of the results, but at a considerable computational cost.
+
+v2DM can now be formulated as the following constrained optimization problem:
+
+[formula]
+
+on the condition that
+
+[formula]
+
+Because the set of 2DM's over which the optimization is performed is too large, one obtains a variational lower bound to the energy, complementary to variational wave-function techniques where one finds an upper bound.
+
+This problem is an instance of the class of semidefinite programs (SDP). This is a well studied optimization problem for which many algorithms have been developed. A number of these algorithms have been tailored to the specific case of v2DM, and they can be divided into two classes. On the one hand there are the interior-point methods [\cite=nakata_first] [\cite=primal_dual] which are very robust, but have a slow computational scaling of about O(M12), regardless of when two- and three-index conditions are imposed, where M is the dimension of single-particle space. On the other hand there are first-order algorithms such as the boundary point method [\cite=maz_bp] [\cite=rendl], which have a better scaling of O(M9) when the three-index conditions are included, but these do not have the nice convergence properties of the interior point methods. In this study a boundary point method has been used.
+
+Symmetry adaptation of the constraints
+
+The 2D Hubbard model on a square lattice with periodic boundary conditions (PBC), i.e. the 2D Hubbard model on a torus, has a lot of symmetry. This symmetry can be used to block diagonalize the constraint matrices L, allowing for a reduction of the computational cost of the SDP. Full exploitation of this symmetry allows us to push our calculations to reasonably sized lattices, up to [formula] when only two-index conditions are imposed, and up to [formula] with the three-index conditions included. We will impose three different symmetries: spin symmetry, translational invariance and the point-group symmetry of the lattice.
+
+Spin Symmetry
+
+The invariance of the Hubbard Hamiltonian under rotations in spin space can be exploited by introducing the spin-averaged ensemble [\cite=atomic]. The G condition, when defined in a spin-averaged way as:
+
+[formula]
+
+breaks down into four blocks, one S = 0 block and three degenerate S  =  1 blocks. This does not change the scaling of the algorithm, but elementary matrix computations are performed 32 times faster. Analogous results are obtained for the other constraints.
+
+Translational invariance
+
+Because periodic boundary conditions are assumed, the Hamiltonian is invariant under lattice translations in both the x and y direction. It is straightforward to exploit this symmetry: by transforming the single-particle basis to quasi-momentum eigenstates:
+
+[formula]
+
+in which L is the linear dimension of the lattice. The constraint matrices then decompose into blocks with the same two-particle or particle-hole quasi-momentum (Kx,Ky), e.g. the S  =  0 part of the G matrix falls apart in L2 blocks of dimension L2. This does change the scaling of the program. Instead of the O(L12) scaling of a matrix multiplication on the G matrix without translational invariance, we now have a scaling of O(L8).
+
+Point group symmetry
+
+The final symmetry we exploit is the point-group symmetry (C4v) of the lattice. Combined with translational invariance this forms the space group P4mm. There are three independent transformations which leave the Hamiltonian invariant:
+
+[formula]
+
+These operations do not commute with the translation operator, which means they map different (Kx,Ky) blocks in the constraint matrices onto each other. This can be used to reduce the number of blocks we have to store and perform calculations on. A problem arises in blocks that are mapped onto themselves by the symmetry operations. For consistency the symmetry then has to be enforced in these blocks by imposing linear constraints on the 2DM during the optimization.
+
+Reference results
+
+Using the method discussed in Sections [\ref=intro_2DM] and [\ref=symm] we have performed ground-state ' calculations for the [formula] Hubbard model, for different values of on-site repulsion U and at various fillings. For reference, we compare our calculations of the energy per particle number on a [formula] lattice with exact diagonalization results by Fano et al. [\cite=fano] and an exact diagonalization program written by one of us [\cite=wardje]. As can be seen in Table [\ref=4x4], the ' results are about 1% below the exact result. As expected, just imposing the [formula] constraints does not give satisfactory results. We also compare our v2DM results to those obtained by Anderson et al. in [\cite=nakata_2dhub], and it is shown that they correspond.
+
+In Table [\ref=6x6] the ' results for the ground-state energy per particle on a [formula] lattice for different filling factors and on-site repulsion U are given for future reference. They provide rigourous lower bounds on the energy. For the [formula] lattice with 36, 34 and 30 particles we can compare with a variational upper bound on the energy obtained with a two-site [formula] spin- and particle number-adapted DMRG code developed by one of us [\cite=sebastian], with 7500 reduced renormalized basis states at each boundary. Note that this corresponds to a much larger number of effective renormalized basis states, as in a spin-adapted DMRG code only one basis state per multiplet is retained.
+
+In Figures [\ref=N36], [\ref=N34], and [\ref=N30] the v2DM results obtained with both the [formula] and ' conditions are compared to the DMRG results. We notice that for half filling, the ' and DMRG results are very close. [formula] results, however, do not follow the same trend and deviate significantly from the other results. This discrepancy becomes even worse when we move away from half filling. There the [formula] energies are almost twice the ' results at large values of U. The gap between the upper bound provided by the DMRG results and the lower bound ' results also becomes larger when we dope the lattice. This means that the ' conditions perform worse when the system is more delocalized. The DMRG results also become less accurate when the system is delocalized, but are closer to the exact result. In Appendix [\ref=error_est] an estimate of the error on the DMRG result is made by looking at the relation between the discarded weight and the energy. In the remainder of this paper we look for ways to bridge the gap between the [formula] and ' results while avoiding the considerable computational burden that is associated with the three-index constraints.
+
+Cluster constraints
+
+As the 2D Hubbard Hamiltonian only connects nearest neighbouring sites, it is reasonable to assume that the local correlations, occuring between adjacent sites, are particularly important. Various many-body methods take advantage of this observation and treat the local degrees of freedom on a higher level than the rest of the system [\cite=dmft] [\cite=review_cluster] [\cite=dmet]. In a related approach we propose to impose the three-index conditions on smaller local clusters of 2  ×  2 or 3  ×  3 sites, while the full system is treated on a [formula] level. This means we impose non-negativity only on those blocks of the T1 and T2' matrices for which all single-particle indices are on the local cluster. A problem with imposing these local constraints is that we have to Fourier transform the 2DM back from the quasi-momentum basis to the site basis, which leads to some overhead. However, the matrix computations are the bottleneck of the program, and these become cheaper, since only subcluster matrices are considered. As a result the algorithm runs much faster than the full [formula] ' calculations. Because translational invariance is still imposed, only one cluster constraint has to be taken into account. In Figures [\ref=36c], [\ref=34c] and [\ref=30c] it is shown what the improvement upon [formula] is when implementing the three-index constraints on clusters of [formula] and [formula] sites. The [formula] clusters seem to be too small, and the constraints only become active for larger values of on-site repulsion U. At half filling the three-index constraints on [formula] clusters do a decent job, they bridge about half of the gap between [formula] and '. For 34 particles the performance is similar, whereas for 30 particles the result gets slightly worse, but the cluster constraints still manage to recover a substantial part of the correlation. This decrease in accuracy when moving away from half filling is not surprising, because one would not expect local constraints to be as effective in more delocalized systems.
+
+In fact it is a bit naive to impose the three-index constraints on clusters, because one implicitly assumes that the subsystem is a closed system, i.e. that particle number is conserved on the cluster. The full Hamiltonian ([\ref=hub_ham]), however, allows for the hopping of particles between the cluster and the rest of the system. We have access to the full system 2DM, which contains all the information about the communication between the cluster and the rest of the system. This observation suggests that there must be a way to extend the three-index cluster constraints to include the open system characteristics of the cluster, using the full system 2DM. In the next Section we derive new constraints which do exactly that, and we demonstrate the feasibility of the approach by implementing them in a proof-of-principle calculation.
+
+Extended cluster constraints
+
+The extended T1 constraint: eT1
+
+To simplify the presentation the constraints are derived in a spin-uncoupled form. The actual implementation of the constraints, however, was performed in a spin-coupled fashion. This changes nothing to the generality of the derived conditions or to the quality of the obtained results. As explained in Section [\ref=intro] the T1 condition is derived by demanding the non-negativity of the class of Hamiltonians:
+
+[formula]
+
+When we limit the T1 condition to a cluster we impose the non-negativity of a subclass of Hamiltonians generated by the three-particle operator:
+
+[formula]
+
+in which Latin indices a are used to denote cluster states, overlined Latin indices ā to denote the rest of the system and Greek indices α for general states. A better approximation to the full system [formula] is obtained if one allows one or two creation operators to be outside the cluster:
+
+[formula]
+
+In this way it is clear that the hopping in and out of the cluster is included. However, we want to construct a condition which only depends on the cluster indices. This can be accomplished by factorizing the terms in Eq. ([\ref=ecT1_full]) which contain both cluster and non-cluster indices:
+
+[formula]
+
+The new [formula] operator only depends on cluster indices, a one-particle ([formula]) and a two-particle state ([formula]) outside of the cluster:
+
+[formula]
+
+With this [formula], a new cluster constraint can be constructed, containing the three-index T1 and extending it with two- and one-index terms:
+
+[formula]
+
+where the different tensors are defined as:
+
+[formula]
+
+All these extra terms can be constructed using the full system 2DM and the knowledge of some predefined one- and two-particle states p and g outside the cluster.
+
+The extended T2' constraint: eT2'
+
+In an analogous way as for the T1 we can construct extensions which include cluster-system information to the T2' condition. The two-particle-one-hole operator which constructs the full system T2' (see Eq. ([\ref=T2p])) can be approximated on the cluster by:
+
+[formula]
+
+in which the different states outside of the cluster are defined as:
+
+[formula]
+
+As before this leads to a new non-negativity constraint which includes the old T2' on the cluster and extends it with four new terms.
+
+[formula]
+
+in which the extra tensor terms are defined as:
+
+[formula]
+
+which can all be constructed using the full system 2DM and the different states (h,p,g and d) outside of the cluster.
+
+Finding the optimal constraint
+
+In Sections [\ref=eT1] and [\ref=eT2] we derived new constraints which include and extend the three-index constraints imposed on local clusters on the lattice. These new constraints depend on states defined outside of the cluster, giving rise to additional complications. In this Section we explore a method to choose these states, optimizing the class of positive Hamiltonians generated by Eqs. ([\ref=ecT1_red]) and ([\ref=ecT2_red]) to make the constraints as strict as possible. In what follows we limit ourselves to the extended constraints with only one index outside of the cluster, i.e. for the eT1 there is only the dependence on the single-particle state p, whereas the eT2' depends on the single-hole state h and the single-particle state p.
+
+The problem we discuss is the following: given a 2DM Γ from some previous calculation, for what state p, outside of the cluster, is the eT1(Γ) constraint maximally violated. We have chosen to define the most violated constraint as the eT1 which has the lowest eigenvalue, i.e. we optimize the following cost function:
+
+[formula]
+
+as a function of the single-particle state p, in which μ scales the quadratic potential that makes sure the p vector is normalized, and λeT10(p) is the lowest eigenvalue of the eT1 matrix for the current value of the state p. The gradient of this cost function can be evaluated analytically using the Hellman-Feynman theorem [\cite=hellman_feynman]:
+
+[formula]
+
+The cost function can then be optimized using a simple non-linear conjugate gradient algorithm [\cite=jrs]. For the construction of an efficient conjugate gradient algorithm it is essential to have a fast evaluation of the lowest eigenvalue and eigenvector of the constraint with a certain state p. This can be achieved because the largest block, the T1 on the cluster, remains unchanged during the optimization. If we prediagonalize the large block on the cluster, we need a fast method to solve the following problem:
+
+[formula]
+
+in which the b and d coefficients represent the extensions to the cluster constraint, which depend on the variable p, the λi's are the precalculated eigenvalues of the T1 on the cluster, and ε is the lowest eigenvalue of the total matrix. This leads to n + m linear equations:
+
+[formula]
+
+From the first n equations the xi's can be eliminated and expressed as a function of the y's:
+
+[formula]
+
+When this is substituted into the remaining m equations we get the following self-consistent eigenvalue problem:
+
+[formula]
+
+These equations can be solved easily and quickly using the bisection method. As shown in Figure [\ref=bisection], the lowest eigenvalue of the full matrix λeT10 is always below the lowest eigenvalue of the block matrix (the black vertical lines). This means one can easily bracket the lowest eigenvalue λeT10 and improve the approximation to it using the bisection method at the cost of just a couple of diagonalizations of an m  ×  m matrix.
+
+Results
+
+The procedure introduced in Section [\ref=optim_con] has been applied to optimize the p state for eT1, and the p and h states for the eT2' condition. In Figures [\ref=diff-36] and [\ref=diff-34] we show the percentage of the gap between the results obtained by imposing only [formula] constraints and the full ' result that has been recovered by the addition of the pure cluster constraints, and the improvement caused by imposing the extended cluster constraints with optimized non-cluster states. For the [formula] constraints one sees that, whereas the original cluster constraints have little to no effect, the extended constraints are active and improve the result. The extensions on the [formula] cluster improve the result significantly for lower values of U, where the pure cluster constraints perform poorly. At higher values of U they still enhance the result, although the pure cluster constraints already do a good job. We notice that the improvements are discontinuous as a function of U. This is probably a manifestation of the fact that the cost function is not convex, and the conjugate gradient algorithm ends up in different local optima for various U-values.
+
+Conclusion and outlook
+
+In this paper the ground-state energy of the 2D Hubbard model has been calculated using the v2DM method. Results have been obtained using the accurate ' conditions for lattices up to [formula] at different fillings. Hereby a rigorous variational lower bound is obtained which can be used as a reference for future calculations in combination with the upper bound obtained by the DMRG algorithm. Imposing the three-index constraints gives results that are of a significant better quality than imposing just the two-index conditions, but at a computational cost which prevents us from scaling to larger lattice sizes. We have therefore imposed the three-index conditions on local clusters of [formula] and [formula] sites, in an attempt to capture the relevant local correlation at the three-index level while avoiding the computational cost of the full ' conditions. This worked reasonably well provided the cluster size was large enough. However, imposing these constraints is equivalent to treating the cluster as a closed system, whereas the cluster subsystem should rather be treated as an open system, including communication between the subsystem and the rest of the system. This observation led us to derive new constraints, which take the open-system nature into account, and are dependent on states outside of the cluster. We have shown how to choose these states by performing an eigenvalue optimization, which can be done efficiently using a conjugate gradient algorithm. The results of these proof-of-principle calculations show that adding a limited set of the extended cluster constraints already improve the quality of the results substantially. The increase in accuracy was largest where the pure cluster constraints failed to recover a large part of the difference between [formula] and '. The improvements brought about by imposing these extended constraints come at a very small additional computational cost.
+
+In this paper we have set forth the new conditions, and implemented a proof-of-principle example. There are, however, many improvements that can be made. A first point is that the constraint depends on our choice for the cost function. There is no guarantee that the constraint with the lowest eigenvalue will lead to the largest increase in energy when imposed. We have seen that local minima occur, because our cost function is non-linear, so the conjugate gradient algorithm is bound to get stuck there. Using a Monte Carlo optimization of the function, a global optimum of the cost function might be found. In this discussion we have limited ourselves to single states outside of the cluster. It can be expected, however, that multiple orthogonal states will provide better results. If we allowed two states outside the cluster, the eT1 would be constructed using the operator:
+
+[formula]
+
+which leads to another quadratic addition in the T1 matrix. If more and more terms of this sort are added one should converge to the full ' result. Of course, the hope is that convergence is achieved by adding just a few states.
+
+For the proof-of-principle calculations a limited set of the extended constraints have been used, namely those that have one-particle terms outside of the cluster. It is likely that correlations that include two-particle and particle-hole terms outside of the cluster are important, and that adding those would improve the result considerably.
+
+As a final note we mention that these constraints are general and not limited to the 2D Hubbard model. They can be used in molecular calculations as an active space method to include three-index conditions on a limited space to recover a portion of the ' result without the heavy computational burden.
+
+Error estimation of the DMRG results
+
+Underlying the DMRG algorithm is the class of matrix product state wave-functions. The minimal energy encountered during a DMRG sweep is therefore a variational upper bound to the exact ground state energy. This energy can be improved by increasing the number of retained renormalized basis states. To allow for an extrapolation to the true ground state energy, a linear relationship between the so-called discarded weight and the energy has been advocated [\cite=legaza] [\cite=chan_dmrg1] [\cite=chan_dmrg2]. For several numbers of retained renormalized basis states, the maximal discarded weight and the minimal variational energy obtained from the last (converged) sweep are plotted. A linear fit then allows to obtain a rough estimate for the true ground state energy.
+
+For the 6  ×  6 lattice, filled with N = 30 fermions, in the S = 0 singlet state, with the on-site repulsion U = 15, the v2DM and the DMRG results deviate the most in Table II. For this case, we have tried to obtain a rough estimate for the exact ground state energy in Fig. [\ref=DMRGextrapol], with the method described above. Note that D is the number of reduced renormalized basis states which are retained during the sweeps. The true ground state energy estimation for N = 30 and U = 15 allows to attribute 15% of the corresponding v2DM-DMRG gap to DMRG and 85% to v2DM.

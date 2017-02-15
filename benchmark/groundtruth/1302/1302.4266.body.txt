@@ -1,0 +1,341 @@
+=1
+
+Model Checking Lower Bounds for Simple Graphs
+
+Introduction
+
+Algorithmic meta-theorems are general statements establishing tractability for a whole class of problems (often defined by expressibility in a certain logic) in some class of inputs (usually a family of graphs). By far the most famous and celebrated theorem in this area is a twenty-year old result due to Courcelle [\cite=Courcelle90] which states that all problems expressible in monadic second-order logic (MSO2) are linear-time solvable on graphs of bounded treewidth. Thus, in one broad sweep this theorem establishes that a large number of natural well-known problems, such as 3-Coloring and Hamiltonicity, are tractable on this important graph family. Much work has been devoted in recent years to proving stronger and stronger meta-theorems in this spirit, often extending Courcelle's theorem to other graph classes (see e.g. [\cite=CourcelleMR00] [\cite=FrickG01] [\cite=DawarGKS06] or [\cite=Grohe07] [\cite=HlinenyOSG08] for some great surveys).
+
+The most often cited drawback of Courcelle's theorem has to do with the "hidden constant" in the algorithm's linear running time. It is clear that the running time must somehow depend on the input formula and the graph's treewidth, but the dependence given in Courcelle's theorem is in the worst case a tower of exponentials whose height grows with the size of the formula. Unfortunately, this cannot be avoided: Frick and Grohe [\cite=FrickG04] proved that the parameter dependence has to be non-elementary even if one restricts the problem severely by just looking at properties expressible in first-order logic on trees.
+
+This lower bound result, though quite devastating, has proven very fruitful and influential: several papers have appeared recently with the explicit aim of proving meta-theorems which evade it, and thus achieve a much better dependence on the parameters. Specifically, in [\cite=Lampis12] algorithmic meta-theorems with an elementary parameter dependence are shown for vertex cover, max-leaf number and the newly defined neighborhood diversity. A meta-theorem for twin cover was shown by Ganian [\cite=Ganian11]. In addition, meta-theorems were shown for tree-depth by Gajarský and Hlinn [\cite=GajarskyH12] and for the newly defined shrub-depth (which generalizes neighborhood diversity and twin cover) by Ganian et al. [\cite=GanianHNOMR12].
+
+Thus, together with improved meta-theorems, these papers give a new crop of graph complexity measures, some more general than others. It becomes a natural question how much progress we can hope to achieve this way, that is, how far this process of defining more and more general "graph widths" can go on before hitting some other natural barrier that precludes an elementary parameter dependence. Is simply avoiding the class of all trees enough?
+
+This is exactly the question we try to answer in this paper. Towards this end we try to give hardness results for graph families which are as simple as possible. Perhaps most striking among them is a result showing that not only is avoiding all trees not enough but in fact it is necessary to avoid the much smaller class of uncolored paths if one hopes for an elementary parameter dependence. As an example application, this almost immediately rules out the existence of meta-theorems with elementary parameter dependence in any induced-subgraph-closed graph class with unbounded diameter and any edge-subdivision-closed graph class. This explains why all recently shown meta-theorems we mentioned work on classes which are closed under induced subgraphs but have bounded diameter and are not closed under edge subdivisions.
+
+Our results can be summarized as follows. First, a non-elementary lower bound for model checking FO logic on threshold graphs is shown. In a sense, this is a natural analogue of the lower bound for trees to the realm of clique-width, since threshold graphs are known to have the smallest possible clique-width. The proof is relatively simple and consists mostly of translating a similar lower bound given in [\cite=FrickG04] for FO model checking on binary words. However, the main interest of this result is that as a corollary we show that the complexity of FO model checking is non-elementary for any graph class closed under disjoint union and complement. This explains why, though some of the recent meta-theorems work on complement-closed graph classes (e.g. neighborhood diversity, shrub-depth) and some work on union-closed graph classes (e.g. tree-depth), no such meta-theorem has been shown for a class that has both properties.
+
+Our second result is that model checking MSO logic on uncolored paths (or equivalently on unary strings) has a non-elementary parameter dependence. This is the most technically demanding of the results of this paper, and it is proved under the assumption EXP≠  NEXP. The proof consists of simulating the workings of a non-deterministic Turing machine via an MSO question on a path. Though the idea of simulating Turing machines has appeared before in similar contexts [\cite=Kreutzer12], because the graphs we have here are very restricted we face a number of significant new challenges. The main tool we use to overcome them, which may be of independent interest, is an MSO formula construction that compares the sizes of ordered sets while using an extremely small number of quantifiers. In the end, this result strengthens both non-elementary MSO lower bounds given in [\cite=FrickG04] (for trees and for binary strings), modulo a slightly stronger complexity assumption. It also resolves the complexity of MSO model checking for max-leaf number, which was left open in [\cite=Lampis12]. As an added corollary, we give an alternative, self-contained proof of a result from [\cite=CourcelleMR00], stating that MSO2 model checking is not in XP for cliques unless EXP=  NEXP.
+
+Finally, we study one of the recent positive results in this area by considering the problem of model-checking MSO logic on rooted colored trees of height d. This is an especially interesting problem, since the (d + 1)-fold exponential algorithm of [\cite=GajarskyH12] is the main tool used in the meta-theorems of both [\cite=GajarskyH12] and [\cite=GanianHNOMR12]. We show that, assuming the ETH, any algorithm needs at least d + 1 levels of exponentiation, and therefore the algorithm of [\cite=GajarskyH12] is essentially optimal. The main idea of the proof is to "prune" the trees constructed in the proof from [\cite=FrickG04] and then use an appropriate number of labels to differentiate their leaves.
+
+Preliminaries
+
+The basic problem we are concerned with is model-checking: We are given a formula φ (in some logic) and a structure S (usually a graph or a string) and must decide if [formula], that is, if S satisfies the property described by φ.
+
+Due to space constraints, we do not give a full definition of FO and MSO logic here (see e.g. [\cite=FrickG04]). Let us just briefly describe some conventions. We use lower-case letters to denote singleton (FO) variables, and capitals to denote set variables. When the input is a graph, we assume the existence of an E(x,y) predicate encoding edges; when it's a string a [formula] predicate encodes a total ordering; when it's a rooted tree a C(x,y) predicate encodes that x is a child of y. Sometimes the input also has a set of colors (also called labels). For each color c we are given a unary predicate Pc(x). When the input is an uncolored graph that consists of a single path it is possible to simulate the [formula] predicate by picking one endpoint of the path arbitrarily (call it s) and saying that [formula] if all paths from s to y contain x. Thus, model-checking MSO logic on uncolored paths is at least as hard as it is on unary strings. In most of the paper when we talk about MSO logic for graphs we mean MSO1, that is, with quantification over vertex sets only. An exception is Corollary [\ref=cor:cliques] which talks about MSO2 logic, which allows edge set quantifiers.
+
+A graph is a threshold graph ([\cite=Chvatal77]) if it can be constructed from K1 by repeatedly adding union vertices (not connected to any previous vertex) and join vertices (connected to all previous vertices), one at a time. Thus, a threshold graph can be described by a string over the alphabet {u,j}. A graph is a cograph if it is K1, or it is a disjoint union of cographs, or it is the complement of a cograph. It is not hard to see that threshold graphs are cographs. From the definition it follows that any class of graphs that contains K1 and is closed under disjoint union and complement contains all cographs; if it is closed under the union and join operations it contains all threshold graphs.
+
+All logarithms are base two. We define exp (k)(n) as follows: exp (0)(n) = n and exp (k + 1)(n) = 2exp (k)(n). Then log (k)n is the inverse of exp (k)(n). Finally, log *n is the minimum i such that log (i)n  ≤  1.
+
+Threshold Graphs
+
+As mentioned, Frick and Grohe [\cite=FrickG04] showed that there is no FPT model-checking algorithm for FO logic on trees with an elementary dependence on the formula size, under standard complexity assumptions. In many senses this is a great lower bound result, because it matches the tower of exponentials that appears in the running time of Courcelle's theorem, while looking both at a much simpler logic (FO rather than MSO2) and at the class of graphs with the smallest possible treewidth, namely trees.
+
+Courcelle, Makowsky and Rotics [\cite=CourcelleMR00] have given an extension of Courcelle's theorem to MSO1 logic for clique-width. The parameter dependence is again a tower of exponentials and, since trees have cliquewidth at most 3 ([\cite=CourcelleO00]), we already know that this cannot be avoided even for graphs of constant clique-width. Here we will slightly strengthen this result, showing that the non-elementary dependence cannot be avoided even on cographs, the class of graphs that has the smallest possible clique-width (that is, clique-width 2) without being trivial. We will heavily rely on a lower bound, due again to Frick and Grohe, on the complexity of model checking on binary strings.
+
+One interesting consequence of the lower bound we give for cographs is that it precludes the existence of an FPT algorithm with elementary parameter dependence for any graph class that satisfies two simple properties: closure under disjoint unions and closure under complement. The reason for this is that if a class is closed under both of these operations and it contains the single-vertex graph, then it must contain all cographs (we will also show that the assumption that K1 is in the class is not needed). This observation helps to explain why, though some of the recent elementary model-checking algorithms which have appeared work on union-closed graph classes, and some work on complement-closed graph classes, no such algorithms are known for classes with both properties.
+
+The proof we present here is relatively simple and it relies on the following theorem.
+
+Unless FPT=AW
+
+[formula]
+
+We will reduce this problem to FO model checking on threshold graphs. This is quite natural, since the definition of threshold graphs gives a straightforward correspondence between graphs and strings.
+
+Unless FPT=AW
+
+[formula]
+
+We can encode an arbitrary binary string with a threshold graph by encoding each 0 by two vertices uj and each 1 by three vertices ujj. We also need to encode a FO formula for strings to one for graphs. Existential quantification in the string is simulated by existential quantification in the graph where we ask that the vertex selected is a union vertex (this can be expressed in FO logic). The predicates [formula] and P1(x) can be implemented by checking if there are join vertices connected to x but not y in the first case, and checking for two join vertices connected to x but not later union vertices in the second.
+
+Let C be a graph class that is closed under disjoint union and complement, or under disjoint union and join. Unless FPT=AW
+
+[formula]
+
+Paths, Unary Strings
+
+The main result of this section is a reduction proving that, under the assumption that EXP≠  NEXP, there is no FPT model-checking algorithm for MSO logic with an elementary parameter dependence on the formula even on graphs that consist of a single path, or equivalently, on unary strings. As a consequence, this settles the complexity of MSO model-checking on graphs with bounded max-leaf number, a problem left open in [\cite=Lampis12], since paths have the smallest possible max-leaf number. Until now a similar result was known only for the much richer class of binary strings (or equivalently colored paths), under the weaker assumption that P≠  NP [\cite=FrickG04]. It is somewhat surprising that we are able to extend this result to uncolored paths, because in this case the size of the input is exponentially blown-up compared to a reasonable encoding. One would expect this to make the problem easier, but in fact, it only makes it more complicated to establish hardness.
+
+Indeed, one of the main hurdles in proving a lower bound for MSO on unary strings, or paths, is information-theoretic. Normally, one would start with an NP-hard problem, and reduce to a model-checking instance with a very small formula φ. But, because the path we construct can naturally be stored with a number of bits that is logarithmic in its size, in order to encode n bits of information from the original instance into the new instance we need to construct a path of exponential size. Thus, a polynomial-time reduction seems unlikely and this is the reason we end up using the assumption that EXP≠  NEXP, instead of P≠  NP.
+
+Our approach is to start from the prototypical NEXP-complete problem: given n bits of input for a non-deterministic Turing machine that runs in time 2nk, does the machine accept? We will use the input path to simulate the machine's tape and then ask for a subset of the vertices of this path that corresponds to cells in the tape where 1 is written. Thus, what we need at this point is an MSO formula that checks if the chosen vertices encode a correct accepting computation.
+
+Of course, to describe a machine's computation in MSO logic a significant amount of machinery will be needed. We note that, though the approach of simulating a Turing machine with an MSO formula has been used before (e.g. [\cite=Kreutzer12]), the problem here is significantly more challenging for two reasons: first, unlike previous cases the input here is uncolored, so it is harder to encode arbitrary bits; and second, there are (obviously) no grid-like minors in our graph, so it's harder to encode the evolution of a machine's tape, and in particular to identify vertices that correspond to the same tape cell in different points in time.
+
+Our main building block to overcome these problems is an MSO construction which compares the sizes of paths (or generally, ordered sets) of size n with very few (roughly 2O( log *n)) quantifiers. This construction may be of independent interest in the context of the counting power of MSO logic. We first describe how to build this formula, then use it to obtain other basic arithmetic operations (such as exponentiation and division) and finally explain how they all fit together to give the promised result.
+
+Measuring Long Paths with Few Quantifiers
+
+To keep the presentation simple we will concentrate on the model-checking problem on unary strings; formulas for MSO on paths can easily be constructed as explained in section [\ref=sec:defs]. We therefore assume that there is a predicate [formula] which gives a total ordering of all elements.
+
+Let us now develop our basic tool, which will be an MSO formula eqL(P1,P2), where P1,P2 are free set variables. The desired behavior of the formula is that if |P1| = |P2| and |P1|  ≤  L then the formula will be true, while on the other hand whenever the formula is true it must be the case that |P1| = |P2|. In other words, the formula will always correctly identify equal sets with size up to L, and it will never identify two unequal sets as equal (it may however be false for two equal sets larger than L). Our main objective is to achieve this with as few quantifiers as possible.
+
+We will work inductively. It should be clear that for very small values of L (say L = 4) it is possible to compare sets of elements with size at most L with a constant number of set and vertex quantifiers and we can simply make the formula false if one set has more than 4 elements. So, suppose that we have a way to construct the desired formula for some L. We will show how to use it to make the formula eqL', where L'  ≥  L  ·  2L. If our recursive definition of eqL' uses a constant number of copies of eqL then in the end we will have |eqL| = 2O( log *L), because for each level of exponentiation we blow up the size of a formula by a constant factor. This will be sufficiently small to rule out a non-elementary parameter dependence.
+
+Let us now give a high-level description of the idea, by concentrating first on the set P1. We will select a subset of P1, call it Q1, and this naturally divides P1 into sections, which are defined as maximal sets of vertices of P1, consecutive in the ordering, with the property that either all or none of their vertices belong in Q1. We will make sure that all sections have length L, except perhaps the last, which we call the remainder (see Figure [\ref=fig:counting]). It is not hard to see that this structure can be imposed if the predicate eqL is available. We do the same for P2 and now we need to verify that the two remainders have the same length (easy with eqL) and that we have the same number of sections on P1 and P2.
+
+Now we could naively try to count the number of sections by selecting a representative from each and forming a set. This would not work since the number of sections is at most 2L and the inductive hypothesis only allows us to use eqL to compare sets of size L. Thus, we have to work a little harder.
+
+We need to count the number of sections this structure creates on P1 (which may be up to 2L). We select another subset of P1, call it B1. The intuition here is that selecting B1 corresponds to writing a binary number on each section, by interpreting positions selected in B1 as 1 and the rest as 0. We will now need to make sure that each section encodes the binary number that is one larger than the number encoded by the immediately preceding section. This is achievable by using eqL to locate the elements that represent the same bit positions. We also make sure that there was no overflow in the counting and that counting started from zero, that is, all sections have some vertex not in B1 and the first has no vertices in B1.
+
+Finally, assuming that the above counting structure is correctly imposed on both P1 and P2 all that is left is to take the last sections on both and compare them. If the same binary number is encoded on both then |P1| = |P2|.
+
+A formal definition for eqL and all other formulas of this section is given in the appendix.
+
+Let L > 2 be a power of two. Then we can define a formula eqL(P1,P2) such that the formula is true if and only if |P1| = |P2| < L log L. Furthermore |eqL| = 2O( log *L).
+
+Before we go on, we will also need formulas to perform some slightly more complicated arithmetic operations than simply counting. In particular, we will need a formula exp L(P1,P2), which will be true if |P2| = 2|P1|. The trick we use for this is shown in Figure [\ref=fig:pathexp]. The idea is that we select a subset of P2, call it Q, which marks out a set of |P1| + 1 elements whose consecutive distances form a geometric progression with ratio 2.
+
+Finally, we will need the following MSO formulas root(k)(P1,P2) which checks if |P2| = |P1|k, assuming k is a power of two; div(P1,P2) which checks is |P1| divides |P2|; and mod L(P1,P2,R) which is true if |P2| mod |P1|  =  |R| and |P1|  ≤  L.
+
+Hardness for Unary Strings and Paths
+
+Let f be an elementary function and c a constant. If there exists an algorithm which, given a unary string w of length n and an MSO formula φ decides if [formula] in time f(|φ|)nc then EXP=NEXP.
+
+Suppose we are given a non-deterministic Turing machine running in time T = 2nk for k a power of two, and therefore using at most T cells of its tape, when given n bits of input. We are also given the n bits of input, which we interpret as a binary number I  ≤  2n. We must decide if the machine accepts using the hypothetical model-checking algorithm for unary words.
+
+We construct a path of size T2(2I + 1). Using div we locate a sub-path of size I (finding the largest odd divisor of the path) and a sub-path of size T2, which we divide into sections of size T using root. These sections will represent snapshots of the tape during the machine's execution. We ask for a subset of the elements of the path that encodes the tape cells on which the machine writes 1. Now we need to check two things: first, that the bits at the beginning of the tape correspond to the input. This can be done with exp  and some arithmetic on the size of I. Second, that the bits selected encode a correct computation. This is done by checking all pairs of elements from consecutive snapshots that correspond to the same cell. These are identified using eqL (their distance is exactly T).
+
+Let f be an elementary function and c a constant. If there exists an algorithm which, given a path P on n vertices and an MSO formula φ decides if [formula] in time f(|φ|)nc then EXP=NEXP.
+
+Let f be an elementary function, c a constant, and C a class of graphs closed under edge sub-divisions. If there exists an algorithm which, given a graph G∈C on n vertices and an MSO formula φ decides if [formula] in time f(|φ|)nc then EXP=NEXP. The same is true if C is closed under induced subgraphs and, for all d > 0 contains a graph with diameter d.
+
+Finally, we can extend the ideas given above to obtain an alternative, self-contained proof of a result given in [\cite=CourcelleMR00]: MSO2 model-checking on cliques is not in XP, unless EXP=NEXP. In [\cite=CourcelleMR00] this is proved under the equivalent assumption P1 ≠  NP1 (the P≠  NP assumption for unary languages). That proof relies on the work of Fagin on graph spectra [\cite=Fagin74].
+
+Here we can simply reuse the ideas of Theorem [\ref=thm:paths] by observing two basic facts: first, with an appropriate MSO2 formula we can select a set of edges in the given clique that induces a spanning path. Therefore, we can assume we have the same structure as in the case of paths. Second, the eqL predicate can be constructed in constant size, since two disjoint sets of vertices are equal if and only if there exists a perfect matching between them in the clique (and this is MSO2-expressible).
+
+If there exists an algorithm which, given a clique Kn on n vertices and an MSO2 formula φ decides if [formula] in nf(|φ|), for any function f, then EXP=NEXP.
+
+Tree-Depth
+
+In this section we give a lower bound result that applies to the model-checking algorithm for trees of bounded height given by Gajarský and Hlinn [\cite=GajarskyH12]. We recall here the main result:
+
+Let T be a rooted t-colored tree of height h  ≥  1, and let φ be an MSO sentence with r quantifiers. Then [formula] can be decided by an FPT algorithm in time [formula].
+
+Theorem [\ref=thm:Gajarsky] is the main algorithmic tool used to obtain the recent elementary model-checking algorithms for tree-depth and shrub-depth given in [\cite=GajarskyH12] and [\cite=GanianHNOMR12], since in both cases the strategy is to interpret the graph into a colored tree of bounded height.
+
+The running time given in Theorem [\ref=thm:Gajarsky] is an elementary function of the formula φ, but non-elementary in the height of the tree. Though we would very much like to avoid that, it is not hard to see that the dependence on at least one of the parameters must be non-elementary, since allowing h to grow eventually gives the class of all trees so the lower bound result of Frick and Grohe should apply.
+
+It is less obvious however what the height of the exponentiation tower has to be exactly, as a function of h, the height of the tree. The fact that we know that the height of the tower must be unbounded (so that we eventually get a non-elementary function) does not preclude an algorithm that runs in time [formula] or, less ambitiously, exp (h / 2)(|φ|), or even exp (h - 5)(|φ|). Recall that we are trying to determine the number of levels of exponentiation in the running time here, so shaving off even an additive constant would be a non-negligible improvement.
+
+We show that even such an improvement is probably impossible, and Theorem [\ref=thm:Gajarsky] determines precisely the complexity of MSO model-checking on colored trees of height h, at least in the sense that it gives exactly the correct level of exponentiations. We establish this fact assuming the ETH, by combining lower bound ideas which have appeared in [\cite=FrickG04] and [\cite=Lampis12]. More specifically, the main technical obstacle is comparing indices, or in other words, counting economically in our construction. For this, we use the tree representation of numbers of [\cite=FrickG04] pruned to height h - 1. We then use roughly log (h)n colors to differentiate the leaves of the constructed trees.
+
+The basic idea of our reduction is to start from an instance of n-variable 3SAT and construct an instance made up of a tree with height h colored with t = O( log (h)n) colors. The formula will use O(1) quantifiers, so the algorithm of Theorem [\ref=thm:Gajarsky] would run in roughly exp (h + 1)(O( log (h)n)) time. If an algorithm running in exp (h + 1)(o( log (h)n)) time existed we would be able to obtain a 2o(n) algorithm for 3SAT. Thus, the algorithm is optimal up to the constant factor in the final exponent.
+
+If for some constant h  ≥  1 there exists a model-checking algorithm for t-colored rooted trees of height h that runs in exp (h + 1)(o(t))  ·  poly(n) time for trees with n vertices then the Exponential Time Hypothesis fails.
+
+Conclusions and Open Problems
+
+We have proved non-elementary lower bounds for FO logic on cographs and MSO logic on uncolored paths. The hope is that, since these lower bounds concern very simple graph families, they can be used as "sanity checks" guiding the design of future graph widths. We have also given a lower bound for MSO logic on colored trees of bounded height. It would be interesting to see if this can be extended to uncolored trees.
+
+Finally, let us mention that a promising direction in this area that we did not tackle here is that of alternative logics, besides FO and MSO variants. One example is the meta-theorems given by Pilipczuk [\cite=Pilipczuk11] for a kind of modal logic. The algorithmic properties of such logics are still mostly unexplored but they may be a good way to evade the lower bounds given in [\cite=FrickG04] and this paper.
+
+Omitted Material
+
+Proof of Theorem [\ref=thm:threshold]
+
+Suppose that we are given a binary word w and an FO formula φ. We will reduce the problem of deciding if [formula] to the problem of deciding whether [formula] for a threshold graph G and a FO formula φ' which we will construct.
+
+First, let us describe G, and since it's a threshold graph we can describe it as a string over the alphabet {u,j}. The graph G starts with uuj. Then, for each character of w, if it is a 0 we append uj to the description of G, otherwise we append ujj. So, for example the graph corresponding to w = 01101 would have description uujujujjujjujujj. Notice that, since the last character in the description is a j, the graph is connected.
+
+Now we need to interpret the formula φ into the new context. To do this, let's first observe some basic properties of our graph. First, a vertex in this graph is a union vertex if and only if its neighborhood is a clique. To see this, note that union vertices are only connected to join vertices, which form a clique. All join vertices on the other hand are connected to the first two union vertices which are not connected. Second, all union vertices, except the first two (dummy) vertices have at least one join vertex as a non-neighbor, namely at least the first join vertex.
+
+We thus define the following formulas
+
+[formula]
+
+This will allow us to simulate selecting a character in the word by selecting the union vertex which represents the corresponding pair or triple of vertices in the graph.
+
+Now we also need to encode the [formula] and P1 predicates. We define
+
+[formula]
+
+The intuition for the first is that, if x,y are two union vertices that represent two different blocks, x precedes y if and only if there exists some join vertex connected to x but not y. For P1 we have that x is a union vertex representing a ujj block if and only if there exist two join vertices connected to it and not connected to any union vertex that comes later in the description.
+
+Given the above it is straightforward to produce the formula φ' from φ: the formulas prec and one are used to translate the corresponding atomic predicates [formula] and P1, while we inductively replace [formula] with [formula] where ψ'(x) is the translation of ψ(x). It is not hard to see that |φ'| = O(φ) while the order of G is O(|w|).
+
+Proof of Corollary [\ref=cor:union]
+
+It suffices to prove this if the class is closed under union and join, because if it's closed under union and complement we get closure under join "for free". The proof is immediate if K1∈C, since then the class contains threshold graphs. Otherwise, let Gm be the graph of the smallest order in the class and say it has k vertices. We will construct a graph as in the proof of Theorem [\ref=thm:threshold], except that for each vertex we would be adding in that case we will add a copy of Gm. More specifically, for each union vertex of the threshold graph we add a disconnected copy of Gm to the graph we are constructing and for each join vertex we add a copy of Gm and connect all its vertices to all previously added vertices. It's easy to see that the graph we have constructed is still in C.
+
+It is now not hard to see how to translate the proof of Theorem [\ref=thm:threshold] in this case. Replace every [formula] with [formula], where Gm is a formula stating that the xi's have the structure of Gm (that is, they are all distinct and have the same edges as Gm) and they all have the same neighbors in the rest of the graph. Knowing that the xi's form a copy of Gm that corresponds to a single character, we then take one representative and use it in the rest of the formula (note that if we take one representative from each copy the result is a threshold graph).
+
+This trick is sufficient to translate the formulas for main and prec. The only place where we may run into a problem are the union and one formula, because we use the ≠   predicate there. Since we are picking x1 as an arbitrary representative of a copy of Gm, if Gm has a non-trivial automorphism it could be the case that the k vertices that correspond to [formula] and the k vertices that correspond to [formula] are assigned to the same copy of Gm, but y1  ≠  z1. To avoid this case we just need to add an extra formula after the quantification of y,z stating that all yi,zj are pairwise distinct.
+
+Formal definition of eqL
+
+Let us now give a formal definition of eqL. First, we need to be able to recognize sections. Assume that we have a set of elements U and a subset P  ⊆  U. As explained P divides U into sections so we define a formula section(S,U,P) that will be true if S is such a section.
+
+[formula]
+
+Informally, consec checks if S is a contiguous subset of U. Then, S is a partial section if it's a subset of either P or [formula] and it represents a contiguous subset of U elements. S is a section if it's a maximal partial section.
+
+Assuming two sets S1,S2 represent consecutive sections and we have a set B which is supposed to encode a binary number i in S1 and i + 1 in S2 we check this with the following formula:
+
+[formula]
+
+Informally, next partitions the sets S1,S2 into a left and right part and identifies a vertex in the middle. Assuming |S1| = |S2| respective parts have the same size; the right part of S1 corresponds to all 1 digits and the right part of S2 to all 0. The left parts have to encode the same number, which is checked by same. The idea here is that if we select equal length contiguous prefixes of the sets we are checking the last element will encode the same digit in both. We allow same to use different sets B1,B2 to read the encoding in S1,S2. This extra generality will be useful when we reuse this formula later.
+
+We will use next only for neighboring sections. To check if two disjoint sections are indeed adjacent we define:
+
+[formula]
+
+Informally, adj is true if S1 is a section that directly precedes the section S2, because then x is the last element of S1 and y is the first element of S2 and there are no elements between them.
+
+We are now ready to define eqL' for L' = L2L.
+
+[formula]
+
+This is rather long, so let us explain it intuitively. We want to test if |P1| = |P2|, so we demand the following:
+
+From both we remove a remainder set Ri, and we make sure that the remainder sets are equal.
+
+We use Q1,Q2 to partition the two sets into sections. All sections of the first set must be equal in size to all sections of the second (therefore, all sections in both sets are equal).
+
+Select the sets Bi which will encode binary numbers in the sections. For each two disjoint sections which are consecutive check that they encode consecutive numbers.
+
+Find the last section on each set (SF1,SF2). Check that they encode the same number.
+
+Check that no section encodes a number made up only of 1s, so we don't have an overflow in the counting.
+
+Check that the first section on each set encodes the number zero (that is, it has no elements from Bi). For this it's sufficient to check that some section encodes zero, since we have already established proper ordering.
+
+Correctness follows by induction and the definition of the construction given above. For the size bound, note that for L' = L2L we have |eqL'| = O(|eqL|), since the definition of eqL' uses eqL a constant number of times. It follows that there exists a constant c such that for all k we have |eqexp (k)(1)| = O(ck). The result follows by setting k =  log *L.
+
+Formal Definition of exp  and Other Arithmetic
+
+Again, we first define some auxilliary formulas. Checking if a set is twice as large as another can be done as follows:
+
+[formula]
+
+If we are given three elements x,y,z such that [formula] we can check that the distance is doubled as follows:
+
+[formula]
+
+Informally, we select the sets S1,S2 as the sets of elements starting from x and up to (but not including) y, and starting from y and up to (but not including) z. The second set must be twice as large. Now we can define exp :
+
+[formula]
+
+In words, we select a set Q from P2 so that any three consecutive elements double consecutive distances. The total size of P2 must then be [formula], where the sum is obtained by adding the consecutive distances, and we add one at the end because the last element l was not counted.
+
+Finally, we would like a formula that calculates the k-th root, assuming (to keep things simple) that k is a power of two. We will first need a formula rootL(P1,P2) which will simply be true if |P2| = |P1|2.
+
+[formula]
+
+Informally, we can divide P2 into sections of size |P1| and if we select a set S' that contains exactly one representative from each section then |S'| = |P1|. Given this formula, we can now define root(k)L(P1,P2), the formula that calculates k-th roots as follows:
+
+[formula]
+
+It is not hard to see that root(k)L(P1,P2) is true if |P2| = |P1|k, assuming that k is a power of two.
+
+We will need to perform division:
+
+[formula]
+
+The div formula decides if |P1| exactly divides |P2| by partitioning P2 into sections of size |P1|. Using this we can then calculate remainders.
+
+Proof of Theorem [\ref=thm:paths]
+
+Suppose that we are given a non-deterministic Turing machine that runs in time 2nk, for some constant k, when given n bits of input. We will use the hypothetical algorithm to predict whether the machine accepts an arbitrary input in deterministic exponential time.
+
+Let us discuss some technical details about the machine. Without loss of generality, assume that k is a power of two and we are given a non-deterministic machine that always terminates in time at most T = 2nk. Assume that the machine uses a binary alphabet, and without loss of generality it never uses more than T cells of tape. Also without loss of generality, we may assume that the first thing the machine does is non-deterministically guess a string of bits and use it to fill out its tape. From that point on the machine behaves deterministically, that is, there is a finite set of states Q and a transition function δ:Q  ×  {0,1}  →  Q  ×  {0,1}  ×  {L,S,R}, that tells the machine for each state and cell character, which state to go to next, what to write on the current cell and whether to move left, right, or stay at the same cell. The state set Q contains a special state qacc such that if the machine ever enters this state it automatically accepts and never leaves this state.
+
+Suppose that we have been given the description of such a machine with |Q| states, where |Q| is independent of the input, and n bits of input. We will construct a unary string w of appropriate length and an MSO formula φ such that [formula] if and only if the machine would accept this input.
+
+Let I be the number whose binary representation is exactly the input given to the machine (so I  ≤  2n). Construct a unary string w of length L = (2I + 1)T2, where we recall that T is the upper bound on the machine's running time. Now we need to construct the formula φ.
+
+Rather than giving all formal details, we will now give a high-level description of φ and the reader may verify that φ can indeed be constructed with the tools from the previous section. Our formula will first ensure the following:
+
+First, it will identify a subset of the input with size I and another with size T2. This is achievable by observing that the largest odd divisor of L is 2I + 1, so we simply ask for the largest odd set whose size exactly divides the input.
+
+Using the root formula we partition the set of size T2 into T equal-size sections. Each will correspond to a snapshot of the tape during a step in the machine's execution.
+
+Identify the first section of the tape, and then identify a prefix of it with size nk (this can be done with the exp  formula). Identify a prefix of that with size n (this can be done with the root(k) formula, since k is a constant and a power of two). This is where the machine's input will initially stored.
+
+It should be clear that the above can be expressed in MSO with the formulas of the previous section. So at this point, we have identified T sections, each of size T, to represent the machine's tape. Each element thus naturally corresponds to a specific cell at a specific point in time during the machine's run. We have also identified a special part at the start of the first tape section with size n, where we will check that the input is stored, and a set of length I that encodes the input. Now we ask for the existence of a subset B of elements that will indicate the cells of the tape where 1 is written. We also ask for the existence of |Q| sets, call them Hi, i∈Q. The intended meaning is that if a certain element from one of the tape sections is in Hi, then the machine was in state i at the point in time corresponding to that section and the machine's head was located at the cell corresponding to that element.
+
+Once the above sets have been selected all of the machine's computation has been encoded. Now we just need to check that it's correct and accepting. We thus express the following conditions:
+
+Ensure the input is correctly encoded at the start of the tape. To check the bit at position i we observe that the contiguous subset of the tape from the beginning to that bit has size i. Using exp  we can construct a set of size 2i and then a set of size 2i + 1. We "calculate" the remainder of the set of length I with the set of size 2i + 1. If the result has size at least 2i the bit has to be 1 otherwise 0. With this idea we can check the correctness of all input bits.
+
+Ensure that the machine transitions correctly. We look at pairs of elements that correspond to the same tape cell in consecutive steps in time, that is, tape elements whose distance is exactly T, which can be verified with the eqL formula. If the first has no Hi label then either both have B or neither does. If the first has an Hi label we check that the B label changes appropriately for the other and an Hj label is used appropriately for the other or one of its neighbors, depending on the transition function.
+
+Finally, check that in each section of the tape exactly one element has an Hi label, and that it has exactly one. Also, check that some element eventually gets the Hqacc label.
+
+All the above requirements can be checked with an MSO formula with constant size (assuming k,|Q| constant), except for uses of the eqL predicate, which has size 2O( log *L). So the whole formula also has size 2O( log *L) and L = 2poly(n) so |φ| = 2O( log *n).
+
+Suppose that an algorithm with running time f(|φ|)|w|c existed for elementary f. Then, there exists d such that f(x)  ≤   exp (d)(x). So the running time is at most exp (d + 1)(O( log *n))2poly(n)  =  2poly(n).
+
+Proof of Corollary [\ref=cor:subdivisions]
+
+If the class is closed under induced subgraphs and for each d > 0 there is a graph in the class with diameter d, then the class contains all paths and therefore we can invoke Corollary [\ref=cor:paths]. To see this, for each d take the graph with diameter d and let u,v be two vertices with shortest path distance d. The graph induced by u,v and the vertices that make up a shortest path from u to v is a path, since if more edges were induced a shorter path would exist from u to v. Thus, the class contains a path with d + 1 vertices.
+
+If the class is closed under edge subdivisions we can reduce (in fact interpret) the MSO model checking problem on paths to MSO model checking on the class. We have a path with n vertices and by the proof of Theorem [\ref=thm:paths] we can assume n to be even. Select the smallest graph in C, call it Gm, and subdivide its edges an appropriate number of times so that all maximal connected sets of degree two vertices have odd size. Select one such set and subdivide its edges so that it has size n (this is always possible if we started with a sufficiently large n). It is not hard to amend the original formula so that it first locates this path of size n that we created (it's now the only maximal connected set of degree two vertices with even size) and only works with vertices from it. Since we only subdivided edges the graph we have is still in C.
+
+Proof of Corollary [\ref=cor:cliques]
+
+The proof follows similar lines as in Theorem [\ref=thm:paths], so we explain here the differences. First, we must implement the [formula] predicate on the clique. This is achieved by selecting a set of edges that induces a path and then using the same tricks as we use to simulate MSO for strings with MSO1 for paths. Second, we must implement an eq(P1,P2) predicate with constant size. If we do both of these, the rest of the proof of Theorem [\ref=thm:paths] goes through unchanged, since the formula we construct only uses the [formula] and =   predicates and has constant size except for the eqL predicate.
+
+The main observation is that we can ask for the existence of a perfect matching between two disjoint sets as follows (we denote by [formula] edge-set quantification, and I(x,e) the vertex-edge incidence relation):
+
+[formula]
+
+Informally, we ask if there exists a set of edges so that each vertex has exactly one incident edge and all edges have one endpoint in each set. It should be clear that there exists a perfect matching between two disjoint sets if and only if the sets have the same size. Thus, we can define eq as follows:
+
+[formula]
+
+Thus, all that is left is to implement the [formula] predicate. We give here a high-level argument. First, we will ask for the existence of a set F of edges with the following properties:
+
+All vertices have exactly two edges of F incident on them.
+
+For any partition of the vertices there exists an edge from F with endpoints on both sides (connectivity).
+
+It is not hard to see that F induces a spanning cycle. Let F' be the set obtained from F by removing an arbitrary edge and let s be one of the endpoints of the removed edge. We will know say that [formula] if any subset of edges from F' that connects s to y must touch x.
+
+The size of the clique we construct is the same as the length of the string in Theorem [\ref=thm:paths]. So if there exists an algorithm running in time polynomial in the order of the input clique for fixed-size formulas then we can simulate a NEXP Turing machine in exponential time and EXP=NEXP.
+
+Proof of Theorem [\ref=thm:treecount]
+
+As usual in such proofs, the main obstacle is how to encode numbers up to n economically in terms of the height of the constructed tree and the colors used. Fix some h  ≥  2 (we will handle the case h = 1 in the end). We have at our disposal around log (h)n colors. By using them we can create 2log (h)n  =   log (h - 1)n vertices which we can distinguish by using a different set of colors on each vertex. To go from there to n we will use the trick of [\cite=FrickG04] which, roughly speaking, gives exponentially more counting power with each level of height added. Thus, we will manage to represent numbers up to n with trees of height h - 1.
+
+Let us now be more precise. We have at our disposal log (h)n colors, number them [formula]. We will define for each [formula] a rooted colored tree Ti. The construction is inductive:
+
+If [formula] then i has a binary representation with at most log (h)n bits, say [formula] with k  ≤   log (h)n - 1. The tree Ti is a single vertex colored with exactly the colors j such that bj = 1.
+
+Suppose that we have defined Ti for [formula] for some k  ≥  1. We will now define Ti for log (k)n  ≤  i  ≤   log (k - 1)n - 1. As previously, write down the binary representation of i, which has at most log (k)n bits. For each j such that bj = 1 construct a copy of Tj (we already know how to do this by the inductive hypothesis). Add a new vertex, which will be the root of the new tree, and connect it to the roots of the constructed trees.
+
+Some examples of the above construction are given in Figure [\ref=fig:treecounting]. Now let i be an integer such that 1  ≤  i  ≤  h. We observe that the above construction represents numbers which are at most ≤   log (h - i)n - 1 with trees of height i - 1. This can be proved by induction: for i = 1 trees of height 0 (that is, single vertices) are used to represent numbers up to log (h - 1)n - 1. For the inductive case, notice that each level of height added increases the maximum number representable exponentially. As a result, the numbers [formula] can be represented with a tree of height h - 1.
+
+We can now also define an eqk(x,y) predicate, that will be true if and only if x,y are the roots of two trees of height at most k representing the same number. Again we proceed inductively:
+
+It's easy to define a simple propositional predicate [formula]. The predicate will be true if x,y have exactly the same colors from the set [formula]. Using this, for k = 0 we set [formula]. In other words, x,y are equal if they have the same colors and no children.
+
+Suppose eqk(x,y) is defined, we will define eqk + 1(x,y). We set
+
+[formula]
+
+In words, x,y have the same colors and for every vertex that is the child of one of them there exists a vertex that is a child of the other and these two vertices represent the same number.
+
+It is not hard to see that the formula eqh(x,y) uses O(h) quantifiers. We are now ready to describe our construction.
+
+Fix h > 1 and start with an instance of 3SAT with n variables and suppose that these variables are named xi, [formula]. The reason we number the variables this way is that it will be convenient for all of them to have an index high enough that a non-trivial tree is needed to describe it. For each variable xi construct a copy of the tree Ti as described above. We will make use of log (h)2n  =   log (h)n + o(1) colors so trees have height at most h - 1. Color the roots of all these trees with a new color, call it v.
+
+For each clause [formula] where li,lj,lk are literals, that is, positive or negative appearances of the variables xi,xj,xk respectively, construct three trees Ti,Tj,Tk. Introduce six new colors, call them cp,q for p∈[3],q∈{0,1}. If the literal li is positive then color the children of the root of the tree Ti with c1,1, otherwise color them with c1,0. Similarly, color the children of the root of Tj with c2,1 if lj is positive and c2,0 if it's negative and the children of the root of Tk with c3,1 or c3,0. Notice that we know that all trees have height at least 1 because h  ≥  2 and variables are numbered [formula], so all roots do have children. Finally, merge the roots of Ti,Tj,Tk into a single vertex. We introduce a new color, call it c, and use it to color the new root of the tree that represents each clause. To complete the construction, add a new root vertex to the graph and make all roots of previously constructed trees its children. This creates a tree with height h. The root has one v-colored child for each variable and one c-colored child for each clause of the 3SAT formula.
+
+Now, let us describe a formula with O(h) quantifiers that will check if the original 3SAT instance was satisfiable. Informally, we will ask if there exists a set of variables, represented by a subset of the vertices colored with v, such that setting these to true and the rest to false satisfies the formula. To do this, we need to be able to check if a variable appears positive or negative in a clause. Let's define a predicate posi(x,y) which will be true if variable x appears positive in position i (where i∈[3]) in the clause represented by y (so x is assumed to be the root of a variable tree and y is assumed to be the root of a clause tree).
+
+[formula]
+
+The logic here is exactly the same as in the eq predicate, except that we only take into account the children of the clause node that correspond to the i-th literal. It's easy to see how to make a similar predicate negi for negative appearances (change Pci,1 to Pci,0). Given these, the complete formula is:
+
+[formula]
+
+In words, there exists a set of variables S (which will be set to true), such that for each clause there exists a variable appearing in it that satisfies it, that is, it belongs in S if and only if its appearance is positive.
+
+The formula has h quantifiers, we have used log (h)n + O(1) colors and have constructed a tree of height h and size polynomial in n. If there exists a model-checking algorithm for t-colored trees running in exp (h + 1)(o(t))|V|c this gives a 2o(n) algorithm for 3-SAT.
+
+The only thing left is the case h = 1. Here each variable and each clause will be represented by a single vertex and, since we have O( log n) colors available, the colors alone will be sufficient to compare indices. It's not hard to see how to encode the whole structure of the formula using 7 log n colors. The first log n colors are used for the variable vertices. Then we need 6 sets of log n distinct colors to encode the appearances of literals into the clauses, for each combination of position and positivity. This makes it straightforward to implement posi and negi by comparing appropriate sets of colors on the two vertices. The rest of the formula is unchanged.

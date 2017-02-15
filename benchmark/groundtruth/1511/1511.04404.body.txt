@@ -1,0 +1,193 @@
+Robust Face Alignment Using a Mixture of Invariant Experts
+
+Tim K. Marks† †Mitsubishi Electric Research Labs (MERL)       ‡Intel Corporation {oncel, tmarks},
+
+Introduction
+
+Face alignment refers to finding the pixel locations of a set of predefined facial landmark points (e.g., eye and mouth corners) in an input face image. It is important for many applications such as human-machine interaction, videoconferencing, gaming, and animation, as well as numerous computer vision tasks including face recognition, face tracking, pose estimation, and expression synthesis. Face alignment is difficult due to large variations in factors such as pose, expression, illumination, and occlusion.
+
+Previous work
+
+Great strides have been made in the field of face alignment since the Active Shape Model (ASM) [\cite=cootes1995active] and Active Appearance Model (AAM) [\cite=cootes2001active] were first proposed. Some AAM-based face alignment methods proposed since then include [\cite=sauer2011accurate] [\cite=dollar2010cascaded] [\cite=sung2009adaptive] [\cite=tzimiropolous2013aam]. Designed to handle wider variations in pose, multi-view AAM and ASM models [\cite=romdhani1999multiview] [\cite=cootes2002viewAAM] [\cite=Asthana2011ICCV3DposeNorm] explicitly model and predict the head pose, e.g., by learning a different deformable model for each of several specific pose ranges [\cite=cootes2002viewAAM] [\cite=Asthana2011ICCV3DposeNorm]. Another line of research involves multi-camera AAMs, in which an AAM is simultaneously fitted to images of a face captured by multiple cameras [\cite=cootes2000coupledAAM] [\cite=hu2004multicamAAM]. Like ASMs and AAMs, Constrained Local Models (CLMs) [\cite=cristinacce2006feature] [\cite=cristinacce2007boosted] [\cite=zhou2013exemplar] [\cite=smith2012joint] have explicit joint constraints on the landmark point locations (e.g., a subspace shape model) that constrain the positions of the landmarks with respect to each other. Building on CLMs, [\cite=tzimiropoulos2014gauss] propose the Gauss-Newton Deformable Part Model (GN-DPM), which uses Gauss-Newton optimization to jointly fit an appearance model and a global shape model.
+
+Recently, much of the focus in face alignment research has shifted toward discriminative methods [\cite=tuzel2008learning] [\cite=xiong2013supervised] [\cite=asthana2014incremental] [\cite=liu2009discriminative] [\cite=kazemi2011face] [\cite=saragih2011deformable]. These methods learn an explicit regression that directly maps the features extracted at the facial landmark locations to the face shape (e.g., the locations of the landmarks). [\cite=xiong2013supervised] [\cite=asthana2014incremental] [\cite=ren2014face] [\cite=kazemi2014one] [\cite=cao2014face] [\cite=tzimiropoulos2015POCR]. In Project-Out Cascaded Regression (PO-CR) [\cite=tzimiropoulos2015POCR], the regression is performed in a subspace orthogonal to facial appearance variation. To cope with inaccurate initialization, [\cite=yan2013multiHyp] begin a regression cascade at multiple initial locations and combine the results. Tree-based regression methods [\cite=ren2014face] [\cite=kazemi2014one] [\cite=cao2014face] [\cite=cootes2012robust] [\cite=tuzel2008learning] are also gathering interest due to their speed. In [\cite=ren2014face], a set of local binary features are learned using a random forest regression to jointly learn a linear regression function for the final estimation, while [\cite=kazemi2014one] utilize a gradient boosting tree algorithm to learn an ensemble of regression trees. Software libraries such as [\cite=menpo14] implement a wide range of face alignment methods.
+
+In the Supervised Descent Method (SDM) [\cite=xiong2013supervised], a cascade of regression functions operate on extracted SIFT features to iteratively estimate facial landmark locations. An extension of SDM, called Global SDM (GSDM) [\cite=xiong2015globalSDM], partitions the parameter space into regions of similar gradient direction, and uses the result from the previous frame of video to determine which region's model to use in the current frame. Unlike our method (and the aforementioned methods), which take individual test images as input, GSDM is a tracking method that requires a video sequence.
+
+Our approach
+
+Our method is related to SDM [\cite=xiong2013supervised] in that we also perform a cascade of regressions on SIFT features that are computed at the currently estimated landmark locations. However, our method improves upon SDM in a number of ways. In SDM, the same linear regression function must work across all possible variations in facial expressions and pose, including both in-plane and out-of-plane head rotations. In addition to requiring a large and varied training dataset, this forces the learned regression functions to be too generic, thereby limiting accuracy. We address this shortcoming in two ways. First, we propose a transformation invariance step at each level of the cascade, prior to the regression step, which makes our method invariant to an entire class of transformations. (Here, we choose the class of 2D affine transformations.) As a result, our regression functions do not need to correct for such global changes in pose and face shape, enabling them to be fine tuned to handle just the remaining, smaller variations in landmark locations.
+
+To further improve robustness to variations in pose and expression, at each stage of the cascade we replace the linear regression from SDM by a mixture of experts [\cite=rao1997MOEregression]. In our cascade, each stage is a mixture of experts, where each expert is a regression specialized to handle a subset of the possible face shapes (e.g., a particular region of the joint space of face poses and expressions). As illustrated in Figure [\ref=fig:Illustration], each expert corresponds to a different prototype face shape. This improves alignment significantly, especially when the training dataset is biased towards a certain pose (e.g., frontal). Unlike alignment methods based on parametric shape models (such as AAM, ASM, and CLM), SDM has no explicit global constraints to jointly limit the locations of multiple landmark points. Our method addresses this limitation simply, by penalizing deviations of landmark locations from each expert's prototype face shape. We accomplish this in the regression framework by extending the feature vector to include the difference between the prototype landmark locations and the currently estimated landmark locations, weighted by a scalar that determines the rigidity of the model. This global regularization of the face shape prevents feature points from drifting apart.
+
+Contributions
+
+In summary, we propose a robust method for real-time face alignment which we call Mixture of Invariant Experts (MIX). Novel elements include:
+
+A transformation invariance step, before each stage of regression, which makes our method invariant to a specified class of transformations. (In this study, we choose the class of 2D affine transformations.)
+
+A simple extension to the feature vectors that enables our regressions to penalize deviations of feature locations from a prototypical face shape.
+
+A mixture-of-experts regression at each stage of the cascade, in which each expert regression function is specialized to align a different subset of the input data (e.g., a particular range of expressions and poses).
+
+A novel affine-invariant clustering algorithm to learn the prototype shapes used in the mixture model.
+
+These novel elements enable our method to achieve precise face alignment on a wide variety of images. We perform exhaustive tests on the Helen [\cite=le2012interactive], LFPW [\cite=belhumeur2011localizing], and AFW [\cite=zhu2012face] datasets, comparing our method with five recent methods: SDM [\cite=xiong2013supervised], its incrementally learned adaptation CHEHRA [\cite=asthana2014incremental], GN-DPM [\cite=tzimiropoulos2014gauss], Fast-SIC (an AAM method trained on "in-the-wild" images) [\cite=tzimiropolous2013aam], and PO-CR [\cite=tzimiropoulos2015POCR]. We demonstrate that the proposed method significantly outperforms these previous state-of-the-art approaches.
+
+Supervised Descent Method
+
+We now describe the Supervised Descent Method (SDM) [\cite=xiong2013supervised], which is related to our method, while introducing notation that we will use throughout the paper. Let I be an input face image, and let [formula] be the 2p  ×  1 vector of p facial landmark locations in image coordinates. At each of the p landmark locations in [formula], we extract a d-dimensional feature vector. In this paper, we use SIFT features [\cite=lowe2004distinctive] with d = 128. Let [formula] be the pd  ×  1 consolidated feature vector, which is a concatenation of the p feature descriptors extracted from image I at the landmark locations [formula].
+
+Given a current estimate, [formula], of the landmark locations in image I, SDM formulates the alignment problem as finding an update vector [formula] such that the features computed at the new landmark locations [formula] better match the features computed at the ground-truth landmark locations [formula] in the face image. The corresponding error can be written as a function of the update vector [formula]:
+
+[formula]
+
+where we define [formula]. This function f could be minimized by Newton's method. The Newton step is given by
+
+[formula]
+
+where [formula] is the Hessian matrix of f, [formula] and [formula] represent the Jacobian with respect to [formula] of f and [formula], respectively, and we define [formula] The Hessian and Jacobian in [\eqref=eq:newton] are evaluated at [formula], but we have omitted the argument [formula] to emphasize the dependence on [formula] In SDM, [\eqref=eq:newton] is approximated by the multivariate linear regression
+
+[formula]
+
+in which coefficients [formula] and bias [formula] do not depend on [formula].
+
+In SDM [\cite=xiong2013supervised], a cascade of K linear regressions [formula], where [formula], are learned using training data. Face alignment is achieved by sequentially applying the learned regressions to features computed at the landmark locations output by the previous stage of the cascade:
+
+[formula]
+
+To learn the regressions [formula] the N face images in the training data are augmented by repeating every training image M times, each time perturbing the ground-truth landmark locations by a different random displacement. For each image Ii in this augmented training set [formula] with ground-truth landmark locations i, we displace the landmarks by a random displacement Δi. The first regression function (k = 1) is then learned by minimizing the L2-loss function
+
+[formula]
+
+For training the later regressions [formula] rather than using a random perturbation, the target Δi is the residual after the previous stages of the regression cascade.
+
+Mixture of invariant experts
+
+In this section, we present our model. Our model significantly improves upon the alignment accuracy and robustness of SDM by introducing three new procedures: a transformation invariance step before each stage of regression, learned deformation constraints on the regressions, and the use of a mixture of expert regressions rather than a single linear regression at each stage of the cascade.
+
+Transformation invariance
+
+In order for the regression functions in SDM [\cite=xiong2013supervised] to learn to align facial landmarks for any face pose and expression, the training data must contain sufficiently many examples of faces covering the entire space of possible variations. Although being able to align faces at any pose is a desired property, learning such a function requires collecting (or synthesizing) training data containing all possible face poses. In addition, the learning is a more difficult task when there are large variations in the training set, and hence either a sufficiently complex regression model (functional form and number of features) is required, or the alignment method will compromise accuracy in order to align all these poses. As a general rule, increased model complexity leads to poorer generalization performance. This suggests that a simpler or more regularized model, which learns to align faces for a limited range of poses, would perform better for those poses than would a general alignment model that has been trained on all poses. As a simple example, consider a regression function that is trained using a single upright face image versus one trained using multiple in-plane rotations of that face image. In the former case, the regression function must have a root for the upright pose, whereas in the latter case, the regression function must have a root for every in-plane rotation.
+
+Our goal with transformation invariance is to train each regression on a smaller set of poses, while still being able to align faces in an arbitrary pose. To do so, we apply a transformation invariance step prior to each stage's regression function. We first construct a prototype shape, [formula], which contains the mean location of each landmark point across all of the training data (after uniform scaling and translation transformations have been applied to each training image to make them all share a canonical location and scale).
+
+In this paper, we choose affine transformations as our class of transformations for invariance, although one could also use our method with a different class of transformations. At each stage k of regression, we find the affine transformation [formula] that transforms the landmark locations [formula] that were estimated by the previous stage of regression so as to minimize their sum of squared distances to the prototype landmark locations, [formula]:
+
+[formula]
+
+where A denotes the set of all affine transformations. Next, we use the transformation [formula] to warp the input image I and the landmark locations into the prototype coordinate frame: [formula], and [formula]. Note that we slightly abuse notation here by using the same affine transformation operator [formula] to both transform a vector of landmark locations, [formula] and warp an image, [formula]. The regression is then performed in the prototype coordinate frame:
+
+[formula]
+
+The estimated landmark locations in image coordinates are given by the inverse transformation, [formula].
+
+The resulting algorithm, which we call Transformation-Invariant SDM (TI-SDM), consists of K stages of alignment and regression, illustrated in Figure [\ref=fig:AlgoDemons]. Algorithm [\ref=alg:global] summarizes what happens at each stage of TI-SDM.
+
+Learning deformation constraints
+
+One of the problems associated with using SDM for tracking landmark locations is that it puts no explicit constraint on the regression behavior of neighboring points, which makes it possible for the points to drift apart. This would be a straightforward problem to deal with in an optimization setting by introducing explicit constraints or penalties on the free-form deformation of the landmark points. However, rather than utilizing an optimization procedure, which can be slow, we want to maintain the speed advantages of forward prediction using a regression function. To achieve the effect of constraints within a regression framework, we introduce additional features that allow the regression model to learn to constrain landmark points from drifting.
+
+We introduce a soft constraint in the form of an additional cost term [formula] in equation [\eqref=eq:SDM]:
+
+[formula]
+
+This enforces a quadratic penalty when the landmark locations drift away from the prototype shape . The weight λ controls the tradeoff between data and the constraint. The Newton step for this constrained f is given by
+
+[formula]
+
+where [formula] the Hessian matrix of fc with respect to [formula], and [formula] is the Jacobian of [formula] with respect to [formula]. Just as we approximated [\eqref=eq:newton] by [\eqref=eq:regression], we can approximate this constrained Newton step [\eqref=eq:constrainedNewton] by a linear regression function:
+
+[formula]
+
+where the constrained feature vector, [formula] is given by
+
+[formula]
+
+As in unconstrained SDM, we can learn the regression coefficients [formula] and bias [formula] using training data. The only difference between the constrained [\eqref=eq:constrainedRegression] and unconstrained [\eqref=eq:regression] regression models is that in the constrained version, we extend the feature vector to include additional features, [formula], encoding the deviation of the landmark locations from the prototype landmark locations. In general, during our experiments, the constrained regression learns to move landmark locations towards the mean shape by learning negative values for the associated regression coefficients. The learned coefficients' norms are larger for the initial regression stage of the cascade, but smaller in the later stages, which enforces weaker constraints on deformation as the landmark locations approach convergence. Note that it would be possible to incorporate λ into [formula] and [formula] into [formula], and just expand the feature vector [formula] with [formula] rather than [formula]. However, we choose to keep the difference vector form as in [\eqref=eq:constrainedPhi], which becomes important for the regularized training explained in Section [\ref=sec:training].
+
+To unify notation, in the rest of this paper we will refer to the expanded feature vector [formula] as simply [formula]. That way, Equations ([\ref=eq:regression]-[\ref=eq:templateRegression]) and Algorithm [\ref=alg:global] apply to the constrained model without modification. In Figure [\ref=fig:DeformationConstraint], we analyze the effect of the deformation constraint. See Section [\ref=sec:Exp] for details.
+
+Mixture-of-experts regression
+
+The transformation invariance step described in Section [\ref=sec:transformationInvariance] allows our model to learn regression functions that are invariant to affine transformations of the faces. Still, the remaining variations in the data (e.g., due to out-of-plane rotations and facial expressions) are large enough that it is challenging for a single regression function to accurately align all faces. In particular, the training set used in our experiments includes many more frontal faces with mild facial expressions than faces with large out-of-plane rotations or extreme expressions. Therefore, the prototype (mean) face is very close to a frontal face with neutral expression, and the regression function tends to work less well for more extreme poses and expressions.
+
+We propose to use a mixture-of-experts regression model, in which each expert is a regression function that is specialized for a different subset of the possible poses and expressions. Each expert's subset is determined by the expert's prototype shape. We construct L prototype shapes, [formula], such that the ground-truth landmark locations n of each of the N faces in the dataset are well aligned with one of the prototype shapes. We write the determination of the prototype shapes as an optimization problem:
+
+[formula]
+
+where each [formula] is a 2p  ×  1 vector representing a possible prototype face shape (i.e., the locations of p landmarks). If the class of transformations, A, only contains the identity transformation, then this problem reduces to Euclidean clustering of training samples based on landmark locations (see Figure [\ref=fig:ClusterComparison]a).
+
+When A is the class of affine transformations, we call this affine-invariant clustering. In this case, [\eqref=eq:clustering] is a homogenous optimization problem in which additional constraints on the prototype shapes or the transformations are necessary to avoid the zero solution (which assigns zero to all of the transformations and prototype shapes). Moreover, the objective function is non-convex due to the joint optimization of the shapes and the assignment of training samples to shapes. We decouple this problem into two convex sub-problems, which we solve iteratively. The first sub-problem assigns every training face image n to one of the prototype shapes via
+
+[formula]
+
+assuming that the prototype shapes l are fixed. This problem can be solved independently for each training face: The optimal assignment is the prototype to which the face's ground-truth landmark locations can be affine-aligned with minimum alignment error. The second sub-problem solves for the prototype shapes. Each prototype shape consists of the landmark locations that minimize the sum of the squared affine alignment errors of the ground-truth locations n of the training faces that were assigned to that prototype shape:
+
+[formula]
+
+where to avoid degeneracy, the matrix [formula] and vector [formula] impose linear constraints [\eqref=eq:constraint] on the prototype shape such that the mean location of the 5 landmark points of the left eyebrow is fixed, as are the mean location of the 5 right eyebrow points and the mean vertical location of the 16 mouth points. This optimization problem is quadratic with linear constraints, and the optimal solution is computed by solving a linear system. The two optimization sub-problems are alternately solved until the assignments do not change. In our experiments, 20-30 iterations suffice for convergence.
+
+In Figure [\ref=fig:ClusterComparison], we compare Euclidean clustering (a) with the proposed affine-invariant clustering (b). The Euclidean clustering only accounts for the pose variations within the dataset. However, some of the recovered out-of-plane poses can be approximately aligned to each other with an affine alignment, and thus the affine-invariant clustering accounts for variations in both pose and facial expressions.
+
+Each expert El corresponds to one of the L prototype shapes. At each stage of the regression cascade, we learn a separate regression for each expert. Hence, in addition to its prototype shape {l}, each regression expert El has a regression function [formula] for each of the K levels of the cascade:
+
+[formula]
+
+At each stage, k, of the cascade, each expert El performs Algorithm [\ref=alg:global] using prototype l and regression function [formula]:
+
+[formula]
+
+The gating function for each regression expert El is a soft assignment [formula] given by the softmax transformation of the transformation invariance error [formula] between the starting landmark locations [formula] and each prototype shape l. The soft assignments are computed using
+
+[formula]
+
+Here, as in [\eqref=eq:affine], A denotes the set of all affine transformations. A high score [formula] indicates that the current estimate [formula] is close to the prototype shape of the lth expert, and hence the regression results obtained from El would be given a high weight. In Figure [\ref=fig:Illustration], we show the assignment weights of two faces to experts in the model.
+
+At each stage, k, of the cascade, our alignment algorithm applies every expert's regression function to the starting estimate of landmark locations [formula], then averages the outputs according to the gating function [formula] to obtain the updated estimate of landmark locations, [formula]:
+
+[formula]
+
+Algorithm [\ref=alg:moe] summarizes our alignment method, which we call Mixture of Invariant Experts (MIX).
+
+Note that our mixture-of-experts model is quite different from multi-view generative models [\cite=romdhani1999multiview] [\cite=cootes2002viewAAM] [\cite=Asthana2011ICCV3DposeNorm], which explicitly model and predict the head pose (e.g., by learning a different deformable model for each of several specific pose ranges). In contrast, MIX is a discriminative mixture model that discovers a data-dependent partitioning of the shape space (see Figure [\ref=fig:ClusterComparison]b) based on facial expressions and other affine-invariant shape variations (including affine-invariant variations due to pose), and learns a different optimization for each partition.
+
+Training the experts model
+
+To learn the regression experts El, the N face images in the training data are augmented by repeating every training image M times, each time perturbing the ground-truth landmark locations by a different random displacement. For each image Ii in this augmented training set [formula] with ground-truth landmark locations i, we displace the landmarks by a random displacement Δi. For every expert l, we use [\eqref=eq:gating1] and [\eqref=eq:gating2] to compute the soft assignment αli of the ith sample's perturbed landmark locations to the prototype shape l:
+
+[formula]
+
+While computing this soft assignment, we let [formula] denote the global (affine) transformation from [\eqref=eq:gating2] that best aligns the ith sample's perturbed landmark locations to the prototype shape l. We use [formula] to transform the ground-truth landmark locations and displacement vectors into the prototype coordinate frame of expert El:
+
+[formula]
+
+The first regression function (k = 1) is then learned by minimizing a Tikhonov regularized L2-loss function:
+
+[formula]
+
+For each l and k, the regularizer weight λ is selected via grid search in log space using 2-fold cross validation.
+
+For training the later regressions [formula] rather than using a random perturbation, the target Δi is the residual of the previous stages of the cascade. In training, the regression function may diverge for a few samples, producing large residuals. To avoid fitting these outliers, at each stage k, we remove 2% of the samples with the largest residuals from the training set. We choose the number of regression stages K by training until the cross-validation error cannot be reduced further.
+
+The training samples are generated by randomly perturbing the ground-truth facial landmark locations along the major deformation directions of the training set, which are determined via principal component analysis. In addition, we apply random rotation, translation, and anisotropic scaling to the landmark locations, and add i.i.d. Gaussian noise. After learning the cascade model for this training set (usually K  =   3-4 stages), we learn a second cascade model using a training set consisting of only small amount of i.i.d. Gaussian noise, and append this model to the original model. The second model has 1-2 stages and improves fine alignment.
+
+Experiments
+
+We test on three benchmark datasets: (1) LFPW [\cite=belhumeur2011localizing] (which has 811 training and 224 test faces), (2) Helen [\cite=le2012interactive] (2000 training and 330 test faces), and (3) AFW [\cite=zhu2012face] (337 test faces). For all datasets, we use the ground-truth locations of 68 landmarks from [\cite=sagonas2013CVPRlabels] [\cite=sagonas2013ICCV300w]. We follow the test procedure used in [\cite=xiong2013supervised] [\cite=asthana2014incremental] [\cite=tzimiropoulos2014gauss] and use the 49 interior points (shown in Figure [\ref=fig:Illustration]) to report performance. We trained our models using all 2,811 training images of the LFPW and Helen datasets. In addition, we augment the data by horizontally flipping each image, yielding N  =   5,622 training images. From each image, we sampled M = 15 training initializations as described in Section [\ref=sec:training].
+
+Each test image is given along with an estimated face bounding box to use for initialization. For our methods and SDM, we initialize the landmark locations with the mean landmark locations from all of the training data, translated and scaled to fit the given bounding box.
+
+In the first experiment, we use all three datasets to compare the performance of our proposed algorithm (MIX) with that of five state-of-the-art algorithms: SDM [\cite=xiong2013supervised], CHEHRA [\cite=asthana2014incremental], GN-DPM (using SIFT features) [\cite=tzimiropoulos2014gauss], Fast-SIC [\cite=tzimiropolous2013aam], and PO-CR [\cite=tzimiropoulos2015POCR]. For SDM, we used our own implementation, trained on the same training data as MIX. For the other four methods, we used their authors' publicly available code. Each test image is provided to the algorithms along with an estimated bounding box for initialization. Figure [\ref=fig:Curves] plots the cumulative distribution of the fraction of images, as a function of the mean landmark point error normalized by the face size (the metric used in [\cite=tzimiropoulos2014gauss]), for all three test sets. On the LFPW and Helen test sets (first two graphs), for all methods we initialize the landmarks using the bounding boxes provided by [\cite=tzimiropoulos2014gauss], which were obtained using a face detection algorithm [\cite=zhu2012face]. For any given level of accuracy (normalized landmark location error), our method correctly aligns a higher percentage of images with that accuracy than all of the previous methods. Using our algorithm, only 3.5% of images have worse than 2.5% alignment error (w.r.t. the face size) for both datasets. Figure [\ref=fig:ImageComparisonLFPWHelen] presents visual examples of our algorithm's results.
+
+For the AFW test set (third graph in Figure [\ref=fig:Curves]), face-detector-based initialization is not available, so the initial face box is generated based on random perturbations of the ground truth. The initial face bounding box for each AFW image is generated by randomly transforming the ground-truth bounding box (up to 10% translation and scale). The solid lines represent results on AFW after initializing every algorithm using these initial face boxes. In addition, we provide results (dashed lines) of all algorithms using the initial bounding boxes from [\cite=tzimiropoulos2015POCR] (called "rotation-removed"), which were generated by rotating the ground-truth landmark points in 2D to remove in-plane rotation prior to obtaining the bounding box and adding noise in scale and translation (the same procedure used to generate the PO-CR training data). For both initializations, MIX outperforms the previous methods on AFW. In particular, MIX outperforms the second-best method (PO-CR) using both initializations, though the difference is greater when both methods use the random bounding boxes (solid line) than when both use the rotation-removed random bounding boxes (dashed line). We believe random bounding boxes (without rotation removed) give a more realistic initialization for real-world applications, in which there is no ground-truth information for test images.
+
+In the second experiment, we compare several variants of our algorithm and analyze the contribution of each of the novel components described in Section [\ref=sec:MoE]. Since our results are nearly saturated on the LFPW and Helen datasets, we use the more challenging AFW dataset for this experiment. The baseline algorithm for this experiment is SDM [\cite=xiong2013supervised]. TI-SDM is our Transformation-Invariant SDM (Section [\ref=sec:transformationInvariance]), MIX(L) refers to our Mixture of Invariant Experts with L experts (Section [\ref=sec:mixture]), and with or without const. refers to whether or not we use our extended deformation constraint features (Section [\ref=sec:deformation]). In Figure [\ref=fig:CurvesAFWvariations], we show how each additional variation in our algorithm improves the overall performance by reducing the error on the AFW dataset. Adding the transformation invariance step yields a sizable improvement, as does including the mixture of experts at each stage of the cascade. The extended constraint features yield an additional modest improvement. Using mixtures of more than 3 regression experts results in very minor improvement. This is because of the limited number of training images, particularly with extreme expressions or large out-of-plane rotations, which leads experts specializing in these less common face shapes to overfit the data (as we observed during cross-validation). Our expert model with L = 5 experts has only K = 3 cascade stages for the first level of training, and using more stages does not reduce error on the validation set. In Figure [\ref=fig:ImageComparisonAFW], we visually compare sample results on the AFW dataset. The improvement from a cascade of single models (SDM, first row, and TI-SDM, second row) to a cascade of mixture models (MIX, third row) is most apparent for large out-of-plane rotations and unusual facial expressions. As shown in Figure [\ref=fig:Illustration], each expert specializes for a particular pose and expression, yielding more precise alignment.
+
+In the third experiment, we illustrate the behavior of deformation constraint features by simulating a case in which a few points are poorly initialized or drift away during any stage of the regression cascade. As shown in the first column of Figure [\ref=fig:DeformationConstraint], we initialize the alignment algorithm within the detection bounding box as usual, but we manually displace two points, one on the left eyebrow and one on the right corner of the mouth (shown in red), to outside of the detection box to simulate drifting points. We show alignment results using two models, one without deformation constraint (second column) and the other with our extended deformation-constraint features (third column). The model without deformation constraint fails to correct the outlier points, whereas the deformation constraint features move outlier points towards the prototype shape of the expert, enabling it to obtain the correct landmark locations.
+
+The complexity of the MIX algorithm is equal to running L SDM models simultaneously, where L is the number of regression experts. Note that all experts can be run in parallel to match the speed of SDM.
+
+Conclusion
+
+We proposed a novel face alignment algorithm based on a cascade in which each stage consists of a mixture of transformation-invariant (e.g., affine-invariant) regression experts. Each expert specializes in a different part of the joint space of pose and expressions by (affine) transforming the landmark locations to its prototype shape and learning a customized regression model. We also present a method to include deformation constraints within the discriminative alignment framework. Extensive evaluation on three benchmark datasets shows that the proposed method significantly improves upon the state of the art.

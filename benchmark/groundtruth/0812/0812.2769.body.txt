@@ -1,0 +1,191 @@
+=1
+
+Geometric scaling: a simple preconditioner for certain linear systems with discontinuous coefficients
+
+Rachel Gordon
+
+Keywords.  Bi-CGSTAB; diagonal scaling; discontinuous coefficients; domain decomposition; geometric scaling; GMRES; GS; Lp-norm; linear equations; nonsymmetric equations; parallel processing; partial differential equations.
+
+Introduction
+
+Many physical phenomena are modeled by partial differential equations (PDEs) which describe the relations between one or more scalar or vector fields and the surrounding media. When boundary conditions are prescribed, a common approach to achieving a numerical solution is to impose a grid and discretize the equations, thus getting a system of linear equations. In some cases, this approach yields a system of equations with very large differences between coefficients of the equations. Examples of such systems arise in modeling flow through heterogeneous media with widely-varying permeability, oil reservoir simulation, electromagnetics and semiconductor modeling. Such systems are commonly referred to as systems with "discontinuous coefficients".
+
+One of the most common methods for tackling such problems is the domain-decomposition (DD) approach, in which the domain is partitioned into subdomains, with the subdomain boundaries conforming to the boundaries between the different media. DD techniques typically operate as follows: some boundary conditions are assumed to exist on the interfaces between subdomains, and a solution of the equations in each subdomain is obtained, often with only low accuracy. The boundary conditions at the interfaces are then updated according to these solutions, and the process is repeated until convergence is achieved. There exists a vast literature on this subject, and a review of the area is beyond the scope of this work; see, for example, [\cite=Glowinski88] [\cite=Smith96] [\cite=Quarteroni99] [\cite=Rice00]. DD techniques may be difficult to implement on unstructured grids or when the boundaries between domains have a complicated geometry.
+
+We consider nonsymmetric linear systems with discontinuous coefficients derived from convection-diffusion elliptic PDEs with small to moderate convection terms. It is shown that a simple preconditioning technique, which we call geometric scaling (GS), can be applied to the system of equations in order to improve the convergence properties of algorithms applied to the system. GS(p), with an integer parameter p  ≥  1, consists of dividing each equation by the Lp-norm of its vector of coefficients. GS, which is a particular form of diagonal scaling on the left, is geometric in the following sense: after applying GS(p) to a linear system, all the rows of the system matrix have a unity Lp-norm.
+
+In order to examine the general usefulness of GS in conjunction with various solution methods, we tested it with the two leading Krylov subspace solvers for nonsymmetric systems: GMRES [\cite=Saad86] and Bi-CGSTAB [\cite=Vorst92]. Both algorithms were tested with and without the ILUT preconditioner [\cite=Saad94] on several nonsymmetric problems taken from (or based on) Saad [\cite=Saad03], van der Vorst [\cite=Vorst92], and Graham and Hagger [\cite=Graham99]. Four basic problems were considered, as well as several variations of the problems, such as modifications of the differences between the coefficients and various grid sizes. Results are provided for three different levels of accuracy.
+
+Our experiments used the L2-norm, but the L1-norm yielded similar results. Our results can be characterized as follows:
+
+In most cases, when the tested method (algorithm/preconditioner combination) converges to the specified accuracy criterion, GS speeds up the convergence time.
+
+In many cases, when the tested method stagnates or diverges on the original system, it converges on the scaled system.
+
+GS was not particularly useful on problems without discontinuous coefficients.
+
+GS was not helpful on problems derived from PDEs with large convection terms. Such PDEs produce linear systems with very large off-diagonal elements, and these require other solution methods.
+
+We also provide data on the effect of GS on the distribution of the eigenvalues. It is generally considered to be detrimental to the convergence of Krylov subspace methods to have a large accumulation of eigenvalues near the origin. In the cases examined here, there is a large accumulation of eigenvalues near the origin, and GS appears to "push" many eigenvalues away from the origin. Also, the eigenvalues of the scaled system appear to be distributed similarly to those obtained without scaling but with equal-sized coefficients.
+
+Note that the above choice of algorithm/preconditioner combinations does not imply that these methods are optimal for the above problems. Finding an optimal method is problem-dependent and a topic for further research.
+
+Diagonal scaling is not new, and its usefulness for discontinuous coefficients has also been noted. Van der Sluis [\cite=Sluis69] deals with the effect of scaling on the condition number of matrices. Widlund [\cite=Widlund71] writes that well-scaled ADI methods give good rates of convergence when the coefficients of elliptic problems vary very much in magnitude (ADI stands for the alternating direction implicit method [\cite=Peaceman55]). Graham and Hagger [\cite=Graham99] write that diagonal scaling has been observed in practical computations to be very effective as a preconditioner for problems with discontinuous coefficients. Duff and van der Vorst [\cite=Duff98] write that on vector machines, diagonal scaling is often competitive with other approaches. Regarding diagonal scaling of symmetric matrices, see Meurant [\cite=Meurant99], who also has some reservations about the usefulness of diagonal scaling for parallel processing [\cite=Meurant99]. Gambolati et al.  [\cite=Gambolati03] use the least square logarithm (LSL) scaling on the rows and the columns of the system matrix for a certain problem in geomechanics with discontinuous coefficients.
+
+However, most previous works are concerned with symmetric systems and diagonal scaling refers to multiplying the system matrix on the left and on the right by the same diagonal matrix, in order to preserve symmetry. Also, there is no study on the general usefulness of geometric scaling for nonsymmetric problems with discontinuous coefficients. The idea of geometric scaling was found to be useful for certain problems in image reconstruction from projections; see [\cite=Gordon07].
+
+DD methods are often mentioned in connection with parallel processing. The equations of different domains can, in principle, be solved in parallel by different processors. However, the different domains that arise in many practical situations do not necessarily lead to an optimal load-balancing assignment of equations to processors. With the GS approach, inherently parallel algorithms such as Bi-CGSTAB and GMRES can be implemented efficiently in parallel without regard to subdomain boundaries. Needless to say, GS is inherently parallel.
+
+The rest of this paper is organized as follows. § [\ref=back] presents some essential background. § [\ref=prob1]-§ [\ref=prob4] deal with the four different problems, and § [\ref=conclusions] concludes with a summary and some future research directions.
+
+General background
+
+Throughout the rest of the paper, we assume that all vectors are column vectors, and we use the following notation: 〈p,  q〉 denotes the dot product of two vectors p and q, which is also pT q. Given a vector [formula], we denote its Lp-norm by [formula]. For p = 2, we will omit the index and just write [formula]. If A is an n   ×   n matrix, we denote by ai the ith row-vector of A; i.e., [formula].
+
+Consider a system of n linear equations in n variables:
+
+[formula]
+
+We shall assume throughout that ([\ref=linear]) is consistent and that A does not contain a row of zeros. For p  ≥  1, we define a diagonal matrix [formula]. The geometrically-scaled system is defined as
+
+[formula]
+
+In some algorithms, GS(p) is an inherent step in the following sense: either the scaling is executed at the beginning as an intrinsic part of the algorithm, or, executing the algorithm produces identical results to those obtained when GS(p) is done at the beginning. As an example, it is easy to see that GS(2) is inherent in the Kaczmarz algorithm (KACZ) [\cite=Kaczmarz37]. KACZ can be described geometrically as follows: starting from an arbitrary point [formula] as the initial iterate, KACZ projects the current iterate orthogonally towards a hyperplane defined by one of the equations. The hyperplanes are chosen in cyclic order.
+
+The tests were run using the AZTEC software library [\cite=Tuminaro99], which includes a wide range of algorithms and preconditioners, suitable for sequential and parallel implementations. Geometric scaling with the L1-norm is a built-in option in AZTEC (where it is called "row-sum scaling"). As mentioned we used Bi-CGSTAB and GMRES, with and without ILUT. Restarted GMRES was used with Krylov subspace size of 10. In AZTEC, GMRES is implemented with a double classical Gram-Schmidt orthogonalization step. ILUT was implemented with AZTEC's default parameters of drop tolerance = 0 and fill-in = 1. These parameters are not necessarily optimal for the tested examples, but since our purpose was to demonstrate the general usefulness of GS, we stuck with a commonly-used restart value for GMRES and AZTEC's default values for ILUT. No doubt, better convergence properties and runtimes would be obtained if these parameters were fine-tuned to each problem. The eigenvalue computations were done with the LAPACK linear algebra package [\cite=lapack].
+
+We also experimented with the option of multiplying the system matrix A by [formula] on the left and on the right, resulting in the system [formula], with [formula]. In one problem, the results were somewhat poorer than those obtained with GS, but otherwise, the results were similar. Note that this option is computationally more expensive. Gambolati et al. [\cite=Gambolati03] remark that when using ILU(0), the iteration matrix of Bi-CGSTAB on a diagonally scaled system (on the left and/or the right) is theoretically the same as the one with ILU(0) on the original matrix. In our experiments, the effect of ILUT was identical to that of ILU(0), so in theory, Bi-CGSTAB with ILUT on the original and the scaled systems should have behaved similarly. However, our experiments indicated that using GS produces much better numerical results, and this also holds for GMRES with ILUT. This is probably due to the fact that the scaled system does not have very large differences between coefficients, so it is much less prone to roundoff errors.
+
+Setup of the numerical experiments
+
+In two dimensions, the general form of the second-order differential equations in this study was
+
+[formula]
+
+where a and b are given functions of x and y, "[formula]" stands for lower-order derivatives, and F is a prescribed RHS. In three dimensions, there are three given functions a,b,c of x,y,z, and a second order partial derivative w.r.t. z was also included. Boundary conditions were either Dirichlet or mixed Dirichlet and Neumann. The regions were taken as the unit square or the unit cube. The discretization of the second-order derivatives at a given grid point (i,j) was done using central differences; e.g., [formula] was approximated as
+
+[formula]
+
+All problems were discretized with equally-spaced grids, and the initial value was taken as u0 = 0. The tests were run on a Pentium IV 2.8GHz processor with 3GB memory, running Linux.
+
+Stopping tests
+
+There are several stopping criteria which one may apply to iterative systems. Our stopping criterion was to use the relative residual: [formula], where ε was taken as 10- 4, 10- 7 and 10- 10. In some of the cases, this was not attainable. Since this stopping criterion depends on the scaling of the equations, we always made this test on the geometrically-scaled system using the L2-norm. In order to limit the time taken by the methods implemented in AZTEC, the maximum number of iterations was set to 10,000. The AZTEC library has several other built-in stopping criteria: numerical breakdown, numerical loss of precision and numerical ill-conditioning. In the results, we denote the relative residual by rel-res, and non-convergence by "no conv."
+
+One should note that the test for numerical breakdown in AZTEC uses the machine precision DBL_EPSILON, and this may result in a premature notice of numerical breakdown in some cases. To get around this problem, we multiplied the variable brkdown_tol in the Bi-CGSTAB algorithm by some small factor, such as 10- 16. ( brkdown_tol is normally set equal to DBL_EPSILON, which is approximately 2.22   ×   10- 16 on our machine).
+
+Problem 1
+
+Problem 1 is taken from Saad [\cite=Saad03]. It is a two-dimensional PDE
+
+[formula]
+
+where
+
+[formula]
+
+and d(x,y)  =  10(x + y) and e(x,y)  =  10(x - y). The Dirichlet boundary condition u = 0 is used on the boundary, and the RHS h is immaterial since the vector b of the linear system is chosen as b = Ae, where A is the system matrix and [formula].
+
+Table [\ref=tbl1] shows the number of iterations and runtimes of the various algorithm/preconditioner methods, with and without GS, on a grid of 128   ×   128. In cases of stagnation, the table shows the relative residual that was achieved before stagnation. Note that GS enables the convergence of Bi-CGSTAB without ILUT; this is useful in a parallel setting, because Bi-CGSTAB is inherently parallel but ILUT is not an ideal parallel preconditioner. We can also see that GS is slightly helpful to Bi-CGSTAB with ILUT, and, for low-accuracy, also to GMRES with and without ILUT. Another observation is that when GMRES (with and without ILUT) stagnates before reaching the prescribed convergence goal, GS postpones the stage at which stagnation sets in, and enables convergence to a level that is acceptable for most practical applications.
+
+Three additional experiments, based on Problem 1, were also done:
+
+We turn now to studying the effect of GS on the distribution of the eigenvalues. For Problem 1, this was done with a grid size of 40   ×   40 for the purpose of a clear presentation. Table [\ref=tbl1b] shows the values of the minimum and maximum eigenvalues and the condition number, for the original, the scaled and the continuous (a = b = 1000) cases of Problem 1. Also shown for each case is the number of eigenvalues in the first interval (out of 100) in a histogram of the eigenvalue distribution. We can see that while the condition number is not changed much by the scaling, the number of eigenvalues in the first interval is reduced very significantly.
+
+Figure [\ref=eigen1] shows the distribution of the eigenvalues of Problem 1 at the full scale (left) and with a zoom (right). We can see that there is a congestion of eigenvalues close to zero. Figure [\ref=eigen1a] shows the distribution of the eigenvalues of Problem 1 after geometric scaling with the L1-norm (left) and the L2 (right). Both scalings produce fairly similar distributions; however we will present results throughout the paper for the L2 scaling. As to the continuous version of the problem, its eigenvalues were all real and distributed evenly in the range (0,8000).
+
+Figure [\ref=dist1] shows a histogram of the eigenvalue distributions for the original Problem 1, for the geometrically scaled problem, and for the continuous case with a = b = 1000.
+
+Problem 2
+
+Problem 2 is based on Example 2 from van der Vorst [\cite=Vorst92], to which we added convection terms. This example demonstrates that GS also works with mixed Dirichlet and Neumann boundary conditions. The governing PDE is
+
+[formula]
+
+with D(x,y) and boundary conditions as shown in Figure [\ref=fig2]. The convection terms were a = b = 200. In the original example, the internal value of D is 103, but we also tested internal values of 104 and 105. Also, the internal square in our case is somewhat smaller. The unit square was discretized with a grid size of 150   ×   150. Together with the boundary equations, the system consisted of 22,952 equations. The resulting system is indefinite, with eigenvalues in the four quadrants of the imaginary plane.
+
+Tables [\ref=tbl2], [\ref=tbl2a] and [\ref=tbl2b] show the number of iterations and runtimes of the various algorithm and preconditioner combinations, with and without GS, for D = 103, D = 104, and D = 105, respectively. When there was no convergence to the prescribed goal, the table shows the relative residual that was achieved.
+
+The tables show that GS was helpful in all cases, with the exception of Bi-CGSTAB with ILUT in Table [\ref=tbl2], where it increased the number of iterations required in the highest accuracy case. A close examination of this case revealed that starting from iteration 220, BiCGSTAB with ILUT (after GS) was extremely oscillatory, with fluctuations of up to three orders of magnitude in the relative residual; the required convergence goal of 10- 10 was almost attained at 225 iterations.
+
+The three tables show that the behavior of GS is not necessarily "smooth": consider the results of Bi-CGSTAB with ILUT for rel-res = 10- 10: we can see that the goal was not reached for D = 103 and D = 105, but it was reached for D = 104. The explanation for this is the large number of iterations required by Bi-CGSTAB in this case, as seen in Table [\ref=tbl2a] and the oscillatory nature of Bi-CGSTAB. The accumulated roundoff error is sometimes too large to reach the convergence goal, and while the updated error measured by the algorithm showed convergence, the true relative residual did not always decrease sufficiently.
+
+Another interesting point is the behavior of GS with GMRES and ILUT in the low-accuracy case: for D = 103, there was convergence after many iterations, for D = 104 there was no convergence, and then for D = 105 there was a very fast convergence. In order to examine this behavior, we also tested this particular case with D = 106, and we noticed that starting D = 104, GS improved the convergence of GMRES by one order of magnitude for every increase in D by one order of magnitude. Not doubt, this phenomenon should be studied further. In any case, for the larger values of D, GS enabled the convergence of GMRES, with and without ILUT, to practical levels of accuracy.
+
+For the eigenvalue data, we discretized the domain by a grid of [formula]. Table [\ref=tbl2d] provides the basic eigenvalue information for Problem 2, for the original (D = 103) and the scaled matrices. Also shown are the eigenvalues for a variation of Problem 2 with "continuous" coefficients, obtained by taking D = 103 throughout the unit square. The last column of the table shows the number of eigenvalues whose real part lies in the same interval as the origin, when the range of (the real parts) of the eigenvalues is divided into 100 intervals. We can see that GS reduces the condition number by three orders of magnitude, and the reduction is even greater w.r.t. the continuous case. Furthermore, the number of eigenvalues around the origin is reduced very significantly, even below that of the continuous case.
+
+Figure [\ref=eigen2] shows the distribution of the eigenvalues for Problem 2 with D = 103, and for the geometrically scaled problem. It can be seen that the eigenvalues of the original matrix are very concentrated around the origin. In the scaled matrix, there are very few eigenvalues around the origin, but many eigenvalues have their real part around 0.6.
+
+Figure [\ref=dist2] provides another view of the eigenvalue distribution with a histogram of the real part of the eigenvalues for the original and the scaled matrices.
+
+Problem 3
+
+Problem 3 is also taken from van der Vorst [\cite=Vorst92]. It describes a certain groundwater flow problem which leads to a nonsymmetric system, with a complex geometry and several jumps in the discontinuities of the equations. This problem is well-known for its difficulty. The basic equation is the following:
+
+[formula]
+
+where A(x,y) and F are taken as shown in Figure [\ref=fig3], and B(x,y)  =  2 exp (2(x2 + y2)). The Dirichlet boundary conditions are taken as shown in Figure [\ref=fig3]. The unit square was discretized with a grid size of 128   ×   128, resulting in 16,129 equations.
+
+Nothing converged without ILUT, so we present in Table [\ref=tbl3] only the results with ILUT, with and without GS. On this difficult problem, GS reduced the runtime of Bi-CGSTAB with ILUT by about 25%. GS also enabled the convergence of GMRES with ILUT, though the achieved runtimes were an order of magnitude larger than those of the scaled Bi-CGSTAB with ILUT in the higher-accuracy cases.
+
+For the eigenvalue data, we discretized Problem 3 with a grid of 40   ×   40. The data for the original and the scaled matrices is summarized in Table [\ref=tbl3a], which also shows the number of eigenvalues in the first interval (out of 100) of the eigenvalue histogram. We can see that the condition number is decreased very significantly, and so is the number of eigenvalues in the first interval.
+
+Figure [\ref=eigen3] shows the distribution of the eigenvalues for the original (with a zoom) and the scaled matrices of Problem 3.
+
+Figure [\ref=dist3] is a histogram of the eigenvalues of the original and the scaled matrices. We can see from Figures [\ref=eigen3] and [\ref=dist3] that in the original matrix, the eigenvalues are very concentrated around the origin, while in the scaled matrix, many are "pushed" away from the origin.
+
+Problem 4
+
+This problem is based on a three-dimensional problem from Graham and Hagger [\cite=Graham99], to which we added convection terms. The differential equation is the following:
+
+[formula]
+
+where the domain is the unit cube, and a(x,y,z) is defined as
+
+[formula]
+
+The Dirichlet boundary conditions are prescribed with u = 1 on the z = 0 plane and u = 0 on the other boundaries. The convection terms were taken as d = e = f = 100, and two values of D were tested: D = 104 (as in the original problem) and D = 106. Two grids were tested: [formula] and [formula]. The resulting linear systems are indefinite, with eigenvalues in the four quadrants of the imaginary plane. This problem will also be used to test the limit of usefulness of GS as the convection increases.
+
+Due to the many different cases, the data for this problem is presented differently. Table [\ref=tbl4] shows the number of iterations required for convergence, for a grid of [formula], with D = 104 and D = 106. We can see that GS enabled the convergence of Bi-CGSTAB without ILUT, and it speeded up Bi-CGSTAB with ILUT quite significantly. GS also enabled the convergence of GMRES, with and withou ILUT, for rel-res = 10- 4, and also for rel-res = 10- 7 with D = 106.
+
+Figures [\ref=run4] and [\ref=run4a] show bar-plots of the runtimes for the two grid sizes, for D = 104 and D = 106, for the three levels of accuracy. In cases of stagnation, the figures show (in parentheses) the relative residual achieved before stagnation.
+
+The results can be summarized as follows.
+
+Bi-CGSTAB (without ILUT) and GMRES (with and without ILUT) did not converge in any of the cases.
+
+GS enabled the convergence of Bi-CGSTAB in all cases, and the convergence of GMRES (with and without ILUT) in the low-accuracy cases and in one mid-accuracy case.
+
+GS significantly improved the accuracy of GMRES (with and without ILUT) by postponing the stage at which stagnation set in, enabling convergence to much higher levels of accuracy.
+
+For the [formula]-grid, GS speeded up the convergence of Bi-CGSTAB with ILUT quite significantly. This was also true for the coarser grid, but only in the low-accuracy case.
+
+In the above cases, GS (by itself) was generally a better preconditioner than ILUT for Bi-CGSTAB.
+
+In all cases with GS, the results for D = 106 were either similar to or better than those for D = 104.
+
+In summary, GS was beneficial in all cases to all the algorithm/ILUT combinations, and in many cases, GS provided a very significant advantage.
+
+Table [\ref=tbl4a] provides the basic eigenvalue information for Problem 4 with D = 104, for the original and the scaled matrices, and also for a continuous version with D = 104 everywhere. The grid size for this data was [formula]. The the last column shows the number of eigenvalues whose real part lies in the same interval as the origin (out of 100 intervals). We can see that although GS doubled the condition number, it reduced the number of eigenvalues around the origin very significantly.
+
+Figure [\ref=eigen4] shows the distribution of the eigenvalues for the original Problem 4, and a zoom to the region 2. We can see that the eigenvalues are very concentrated around the origin. Figure [\ref=eigen4a] shows the distribution of the eigenvalues for the scaled and the continuous (D   =   104) cases. We can see that these distributions look quite similar, with eigenvalues concentrated around the perimeter.
+
+Figure [\ref=dist4] provides a histogram of the real part of the eigenvalues of Problem 4, for the original, the scaled, and the continuous (D = 104) cases. The histogram provides an additional view of how the eigenvalues are distributed in the three cases.
+
+GS is proposed as being useful for discontinuous coefficients when the convection terms are small to moderate. In order to demonstrate this, we considered Problem 4 with D = 104, a grid size of 40   ×   40   ×   40, and varying convection terms. The previous results were based on convection terms of 100, so we also tested this case with convection terms of 200, 500, and 1000. The results, which are summarized in Table [\ref=limit] below, show how the usefulness of GS degrades as the convection terms are increased.
+
+Note in particular the difference between Bi-CGSTAB without ILUT and Bi-CGSTAB with ILUT: it turns out that without ILUT, GS enables convergence to 10- 10 even with convection = 500, but with ILUT, degradation already appears with convection = 200; this degradation is independent of the use of GS.
+
+Conclusions and further research
+
+In this paper we have reported on a very simple technique for improving the convergence properties of algorithms on certain linear systems with discontinuous coefficients. The technique, called geometric scaling (GS), consists of simply dividing each equation by the Lp-norm of its vector of coefficients. GS, with p = 2, was tested on four nonsymmetric problems derived from convection-diffusion elliptic PDEs, with small to moderate convection terms. Bi-CGSTAB and restarted GMRES, with and without ILUT, were tested on the four problems with and without GS. Normally, such problems are solved by domain decomposition (DD) techniques, but these can be difficult to implement if the boundaries between the subdomains have a complicated geometry or the grid is unstructured. The problems were taken from (or based on) well-known examples from the literature, and included two- and three-dimensional cases, with Dirichlet and mixed Dirichlet/Neumann boundary conditions. One problem had a complicated geometry. Three different convergence goals were prescribed: relative residual ≤  10- 4,10- 7,10- 10.
+
+Table [\ref=tbl_sum] summarizes the convergence behavior of the four different algorithm/preconditioner combinations, with and without GS, on the four different problems, for the three convergence goals. The results indicate that GS was very useful in improving the convergence status of the different solution methods on the tested problems. With one exception, when the solution method converged on a problem with discontinuous coefficients, GS speeded up the convergence. Eigenvalue distribution maps show that when there is a strong concentration of values around the origin, GS reduces this concentration very significantly and "pushes" the values away from the origin.
+
+This study is only a first report on this subject, and much work remains to be done. On the theoretical side, we have seen that GS improves the eigenvalue distribution, but further analysis is still needed. On the practical side, GS needs to be tested in conjunction with other algorithms and preconditioners, on various other difficult problems.
+
+A natural question that arises is how does GS compare with DD techniques? Over the years, these methods have achieved a high level of efficiency, and a head-on runtime comparison is very much problem-dependent and a topic for further research. However, an even more interesting topic is the combination of the two methods: apply GS to the equations and then apply some standard DD method; hopefully, on some problems, GS could also improve the convergence properties of some DD approaches.
+
+GS can also help the parallelization of solution methods in several ways. Firstly, GS itself is a parallel computational step. Secondly, it enables the partitioning of a domain into subdomains along boundaries that do not necessarily follow the physical boundaries of the problem; this way, better load balancing can be achieved. Thirdly, as seen in some of the cases, GS enabled the convergence of algorithms that are inherently parallel without the need for a preconditioner (such as ILUT) that may not be ideal for parallelism.
+
+Another topic for further research is the application of the (sequential) CGMN algorithm [\cite=Bjorck79] [\cite=Gordon08] and its block-parallel version CARP-CG [\cite=Gordon08a] on problems that have discontinuous coefficients and are also strongly convection-dominated. These algorithms have already been shown to be very effective on convection-dominated problems and initial experiments with discontinuous coefficients have yielded good results. The reason for this may be that these two methods are essentially conjugate-gradient acceleration of the Kaczmarz algorithm, and as such, GS (with the L2-norm) is already inherent in them.

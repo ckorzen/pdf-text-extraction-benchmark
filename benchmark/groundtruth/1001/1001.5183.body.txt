@@ -1,0 +1,299 @@
+Energy Parity Games
+
+Introduction
+
+Two-player games on graphs are central in many applications of computer science. For example, in the synthesis problem implementations are obtained from winning strategies in games with a qualitative objective such as ω-regular specifications [\cite=RW87] [\cite=PnueliR89] [\cite=AbadiLW89]. Games also provide a theoretical instrument to deal with logics and automata [\cite=BL69] [\cite=GurevichHarrington82] [\cite=EmersonJS93] [\cite=automata]. In all these applications, the games have a qualitative (boolean) objective that determines which player wins. On the other hand, games with quantitative objective which are natural models in economics (where players have to optimize a real-valued payoff) have also been studied in the context of automated design and synthesis [\cite=Sha53] [\cite=Condon92] [\cite=ZwickP96]. In the recent past, there has been considerable interest in the design of reactive systems that work in resource-constrained environments (such as embedded systems). The specifications for such reactive systems have both a quantitative component (specifying the resource constraint such as power consumption) and a qualitative component (specifying the functional requirement). The desired reactive system must respect both the qualitative and quantitative specifications. Only recently objectives combining both qualitative and quantitative specifications have been considered [\cite=CAHS03] [\cite=ChatterjeeHJ05] [\cite=BCHJ09].
+
+In this paper, we consider two-player turn-based games played for infinitely many rounds on a weighted graph where a priority is associated to each state and a weight is associated to each edge. In each round, the player owning the current state chooses an outgoing edge to a successor state, thus the game results in an infinite play. The qualitative specification is a parity condition, a canonical way to express the ω-regular objectives [\cite=Thomas97]: a play satisfies the parity condition if the least priority occurring infinitely often in the play is even; the quantitative specification requires that the sum of the weights along the play (that we interpret as the level of energy, or resource usage) remains always positive. The main algorithmic question about such energy parity games is to decide if there exists an initial credit (or initial energy level) such that one player has a strategy to maintain the level of energy positive while satisfying the parity condition, and if the answer is yes, to compute the minimum such initial credit.
+
+Energy parity games generalize both parity games and energy games. It is known that memoryless strategies are sufficient to win parity games [\cite=EJ91] and energy games [\cite=CAHS03] [\cite=BFLMS08], and therefore the problem of deciding the winner of a parity game, and the problem of deciding the existence of an initial credit sufficient to win an energy game are both in NP [formula] coNP. It is a long standing open question to know if these problems can be solved in polynomial time. In this paper, we present the following results about energy parity games: (a) we study the complexity of winning strategies and we give bounds on the amount of memory needed to win; (b) establish the computational complexity of the problem of deciding the winner; (c) present an algorithmic solution to compute the minimum initial credit; and (d) show polynomial equivalence with mean-payoff parity games. The details of our contributions are as follows, some proofs are omitted by lack of space.
+
+Strategy complexity. First, we show that finite-memory strategies are sufficient to win energy parity games, but memory of exponential may be required even in the special case of one-player games. We present an exponential memory upper bound for the winning strategies, and we show that the spoiling strategies of the opponent need no memory at all (memoryless spoiling strategies exist).
+
+Computational complexity. Second, we show that the decision problem for energy parity games lie in NP [formula] coNP, matching the bounds known for the simpler case of parity and energy games. The classical NP [formula] coNP result for parity and energy games crucially relies on the existence of memoryless winning strategies. In the case of energy parity games, the existence of memoryless spoiling strategies gives the coNP upper bound. However, and in contrast with parity games and energy games, winning strategies may require exponential memory in energy parity games. Therefore, more subtle arguments are needed to obtain the NP upper bound: we show that the winning strategies (that require exponential memory) can be characterized with certain special structures and decomposed into two memoryless strategies (roughly, one to ensure the parity condition, and the other to maintain the energy level positive). This insight allows us to derive a nondeterministic polynomial-time algorithm to solve energy parity games. Thus the problem of deciding the existence of an initial credit which is sufficient to win an energy parity game is (perhaps surprisingly) in NP [formula] coNP. Finding a deterministic polynomial algorithm for this problem is obviously open.
+
+Algorithm. Third, we present an algorithm to solve energy parity games with complexity exponential in the number of states (as for parity games), and linear in the largest weight (as for energy games). This algorithm relies on our analysis of the structure of winning strategies, and reduces to iteratively solving reachability games and energy games.
+
+Equivalence with mean-payoff parity games. Finally, we show that energy parity games are polynomially equivalent to mean-payoff parity games [\cite=ChatterjeeHJ05], where the parity condition is combined with the quantitative requirement that the limit-average (or mean-payoff) of the weights remains positive. Again, this result is surprising because in mean-payoff parity games, optimal strategies (that realize the largest possible mean-payoff value while satisfying the parity condition) may require infinite memory. Moreover, we get as a corollary of our results that that the problem of deciding the winner in mean-payoff parity games is also in NP [formula] coNP. Our algorithm for energy parity games also solves mean-payoff parity games with essentially the same complexity as in [\cite=ChatterjeeHJ05], but with a conceptually simpler approach.
+
+Definitions
+
+Game graphs. A game graph G = 〈Q,E〉 consists of a finite set Q of states partitioned into player-1 states Q1 and player-2 states Q2 (i.e., [formula]), and a set E  ⊆  Q  ×  Q of edges such that for all q∈Q, there exists (at least one) q'∈Q such that (q,q')∈E. A player-1 game is a game graph where Q1  =  Q and [formula]. The subgraph of G induced by S  ⊆  Q is the graph [formula] (which is not a game graph in general); the subgraph induced by S is a game graph if for all s∈S there exist s'∈S such that (s,s')∈E.
+
+Plays and strategies. A game on G starting from a state q0∈Q is played in rounds as follows. If the game is in a player-1 state, then player 1 chooses the successor state from the set of outgoing edges; otherwise the game is in a player-2 state, and player 2 chooses the successor state. The game results in a play from q0, i.e., an infinite path [formula] such that (qi,qi + 1)∈E for all i  ≥  0. The prefix of length n of ρ is denoted by [formula]. A strategy for player 1 is a function σ:Q*Q1  →  Q such that (q,σ(ρ  ·  q))∈E for all ρ∈Q* and q∈Q1. An outcome of σ from q0 is a play [formula] such that [formula] for all i  ≥  0 such that qi∈Q1. Strategy and outcome for player 2 are defined analogously.
+
+Finite-memory strategies. A strategy uses finite-memory if it can be encoded by a deterministic transducer 〈M,m0,αu,αn〉 where M is a finite set (the memory of the strategy), m0∈M is the initial memory value, αu:M  ×  Q  →  M is an update function, and αn:M  ×  Q1  →  Q is a next-move function. The size of the strategy is the number [formula] of memory values. If the game is in a player-1 state q and m is the current memory value, then the strategy chooses q'  =  αn(m,q) as the next state and the memory is updated to αu(m,q). Formally, 〈M,m0,αu,αn〉 defines the strategy α such that α(ρ  ·  q)  =  αn(u(m0,ρ),q) for all ρ∈Q* and q∈Q1, where u extends αu to sequences of states as expected. A strategy is memoryless if [formula]. For a finite-memory strategy σ, let Gσ be the graph obtained as the product of G with the transducer defining σ, where (〈m,q〉,〈m',q'〉) is a transition in Gσ if m'  =  αu(m,q) and either q∈Q1 and q' = αn(m,q), or q∈Q2 and (q,q')∈E. In Gσ, the expression reachable from q stands for reachable from 〈q,m0〉.
+
+Objectives. An objective for G is a set φ  ⊆  Qω. Let [formula] be a priority function and [formula] be a weight function where positive numbers represent rewards. We denote by W the largest weight (in absolute value) according to w. The energy level of a prefix [formula] of a play is [formula], and the mean-payoff value of a play [formula] is [formula]. In the sequel, when the weight function w is clear from context we will omit it and simply write [formula] and [formula]. We denote by [formula] the set of states that occur infinitely often in ρ. We consider the following objectives:
+
+Parity objectives. The parity objective [formula] requires that the minimum priority visited infinitely often be even. The special cases of Büchi and coBüchi objectives correspond to the case with two priorities, p:Q  →  {0,1} and p:Q  →  {1,2} respectively.
+
+Energy objectives. Given an initial credit [formula], the energy objective [formula] requires that the energy level be always positive.
+
+Mean-payoff objectives. Given a threshold [formula], the mean-payoff objective [formula] requires that the mean-payoff value be at least ν.
+
+Combined objectives. The energy parity objective [formula] and the mean-payoff parity objective [formula] combine the requirements of parity and energy (resp., mean-payoff) objectives.
+
+When the game G is clear form the context, we omit the subscript in objective names.
+
+Winning strategies. A player-1 strategy σ is winning in a state q for an objective φ if ρ∈φ for all outcomes ρ of σ from q. For energy and energy parity objectives with unspecified initial credit, we also say that a strategy is winning if it is winning for some finite initial credit.
+
+Finite and minimum initial credit problems. We are interested in the following decision problem. The finite initial credit problem (initial credit problem for short) asks, given an energy parity game 〈G,p,w〉 and a state q, whether there exists a finite initial credit [formula] and a winning strategy for player 1 from q with initial credit c0. The minimum initial credit in a state q0∈Q is the least value of initial credit for which there exists a winning strategy for player 1 in q0. A strategy for player 1 is optimal in a state q0 if it is winning from q0 with the minimum initial credit.
+
+It is known that the initial credit problem for simple energy games can be solved in NP [formula] coNP because memoryless strategies are sufficient to win such games [\cite=CAHS03] [\cite=BFLMS08]. For winning states of energy games, an initial credit of [formula] is always sufficient to win. For parity games, memoryless strategies are also sufficient to win and the associated decision problem also lies in NP [formula] coNP [\cite=EJ91]. Moreover, energy games and parity games are determined, which implies that from states that are not winning for player 1, there exists a (memoryless) spoiling strategy for player 2 which is winning for the complementary objective (note that the complement of a parity objective is again a parity objective). Moreover, for energy games, the same spoiling strategy can be used against all initial credit values.
+
+Energy and limit-energy games
+
+Memoryless strategies are sufficient for player 1 to win energy games.
+
+A memoryless strategy σ for player 1 is winning in an energy game 〈G,w〉 if and only if all simple cycles in G(σ) are nonnegative.
+
+Memoryless strategies are sufficient for player 1 to win LimSup-energy games.
+
+By [\cite=GimbertZ05], it is sufficient to prove the statement for 1-player games, i.e. such that either Q1  =  Q and [formula], or [formula] and Q2  =  Q.
+
+1. If Q1  =  Q and [formula]. Assume that player 1 has a winning strategy. Then there exists an infinite path ρ in G and a credit [formula] such that [formula] for all n  ≥  0, and [formula]. Consider the cycle decomposition of ρ. It is easy to show that one of the cycles has (strictly) positive weight. A memoryless strategy for player 1 consists in reaching that cycle and looping through it.
+
+2. If [formula] and Q2  =  Q. Assume that player 2 has a winning strategy. Then there exists an infinite path ρ in G such that either (i) for all [formula], there exists n  ≥  0 such that [formula], or (ii) [formula]. For (i), it is known that memoryless strategies exist for player 2, and for (ii), we can use analogous argument as in player-1 games.
+
+A memoryless strategy σ for player 1 is winning in a LimSup- (or LimInf-) energy game 〈G,w〉 if and only if all simple cycles in G(σ) are positive.
+
+This result is trivial.
+
+Memoryless strategies are sufficient for player 1 to win LimInf-energy games.
+
+In fact, a memoryless strategy is winning in a LimSup-energy game 〈G,w〉 if and only if it is winning in LimInf-energy game 〈G,w〉. Therefore, we call such games limit-energy games.
+
+Given a function [formula] and [formula] with [formula], we denote by w + ε the function that assigns k  ·  w(e)  +  1 to each edge e∈E.
+
+For all games 〈G,w〉, for [formula], player 1 has a winning strategy in the energy game 〈G,w〉 if and only if he has a winning strategy in the limit-energy game 〈G,w + ε〉.
+
+Consider a memoryless strategy σ for player 1, and let C be an arbitrary simple cycle in G(σ). We show below that C is positive according to w + ε if and only if C is nonnegative according to w. Hence, σ is winning in the energy game 〈G,w〉 if and only if it is winning in the limit-energy game 〈G,w + ε〉 by Lemma [\ref=lem:nonnegative-cycles] and Lemma [\ref=lem:positive-cycles].
+
+Strategy Complexity of Energy Parity Games
+
+In this section we show that in energy parity games with n states and d priorities, memory of size 4  ·  n  ·  d  ·  W is sufficient for a winning strategy of player 1 . This amount of memory is exponential (because weights are encoded in binary) and we show that exponential memory is already necessary in the special case of player-1 games where memory of size 2  ·  (n - 1)  ·  W  +  1 may be necessary (and is always sufficient). For player 2, we show that memoryless winning strategies exist. Moreover, if player 1 wins, then the minimum initial credit is at most (n - 1)  ·  W.
+
+Let G be a player-1 energy parity game with n states. If player 1 wins in G from a state q0, then player 1 has a winning strategy from q0 with memory of size 2  ·  (n - 1)  ·  W  +  1 and initial credit (n - 1)  ·  W.
+
+We present a family of player-1 games where memory of size 2  ·  (n - 1)  ·  W  +  1 may be necessary. The example is shown in  [\ref=fig:initial-credit], and the example also shows that initial credit of (n - 1)  ·  W may be necessary. To satisfy the parity condition, the play has to visit the initial state infinitely often, and to maintain the energy positive, the play has to visit the state with the positive-weighted self-loop. Since the paths between these two state have weight - (n - 1)  ·  W, it is easy to see that initial credit (n - 1)  ·  W is necessary, and the self-loop has to be taken M = 2  ·  (n - 1)  ·  W times requiring memory of size M + 1.
+
+We state the next lemma because it is useful in several proofs, though its argument is fairly easy.
+
+Let G be an energy parity game, and for each winning state q let [formula] be the minimum initial credit in q. For all outcomes ρ of an optimal strategy σ in G from a winning state q0, if the initial credit is v(q0)  +  Δ for Δ  ≥  0, then the energy level at all positions of ρ where a state q occurs is at least v(q)  +  Δ.
+
+We show that player 2 needs no memory at all in energy parity games. This result is useful to show that energy parity games are in coNP.
+
+For all energy parity games G, memoryless strategies are sufficient for player 2 (i.e., the minimum initial credit for player 1 does not change if player 2 is restricted to play memoryless).
+
+Finally, we give upper bounds on the memory and initial credit necessary for player 1 in energy parity games. The bounds are established using strategies of a special form that alternate between good-for-energy strategies and attractor strategies, defined as follows.
+
+Good-for-energy strategy. A strategy σ for player 1 is good-for-energy in state q if for all outcomes [formula] of σ such that q0  =  q, for all cycles [formula] in ρ (where k > 0 and qi  =  qi + k), either [formula], or [formula] and γ is even (i.e., min {p(q)|q∈γ} is even). A key result is to show the existence of good-for-energy strategies that are memoryless.
+
+Let [formula] be the set of winning states for player 1 in an energy parity game. Then, there exists a memoryless strategy for player 1 which is good-for-energy in every state [formula].
+
+First, the definition of good-for-energy strategy in a state q can be viewed as a winning strategy in a finite cycle-forming game from q where the game stops when a cycle C is formed, and the winner is determined by the sequence of states in C (and is independent of cyclic permutations). By the results of [\cite=BjorklundSV04], both players have memoryless optimal strategies in this finite cycle-forming game.
+
+Now, assume that player 1 wins an energy parity game from a state q. Towards contradiction, assume that player 1 has no good-for-energy strategy from q0. Then, player 2 would have a memoryless winning strategy in the finite cycle-forming game. Fix this strategy in the original energy parity game and then all cycles have either negative weight, or weight is zero and the least priority is odd. It follows that player 1 looses the energy parity game from q (no matter the value of the initial credit), a contradiction. Hence, player 1 has a memoryless good-for-energy strategy σq from q. Finally, to obtain a uniform good-for-energy strategy [formula], fix a (total) order on the states: [formula], and let R(qi) be the set of all states occurring in the outcomes of σqi. Then [formula] where j  =   min {k|qi∈R(qk)}.
+
+Attractor. The player-1 attractor of a given set S  ⊆  Q is the set of states from which player 1 can force to reach a state in S. It is defined as the limit Attr1(S) of the sequence A0  =  S, [formula] for all i  ≥  0. The player-2 attractor Attr2(S) is defined symmetrically. Note that for i = 1,2, the subgraph of G induced by [formula] is again a game graph (i.e., every state has an outgoing edge). It is well known that attractors can be computed in polynomial time.
+
+For all energy parity games G with n states and d priorities, if player 1 wins from a state q0, then player 1 has a winning strategy from q0 with memory of size 4  ·  n  ·  d  ·  W and initial credit (n - 1)  ·  W.
+
+The following theorem summarizes the upper bounds on memory requirement in energy parity games. Note that player 1 may need exponential memory as illustrated in Example [\ref=examp:memory].
+
+For all energy parity games, the following assertions hold: (1) winning strategies with memory of size 4  ·  n  ·  d  ·  W exist for player 1; (2) memoryless winning strategies exist for player 2.
+
+Limit-energy parity games
+
+Equivalent of Lemma [\ref=lem:one-player-epg] and Lemma [\ref=lem:two-player-epg] ?? Define the Büchi condition on edges of GM as follows: edges ((q,x),(q',x'))∈E' is Büchi-accepting if x'  <  x  +  w(q,q').
+
+Let G be a player-1 limit-energy parity game and let [formula]. If player 1 wins in G from a state q0∈Q, then player 1 wins in the parity game GM with Büchi condition on edges from state [formula].
+
+For all limit-energy parity games G, if player 1 wins, then player 1 has a winning strategy with memory of size at most [formula] that wins with initial credit [formula].
+
+Computational Complexity of Energy Parity Games
+
+We show that the initial credit problem for energy parity games is in NP [formula] coNP. This may be surprising since exponential memory may be necessary for player 1 to win. However, winning strategies with a special structure (that alternate between good-for-energy strategies and attractor strategies) can be constructed and this entails the NP upper bound.
+
+Let G be an energy parity game. The problem of deciding, given a state q0 and a memoryless strategy σ, whether σ is good-for-energy in q0, can be solved in polynomial time.
+
+We first establish the NP membership of the initial credit problem for the case of energy parity games with two priorities. For energy coBüchi games, the result is obtained by showing that memoryless strategies are sufficient, and for energy Büchi games, the proof gives a good flavor of the argument in the general case.
+
+Memoryless strategies are sufficient for player 1 to win energy coBüchi games (i.e., the minimum initial credit for player 1 does not change if player 1 is restricted to play memoryless).
+
+The problem of deciding, given a state q in an energy Büchi (resp. coBüchi) game G, if there exists a finite initial credit such that player 1 wins in G from q is in NP.
+
+By Lemma [\ref=lem:coBuchi-memoryless], an NP-algorithm for energy coBüchi games 〈G,p,w〉 guesses a memoryless strategy σ and checks in polynomial time that σ is winning for both the energy game 〈G,w〉 and the coBüchi game 〈G,p〉. This ensures that all cycles in [formula] are positive (for energy) and visit only priority-2 states, and thus σ is winning in the energy coBüchi game.
+
+For energy Büchi games, let [formula] be the set of winning states for player 1 in 〈G,p,w〉, and let [formula] be the subgraph of G induced by [formula]. Clearly there exists a memoryless strategy σb in [formula] that enforces a visit to a priority-0 state from every state in [formula], and there exists a memoryless good-for-energy strategy [formula] in [formula] (by Lemma [\ref=lem:good-for-energy]). We show that the converse holds: if such strategies σb and [formula] exist, then player 1 wins in the energy Büchi game 〈G,p,w〉. Let [formula] be the number of states. To prove this, we give an informal description of a winning strategy for player 1 (with initial credit (n - 1)  ·  W) as follows: (1) play strategy [formula] as long as the energy level is below 2  ·  (n - 1)  ·  W; (2) if the energy level gets higher than 2  ·  (n - 1)  ·  W, then play σb until a priority-0 state is visited (thus σb is played during at most n - 1 steps), and proceed to step (1) with energy level at least (n - 1)  ·  W.
+
+Let ρ be an outcome of this strategy with initial credit (n - 1)  ·  W. First, we show that the energy level is nonnegative in every position of ρ. By definition of good-for-energy strategies, in every cycle of [formula] the sum of the weights is nonnegative. Therefore in the prefixes of ρ corresponding to part (1) of the strategy, the energy level is always nonnegative. Whenever, part (2) of the strategy is played, the energy level is at least 2  ·  (n - 1)  ·  W and thus after (at most) n - 1 steps of playing σb, the energy level is still at least (n - 1)  ·  W, and the argument can be repeated. Second, we show that priority-0 states are visited infinitely often in ρ. This is obvious if part (2) of the strategy is played infinitely often; otherwise, from some point in ρ, part (1) of the strategy is played forever which implies that in the cycle decomposition of ρ, ultimately all cycles have sum of weights equal to zero. By definition of good-for-energy strategies, every such cycle is even, i.e., visits a priority-0 state.
+
+Therefore, an NP-algorithm for energy Büchi games guesses the set [formula] and the memoryless strategies σb and [formula] on [formula], and checks in polynomial time using standard graph algorithms that σb enforces a visit to a priority-0 state in [formula], that [formula] is good-for-energy (see Lemma [\ref=lem:good-for-credit-NP]), and that [formula].
+
+The problem of deciding, given a state q in an energy parity game G, if there exists a finite initial credit such that player 1 wins in G from q is in NP.
+
+The problem of deciding the existence of a finite initial credit for energy parity games is in NP [formula] coNP.
+
+Algorithm for Energy Parity Games
+
+We present an algorithm to decide the winner in energy parity games with complexity exponential in the number of states (as for parity games), but linear in the largest weight (as for energy games). Our algorithm is based on a procedure to construct memoryless good-for-energy strategies. To obtain a good-for-energy strategy, we modify the weights in the game so that every simple cycle with (original) sum of weight 0 gets a strictly positive weight if it is even, and a strictly negative weight if it is odd. Formally, the new weight function w' is defined by w'(q,q')  =  w(q,q')  +  Δ(q) where [formula] for all q,q'∈Q with k  =  p(q) is the priority of q, and [formula]. Winning strategies in the energy game with modified weights w' correspond to good-for-energy strategies in the original game.
+
+The problem of deciding the existence of a memoryless good-for-energy strategy in energy parity games can be solved in time [formula].
+
+We present a recursive fixpoint algorithm for solving energy parity games, using the result of Lemma [\ref=lem:good-for-energy-complexity]. Our algorithm is a generalization of the classical algorithm of McNaughton [\cite=McNaughton93] and Zielonka [\cite=Zielonka98] for solving parity games. The formal description of the algorithm is shown as Algorithm [\ref=alg:energy-parity-solve].
+
+Informal description and correctness of Algorithm [\ref=alg:energy-parity-solve]. We assume without loss of generality that the least priority in the input game graph is either 0 or 1; if not, then we can reduce the priority in every state by 2. The algorithm considers two cases: (a) when the minimum priority is 0, and (b) when the minimum priority is 1. The details of the two cases are as follows:
+
+If the least priority in the game is 0, then we compute the winning states of Player 1 as the limit of a decreasing sequence [formula] of sets. Each iteration removes from Ai some states that are winning for Player 2. The set A'i  ⊆  Ai contains the states having a good-for-energy strategy (line [\ref=alg:Ai]) which is a necessary condition to win, according to Lemma [\ref=lem:good-for-energy]. We decompose A'i into Xi and [formula], where Xi is the set of states from which Player 1 can force a visit to priority-0 states, and [formula] has less priorities than A'i. The winning states Zi in [formula] for Player 2 are also winning in the original game (as in [formula] Player 1 has no edge going out of [formula]). Therefore we remove Zi and Player-2 attractor to Zi in Ai + 1. The correctness argument for this case is similar to the proof of Lemma [\ref=lem:en-parity-NP], namely that when Ai  =  A'i  =  Ai - 1, Player 1 wins by playing a winning strategy in [formula] (which exists by an inductive argument on the number of recursive calls of the algorithm), and whenever the game enters Xi, then Player 1 can survive while forcing a visit to a priority-0 state, and then uses a good-for-energy strategy to recover enough energy to proceed.
+
+The second part of the algorithm (when the least priority in the game is 1) computes a decreasing sequence [formula] of sets containing the winning states of Player 2. The correctness is proven in a symmetric way using the same argument as in the second part of the proof of Lemma [\ref=lem:en-parity-NP].
+
+We obtain the following result, where d is the number of priorities in the game, and W is the largest weight.
+
+The problem of deciding the existence of a finite initial credit for energy parity games can be solved in time [formula].
+
+Energy Büchi and coBüchi games. In the special case of energy Büchi objectives, since d is constant (d = 2), the analysis in the proof of Theorem [\ref=theo:en-parity-alg] gives time complexity [formula]. In the case of energy coBüchi objectives, the smallest priority is 1 and there is only one other priority. In this case, line [\ref=alg:CB] of Algorithm [\ref=alg:energy-parity-solve] requires to solve an energy parity game with one priority which can be solved as simple energy games in [formula]. Thus in the special case of energy coBüchi objectives Algorithm [\ref=alg:energy-parity-solve] has [formula] running time.
+
+Computing the minimum initial credit. Note that if the procedure SolveEnergyGame used in Algorithm [\ref=alg:energy-parity-solve] also computes the minimum initial credit v(q) in each winning state q of the energy game 〈Gi,w'〉 (and it is the case of the algorithm in [\cite=CB09] [\cite=DGR09]), then we can also obtain the minimum initial credit in the energy parity game 〈G,p,w〉 by rounding v(q) to an integer, either up or down. Therefore, computing the minimum initial credit in energy parity games can be done in time [formula].
+
+Our results about the memory requirement of strategies, and the computational and algorithmic complexity of energy parity games are summarized in Table [\ref=tab2].
+
+Relationship with Mean-payoff Parity Games
+
+We show that there is a tight relationship between energy parity games and mean-payoff parity games. The work in [\cite=ChatterjeeHJ05] shows that optimal strategies in mean-payoff parity games may require infinite memory, though they can be decomposed into several memoryless strategies. We show that energy parity games are polynomially equivalent to mean-payoff parity games, leading to NP [formula] coNP membership of the problem of deciding the winner in mean-payoff parity games, and leading to an algorithm for solving such games which is conceptually much simpler than the algorithm of [\cite=ChatterjeeHJ05], with essentially the same complexity (linear in the largest weight, and exponential in the number of states only).
+
+Let 〈G,p,w〉 be a game, and let [formula]. Player 1 has a winning strategy in the mean-payoff parity game 〈G,p,w〉 if and only if player 1 has a winning strategy in the energy parity game 〈G,p,w + ε〉.
+
+Given a mean-payoff parity game, whether player 1 has a winning strategy from a state q0 can be decided in NP [formula] coNP.
+
+The problem of deciding the winner in mean-payoff parity games can be solved in time [formula].
+
+Questions for future work
+
+Are energy parity games in UP [formula] coUP ?
+
+What about "fixed initial credit" question ?
+
+What about other combination of parity and energy, such as disjunction of parity and energy condition ?
+
+Is the value problem (i.e., to decide if a given initial credit c  <  n  ·  W is sufficient to win from given initial state q) at least as hard as solving MPP-game ?
+
+What is the complexity of deciding if there exists a winning finite-memory strategy for MPP games ?
+
+Remark:
+
+Deciding if there exists a winning memoryless strategy in EP is in NP [formula] coNP, and is at least as difficult as solving energy games (and themselves are at least as difficult to solve as parity games)
+
+MP →   EP:
+
+Assume that player 1 wins from a state q0 in the mean-payoff parity game 〈G,p,w〉. Then, for all ε  >  0 there exists a finite-memory winning strategy σ in G with threshold -  ε from q0  [\cite=ChatterjeeHJ05]. We show that σ is winning in the energy parity game 〈G,p,w + ε〉 from q0.
+
+Consider the graph [formula]. By definition of σ, the average of the weights (according to w) in all cycles of [formula] reachable from q0 is at least -  ε, and the least priority in every such cycle is even. Therefore, in every outcome of σ from q0, the parity condition is satisfied, and the sum of weights (according to w + ε) is nonnegative, hence σ is winning in the energy parity game 〈G,p,w + ε〉 from q0, with initial credit [formula].
+
+EP →   MP:
+
+Assume that player 1 wins from a state q0 in the energy parity game 〈G,p,w + ε〉. Then, there exists a finite-memory strategy σ in G from q0 that ensures in Gσ that all cycles reachable from q0 have least priority even, and nonnegative sum of weights (according to w + ε), i.e., the average of the weights (according to w) is at least -  ε. Therefore, the value of strategy σ in the mean-payoff parity game 〈G,p,w〉 from q0 is at least -  ε.
+
+Now, the results of [\cite=ChatterjeeHJ05] show that the optimal value that player 1 can ensure in a mean-payoff parity game is a rational number of the form [formula] such that [formula] and [formula]. Therefore, since [formula], there must exist a strategy for player 1 in 〈G,p,w〉 from q0 with value at least 0, hence player 1 is winning in the mean-payoff parity game 〈G,p,w〉 from q0.
+
+Acknowledgements. We thank Thomas A. Henzinger and Barbara Jobstmann for inspiring discussions, and Patricia Bouyer, Nicolas Markey, Jörg Olschewski, and Michael Ummels for helpful comments on a preliminary draft.
+
+Proofs
+
+Since G is a player-1 energy parity game, we have Q1  =  Q and [formula]. Consider an outcome ρ of an optimal strategy for player 1 in G. Note that the minimal priority of the states in [formula] is even, that [formula] is strongly connected, and that there exists a suffix ρ' of ρ that only contains states in [formula]. Let [formula] be the cycle decomposition of ρ'. We consider two cases.
+
+First, if Σe∈Ciw(e)  >  0 for some cycle Ci, then we construct a winning strategy for player 1 as follows. From the starting state, reach a state of Ci and go through Ci once. This can be done with initial credit (n - 1)  ·  W. Now, pump the cycle to get the energy level above 2  ·  (n - 1)  ·  W, and then reach a state of [formula] with minimal priority (this consumes at most (n - 1)  ·  W units of energy) and go back to the cycle (which also consumes at most (n - 1)  ·  W units of energy). Hence, at this point the energy level is still positive, and we can iterate (i) pumping the positive cycle, (ii) reach the minimal even priority, and (iii) go back to the cycle. This defines a winning strategy with memory of size 2  ·  (n - 1)  ·  W  +  1 and initial credit (n - 1)  ·  W.
+
+Second, if Σe∈Ciw(e)  ≤  0 for all cycles Ci (i  ≥  1), then it is easy to see that there exists k  ≥  1 such that Σe∈Cjw(e)  =  0 for all j  ≥  k. Since the parity condition is satisfied in ρ, the minimal priority of the states in [formula] is visited by some cycle Cj (j  ≥  k). We construct a winning strategy for player 1 as follows. From the starting state, reach a state of Cj and go through Cj forever. This can be done with initial credit (n - 1)  ·  W and it is clearly a winning strategy.
+
+In both cases, player 1 wins with memory of size 2  ·  (n - 1)  ·  W  +  1 and initial credit (n - 1)  ·  W.
+
+It is easy to see that for all outcomes ρ of σ in G, the energy level at all positions of ρ where q occurs must be at least v(q) (otherwise if a q-position has energy level below v(q), then player 2 can win from that position, and therefore wins in the original game in contradiction with optimality of σ). Hence, since strategies are functions of sequence of states only (and not of their energy level), if we start with energy level v(q0)  +  Δ, then the energy level at all positions of an outcome of σ is greater by Δ than if we had started with energy level v(q0). In particular, for all positions where q occurs in an outcome of σ, the energy level is at least v(q)  +  Δ.
+
+Without loss of generality, we assume that every player-2 state has two outgoing edges. The proof is by induction on the number of player-2 states. If [formula], then the result is trivial. Assume that the result holds for all energy parity games with [formula] and let G be an energy parity games with [formula].
+
+Consider some player-2 state [formula] with outgoing edges el  =  (,ql) and er  =  (,qr). Let Gl and Gr be the game graphs obtained from G by removing the edges er and el respectively. By the induction hypothesis, memoryless strategies are sufficient for player 2 in Gl and Gr. For each q∈Q, let vl(q) and vr(q) be the minimal initial credit for player 1 from q in Gl and Gr respectively, and let σl and σr be corresponding optimal strategies for player 1. Assume without loss of generality that vl()  ≥  vr().
+
+First, we show that for all q∈Q the initial credit vl(q) in q is sufficient to win in Gr, i.e., vl(q)  ≥  vr(q) [formula]. To obtain this, we play in Gr from q as would play an optimal strategy in Gl and if we reach [formula], then we play an optimal strategy starting from [formula] in Gr. Consider an outcome ρ∈Qω of this strategy. Either ρ never visits [formula] and then the initial credit vl(q) is clearly sufficient to win, or ρ eventually visits [formula] once and then the energy level is at least vl()  ≥  vr() by Lemma [\ref=lem:energy-is-monotone] in Gl (since we played as in Gl so far). Since from there on we play as in Gr, the energy level of ρ never drops below 0.
+
+Second, we construct a strategy σlr for player 1 in G that wins with initial credit max {vl(q),vr(q)} from every q∈Q, establishing the result. Given a prefix τ∈Q*Q1, if [formula] does not occur in τ, then the strategy plays as in Gl, i.e., σlr(τ)  =  σl(τ). If [formula] occurs in τ, then we decompose τ into segments as follows: a finite prefix before the first visit to [formula], then a (possibly empty) sequence of cycles over [formula] (these cycles are not necessarily simple, but they do not contain nested cycles over [formula]), and then a (possibly empty) finite suffix after the last visit to [formula]. We label the cycles and the suffix with l if el was taken from [formula], and with r if er was taken. If the last segment in τ is labeled by d∈{l,r}, then the strategy for player 1 in G plays as the optimal strategy in Gd applied to the prefix τd obtained from τ by taking out the finite prefix and all segments not labeled by d, i.e. σlr(τ)  =  σd(τd).
+
+Now for all q∈Q, we show that σlr is winning in G from q with initial credit v(q)  =   max {vl(q),vr(q)}, i.e., we show that v(q)  =  vl(q) (by [formula]). Note that if vl(q)  =    ∞   (or vr(q)  =    ∞  ), then clearly v(q)  =    ∞   against player 2 playing as in Gl (or Gr). So, we assume that vl(q) and vr(q) are finite. Let ρ be an outcome of the strategy σlr. If ρ never visits [formula], then σlr has played as σl and the initial credit vl(q) is sufficient to win. If ρ visits [formula], then we decompose ρ into segments as above (there may be no "suffix" if [formula] is visited infinitely often) and we obtain ρd for d∈{l,r} by removing from ρ the prefix up to the first visit to [formula], and all segments not labeled by d. Note that the initial state is [formula] in both ρl and ρr. Since the initial credit in q is vl(q), we know that the energy level in the first visit to [formula] in ρ is at least vl()  ≥  vr() (since σlr played as σl in Gl so far). By definition of σlr, we also know that ρl and ρr are outcomes of optimal strategies in Gl and Gr respectively. Therefore the energy level in every position of ρl and ρr where state [formula] occurs is greater than the energy level in their initial position (using Lemma [\ref=lem:energy-is-monotone]). We say that the effect of ρl and ρr on the energy level in [formula] is nonnegative.
+
+Therefore, if we consider the positions in ρ where [formula] occurs, if the position is in a d-labeled segment (d∈{l,r}), then the energy level is at least the energy level in the corresponding position in ρd (because the effect on the energy level of the [formula]-labeled segments before that position is nonnegative - where   =  l if d  =  r and vice versa). Therefore, the energy level in ρ never drops below 0. Moreover, among ρl and ρr, those that are infinite satisfy the parity condition, so that that ρ also satisfies the parity condition. Hence, ρ satisfies the energy parity condition.
+
+We prove by induction a slightly stronger statement, namely that player 1 has a winning strategy with memory of size 4  ·  n  ·  d  ·  W, where [formula], and such that all its outcomes with initial credit x  ≥  (n - 1)  ·  W have energy level always at least x  -  n  ·  W (and this strategy is winning from every state where player 1 wins in G, thus including q0).
+
+For the case of d = 1 priority, either the priority is odd and all states are loosing for player 1 (hence, the result holds trivially), or the priority is even and the energy parity game reduces to an energy game which can be won by player 1 with a memoryless strategy and initial credit (n - 1)  ·  W from every winning state ([\cite=CAHS03] [\cite=BFLMS08] [\cite=DGR09]). By Lemma [\ref=lem:energy-is-monotone], if the initial credit is x  ≥  (n - 1)  ·  W, then the same strategy ensures that the energy level is always at least x  -  (n - 1)  ·  W.
+
+By induction, assume that the statement holds for all energy parity games G with d - 1 priorities. Consider a winning state q0 in an energy parity games G with d priorities. By Lemma [\ref=lem:good-for-energy], player 1 has a memoryless strategy [formula] which is good-for-energy from every winning state of G.
+
+A. Assume that the least priority in G is even (say it is 0). Let [formula] be the set of winning states for player 1 in G (thus [formula]), and let Ω0 be the player-1 attractor of priority-0 states in the subgraph of G induced by [formula]. We construct a winning strategy as follows (for clarity, we call the initial credit x though the strategy definition is independent of the value of x):
+
+play [formula] until the energy level has increased by Δ  =  2  ·  n  ·  W (i.e., the energy level has reached x  +  Δ) and proceed to (2) with energy level x'  =  x  +  Δ, or play [formula] forever if the energy level never reaches x  +  Δ;
+
+(a) if the current state of the game is not in Ω0, then play a winning strategy in the subgame induced by [formula] (which has at most d - 1 priorities) and such that the energy level never drops below x'  -  n  ·  W (such a strategy exists by induction hypothesis); (b) whenever the game reaches Ω0, then play a memoryless strategy to reach a priority-0 state (this may decrease the energy level by n  ·  W), and proceed to (1) with energy level at least x'  -  2  ·  n  ·  W  ≥  x;
+
+We show that this strategy is winning in G from every state in [formula]. First, we show that the energy level never drops below x  -  (n - 1)  ·  W  ≥  0 if the initial credit is x  ≥  (n - 1)  ·  W (and thus in particular never drops below 0). In phase (1), the energy level is always at least x  -  (n - 1)  ·  W  ≥  0 since [formula] is memoryless and good-for-energy. If the strategy switches to phase (2), then we have already seen that the energy never drops below x'  -  2  ·  n  ·  W  ≥  x. Therefore the energy level never drops below 0 while playing this strategy. Second, we show that the parity condition is satisfied. We consider three possible cases: (i) if phases (1) and (2) are played infinitely often, then priority 0 is visited infinitely often and the parity condition is satisfied; (ii) if phase (1) is played finitely often, then eventually phase (2) is played forever, which means that we play a winning strategy in the subgame induced by [formula]. Therefore, the parity condition is satisfied in the game (since the parity objective is independent of finite prefixes); (iii) if phase (2) is played finitely often, then eventually phase (1) is played forever, which implies that eventually all visited cycles have weight 0, which entails that their least priority is even (by definition of good-for-energy strategies), hence so is the least priority visited infinitely often.
+
+Now, we analyze the amount of memory needed by this strategy. In phase (1), we need to remember the energy level variation, which is between  - (n - 1)  ·  W and 2  ·  n  ·  W, thus can be done with memory of size at most 3  ·  n  ·  W. In phase (2), the subgame strategy has memory size bounded by 4  ·  n  ·  (d - 1)  ·  W (by induction hypothesis), and the attractor strategy is memoryless. Hence, the size of the memory needed is at most 4  ·  n  ·  (d - 1)  ·  W  +  3  ·  n  ·  W + 1  ≤  4  ·  n  ·  d  ·  W.
+
+B. Assume that the least priority in G is odd (say it is 1). Let [formula] be the set of winning states for player 1 in G (thus [formula]), and let Ω1 be the player-2 attractor of priority-1 states in the subgraph of G induced by [formula]. By an argument similar to the proof of Lemma [\ref=lem:coBuchi-memoryless], the set [formula] of states in the subgame induced by [formula] that are winning (for energy parity objective) is nonempty, and player 1 is winning in the subgame induced by [formula]. We construct a winning strategy on [formula] as follows (for clarity, we call the initial credit x though the strategy definition is independent of the value of x):
+
+play a memoryless strategy to reach [formula] (let Δ1 be the cost in energy), and proceed to (2) with energy level x'  =  x  -  Δ1,;
+
+in [formula], play a winning strategy in the subgame induced by [formula] (which has at most d - 1 priorities) and such that the energy level never drops below x'  -  Δ2 (where [formula]) (such a strategy exists by induction hypothesis); note that [formula].
+
+We apply the same construction recursively to the subgame induced by [formula], and call the corresponding energy drops Δ3, Δ4, etc.
+
+We show that this strategy is winning in G from every state in [formula]. First, the sum [formula] of energy drops is bounded by [formula] and thus initial credit of (n - 1)  ·  W is enough. Second, the parity condition is satisfied since we eventually play a winning strategy in a subgame where priorities are greater than 1, and without visiting priority 1. The amount of memory needed is the sum of the memory size of the strategies in the sets [formula] (of size k1, k2, etc.), and of the memoryless attractor strategies (of size 1), hence at most [formula].
+
+Consider the restriction Ĝ of the graph Gσ to the states reachable from q0 under strategy σ. First, for each state q in this graph, an algorithm for the shortest path problem can be used to check in polynomial time that every cycle through q has nonnegative sum of weights. Second, for each state q with odd priority p(q), the same algorithm checks that every cycle through q in the restriction of Ĝ to the states with priority at least p(q) has (strictly) positive sum of weights.
+
+Let 〈G,p,w〉 be an energy coBüchi games with G = 〈Q,E〉 (thus p:Q  →  {1,2}). Let [formula] be the set of states from which player 1 wins in G. Note that the subgraph of G induced by [formula] is a game graph. The proof is by induction on the size of [formula]. For [formula], the result of the lemma is trivial: player 1 wins with memoryless strategy and initial credit 0. By induction hypothesis, assume that for [formula], player 1 wins from every state in [formula] with memoryless strategy and initial credit [formula]. Let [formula].
+
+Let Ω1  ⊆  Q be the player-2 attractor of priority-1 states (i.e., Ω1 is the set of states from which player 2 can force to reach a state with priority 1). Consider the subgraph G' of G induced by [formula]. We claim that player 1 has a (memoryless) winning strategy in the energy game 〈G',w〉 from some state q'. We show this by contradiction. Assume that player 2 has a (memoryless) spoiling strategy π on [formula] in the energy game 〈G',w〉, and consider the (memoryless) extension of π to Ω1 that enforces to reach priority-1 states. Let ρ be an outcome of this strategy. Either ρ visits Ω1 (and also priority-1 states) infinitely often and thus violates the coBüchi condition, or ρ eventually stays in [formula] and violates the energy condition. This contradicts that player 1 wins in G from [formula]. Hence, the set of winning states for player 1 in the energy game 〈G',w〉 is nonempty, and player 1 is winning with a memoryless strategy (by properties of energy games). Note that since all states in G' have priority 2, this memoryless strategy is also winning for the energy coBüchi condition. Let [formula] be the player-1 attractor of this winning set. Player 1 has a memoryless winning strategy σe from all states in [formula], and properties of energy games show that an initial credit of [formula] is sufficient.
+
+Now, consider the subgraph G'' of G induced by [formula]. It is easy to see that player 1 wins everywhere in the energy coBüchi game 〈G'',p,w〉. Therefore by induction hypothesis, initial credit [formula] is sufficient. Since [formula], player 1 can start in any state of [formula] with initial credit [formula] and while the game stays in G'', guarantee that the energy level is always at least [formula], so that whenever the game leaves Q'', player 1 has enough credit to use the memoryless winning strategy σe on [formula].
+
+We prove that there exists an NP algorithm that guesses the set of winning states in G, which entails the lemma. The result holds for energy parity games with two priorities by Lemma [\ref=lem:buchi-cobuchi-np]. Assume by induction that the result holds for games with less than d priorities, and let G be an energy parity game with d priorities and n states.
+
+First, if the least priority in G is even (assume w.l.o.g. that the least priority is 0), an NP algorithm guesses (i) the set [formula] of winning states in G, and (ii) a memoryless good-for-energy strategy [formula] on [formula] which must exist by Lemma [\ref=lem:good-for-energy] (this can be done in polynomial time by Lemma [\ref=lem:good-for-credit-NP]). Let Ω0 be the player-1 attractor of priority-0 states in the subgraph of G induced by [formula]. By induction, we can check in NP that player 1 is winning in the subgraph of G induced by [formula] (because this game has less than d priorities). This is sufficient to establish that player 1 wins in G with initial credit n  ·  W, using the following strategy: (1) play strategy [formula] as long as the energy level is below 3  ·  n  ·  W; (2) while the game is in [formula], we know that player 1 can play a winning strategy that needs initial credit at most n  ·  W and such that the energy level never may drop by at most n  ·  W (see the proof of Lemma [\ref=lem:two-player-epg]), and therefore (3) if the game leaves [formula], then the energy level is at least 2  ·  n  ·  W which is enough for player 1 to survive while enforcing a visit to a priority-0 state (within at most [formula] steps) and to proceed to step (1) with energy level at least n  ·  W. Arguments similar to the proof of Lemma [\ref=lem:buchi-cobuchi-np] shows that this strategy is winning, with initial credit n  ·  W. The time complexity of this algorithm is T(n)  =  p(n)  +  T(n - 1) where p(  ·  ) is a polynomial (linear) function for the time complexity of guessing [formula] and [formula], checking that [formula] is good-for-energy, and computing the the player-1 attractor of priority-0 states Ω0. Therefore T(n)  =  O(n2).
+
+Second, if the least priority in G is odd (assume w.l.o.g. that the least priority is 1), consider the set [formula] of winning states in G, and Ω1 the player 2 attractor of priority-1 states in the subgame of G induced by [formula]. By an argument similar to the proof of Lemma [\ref=lem:coBuchi-memoryless], the set [formula] of states in the subgame induced by [formula] that are winning (for energy parity objective) is nonempty, and player 1 is winning in the subgame induced by [formula]. An NP algorithm guesses the sets [formula] and [formula], and checks that player 1 is winning in [formula] (which can be done in NP, since [formula] has less than d priorities), and that player 1 is winning in [formula] which can be done in NP, as shown by an induction proof on the number of states in the game since the case of games with one state is clearly solvable in NP.
+
+By Lemma [\ref=lem:en-parity-NP], the problem is in NP, and since memoryless strategies are sufficient for player 2 (by Lemma [\ref=lem:player-two-memoryless]), a coNP algorithm can guess a memoryless spoiling strategy and check in polynomial time that all cycles in the graph induced by this strategy are either odd, or have negative sum of weight, which can be done with algorithmic graph techniques similar to the proof of Lemma [\ref=lem:good-for-credit-NP].
+
+Given an energy parity game 〈G,p,w〉, we construct a weight function w' such that Player 1 has a memoryless good-for-energy strategy in 〈G,p,w〉 if and only if Player 1 wins in the energy game 〈G,w'〉. The maximal weight according to w' becomes [formula], and the complexity result then follows from the algorithm of [\cite=CB09] [\cite=DGR09] which solves energy games in [formula].
+
+Let [formula] be the priorities in the energy parity game, and denote by [formula] the energy level function defined according to w'. The function w' is defined by w'(q,q')  =  w(q,q')  +  Δ(q) where
+
+[formula]
+
+for all q,q'∈Q with k  =  p(q) and [formula]. Note that [formula] for all q∈Q with k  =  p(q), and in particular [formula] for all q∈Q. Therefore, [formula] and thus if [formula] (i.e., [formula]) for a simple cycle γ in G, then [formula], and if [formula], then [formula]. Moreover, if the least priority of a state in γ is k, then
+
+[formula]
+
+So, for simple cycles γ with [formula], if the least priority in γ is even, then [formula], while if the least priority in γ is odd, then [formula]. Therefore, a (memoryless) winning strategy in the energy game 〈G,w'〉 can be used as a good-for-energy strategy that avoids odd cycles with sum of weights equal to zero. Clearly, the converse also holds, namely if a memoryless strategy is good-for-energy in the energy parity game, then it is winning in the energy game. Note that by multiplying the weights in w' by nd + 1, we get integer weights and the complexity result follows.
+
+This problem is solved by Algorithm [\ref=alg:energy-parity-solve]. The key correctness argument is given above. The complexity result assumes that good-for-energy strategies can be computed in time [formula] (see Lemma [\ref=lem:good-for-energy-complexity]).
+
+Let T(d) be the complexity of Algorithm [\ref=alg:energy-parity-solve], parameterized by the number of priorities in the game. Note that the attractors (lines [\ref=alg:attr1], [\ref=alg:attr2], [\ref=alg:attr3], [\ref=alg:attr4]) can be computed in [formula] which is subsumed by [formula]. Since every recursive call removes at least one state from Ai (or from Bi), there are at most [formula] recursive calls, and since the number of priorities decreases in a recursive call, we get
+
+[formula]
+
+and since [formula], we get [formula]. Since d = 0 corresponds to a game with empty state space, we have T(0)  =  O(1) and it is easy to see that [formula]. The result follows.
+
+We present two directions of the proof.
+
+Assume that player 1 wins from a state q0 in the mean-payoff parity game 〈G,p,w〉. Then, for all ε  >  0 there exists a finite-memory winning strategy σ in G with threshold -  ε from q0 [\cite=ChatterjeeHJ05]. Consider a finite-memory winning strategy σ for [formula]. We show that σ is winning in the energy parity game 〈G,p,w + ε〉 from q0.
+
+Consider the graph [formula]. By definition of σ, the average of the weights (according to w) in all cycles of [formula] reachable from q0 is at least -  ε, and the least priority in every such cycle is even. Therefore, in every outcome of σ from q0, the parity condition is satisfied, and the sum of weights (according to w + ε) is nonnegative, hence σ is winning in the energy parity game 〈G,p,w + ε〉 from q0, with initial credit [formula], where [formula] denotes the number of states in [formula].
+
+Assume that player 1 wins from a state q0 in the energy parity game 〈G,p,w + ε〉. Then, there exists a finite-memory strategy σ in G from q0 that ensures in Gσ that all cycles reachable from q0 have least priority even, and nonnegative sum of weights (according to w + ε), i.e., the average of the weights (according to w) is at least -  ε. Therefore, the value of strategy σ in the mean-payoff parity game 〈G,p,w〉 from q0 is at least -  ε.
+
+Now, the results of [\cite=ChatterjeeHJ05] show that the optimal value that player 1 can ensure in a mean-payoff parity game is a rational number of the form [formula] such that [formula] and [formula]. It follows that if the value for mean-payoff parity games is greater than [formula], then the value is at least 0. Since [formula], it follows that there must exist a strategy for player 1 in 〈G,p,w〉 from q0 with value at least 0, hence player 1 is winning in the mean-payoff parity game 〈G,p,w〉 from q0.
+
+The result follows.

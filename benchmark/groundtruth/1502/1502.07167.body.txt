@@ -1,0 +1,211 @@
+Linear complexity SimRank computation based on the iterative diagonal estimation
+
+Introduction
+
+This paper presents a new method to efficiently compute the SimRank [\cite=SimRank] which is a topologically induced similarity measure between two given vertices of a graph.
+
+Similarity measures for graphs are useful in many applications such as relation mining [\cite=li2013mapreduce], document-by-document querying [\cite=li2009docsim] [\cite=Giles2014] and many others. A major problem in SimRank computation is the high storage and time complexity of the direct iterative process converging to SimRank. Several schemes have been presented for the approximate computation of the SimRank which are based on different concepts [\cite=Lizorkin2010] [\cite=Li2010] [\cite=Fogaras2005]. In this paper we propose a two-step method for the approximation of the SimRank. The first and the most expensive step is the computation where we iteratively estimate the diagonal of the SimRank matrix. After that the SimRank scores can be computed by the approximate solution of the discrete Lyapunov equation. Such approach has been considered in [\cite=Kusumoto2014]. The difference is that instead of using Gauss-Seidel method combined with Monte-Carlo computations to estimate the diagonal we use numerical linear algebra techniques. We prove that the linear system for the diagonal has bounded condition number, and we have an O(n) matrix-by-vector product with guaranteed accuracy, thus inexact GMRES method is the method of choice. Using the theory of IGMRES we get a provable O(n) complexity algorithm for the computation of SimRank scores. The final SimRank approximation is a sparse matrix. We also provide an efficient practical algorithm for the computation of SimRank.
+
+Problem Statement
+
+Let G  =  (V,E) be a graph, where V is a set of vertices and E is a set of edges. The order of the graph is the number of vertices |V|  =  n. Similarity measures between graph vertices are very useful in some applications. One of the approach to define such similarity measure is SimRank [\cite=SimRank]. In the foundation of SimRank definition lies idea that "two objects are similar if they are referenced by the similar objects". It is proposed that vertex similarity lies between 0 and 1 with vertex being maximally similar to itself with similarity 1. By s(a,b) denote the SimRank between vertices a and b defined as
+
+[formula]
+
+where I(v) is the set of in-neighbours of vertex v, constant c∈(0,1). Denote by S a SimRank matrix, where (i,j)-th element is SimRank between i-th and j-th vertices. To find the SimRank matrix S, one writes s(a,b) for all pairs (a,b) of vertices and obtains linear system of n2 equations which has unique solution [\cite=SimRank]. Let A be an adjacency matrix of the graph G normalized by columns:
+
+[formula]
+
+and
+
+[formula]
+
+The SimRank matrix S is the solution of the following equation:
+
+[formula]
+
+and D is the diagonal matrix [formula]. Equation [\eqref=eq::gdl] is typically solved by a fixed-point iteration
+
+[formula]
+
+where [formula] is an operator that maps given matrix P to the diagonal matrix with diagonal entries equal the diagonal entries of the matrix P. The iteration [\eqref=eq::si2] converges if c  <  1. Direct usage of [formula] requires O(n2) memory cells and O(n3) operations for one iteration, thus is infeasible for real-world graphs. In this paper we propose a new Iterative Diagonal Estimation method (IDE-SimRank method) that approximately computes the SimRank in O(n) time and memory.
+
+IDE-SimRank method
+
+In this section we describe IDE-SimRank method and give theoretical foundation which proves the reasoning and accuracy of our method.
+
+From [\eqref=eq::gdl] it is easy to get a linear system with n unknowns. Since [formula] by definition, and
+
+[formula]
+
+where D is a diagonal matrix, we get
+
+[formula]
+
+where F(D) is a linear operator that maps a diagonal matrix (i.e., a vector of length n) to a diagonal matrix (also a vector of length n), and is defined as
+
+[formula]
+
+and S(D) is the solution of the discrete Lyapunov equation
+
+[formula]
+
+So, to evaluate F(D) for a given D we have to solve the discrete Lyapunov equation and take only the diagonal of the solution. This can not be done exactly in O(n) complexity, but it is possible to do approximate computation of F(D) with guaranteed accuracy. Moreover,the operator F(D) is well-conditioned, so it is natural to use iterative methods with inexact matrix-by-vector products to solve [\eqref=simrank:maineq]. Inexact GMRES [\cite=inexact] is typically a method of choice. In order to get a working method, we need two components:
+
+Estimates for the condition number of the linear operator F(D).
+
+Algorithm for the computation of F(D) with a given accuracy ε. (and estimate of its complexity).
+
+Note that the equation [\eqref=simrank:maineq] was used in the paper [\cite=Kusumoto2014] under the name Linearized SimRank. The difference in our approach is that we use sparse matrix arithmetic and inexact iterative method for its solution (compared to the Gauss-Seidel method combined with Monte-Carlo estimation to compute S(D)).
+
+Estimation of condition number of F(D)
+
+Let [formula] be an operator that maps an n  ×  n matrix to a vector of length n2 taking column-by-column. Denote by [formula] an operator that maps a vector v of length n to a vector of length n2, where D(v) is a diagonal matrix with v on the diagonal. Now by a slight abuse of notation let F and S act on a vector d of length n. Then, the matrix corresponding to the operator F(d) can be written using Kronecker products as
+
+[formula]
+
+The matrix P is the submatrix of the n2  ×  n2 identity matrix, thus F is a submatrix of the matrix [formula].
+
+The matrix F is the submatrix of the inverse M-matrix, thus it is also the inverse M-matrix (see [\cite=inv_M]), i.e. it is non-singular. Moreover, its condition number can be bounded.
+
+[formula]
+
+For simplicity, introduce the matrix
+
+[formula]
+
+The matrix Z is nonnegative and ||Z||1  =  c. Since F is a submatrix of the matrix (I  -  Z)- 1, there exists an n2  ×  n2 permutation matrix Q such that
+
+[formula]
+
+and
+
+[formula]
+
+Using well-known formulas for block matrix inversion, the matrix F- 1 can be written as the Schur complement
+
+[formula]
+
+Consequently, the 1-norm of F- 1 is bounded in the following way:
+
+[formula]
+
+The matrices D, B, C are submatrices of the matrix I  -  Z, therefore their norms are bounded by ||I  -  Z||1  ≤  (1  +  c) (the norms of the submatrices can not exceed the norm of the matrix). To estimate ||A- 1||1 note that A is also a principal submatrix of (I  -  Z), thus it can be represented as
+
+[formula]
+
+where ||Ẑ||1  ≤  c, therefore using the standard Neumann series argument
+
+[formula]
+
+Finally,
+
+[formula]
+
+The matrix F is the submatrix of (I  -  Z)- 1, thus
+
+[formula]
+
+and this completes the proof.
+
+Fast approximate matrix-by-vector product
+
+The key component for the efficient solution of the system [\eqref=simrank:maineq] is the fast evaluation of F(D) for a given D. The main computational cost comes from the solution of the discrete Lyapunov equation of the form
+
+[formula]
+
+where D is a diagonal matrix. The solution can be written as
+
+[formula]
+
+where ||RK||1  ≤  cK. The truncated series SK gives an approximation to S(D) with guaranteed accuracy.
+
+Algorithm [\ref=alg::fast_matvec] presents fast approximate matvec algorithm used further in GMRES. In this algorithm the operator [formula] maps given n  ×  n matrix to its n  ×  1 diagonal. Note, that to get O(n) complexity we have introduced thresholding: the elements smaller than τ are zeroed out, and all computations are implement in sparse matrix arithmetic.
+
+The error of the matrix-by-vector product can be estimated by the following theorem.
+
+The result of Algorithm [\ref=alg::fast_matvec] satisfies
+
+[formula]
+
+Suppose that X̂k is the result of Algorithm [\ref=alg::fast_matvec] for τ  =  0 after k steps, and
+
+[formula]
+
+Then,
+
+[formula]
+
+It is obvious that
+
+[formula]
+
+where ηk solves
+
+[formula]
+
+which can be solved as
+
+[formula]
+
+The final result is obtained by using a well-known estimate on the remainder of the Neumann series.
+
+It is easy to get the upper bound on the complexity. The number of terms in the SimRank series to get the accuracy ε can be estimated as log cε- 1. At each step, the diagonal of the matrix [formula] has to be computed. Let m be an average degree of the vertex. Then the sparsity of Wk is bounded by mk, and the evaluation reduces to the evaluation of the column norms of the matrix WkD1 / 2. In practice, however, this bound is a significant overestimation.
+
+Putting it all together
+
+The GMRES algorithm is summarized in Algorithm [\ref=alg::GMRES] [\cite=gmres], and it is assumed that the matrix-by-vector product is exact. All other operations can be easily implemented in O(n) complexity.
+
+If the matrix-by-vector products are inexact, the following Theorem gives the error bound.
+
+[\cite=inexact] After m steps of the inexact GMRES procedure, the following estimation for norm of approximate and real residues holds:
+
+[formula]
+
+if for any i  ≤  m
+
+[formula]
+
+where σm(Hm) is a minimal singular value of the Hessenberg matrix corresponding to GMRES process and Ẽi is an error corresponding to matvec on the i-th iteration.
+
+Comparison with existing methods
+
+SimRank algorithm computes similarities between vertices of the input graph G  =  (V,E). Here we compute a single-source SimRank and a one-pair SimRank. The single-source SimRank is the vector with SimRank scores between given vertex a∈V and all other vertices b∈V. The one-pair SimRank is the similarity measure s(a,b) between two given vertices a and b.
+
+The proposed method has memory requirement O(n) and computational complexity O(n) of the pre-computation step. Moreover, we compute the sparse approximation to the full SimRank matrix.
+
+For the readers convenience computational and memory complexities of the previously proposed methods are presented Table [\ref=tab::tab::single-pair_comparison] and [\ref=tab::single-source_comparison].
+
+Some papers like [\cite=Onizuka2013], [\cite=Li2010], [\cite=Yu2013], [\cite=Yu2015] consider a solution of the exact Sylvester equation without any estimation as SimRank approximation. However, this approach has two fundamental problems. The first problem is that the exact solution of discrete Lyapunov equation is only an approximation to the initial SimRank definition, so this solution leads to additional errors. We treat this problem by estimation of the diagonal item in discrete Lyapunov equation and get the correct approximate discrete Lyapunov equation for SimRank. The second problem is to solve Sylvester equation as proposed in [\cite=Li2010] one needs invert adjacency matrix of the graph which is unstable and leads to loss of sparsity. Instead of invert the matrix of linear operator we use iterative method GMRES with fast approximate matvec implementation.
+
+Numerical experiments
+
+Synthetic test
+
+To confirm the O(n) complexity of the proposed method, we generate random adjacency matrices with fixed number of nonzero elements in every column and compute SimRank for corresponding graphs. The dependence of time on n is shown on Figure [\ref=fig::time_vs_n]. The other parameters are threshold τ  =  10- 4, the scale parameter c  =  0.6 and number of iteration K  =  50. Here nnz is a number of non-zero elements in every column. The computational cost increases when the adjacency matrix becomes more dense, which is natural.
+
+The similar plot for dependence of memory to solve the linear system on the number of vertices n is presented in Figure [\ref=fig::mem_vs_n]. The other parameters are the same: threshold τ  =  10- 4, the scale parameter c  =  0.6 and number of iteration K  =  50. Here nnz is a number of non-zero elements in every column. The plot shows that the required memory linearly or sub-linearly depends on the number of vertices in the graph. But if the adjacency matrix of the graph is enough sparse, then the required memory is constant and does not depend on the number of vertices.
+
+DIMACS10 collection
+
+In this section we experimentally study the approximation accuracy of our method. The experiments are carried out on graphs from DIMACS10 Challenge Collection. The list of the considered graphs is presented in Table [\ref=tab::graphs].
+
+Table [\ref=tab::graphs] presents 1 - NDCG@n measure for convenience. To compute the NDCG@n measure we make q  =  100 random queries to SimRank and SimRank approximation for every graph except chesapeake graph (q  =  39). After that we have two vectors s and s̃ of correct SimRank scores and approximate SimRank scores between query and all other graph vertices. The NDCG measure [\cite=NDCG] is defined by the following equation:
+
+[formula]
+
+where i is an index of concept, according to the sorted approximate SimRank scores s̃, reli  =  si is the ground-truth SimRank score between the query and the i-th vertex, and Z is a normalization constant. The other parameters are c  =  0.6, K  =  50 and τ  =  10- 3. Also nnz is the total number of non-zero elements in the adjacency matrix, nnz / n is the average degree of vertex.
+
+Experiment with Wikipedia
+
+We used Simple English Wikipedia corpus to find semantic relatedness between concepts. The undirected graph corresponding to Simple Wikipedia corpus has 150495 vertices and 4454023 edges. The direct SimRank matrix computation of such large graph is infeasible. Therefore, we assess the quality of our SimRank approximation method not with approximation error but with rationality of the obtained similar concepts. We use the following parameters in the experiment: c  =  0.6, number of iteration k  =  10, τ = 10- 4.
+
+Table [\ref=tab::wiki] shows some examples of similar concepts extracted from Simple English Wikipedia corpus by the proposed SimRank approximation algorithm. Each column hasthe queried concept in the top and the most similar concepts to the queried one in the other rows. Every column is sorted according to SimRank scores given by SimRank matrix approximation. We do not display these scores because of the space limitation: the scores differ in 4-th or 5-th significant figures.
+
+Conclusions and future work
+
+An important research direction is the study of hypergraphs, when the adjacency matrix is replaced by the adjacency tensor. We plan to investigate this issue. Also, the computation of the SimRank by summing of the Neumann series can be improved by using more advanced iterative method, like the IGMRES approach considered here, but it requires a lot of technical work.
+
+Acknowledgements
+
+The authors thank D. Kolesnikov for fruitful discussions.

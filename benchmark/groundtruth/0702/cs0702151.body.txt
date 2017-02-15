@@ -1,0 +1,415 @@
+Figure Theorem Proposition Definition Corollary Example Exercise Remark Figure Table
+
+Succinct Sampling on Streams
+
+Introduction
+
+A data stream is an ordered, possibly infinite, set of elements, [formula], that can be observed only once. The data stream model recently became extremely useful for numerous applications including networking, finance, security, telecommunications, world wide web, and sensor monitoring. Since data streams are unbounded, it is impossible to store all data and analyze it off-line using multiple passes (in contrast to traditional database systems). As a result, precise calculation of some queries or statistics may be infeasible, and approximate solutions are provided. One of the main challenges is to minimize memory requirements, while keeping a desirably precise answer.
+
+Many applications are interested in analyzing only recent data instead of all previously seen elements. The sliding window model, introduced by Babcock, Babu, Datar, Motwani and Widom [\cite=models_issues], reflects this interest. In this model we separate past elements into two sets. The most recent elements represent a window of active elements, whereas others are expired. An active element may eventually become expired, but expired elements stay in this status forever. The sliding window is a set of all currently active elements, i.e., [formula], where N is the current size of a stream and n is the number of active elements frequently refereed to as window's size. Only active elements are relevant for statistics or queries. For the sequence-based model, the window size is predefined and does not depend on the current status of the stream. For the timestamp-based model, each element p is associated with a non-decreasing timestamp, T(p). An element is active if t - T(p)  <  t0, where t is the current timestamp and t0 is some predefined and fixed value. Thus, window's size strictly depends on t and can be any non-negative number. We refer readers to the works of Babcock, Babu, Datar, Motwani and Widom [\cite=models_issues], Muthukrishnan [\cite=strbook] and Aggarwal [\cite=strbook1] for more detailed discussions of these models, and related problems and algorithms.
+
+Questions posed and our results
+
+Random sampling methods are widely used in data stream processing, because of their simplicity and efficiency. What makes these methods attractive for many applications is that they store elements instead of synopses, allowing us to change queries in an ad hoc manner and reuse samples a posteriori, with different algorithms. Further, sampling methods are natural for streams with multi-dimensional elements, while other methods, such as sketches, wavelets and histograms, are not easily extended to multi-dimensional cases. We refer readers to the recent surveys by Datar and Motwani [\cite=strbook1] (Chapter 9) and Muthukrishnan [\cite=strbook] for deeper discussions of these and other advantages of sampling methods. What makes sampling non-trivial is that the domain's size changes constantly, as well as the probabilities associated with elements. We distinguish between sampling with replacement where all samples are independent (and thus can be repeated), and its generalization, sampling without replacement, where repetitions are prohibited. Due to its fundamental nature, the problem has received considerable attention in the last decades. Vitter [\cite=reservoir] presented reservoir sampling, probably the first algorithm for uniform sampling (with and without replacement) over streams. A reservoir is an array with size k where the current samples are stored. We choose pi to be a sample w.p. 1, if 0  ≤  i < k and w.p. [formula] otherwise. If pi is chosen and there is no space in the reservoir, we delete one of the previously chosen samples and put pi instead. This algorithm requires Θ(k) memory and generates uniform random sample without replacement of size k. Numerous sampling methods were developed for different scenarios and distributions. These works include, among many others, concise and counting samplings by Gibbons and Matias [\cite=mg]; priority sampling by Duffield, Lund and Thorup [\cite=priority1], Alon, Duffield, Lund and Thorup [\cite=priority2], and Szegedy [\cite=dlt]; weighted sampling by Chaudhuri, Motwani and Narasayya [\cite=joins]; faster reservoir sampling by Li [\cite=reservoir1]; density sampling by Palmer and Faloutsos [\cite=density_sampling]; and non-uniform reservoir sampling by Kolonko and Wäsch [\cite=reservoir2]. Several data stream models (including sliding windows) allow deletions of stale data. In these models sampling becomes even more challenging, since samples eventually expire and must be replaced. The recent works include chain and priority samplings by Babcock, Datar and Motwani [\cite=sampling]; biased sampling by Aggarwal [\cite=biased]; Aggarwal, Han, Wang, and Yu [\cite=more-biased]; sampling in dynamic streams by Frahling, Indyk, Sohler [\cite=dynamic]; and inverse sampling by Cormode, Muthukrishnan and Rozenbaum [\cite=inverse].
+
+Historic perspective on sampling on sliding windows
+
+In this paper we address the problem of maintaining a random sample of fixed size k for every window. This problem was introduced in the pioneering paper of Babcock, Datar and Motwani [\cite=sampling] and several solutions are known. One possible and well-known method, described in this paper, is periodic or systematic sampling. A sample pi is picked from the first n elements, defining the sequence of all its replacements as [formula]. This method provides a deterministic solution for the sampling problem and uses O(k) memory. However, it was criticized for its inability to deal with periodic data and vulnerability to malicious behavior. For more detailed criticism of periodic sampling see, for example, the papers of Duffield [\cite=sampling_networks] and Paxson, Almes, Mahdavi and Mathis [\cite=networks]. Therefore, the following requirement is important: samples from distinct windows should have either weak or no dependency.
+
+Babcock, Datar and Motwani [\cite=sampling] provided the first effective algorithms that do not possess periodic behavior. The chain algorithm provides samples from sequence-based windows. The algorithm picks every new element w.p. [formula]. In addition, for every chosen element, it uniformly selects and stores its replacement from its n successors, creating a chain of replacements. If a sample expires, its successor in the chain becomes the new sample. The expected size of this chain is constant and O( log (n)) with probability [formula] for a constant c. Repeating this k times gives sampling an expected optimal memory O(k) and a high-probability upper bound O(k log n). Priority sampling provides samples from timestamp-based windows. The algorithm associates each element with a priority, a real number randomly chosen from
+
+[formula]
+
+Our contribution
+
+In this paper we optimally solve the problem of sampling on sliding windows. We refine the requirements above, defining two critical properties of sampling algorithms for sliding windows. First, they must use provably optimal memory. Second, we require complete independence for non-overlapping windows, refining the ideas from [\cite=sampling]. By Succinct Sampling on Streams (or S3) we denote an algorithm that satisfies the above requirements. In this paper we ask the following question: Are S3 algorithms possible, and if so, for what models? We show that S3 algorithms for uniform distribution are possible for all variants of the problem, i.e., both with and without replacement and both for sequence and timestamp-based windows. That is, for all these models we present a matching upper and lower bounds. For sequence-based windows, we use Θ(k) memory to generate a sample with size k, both with and without replacement. For timestamp-based windows, we present Θ(k log n) algorithms, where n is the number of non-expired elements, and prove that this is an optimal solution.
+
+From the theoretical perspective, S3 algorithms are important since their improvements over the chain and priority methods can be arbitrarily large, in the worst case. That is, for any m = o(n) there exists a data stream D such that the ratio between maximal memory over all windows for the previous solutions and S3 algorithms is at least m. Consider, for instance, chain sampling where a chain of replacement is maintained. The probability that each of k chains in [\cite=sampling] has length m (or larger) is at least 1 / mkm. Therefore, for streams with size N  ≥  mmk, the expected maximal memory usage over all windows is at least Ω(mk). In contrast, our method requires O(k) memory. A similar result can be obtained for timestamp-based windows.
+
+One may argue that in practice the requirement of producing a sample for every window is too rigid. The relaxed version of the problem, where samples are outputted for all windows except a small fraction, is sufficient. Indeed, any statistic that is based on sampling accepts an error with small probability. Thus, by cutting off the windows with large chains, we can maintains the desired statistics and only increase the probability of error by a negligible amount. Moreover, if the size of the entire stream is polynomial in the window size, i.e., N  =  poly(n), then the probability of error on the whole stream can be made as small as 1 / poly(N). As a result, one may claim that the improvement provided in our paper is incremental, from the practical perspective. This argument is flawed for two important reasons.
+
+First, this argument misses the important point that for a constant number of samples, our algorithms are asymptotically superior then the previous algorithms. Even for the relaxed version of the problem, S3 algorithms are strictly superior to the previous solutions. In fact, we need at most two samples per window for sequence-based windows and at most 3 log n samples for timestamp-based windows plus 4 log 2n bits. In contrast, the previous solutions accept memory fluctuations. Restricting these solutions to the cases where memory bounds are close to ours creates a bias toward recent elements, resulting in non-uniform sampling. To illustrate this point, let pi be a conditional probability of the N - i-th element to be chosen, given that the size of the chain is bounded by 2. Then we can show that p0 / pn  ≥  2. The bias for priority sampling is smaller; nevertheless, it is computationally distinguishable for polynomially bounded streams. Thus, S3 sampling either strictly improves the memory usage or eliminates the non-uniformity of samples (or both). Both properties are of the great importance for practical applications, as has been pointed out in [\cite=networks].
+
+Second, our results are new in the following sense. As we mentioned above, deletions introduce additional difficulties: samples expire and the size of the domain is unknown. Efficient algorithms for various streaming models that support deletions exist, such as dynamic sampling [\cite=dynamic], inverse sampling [\cite=inverse] and biased sampling [\cite=biased]. However, all of these results accept a small probability of failure, either in terms of distribution or in terms of memory guarantees. S3 algorithms are the first schemas that support 0 probability of error. We are able to generate random events with probability [formula], even without actually knowing the precise value of n. Thus, our technique is of independent interest and can possibly be used in other models that support deletions.
+
+Probably the most important impact of our results is the ability to translate any streaming algorithm that is based on uniform sampling to sliding windows, while preserving worst-case memory guarantees. To emphasize this point, we present in Section 6 a "sample" of such algorithms. The questions asked there have natural extensions to sliding windows. Translation of these algorithms to sliding windows is straightforward: we replace the underlaying sampling algorithm with S3. In particular, we address the following problems: frequency moments, counting triangles in graphs, entropy estimation, and density estimation. We believe that this is only a small subset of problems that can be addressed using S3, and thus it may become a powerful tool in the sliding windows model.
+
+A new sampling method - high-level ideas
+
+For the sequence-based window, we divide the stream into buckets with a size the same as the window. For each of them we maintain a sample. At any time, the window intersects up to two buckets, say B1, B2. For a single sample the algorithm is simple: if the sample from B1 is active, choose it; otherwise choose the sample from B2. Since the number of expired elements in B1 is equal to the number of arrived elements in B2, the uniform distribution is preserved. To create a k-sample with replacement, we repeat the procedure k times. We can generalize the idea to a k-sample without replacement. We generate k samples without replacement in every bucket, using the reservoir algorithm, and combine them as follows. If i samples are expired in B1, take the k - i active samples from B1 and i samples from B2. Simple analysis shows that the distribution is uniform.
+
+For the S3 algorithm with replacement from the timestamp-based window, we maintain a list of buckets, ζ-decomposition. The last bucket, B, may contain both expired and active elements but is smaller then the union of other buckets. For each bucket we maintain a O(1)-memory structure that contains independent samples from the bucket and other statistics. We can combine bucket samples with corresponding probabilities to generate samples of their union. However, we cannot easily combine last bucket's samples, since the number of active elements, n, is unknown. To overcome this problem, we exploit the fact that a random sample of B chooses a (fixed) active element p w.p. [formula], that can be reduced to [formula] by generating an independent event w.p. [formula]. We prove that it is possible to generate such event without knowing n.
+
+Finally, we show that a k-sample without replacement may be generated from k independent samples, [formula], when Ri samples all but i last active elements. Such samples can be generated if, in addition, we store last k elements.
+
+Our algorithms generate independent samples for non-overlapping windows. The independency follows from the nice property of the reservoir algorithm (that we use to generate samples in the buckets). Let R1 be a sample generated for the bucket B, upon arrival of i elements of B. Let R2 be a fraction of the final sample (i.e., the sample when the last element of B arrives) that belongs to the last |B| - i elements. The reservoir algorithm implies that R1 and R2 are independent. Since the rest of the buckets contain independent samples as well, we conclude that S3 is independent for non-overlapping windows.
+
+Related work
+
+Substantial work has been done in the streaming model including (among many many others) the following papers. A frequency moments problem was introduced and studied by Alon, Matias and Szegedy [\cite=ams], and then by Bhuvanagiri, Ganguly, Kesh and Saha [\cite=frequency1], Bar-Yossef, Jayram, Kumar and Sivakumar [\cite=frequency_lower_bound1], Chakrabarti, Khot and Sun [\cite=frequency_lower_bound2], Coppersmith and Kumar [\cite=frequency_impr2], Ganguly [\cite=frequency_impr1], and Indyk and Woodruff [\cite=frequency]. Graph algorithms were studied by Bar-Yosseff, Kumar and Sivakumar [\cite=triangle2], Buriol, Frahling, Leonardi, Marchetti-Spaccamela and Sohler [\cite=triangle], Feigenbaum, Kannan, McGregor, Suri and Zhang [\cite=distnaces] [\cite=graphs1], and Jowhari and Ghodsi [\cite=triangle1]. Entropy approximation was researched by Chakrabarti, Cormode and McGregor [\cite=entropy], Chakrabarti, Do Ba and Muthukrishnan [\cite=entropy1], Guha, McGregor and Venkatasubramanian [\cite=entropy3], and Lall, Sekar, Ogihara, Xu and Zhang [\cite=entropy2]. Clustering problems were studied by Aggarwal, Han, Wang, and Yu [\cite=more-biased], Guha, Meyerson, Mishra, Motwani and O'Callaghan [\cite=clustering], and Palmer and Faloutsos [\cite=density_sampling]. The problem of estimating the number of distinct elements was addressed by Bar-Yossef, Jayram, Kumar, Sivakumar and Trevisan [\cite=distinct_el], Cormode, Datar, Indyk, and Muthukrishnan [\cite=hamming] and Ganguly [\cite=distinct2].
+
+Datar, Gionis, Indyk and Motwani [\cite=statistics] pioneered the research in this area, presenting exponential histograms, effective and simple solutions for a wide class of functions over sliding windows. In particular, they gave a memory-optimal algorithm for count, sum, average, Lp,p∈[1,2] and other functions. Gibbons and Tirthapura [\cite=gibbons] improved the results for sum and count, providing memory and time-optimal algorithms. Feigenbaum, Kannan and Zhang [\cite=diameter] addressed the problem of computing diameter. Lee and Ting in [\cite=counting1] gave a memory-optimal solution for the relaxed version of the count problem. Chi, Wang, Yu and Muntz [\cite=ucla] addressed a problem of frequent itemsets. Algorithms for frequency counts and quantiles were proposed by Arasu and Manku [\cite=approx_counters]. Further improvement for counts was reported by Lee and Ting [\cite=better-freq]. Babcock, Datar, Motwani and O'Callaghan [\cite=variance] provided an effective solution of variance and k-medians problems. Algorithms for rarity and similarity were proposed by Datar and Muthukrishnan [\cite=similarity]. Golab, DeHaan, Demaine, Lopez-Ortiz and Munro [\cite=golab] provided an effective algorithm for finding frequent elements. Detailed surveys of recent results can be found in [\cite=strbook] [\cite=strbook1].
+
+Roadmap and notations
+
+We use the following notations throughout our paper. We denote by D a stream and by pi,i  ≥  0 its i-th element. For 0  ≤  x < y we define   =  {i,x  ≤  i  ≤  y}. Finally, bucket B(x,y) is the set of all stream elements between px and py - 1: B(x,y)  =  {pi,i∈[x,y  -  1]}.
+
+Sections 2 and 3 present S3 algorithms for sequence-based windows, with and without replacement. Section 4 and 5 are devoted to S3 algorithms for timestamp-based windows, with and without replacement. Section 6 outlines possible applications for our approach. Due to the lack of space, some proofs are omitted from the main body of the paper, but they can all be found in the appendix.
+
+3 Algorithm With Replacement for Sequence-Based Windows
+
+Let n be the predefined size of a window. We say that a bucket is active if all its elements have arrived and at least one element is non-expired. We say that a bucket is partial if not all of its elements have arrived. We show below how to create a single random sample. To create a k - random sample, we repeat the procedure k times, independently.
+
+We divide D into buckets [formula]. At any point of time, we have exactly one active bucket and at most one partial bucket. For every such bucket B, we independently generate a single sample, using the reservoir algorithm [\cite=reservoir]. We denote this sample by XB.
+
+Let B be a partial bucket and C  ⊆  B be the set of all arrived elements. The properties of the reservoir algorithm imply that XB is a random sample of C.
+
+Below, we construct a random sample Z of all non-expired elements. Let U be the active bucket. If there is no partial bucket, then U contains only all non-expired elements. Therefore, Z = XU is a valid sample. Otherwise, let V be the partial bucket. Let Ue  =  {x:x∈U,x},Ua  =  {x:x∈U,x},Va  =  {x:x∈V,x}.
+
+Note that |Va|  =  |Ue| and let s  =  |Va|. Also, note that our window is [formula] and XV is a random sample of Va. The random sample Z is constructed as follows. If XU is not expired, we put Z  =  XU, otherwise Z = XV. To prove the correctness, let p be a non-expired element. If p∈Ua, then [formula]. If x∈Va, then
+
+[formula]
+
+Therefore, Z is a valid random sample. We need to store only samples of active or partial buckets. Since the number of such buckets is at most two and the reservoir algorithm requires Θ(1) memory, the total memory of our algorithm for k-sample is Θ(k).
+
+3 Algorithm Without Replacement for Sequence-Based Windows
+
+We can generalize the idea above to provide a k-random sample without replacement. In this section k-sample means k-random sampling without replacement.
+
+We use the same buckets [formula]. For every such bucket B, we independently generate a k-sample XB, using the reservoir algorithm.
+
+Let B be a partial bucket and C  ⊆  B be the set of all arrived elements. The properties of the reservoir algorithm imply that either XB  =  C, if |C| < k, or XB is k-sample of C. In both cases, we can generate i-sample of C using XB only, for any 0  <  i  ≤  min(k,|C|).
+
+Our algorithm is as follows. Let U be the active bucket. If there is no partial bucket, then U contains only all active elements. Therefore, we can put Z = XU. Otherwise, let V be the partial bucket. We define Ue,Ua,Va,s as before and construct Z as follows. If all elements of XU are not expired Z  =  XU. Otherwise, let i be the number of expired elements, [formula]. As we mentioned before, we can generate an i-sample of Va from XV, since i  ≤   min (k,s). We denote this sample as XiV and put
+
+[formula]
+
+We will prove now that Z is a valid random sample. Let [formula] be a fixed set of k non-expired elements such that j1  <  j2 < ... < jk. Let [formula], so [formula] and [formula]. If i  =  0, then Q  ⊆  U and
+
+[formula]
+
+Otherwise, by independency of XU and XiV
+
+[formula]
+
+[formula]
+
+Therefore, Z is a valid random sample of non-expired elements. Note that we store only samples of active or partial buckets. Since the number of such buckets is at most two and the reservoir algorithm requires O(k) memory, the total memory of our algorithm is O(k).
+
+3 Algorithm With Replacement for Timestamp-Based Windows
+
+Let n = n(t) be the number of non-expired elements. For each element p, timestamp T(p) represents the moment of p's entrance. For a window with (predefined) parameter t0, p is active at time t if t  -  T(p)  <  t0. We show below how to create a single random sample. To create a k - random sample, we repeat the procedure k times, independently.
+
+Notations
+
+A bucket structure BS(x,y) is a group {px,x,y,T(x),Rx,y,Qx,y,r,q}, where T(x) is a timestamp of px, R,Q are independent random samples from B(x,y) and r,q are indexes of the picked (for random samples) elements. We denote by N(t) the size of D at the moment t and by l(t) the index of the earliest active element. Note that N(t)  ≤  N(t + 1),l(t)  ≤  l(t + 1) and T(pi)  ≤  T(pi + 1).
+
+ζ-decomposition
+
+Let a  ≤  b be two indexes. ζ-decomposition of a bucket B(a,b), ζ(a,b), is an ordered set of bucket structures with independent samples inductively defined below.
+
+[formula]
+
+and for a  <  b,
+
+[formula]
+
+where c = a  +  2⌊ log (b  +  1  -  a)⌋  -  1.
+
+Note that [formula], so ζ(a,b) uses O( log (b  -  a)) memory.
+
+Given pb + 1, we inductively define an operator Incr(ζ(a,b)) as follows.
+
+[formula]
+
+For a < b, we put
+
+[formula]
+
+where v is defined below.
+
+If ⌊ log (b + 2 - a)⌋  =  ⌊ log (b + 1 - a)⌋ then we put v = c, where BS(a,c) is the first bucket structure of ζ(a,b). Otherwise, we put v  =  d, where BS(c,d) is the second bucket structure of ζ(a,b). (Note that ζ(a,b) contains at least two buckets for a < b.)
+
+We show how to construct BS(a,d) from BS(a,c) and BS(c,d). We have in this case ⌊ log (b + 2 - a)⌋  =  ⌊ log (b + 1 - a)⌋ + 1, and therefore b + 1 - a  =  2i  -  1 for some i  ≥  2. Thus [formula] and
+
+[formula]
+
+Thus [formula]. Now we can create BS(a,v) by unifying BS(a,c) and BS(c,d): [formula]. We put Ra,d  =  Ra,c with probability [formula] and Ra,d  =  Rc,d otherwise. Since d  -  c  =  c  -  a, and Rc,d,Ra,c are distributed uniformly, we conclude that Ra,d is distributed uniformly as well. Qa,d is defined similarly and [formula] are indexes of the chosen samples. Finally, the new samples are independent of the rest of ζ's samples. Note also that Incr(ζ(a,b)) requires O( log (b  -  a)) operations.
+
+For any a and b, Incr(ζ(a,b))  =  ζ(a,b + 1).
+
+For any t with a positive number of active elements, we are able to maintain one of the following:
+
+ζ(l(t),N(t)),
+
+or
+
+BS(yt,zt),ζ(zt,N(t)),
+
+where yt  <  l(t)  ≤  zt, zt  -  yt  ≤  N(t)  +  1 - zt and all random samples are independent.
+
+Sample generation
+
+We use the following notations for this section. Let B1  =  B(a,b) and B2 = B(b,N(t) + 1) be two buckets such that pa is expired, pb is active and |B1|  ≤  |B2|. Let BS1 and BS2 be corresponding bucket structures, with independent random samples R1,Q1 and R2,Q2. We put α = b - a and β  =  N(t) + 1 - b. Let γ be the (unknown) number of non-expired elements inside B1, so n = β  +  γ. We stress that α,β are known and γ is unknown.
+
+It is possible to generate a random sample Y = Y(Q1) of B1, with the following distribution:
+
+[formula]
+
+[formula]
+
+Y is independent of R1,R2,Q2 and can be generated within constant memory and time, using Q1.
+
+It is possible to generate a zero-one random variable X such that [formula] X is independent of R1,R2,Q2 and can be generated using constant time and memory.
+
+It is possible to construct a random sample V of all non-expired elements using only the data of BS1,BS2 and constant time and memory.
+
+Main results
+
+We can maintain a random sample over all non-expired elements using Θ( log n) memory.
+
+By using lemma [\ref=lm:2], we are able to maintain one of two cases. If case 1 occurs, we can combine random variables of all bucket structures with appropriate probabilities and get a random sample of all non-expired elements. If case 2 occurs, we use notations of Section [\ref=sub:1], interpret the first bucket as B1 and combine buckets of ζ-decomposition to generate samples from B2. Properties of the second case imply |B1|  ≤  |B2| and therefore, by using lemma [\ref=lm:3], we are able to produce a random sample as well. All procedures, described in the lemmas require Θ( log n) memory. Therefore, the theorem is correct.
+
+The memory usage of maintaining a random sample within a timestamp-based window has a lower bound Ω(log(n)).
+
+3 Algorithm Without Replacement for Timestamp-Based Windows
+
+Informally, the idea is as follows. We maintain k independent random samples [formula] of active elements, using the algorithm from Section 4. The difference between these samples and the k-sample with replacement is that Ri samples all active elements except the last i. This can be done using O(k + k log n) memory. Finally, k-sample without replacement can be generated using [formula] only.
+
+Let us describe the algorithm in detail. First, we construct Ri. To do this, we maintain an auxiliary array with the last i elements. We repeat all procedures in Section [\ref=sec:tbwr], but we "delay" the last i elements. An element is added to ζ-decomposition only when more then i elements arrive after it. We prove the following variant of Lemma [\ref=lm:2].
+
+Let 0 < i  ≤  k. For any t with more then i active elements, we are able to maintain one of the following:
+
+ζ(l(t),N(t)  -  i),
+
+or
+
+BS(yt,zt),ζ(zt,N(t)  -  i),
+
+where yt  <  l(t)  ≤  zt and zt  -  yt  ≤  N(t)  +  1  -  i  -  zt and all random samples of the bucket structures are independent.
+
+The proof is presented in the appendix. The rest of the procedure remains the same. Note that we can use the same array for every i, and therefore we can construct [formula] using Θ(k  +  k log n) memory.
+
+In the reminder of this section, we show how [formula] can be used to generate a k-sample without replacement. We denote by Rji a i-random sample without replacement from
+
+[formula]
+
+Applications
+
+Consider that algorithm Λ is sampling-based, i.e., it operates on uniformly chosen subset of D instead of the whole stream. Such an algorithm can be immediately transformed to sliding windows by replacing the underlying sampling method with S3. We obtain the following general result and illustrate it with the examples below.
+
+For the sampling-based algorithm Λ that solves problem P, there exists an algorithm Λ' that solves P on sliding windows. The memory guarantees are preserved for sequence-based windows and have a multiplicative overhead of log n for timestamp-based windows.
+
+Frequency moment is a fundamental problem in data stream processing. Given a stream of elements, such that pj∈[m], the frequency of each i∈[m] is defined as |j|pj = i| and the k-th frequency moment is defined as [formula]. The first algorithm for frequency moments for k > 2 was proposed in the seminal paper of Alon, Matias and Szegedy [\cite=ams]. They present an algorithm that uses [formula] memory. Numerous improvements to lower and upper bounds have been reported, including the works of Bar-Yossef, Jayram, Kumar and Sivakumar [\cite=frequency_lower_bound1], Chakrabarti, Khot and Sun [\cite=frequency_lower_bound2], Coppersmith and Kumar [\cite=frequency_impr2], and Ganguly[\cite=frequency_impr1]. Finally, Indyk and Woodruff [\cite=frequency] and later Bhuvanagiri, Ganguly, Kesh and Saha [\cite=frequency1] presented algorithms that use [formula] memory and are optimal. The algorithm of Alon, Matias and Szegedy [\cite=ams] is sampling-based, thus we can adapt it to sliding windows using S3. The memory usage is not optimal, however this is the first algorithm for frequency moments over sliding windows that works for all k. Recently Braverman and Ostrovsky [\cite=our] adapted the algorithm from [\cite=frequency1] to sliding windows, producing a memory-optimal algorithm that uses [formula]. However, it involves kk multiplicative overhead, making it infeasible for large k; thus these results are generally cannot be compared. We have
+
+For any k > 2, there exists an algorithm that maintains an approximation of the k-th frequency moment over sliding windows using [formula] bits.
+
+Recently, numerous graph problems were addressed in the streaming environment. Stream elements represent edges of the graph, given in arbitrary order. (We refer readers to [\cite=triangle] for a detailed explanation of the model). One of the fundamental graph problems is estimating a number of small cliques in a graph, in particular the number of triangles. Effective solutions were proposed by Jowhari and Ghodsi [\cite=triangle1], Bar-Yosseff, Kumar and Sivakumar [\cite=triangle2] and Buriol, Frahling, Leonardi, Marchetti-Spaccamela and Sohler [\cite=triangle]. The last paper presented an (ε,δ)-approximation algorithm that uses [formula] memory ([\cite=triangle], Theorem 2) that is the best result so far. Here, |Ti| represents the number of node-triplets having i edges in the induced sub-graph. The algorithm is applied on a random sample collected using the reservoir method. By replacing the reservoir sampling with S3, we obtain the following result.
+
+There exists an algorithm that maintains an (ε,δ)-approximation of the number of triangles over sliding windows. For sequence-based windows it uses [formula] memory, where EW is the set of active edges. Timestamp-based windows adds a multiplicative factor of log n.
+
+Following [\cite=triangle], our method is also applicable for incidence streams, where all edges of the same vertex come together.
+
+The entropy of a stream is defined as [formula], where xi is as above. The entropy norm is defined as [formula]. Effective solutions for entropy and entropy norm estimations were recently reported by Guha, McGregor and Venkatasubramanian [\cite=entropy3], Chakrabarti, Do Ba and Muthukrishnan [\cite=entropy1], Lall, Sekar, Ogihara, Xu and Zhang [\cite=entropy2] and Chakrabarti, Cormode and McGregor [\cite=entropy]. The last paper presented an algorithm that is based on a variation of reservoir sampling. The algorithm maintains entropy using O(ε- 2 log δ -  1) that is nearly optimal. The authors also considered the sliding window model and used a variant of priority sampling [\cite=sampling] to obtain the approximation. Thus, the worst-case memory guarantees are not preserved for sliding windows. By replacing priority sampling with S3 we obtain
+
+There exists an algorithm that maintains an (ε,δ)-approximation of entropy on sliding windows using O(ε- 2 log δ -  1 log n) memory.
+
+Moreover, S3 can be used with the algorithm from [\cite=entropy1] to obtain Õ(1) memory for large values of the entropy norm. This algorithm is based on reservoir sampling and thus can be straightforwardly implemented in sliding windows. As a result, we build the first solutions with provable memory guarantees on sliding windows.
+
+S3 algorithms can be naturally extended to some biased functions. Biased sampling [\cite=biased] is non-uniform, giving larger probabilities for more recent elements. The distribution is defined by a biased function. We can apply S3 to implement step biased functions, maintaining S3 over each window with different lengths and combining the samples with corresponding probabilities. Our algorithm can extend the ideas of Feigenbaum, Kannan, Strauss and Viswanathan [\cite=testing] for testing and spot-checking to sliding windows. Finally, we can apply S3 to the algorithm of Procopiuc and Procopiuc for density estimation [\cite=density], since it is based on the reservoir algorithm as well.
+
+APPENDIX
+
+Lemma [\ref=lm:incr]. For any a and b, Incr(ζ(a,b))  =  ζ(a,b + 1).
+
+We prove the lemma by induction on b - a. If a = b then, since b + 1  =  b  +  2⌊ log ((b  +  1)  +  1  -  b)⌋  -  1, we have, by definition of ζ(b,b + 1),
+
+[formula]
+
+We assume that the lemma is correct for b - a  <  h and prove it for b - a  =  h. Let BS(a,v) be the first bucket of Incr(ζ(a,b)). Let BS(a,c) be the first bucket of ζ(a,b). By definition, if ⌊ log (b + 2 - a)⌋  =  ⌊ log (b + 1 - a)⌋ then v = c. We have
+
+[formula]
+
+Otherwise, let BS(c,d) be the second bucket of ζ(a,b). We have from above ⌊ log (b + 2 - a)⌋  =  ⌊ log (b + 1 - a)⌋ + 1, d - c  =  c - a and v  =  d. Thus
+
+[formula]
+
+In both cases v  =  a  +  2⌊ log ((b  +  1)  +  1  -  a)⌋  -  1 and , by definition of ζ
+
+[formula]
+
+By induction, since b - v < h, we have [formula] Thus
+
+[formula]
+
+Lemma [\ref=lm:2]. For any t with a positive number of active elements, we are able to maintain one of the following:
+
+ζ(l(t),N(t)),
+
+or
+
+BS(yt,zt),ζ(zt,N(t)),
+
+where yt  <  l(t)  ≤  zt, zt  -  yt  ≤  N(t)  +  1 - zt and all random samples are independent.
+
+We prove the lemma by induction on t. First we assume that t = 0. If no element arrives at time 0, the stream is empty and we do nothing. Otherwise, we put ζ(0,0) = BS(0,1), and for any i,0 < i  ≤  N(0) we generate ζ(0,i) by executing Incr(ζ(0,i - 1)). Therefore, at the end of this step, we have ζ(0,N(0))  =  ζ(l(0),N(0)). So, the case (1) is true.
+
+We assume that the lemma is correct for t and prove it for t + 1.
+
+If for t the window is empty, then the procedure is the same as for the basic case.
+
+If for t we maintain case (1), then we have three sub-cases.
+
+If pl(t) is not expired at the moment t + 1, then l(t + 1)  =  l(t). Similar to the basic case, we apply Incr procedure for every new element with index i,N(t)  <  i  ≤  N(t + 1). Due to the properties of Incr, we have at the end ζ(l(t + 1),N(t + 1)). Therefore case (1) is true for t + 1.
+
+If pN(t) is expired, then our current bucket structures represent only expired elements. We delete them and apply the procedure for the basic case.
+
+The last sub-case is the one when pN(t) is not expired and pl(t) is expired. Let [formula], [formula] be all buckets of ζ(l(t),N(t)). Since pN(t) is not expired, there exists exactly one bucket structure, BSi, such that pvi is expired and pvi + 1 is not expired. We can find it by checking all the bucket structures, since we store timestamps for pvis. We put
+
+[formula]
+
+We have by definition
+
+[formula]
+
+Applying Incr procedure to all new elements, we construct ζ(zt + 1,N(t + 1)). Finally, we have:
+
+[formula]
+
+[formula]
+
+Therefore zt + 1  -  yt + 1  ≤  N(t) + 1  -  zt + 1  ≤  N(t + 1) + 1  -  zt + 1. Thus, case (2) is true for t + 1. We discard all non-used bucket structures [formula].
+
+Otherwise, for t we maintain case (2). Similarly, we have three sub-cases.
+
+If pzt is not expired at the moment t + 1, we put yt + 1  =  yt,zt + 1  =  zt. We have
+
+[formula]
+
+Again, we add the new elements using Incr procedure and we construct ζ(zt + 1,N(t + 1)). Therefore case (2) is true for t + 1.
+
+If pN(t) is expired, we apply exactly the same procedure as for 2.b.
+
+If pzt is expired and pN(t) is not expired, we apply exactly the same procedure as for 2.c.
+
+Therefore, the lemma is correct.
+
+Lemma [\ref=lm:zero-one]. It is possible to generate a random sample Y = Y(Q1) of B1, with the following distribution:
+
+[formula]
+
+[formula]
+
+Y is independent of R1,R2,Q2 and can be generated within constant memory and time, using Q1.
+
+Let {Hj}α - 1j = 1 be a set of zero-one independent random variables such that
+
+[formula]
+
+Let D  =  B1  ×  {0,1}α - 1 and Z be the random vector with values from D, Z  =  〈Q1,H1,...,Hα  -  1〉. Let {Ai}αi = 1 be a set of subsets of D:
+
+[formula]
+
+Finally we define Y as follows
+
+[formula]
+
+Since Q1 is independent of R1,R2,Q2, Y is independent of them as well. We have
+
+[formula]
+
+[formula]
+
+[formula]
+
+Also,
+
+[formula]
+
+[formula]
+
+By definition of Ai, the value of Y is uniquely defined by Q1 and exactly one H. Therefore, the generation of the whole vector Z is not necessary. Instead, we can calculate Y by the following simple procedure. Once we know the index of Q1's value, we generate the corresponding Hi and calculate the value of Y. We can omit the generation of other Hs, and therefore we need constant time and memory.
+
+Lemma [\ref=lm:4]. It is possible to generate a zero-one random variable X such that [formula] X is independent of R1,R2,Q2 and can be generated using constant time and memory.
+
+Since γ is unknown, it cannot be generated by flipping a coin; a slightly more complicated procedure is required.
+
+Let Y(Q1) be the random variable from Lemma [\ref=lm:zero-one]. We have
+
+[formula]
+
+[formula]
+
+Therefore [formula].
+
+Let S be a zero-one variable, independent of R1,R2,Q2,Y such that
+
+[formula]
+
+We put
+
+[formula]
+
+We have
+
+[formula]
+
+Since Y and S are independent of R1,R2,Q2, X is independent of them as well. Since we can determine if Y is expired within constant time, we need a constant amount of time and memory.
+
+Lemma [\ref=lm:3]. It is possible to construct a random sample V of all non-expired elements using only the data of BS1,BS2 and constant time and memory.
+
+Our goal is to generate a random variable V that chooses a non-expired element w.p. [formula]. Let X be the random variable generated in the previous lemma. We define V as follows.
+
+[formula]
+
+Let p be a non-expired element. If p∈B1, then since X is independent of R1, we have
+
+[formula]
+
+If p∈B2, then
+
+[formula]
+
+Lemma [\ref=lm:lower_bound]. The memory usage of maintaining a random sample within the time-based window has a lower bound Ω(log(n)).
+
+Let D be a stream with the following property. For timestamp i,0  ≤  i  ≤  2t0, we have 22t0 - i elements and for i > 2t0, we have exactly one element per timestamp.
+
+For timestamp 0  ≤  i  ≤  t0, the probability to choose p with T(p)  =  i at the moment t0 + i - 1 is
+
+[formula]
+
+Therefore, the expected number of distinct timestamps that will be picked between moments t0 - 1 and 2t0 - 1 is at least [formula] So, with a positive probability we need to keep in memory at least [formula] distinct elements at the moment t0. The number of active elements n at this moment is at least 2t0. Therefore the memory usage at this moment is Ω( log n), with positive probability. We can conclude that log (n) is a lower bound for memory usage.
+
+Lemma [\ref=lm:without]. Let 0 < i  ≤  k. For any t with more then i active elements, we are able to maintain one of the following:
+
+ζ(l(t),N(t)  -  i),
+
+or
+
+BS(yt,zt),ζ(zt,N(t)  -  i),
+
+where yt  <  l(t)  ≤  zt and zt  -  yt  ≤  N(t)  +  1  -  i  -  zt and all random samples of the bucket structures are independent.
+
+The proof is the same as in lemma 4.2, except for cases 1,2.b,3.b. For these cases, when the current window is empty, we keep it empty unless more then i elements are active. We can do this using our auxiliary array. Also, when new elements arrive, some of them may be expired already (if we kept them in the array). We therefore cannot apply Incr procedure for any "new" element. Instead, we should first skip all expired elements and then apply Incr. The rest of the proof remains the same.
+
+Lemma [\ref=lm:last]. Rb + 1a + 1 can be generated using independent Rba, Rb + 11 samples only.
+
+The algorithm is as follows.
+
+[formula]
+
+Let [formula] be a set of points from
+
+[formula]
+
+P(R=X) = P( (R = x R = X {x}) ) =
+
+[formula]
+
+P(R = x)P(R = X {x}) = (a+1)1 b+11 = 1.
+
+[formula]
+
+P(R=X) = P(R = X {b+1}, R ∈ X ) = 1a+1 b+1 =1.
+
+[formula]

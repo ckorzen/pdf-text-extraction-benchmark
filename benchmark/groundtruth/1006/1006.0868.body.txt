@@ -1,0 +1,171 @@
+Slice sampling covariance hyperparameters of latent Gaussian models
+
+Introduction
+
+Many probabilistic models incorporate multivariate Gaussian distributions to explain dependencies between variables. Gaussian process (GP) models and generalized linear mixed models are common examples. For non-Gaussian observation models, inferring the parameters that specify the covariance structure can be difficult. Existing computational methods can be split into two complementary classes: deterministic approximations and Monte Carlo simulation. This work presents a method to make the sampling approach easier to apply.
+
+In recent work [\citet=murray2010] developed a slice sampling [\citep=neal2003a] variant, elliptical slice sampling, for updating strongly coupled a-priori Gaussian variates given non-Gaussian observations. Previously, [\citet=agarwal2005] demonstrated the utility of slice sampling for updating covariance parameters, conventionally called hyperparameters, with a Gaussian observation model, and questioned the possibility of slice sampling in more general settings. In this work we develop a new slice sampler for updating covariance hyperparameters. Our method uses a robust representation that should work well on a wide variety of problems, has very few technical requirements, little need for tuning and so should be easy to apply.
+
+Latent Gaussian models
+
+We consider generative models of data that depend on a vector of latent variables [formula] that are Gaussian distributed with covariance Σθ set by unknown hyperparameters θ. These models are common in the machine learning Gaussian process literature [\citep=rasmussen2005a] and throughout the statistical sciences. We use standard notation for a Gaussian distribution with mean [formula] and covariance Σ,
+
+[formula]
+
+and use [formula] to indicate that [formula] is drawn from a distribution with the density in [\eqref=eqn:gaussian].
+
+The generic form of the generative models we consider is summarized by The methods discussed in this paper apply to covariances Σθ that are arbitrary positive definite functions parameterized by θ. However, our experiments focus on the popular case where the covariance is associated with N input vectors [formula] through the squared-exponential kernel,
+
+[formula]
+
+with hyperparameters [formula]. Here σ2f is the 'signal variance' controlling the overall scale of the latent variables [formula]. The [formula] give characteristic lengthscales for converting the distances between inputs into covariances between the corresponding latent values [formula].
+
+For non-Gaussian likelihoods we wish to sample from the joint posterior over unknowns,
+
+[formula]
+
+We would like to avoid implementing new code or tuning algorithms for different covariances Σθ and conditional likelihood functions [formula].
+
+Markov chain inference
+
+A Markov chain transition operator T(z' ← z) defines a conditional distribution on a new position z' given an initial position z. The operator is said to leave a target distribution π invariant if [formula]. A standard way to sample from the joint posterior [\eqref=eqn:joint_posterior] is to alternately simulate transition operators that leave its conditionals, [formula] and [formula], invariant. Under fairly mild conditions the Markov chain will equilibrate towards the target distribution [\citep=tierney1994a].
+
+Recent work has focused on transition operators for updating the latent variables [formula] given data and a fixed covariance Σθ [\citep=titsias2009] [\citep=murray2010]. Updates to the hyperparameters for fixed latent variables [formula] need to leave the conditional posterior,
+
+[formula]
+
+invariant. The simplest algorithm for this is the Metropolis-Hastings operator, see Algorithm [\ref=alg:fixing-gv]. Other possibilities include slice sampling [\citep=neal2003a] and Hamiltonian Monte Carlo [\citep=duane1987] [\citep=neal2011].
+
+Alternately fixing the unknowns [formula] and θ is appealing from an implementation standpoint. However, the resulting Markov chain can be very slow in exploring the joint posterior distribution. Figure [\ref=fig:priordraws] shows latent vector samples using squared-exponential covariances with different lengthscales. These samples are highly informative about the lengthscale hyperparameter that was used, especially for short lengthscales. The sharpness of [formula], Figure [\ref=fig:postcondf], dramatically limits the amount that any Markov chain can update the hyperparameters θ for fixed latent values [formula].
+
+Whitening the prior
+
+Often the conditional likelihood is quite weak; this is why strong prior smoothing assumptions are often introduced in latent Gaussian models. In the extreme limit in which there is no data, i.e. L is constant, the target distribution is the prior model, [formula]. Sampling from the prior should be easy, but alternately fixing [formula] and θ does not work well because they are strongly coupled. One strategy is to reparameterize the model so that the unknown variables are independent under the prior.
+
+Independent random variables can be identified from a commonly-used generative procedure for the multivariate Gaussian distribution. A vector of independent normals, [formula], is drawn independently of the hyperparameters and then deterministically transformed:
+
+[formula]
+
+Notation: Throughout this paper LC will be any user-chosen square root of covariance matrix C. While any matrix square root can be used, the lower-diagonal Cholesky decomposition is often the most convenient. We would reserve C1 / 2 for the principal square root, because other square roots do not behave like powers: for example, [formula].
+
+We can choose to update the hyperparameters θ for fixed [formula] instead of fixed [formula]. As the original latent variables [formula] are deterministically linked to the hyperparameters θ in [\eqref=eqn:sample_prior], these updates will actually change both θ and [formula]. The samples in Figure [\ref=fig:priordraws] resulted from using the same whitened variable [formula] with different hyperparameters. They follow the same general trend, but vary over the lengthscales used to construct them.
+
+The posterior over hyperparameters for fixed [formula] is apparent by applying Bayes rule to the generative procedure in [\eqref=eqn:sample_prior], or one can laboriously obtain it by changing variables in [\eqref=eqn:joint_posterior]:
+
+[formula]
+
+Algorithm [\ref=alg:fixing-bnu] is the Metropolis-Hastings operator for this distribution. The acceptance rule now depends on the latent variables through the conditional likelihood [formula] instead of the prior [formula] and these variables are automatically updated to respect the prior. In the no-data limit, new hyperparameters proposed from the prior are always accepted.
+
+Surrogate data model
+
+Neither of the previous two algorithms are ideal for statistical applications, which is illustrated in Figure [\ref=fig:tube]. Algorithm [\ref=alg:fixing-bnu] is ideal in the "weak data" limit where the latent variables [formula] are distributed according to the prior. In the example, the likelihoods are too restrictive for Algorithm [\ref=alg:fixing-bnu]'s proposal to be acceptable. In the "strong data" limit, where the latent variables [formula] are fixed by the likelihood L, Algorithm [\ref=alg:fixing-gv] would be ideal. However, the likelihood terms in the example are not so strong that the prior can be ignored.
+
+For regression problems with Gaussian noise the latent variables can be marginalised out analytically, allowing hyperparameters to be accepted or rejected according to their marginal posterior [formula]. If latent variables are required they can be sampled directly from the conditional posterior [formula]. To build a method that applies to non-Gaussian likelihoods, we create an auxiliary variable model that introduces surrogate Gaussian observations that will guide joint proposals of the hyperparameters and latent variables.
+
+We augment the latent Gaussian model with auxiliary variables, [formula], a noisy version of the true latent variables:
+
+[formula]
+
+For now Sθ is an arbitrary free parameter that could be set by hand to either a fixed value or a value that depends on the current hyperparameters θ. We will discuss how to automatically set the auxiliary noise covariance Sθ in Section [\ref=sec:Snoise].
+
+The original model, [formula] and [\eqref=eqn:drawg] define a joint auxiliary distribution [formula] given the hyperparameters. It is possible to sample from this distribution in the opposite order, by first drawing the auxiliary values from their marginal distribution
+
+[formula]
+
+and then sampling the model's latent values conditioned on the auxiliary values from
+
+[formula]
+
+That is, under the auxiliary model the latent variables of interest are drawn from their posterior given the surrogate data [formula]. Again we can describe the sampling process via a draw from a spherical Gaussian:
+
+[formula]
+
+We then condition on the "whitened" variables [formula] and the surrogate data [formula] while updating the hyperparameters θ. The implied latent variables [formula] will remain a plausible draw from the surrogate posterior for the current hyperparameters. This is illustrated in Figure [\ref=fig:tube].
+
+We can leave the joint distribution [\eqref=eqn:joint_posterior] invariant by updating the following conditional distribution derived from the above generative model:
+
+[formula]
+
+The Metropolis-Hastings Algorithm [\ref=alg:surr-mh] contains a ratio of these terms in the acceptance rule.
+
+Slice sampling
+
+The Metropolis-Hastings algorithms discussed so far have a proposal distribution q(θ';θ) that must be set and tuned. The efficiency of the algorithms depend crucially on careful choice of the scale σ of the proposal distribution. Slice sampling [\citep=neal2003a] is a family of adaptive search procedures that are much more robust to the choice of scale parameter.
+
+Algorithm [\ref=alg:surr-slice] applies one possible slice sampling algorithm to a scalar hyperparameter θ in the surrogate data model of this section. It has a free parameter σ, the scale of the initial proposal distribution. However, careful tuning of this parameter is not required. If the initial scale is set to a large value, such as the width of the prior, then the width of the proposals will shrink to an acceptable range exponentially quickly. Stepping-out procedures [\citep=neal2003a] could be used to adapt initial scales that are too small. We assume that axis-aligned hyperparameter moves will be effective, although reparameterizations could improve performance [\citep=christensen2006].
+
+The auxiliary noise covariance Sθ
+
+The surrogate data [formula] and noise covariance Sθ define a pseudo-posterior distribution that softly specifies a plausible region within which the latent variables [formula] are updated. The noise covariance determines the size of this region. The first two baseline algorithms of Section [\ref=sec:mcmc] result from limiting cases of [formula]: 1) if [formula] the surrogate data and the current latent variables are equal and the acceptance ratio reduces to that of Algorithm [\ref=alg:fixing-gv]. 2) as α   →     ∞   the observations are uninformative about the current state and the pseudo-posterior tends to the prior. In the limit, the acceptance ratio reduces to that of Algorithm [\ref=alg:fixing-bnu]. One could choose α based on preliminary runs, but such tuning would be burdensome.
+
+For likelihood terms that factorize, [formula], we can measure how much the likelihood restricts each variable individually:
+
+[formula]
+
+A Gaussian can be fitted by moment matching or a Laplace approximation (matching second derivatives at the mode). Such fits, or close approximations, are often possible analytically and can always be performed numerically as the distribution is only one-dimensional. Given a Gaussian fit to the site-posterior [\eqref=eqn:site_posterior] with variance vi, we can set the auxiliary noise to a level that would result in the same posterior variance at that site alone: (Sθ)ii    =    (v -  1i    -    (Σθ)ii -  1) -  1. (Any negative (Sθ)ii must be thresholded.) The moment matching procedure is a grossly simplified first step of "assumed density filtering" or "expectation propagation" [\citep=minka2001b], which are too expensive for our use in the inner-loop of a Markov chain.
+
+Related work
+
+We have discussed samplers that jointly update strongly-coupled latent variables and hyperparameters. The hyperparameters can move further in joint moves than their narrow conditional posteriors (e.g., Figure [\ref=fig:postcondf]) would allow. A generic way of jointly sampling real-valued variables is Hamiltonian/Hybrid Monte Carlo (HMC) [\citep=duane1987] [\citep=neal2011]. However, this method is cumbersome to implement and tune, and using HMC to jointly update latent variables and hyperparameters in hierarchical models does not itself seem to improve sampling [\citep=choo2000].
+
+[\Citet=christensen2006] have also proposed a robust representation for sampling in latent Gaussian models. They use an approximation to the target posterior distribution to construct a reparameterization where the unknown variables are close to independent. The approximation replaces the likelihood with a Gaussian form proportional to [formula]:
+
+[formula]
+
+where Λ is often diagonal, or it was suggested one would only take the diagonal part. This Taylor approximation looks like a Laplace approximation, except that the likelihood function is not a probability density in [formula]. This likelihood fit results in an approximate Gaussian posterior [formula] as found in [\eqref=eqn:pseudopost], with noise Sθ   =   Λ()- 1 and data [formula].
+
+Thinking of the current latent variables as a draw from this approximate posterior, [formula], suggests using the reparameterization [formula]. We can then fix the new variables and update the hyperparameters under
+
+[formula]
+
+When the likelihood is Gaussian, the reparameterized variables [formula] are independent of each other and the hyperparameters. The hope is that approximating non-Gaussian likelihoods will result in nearly-independent parameterizations on which Markov chains will mix rapidly.
+
+Taylor expanding some common log-likelihoods around the maximum is not well defined, for example approximating probit or logistic likelihoods for binary classification, or Poisson observations with zero counts. These Taylor expansions could be seen as giving flat or undefined Gaussian approximations that do not reweight the prior. When all of the likelihood terms are flat the reparameterization approach reduces to that of Section [\ref=sec:whiten]. The alternative Sθ auxiliary covariances that we have proposed could be used instead.
+
+The surrogate data samplers of Section [\ref=sec:surrogate] can also be viewed as using reparameterizations, by treating [formula] as an arbitrary random reparameterization for making proposals. A proposal density [formula] in the reparameterized space must be multiplied by the Jacobian [formula] to give a proposal density in the original parameterization. The probability of proposing the reparameterization must also be included in the Metropolis-Hastings acceptance probability:
+
+[formula]
+
+A few lines of linear algebra confirms that, as it must do, the same acceptance ratio results as before. Alternatively, substituting [\eqref=eqn:joint_posterior] into [\eqref=eqn:reparam_view_accept] shows that the acceptance probability is very similar to that obtained by applying Metropolis-Hastings to [\eqref=eqn:fixed_score] as proposed by [\citet=christensen2006]. The differences are that the new latent variables [formula] are computed using different pseudo-posterior means and the surrogate data method has an extra term for the random, rather than fixed, choice of reparameterization.
+
+The surrogate data sampler is easier to implement than the previous reparameterization work because the surrogate posterior is centred around the current latent variables. This means that 1) no point estimate, such as the maximum likelihood [formula], is required. 2) picking the noise covariance Sθ poorly may still produce a workable method, whereas a fixed reparameterized can work badly if the true posterior distribution is in the tails of the Gaussian approximation. [\Citet=christensen2006] pointed out that centering the approximate Gaussian likelihood in their reparameterization around the current state is tempting, but that computing the Jacobian of the transformation is then intractable. By construction, the surrogate data model centers the reparameterization near to the current state.
+
+Experiments
+
+We empirically compare the performance of the various approaches to GP hyperparameter sampling on four data sets: one regression, one classification, and two Cox process inference problems. Further details are in the rest of this section, with full code as supplementary material. The results are summarized in Figure [\ref=fig:results] followed by a discussion section.
+
+In each of the experimental configurations, we ran ten independent chains with different random seeds, burning in for 1000 iterations and sampling for 5000 iterations. We quantify the mixing of the chain by estimating the effective number of samples of the complete data likelihood trace using R-CODA [\cite=cowles2006], and compare that with three cost metrics: the number of hyperparameter settings considered (each requiring a small number of covariance decompositions with O(n3) time complexity), the number of likelihood evaluations, and the total elapsed time on a single core of an Intel Xeon 3GHz CPU.
+
+The experiments are designed to test the mixing of hyperparameters θ while sampling from the joint posterior [\eqref=eqn:joint_posterior]. All of the discussed approaches except Algorithm [\ref=alg:fixing-gv] update the latent variables [formula] as a side-effect. However, further transition operators for the latent variables for fixed hyperparameters are required. In Algorithm [\ref=alg:fixing-bnu] the "whitened" variables [formula] remain fixed; the latent variables and hyperparameters are constrained to satisfy [formula]. The surrogate data samplers are ergodic: the full joint posterior distribution will eventually be explored. However, each update changes the hyperparameters and requires expensive computations involving covariances. After computing the covariances for one set of hyperparameters, it makes sense to apply several cheap updates to the latent variables. For every method we applied ten updates of elliptical slice sampling [\citep=murray2010] to the latent variables [formula] between each hyperparameter update. One could also consider applying elliptical slice sampling to a reparameterized representation, for simplicity of comparison we do not. Independently of our work [\citet=titsias2010] has used surrogate data like reparameterizations to update latent variables for fixed hyperparameters.
+
+Methods
+
+We implemented six methods for updating Gaussian covariance hyperparameters. Each method used the same slice sampler, as in Algorithm [\ref=alg:surr-slice], applied to the following model representations. fixed: fixing the latent function [formula] [\cite=neal1999a]. prior-white: whitening with the prior. surr-site: using surrogate data with the noise level set to match the site posterior [\eqref=eqn:site_posterior]. We used Laplace approximations for the Poisson likelihood. For classification problems we used moment matching, because Laplace approximations do not work well [\citep=kuss2005]. surr-taylor: using surrogate data with noise variance set via Taylor expansion of the log-likelihood [\eqref=eqn:taylor]. Infinite variances were truncated to a large value. post-taylor and post-site: as for the surr- methods but a fixed reparameterization based on a posterior approximation [\eqref=eqn:fixed_score].
+
+Binary Classification (Ionosphere)
+
+We evaluated four different methods for performing binary GP classification: fixed, prior-white, surr-site and post-site. We applied these methods to the Ionosphere dataset [\citep=sigillito1989], using 200 training data and 34 dimensions. We used a logistic likelihood with zero-mean prior, inferring lengthscales as well as signal variance. The -taylor methods reduce to other methods or don't apply because the maximum of the log-likelihood is at plus or minus infinity.
+
+Gaussian Regression (Synthetic)
+
+When the observations have Gaussian noise the post-taylor reparameterization of [\citet=christensen2006] makes the hyperparameters and latent variables exactly independent. The random centering of the surrogate data model will be less effective. We used a Gaussian regression problem to assess how much worse the surrogate data method is compared to an ideal reparameterization. The synthetic data set had 200 input points in 10-D drawn uniformly within a unit hypercube. The GP had zero mean, unit signal variance and its ten lengthscales in [\eqref=eqn:se_kernel] drawn from [formula]. Observation noise had variance 0.09. We applied the fixed, prior-white, surr-site/surr-taylor, and post-site/post-taylor methods. For Gaussian likelihoods the -site and -taylor methods coincide: the auxiliary noise matches the observation noise ([formula]).
+
+Cox process inference
+
+We tested all six methods on an inhomogeneous Poisson process with a Gaussian process prior for the log-rate. We sampled the hyperparameters in [\eqref=eqn:se_kernel] and a mean offset to the log-rate. The model was applied to two point process datasets: 1) a record of mining disasters [\citep=jarrett1979] with 191 events in 112 bins of 365 days. 2) 195 redwood tree locations in a region scaled to the unit square [\citep=ripley1977] split into [formula] bins. The results for the mining problem were initially highly variable. As the mining experiments were also the quickest we re-ran each chain for 20,000 iterations.
+
+Discussion
+
+On the Ionosphere classification problem both of the -site methods worked much better than the two baselines. We slightly prefer surr-site as it involves less problem-specific derivations than post-site.
+
+On the synthetic test the post- and surr- methods perform very similarly. We had expected the existing post- method to have an advantage of perhaps up to 2-3×  , but that was not realized on this particular dataset. The post- methods had a slight time advantage, but this is down to implementation details and is not notable.
+
+On the mining problem the Poisson likelihoods are often close to Gaussian, so the existing post-taylor approximation works well, as do all of our new proposed methods. The Gaussian approximations to the Poisson likelihood fit most poorly to sites with zero counts. The redwood dataset discretizes two-dimensional space, leading to a large number of bins. The majority of these bins have zero counts, many more than the mining dataset. Taylor expanding the likelihood gives no likelihood contribution for bins with zero counts, so it is unsurprising that post-taylor performs similarly to prior-white. While surr-taylor works better, the best results here come from using approximations to the site-posterior [\eqref=eqn:site_posterior]. For unreasonably fine discretizations the results can be different again: the site- reparameterizations do not always work well.
+
+Our empirical investigation used slice sampling because it is easy to implement and use. However, all of the representations we discuss could be combined with any other MCMC method, such as [\citep=girolami2011] recently used for Cox processes. The new surrogate data and post-site representations offer state-of-the-art performance and are the first such advanced methods to be applicable to Gaussian process classification.
+
+An important message from our results is that fixing the latent variables and updating hyperparameters according to the conditional posterior -- as commonly used by GP practitioners -- can work exceedingly poorly. Even the simple reparameterization of "whitening the prior" discussed in Section [\ref=sec:whiten] works much better on problems where smoothness is important in the posterior. Even if site approximations are difficult and the more advanced methods presented are inapplicable, the simple whitening reparameterization should be given serious consideration when performing MCMC inference of hyperparameters.
+
+We thank an anonymous reviewer for useful comments. This work was supported in part by the IST Programme of the European Community, under the PASCAL2 Network of Excellence, IST-2007-216886. This publication only reflects the authors' views. RPA is a junior fellow of the Canadian Institute for Advanced Research.
+
+plus plus- minus.11em

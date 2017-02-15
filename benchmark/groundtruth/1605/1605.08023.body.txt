@@ -1,0 +1,433 @@
+=2500
+
+Online Placement of Multi-Component Applications in Edge Computing Environments
+
+Introduction
+
+Mobile applications relying on cloud computing became increasingly popular in the recent years [\cite=ViewOfCloud] [\cite=bahl2012advancing]. Different from traditional standalone applications that run solely on a mobile device, a cloud-based application has one or multiple components running in the cloud, which are connected to another component running on the handheld device and they jointly constitute an application accessible to the mobile user. Examples of cloud-based mobile applications include map, storage, and video streaming services [\cite=abe2013vtube] [\cite=ha2013WearableCognitiveAssistance]. They all require high data processing/storage capability that cannot be satisfied on handheld devices alone, thus it is necessary to run part of the application in the cloud.
+
+Traditionally, clouds are located in centralized data-centers. One problem with cloud-based applications is therefore the long-distance communication between the user device and the cloud, which may cause intermittent connectivity and long latency that cannot satisfy the requirements of emerging interactive applications such as real-time face recognition and online gaming [\cite=CommMagEdgeComput]. To tackle this issue, mobile edge-cloud (MEC) has been proposed recently [\cite=IBMWhitepaper] [\cite=ETSIWhitepaper]. The idea is to have small cloud-like entities (i.e., MECs) deployed at the edge of communication networks, which can run part or all of the application components. These MECs are located close to user locations, enabling users to have seamless and low-latency access to cloud services. For example, they can co-locate with edge devices such as Wi-Fi access points or cellular base stations (BSs), as shown in Fig. [\ref=chap:intro:fig:scenario], forming up a hierarchy together with the centralized cloud and mobile users. The concept of MEC is also known as cloudlet [\cite=CloudletHostile], fog computing [\cite=bonomi2012fog], follow me cloud [\cite=FollowMeGC2013], and small cell cloud [\cite=becvar2014pimrc].
+
+Although MECs are promising, there are limitations. In particular, they have a significantly lower processing and storage capability compared to the core (centralized) cloud, thus it is usually infeasible to completely abandon the core cloud and run everything on MECs. An important problem is therefore to decide where (i.e., whether on the core cloud, MEC, or mobile device) to place different processing and storage components of an application. This is referred to as the application placement problem, which is a non-trivial problem as illustrated by the example below.
+
+Motivating Example
+
+Consider an application which recognizes faces from a real-time video stream captured by the camera of a hand-held device. As shown in Fig. [\ref=chap:intro:fig:scenario], we can decompose this application into one storage component (the database) and three different processing components including face detection (FD), image processing and feature extraction (IPFE), and face recognition (FR). The FD component finds areas of an image (a frame of the video stream) that contains faces. This part of image is sent to IPFE for further processing. The main job of IPFE is to filter out noise in the image and extract useful features for recognizing the person from its face. These features are sent to FR for matching with a large set of known features of different persons' faces stored in the database.
+
+Fig. [\ref=chap:intro:fig:scenario] shows one possible placement of FD, IPFE, FR, and the database onto the hierarchical cloud architecture. This can be a good placement in some cases, but may not be a good placement in other cases.
+
+For example, the benefit of running FD on the mobile device instead of MEC is that it reduces the amount of data that need to be transferred between the mobile device and MEC. However, in cases where the mobile device's processing capability is strictly limited but there is a reasonably high bandwidth connection between the mobile device and MEC, it is can be good to place FD on the MEC. Having the database in the core cloud can be beneficial because it can contain a large amount of data infeasible for the MEC to store. In this case, FR should also be in the core cloud because it needs to frequently query the database. However, if the database is relatively small and has locally generated contents, we may want to place the database and FR onto the MEC instead of the core cloud, as this reduces the backhaul network load.
+
+We see that even with this simple application, it is non-straightforward to conceptually find the best placement, while many realistic applications such as streaming, multicasting, and data aggregation [\cite=ChuMulticast] [\cite=DataAggregationImpactWSN] [\cite=ConcealedDataAggregation] are much more complex. We also note that MECs can be attached to devices at different cellular network layers [\cite=ETSIWhitepaper], yielding a hierarchical cloud structure with more than three layers. Meanwhile, there usually exist multiple applications that are instantiated at the cloud system over time. All these aspects motivate us to consider the application placement problem in a rigorous optimization framework where applications arrive in an online manner.
+
+We will abstract the application placement problem as the problem of placing application graphs, which represent application components and their resource demands, onto a physical graph, which represents the computing devices and communication links in the physical system, as shown in Fig. [\ref=fig:intro]. The detailed problem formulation will be presented in Section [\ref=sec:ProblemFormulation].
+
+Related Work
+
+So far, research on application placement in MECs has only considered applications with two components, one running on an MEC and the other running on the user [\cite=FollowMeGC2013] [\cite=MDPFollowMeICC2014] [\cite=wang2015IFIPNetworking] [\cite=urgaonkar2015performance]. Multi-component applications that can be deployed accross multiple MECs and core cloud(s) have not been considered, whereas such applications widely exist in practice.
+
+The multi-component application placement problem has been studied mainly in data-center settings. Because this problem is NP-hard even for simple graphs (as we discuss later), a common practice is to employ heuristic algorithms without performance guarantees [\cite=VNEmbeddingSurvey] [\cite=refEfficientPlacementVI], which may unknowingly suffer from poor performance as compared to the optimal solution. Only a very limited amount of existing work followed a rigorous theoretical framework from approximation algorithms [\cite=bookApproxAlg] and competitive analysis [\cite=bookOnlineComputation], and proposed approximation algorithms (i.e., approximately optimal algorithms) with provable approximation/competitive ratios for the application placement problem, in particular when it involves both node and link placements.
+
+In [\cite=refViNEYard], the authors proposed an algorithm for minimizing the sum cost while considering load balancing, which has an approximate approximation ratio of O(N), where N is the number of nodes in the physical graph. The algorithm is based on linear program (LP) relaxation, and only allows one node in each application graph to be placed on a particular physical node; thus, excluding server resource sharing among different nodes in one application graph. It is shown that the approximation ratio of this algorithm is O(N), which is trivial because one would achieve the same approximation ratio when placing the whole application graph onto a single physical node instead of distributing it across the whole physical graph.
+
+A theoretical work in [\cite=PODC2011] proposed an algorithm with [formula] time-complexity and an approximation ratio of δ = O(D2 log (ND)) for placing a tree application graph with D levels of nodes onto a physical graph. It uses LP relaxation and its goal is to minimize the sum cost. Based on this algorithm, the authors presented an online algorithm for minimizing the maximum load on each node and link, which is O(δ log (N))-competitive when the application lifetimes are equal. The LP formulation in [\cite=PODC2011] is complex and requires [formula] variables and constraints. This means when D is not a constant, the space-complexity (specifying the required memory size of the algorithm) is exponential in D.
+
+Another related theoretical work which proposed an LP-based method for offline placement of paths into trees in data-center networks was reported in [\cite=PathsIntoTrees]. Here, the application nodes can only be placed onto the leaves of a tree physical graph, and the goal is to minimize link congestion. In our problem, the application nodes are distributed across users, MECs, and core cloud, thus they should not be only placed at the leaves of a tree so the problem formulation in [\cite=PathsIntoTrees] is inapplicable to our scenario. Additionally, [\cite=PathsIntoTrees] only focuses on minimizing link congestion. The load balancing of nodes is not considered as part of the objective; only the capacity limits of nodes are considered.
+
+Some other related work focuses on graph partitioning, such as [\cite=AllocDistributedCloud] and [\cite=OptApproxLatencyMin], where the physical graph is defined as a complete graph with edge costs associated with the distance or latency between physical servers. Such an abstraction combines multiple network links into one (abstract) physical edge, which may hide the actual status of individual links along a path.
+
+One important aspect to note is that most existing work, including [\cite=refViNEYard] [\cite=PathsIntoTrees] [\cite=AllocDistributedCloud], and [\cite=OptApproxLatencyMin], do not specifically consider the online operation of the algorithms. Although some of them implicitly claim that one can apply the algorithm repeatedly for each newly arrived application, the competitive ratio of such procedure is unclear. To the best of our knowledge, [\cite=PODC2011] is the only work that studied the competitive ratio of the online application placement problem that considers both node and link placements.
+
+Our Approach
+
+In this paper, we focus on the MEC context and propose algorithms for solving the online application placement problem with provable competitive ratios. Different from [\cite=PODC2011], our approach is not based on LP relaxation. Instead, our algorithms are built upon a baseline algorithm that provides an optimal solution to the placement of a linear application graph (i.e., an application graph that is a line). This is an important novelty in contrast to [\cite=PODC2011] where no optimal solution was presented for any scenario. Many applications expected to run in an MEC environment can be abstracted as hierarchical graphs, and the simplest case of such a hierarchical graph is a line, such as the face recognition example in Section [\ref=subsec:MotivatingExample]. Therefore, the placement of a linear application graph is an important problem in the context of MECs.
+
+Another novelty in our work, compared to [\cite=PODC2011] and most other approaches based on LP relaxation, is that our solution approach is decomposable into multiple small building blocks. This makes it easy to extend our proposed algorithms to a distributed solution in the future, which would be very beneficial for reducing the amount of necessary control information exchange among different cloud entities in a distributed cloud environment containing MECs. This decomposable feature also makes it easier to use these algorithms as a sub-procedure for solving a larger problem.
+
+It is also worth noting that the analytical methodology we use in this paper is new compared to existing techniques such as LP relaxation, thus we enhance the set of tools for online optimization. The theoretical analysis in this paper also provides insights on the features and difficulty of the problem, which can guide future practical implementations. In addition, the proposed algorithms themselves are relatively easy to implement in practice.
+
+Main Results
+
+We propose non-LP based approximation algorithms for online application placement in this paper. The general problem of application placement is hard to approximate [\cite=PODC2011] [\cite=PathsIntoTrees] [\cite=QAPApprox]. Therefore, similar to related work [\cite=refViNEYard] [\cite=PODC2011] [\cite=PathsIntoTrees] [\cite=AllocDistributedCloud] [\cite=OptApproxLatencyMin], we make a few simplifications to make the problem tractable. These simplifications and their motivations are described as follows.
+
+Throughout this paper, we focus on application and physical graphs that have tree topologies. This is due to the consideration that a tree application graph models a wide range of MEC applications that involve a hierarchical set of processes (or virtual machines), including streaming, multicasting, and data aggregation applications [\cite=ChuMulticast] [\cite=DataAggregationImpactWSN] [\cite=ConcealedDataAggregation] such as the exemplar face recognition application presented earlier. For the physical system, we consider tree physical graphs due to the hierarchical nature of MEC environment (see Fig. [\ref=chap:intro:fig:scenario]). We note that the algorithms we propose in this paper also works with several classes of non-tree graphs and an example will be given in Section [\ref=sec:discussion]. For ease of presentation, we mainly focus on tree graphs in this paper.
+
+In the tree application graph, if we consider any path from the root to a leaf, we only allow those assignments where the application nodes along this path are assigned in their respective order on a sub-path of the physical topology (multiple application nodes may still be placed onto one physical node), thus, creating a "cycle-free" placement. Figure [\ref=fig:cycles] illustrates this placement. Let nodes 1 to 5 denote the application nodes along a path in the application-graph topology. The cycle-free placement of this path onto a sub-path of the physical network ensures the order is preserved (as shown in Fig. [\ref=fig:cycles](b)), whereas the order is not preserved in Fig. [\ref=fig:cycles](c). A cycle-free placement has a clear motivation of avoiding cyclic communication among the application nodes. For example, for the placement in Fig. [\ref=fig:cycles](c), application nodes 2 and 4 are placed on physical node B, while application node 3 is placed on physical node C. In this case, the physical link B-C carries the data of application links 2-3 and 3-4 in a circular fashion. Such traffic can be naturally avoided with a cycle-free mapping (Fig. [\ref=fig:cycles](b)), thus relieving congestion on the communication links. As we will see in the simulations in Section [\ref=sec:SimulationResults], the cycle-free constraint still allows the proposed scheme to outperform some other comparable schemes that allow cycles. Further discussion on the approximation ratio associated with cycle-free restriction is given in Appendix [\ref=app:ApproxRatioCycleFree].
+
+In this paper, for the purpose of describing the algorithms, we classify an application node as a junction node in the tree application graph when it has two or more children. These junction nodes may represent data splitting or joining processes for multiple data streams. In some cases, they may have pre-specified placement, because they serve multiple data streams that may be associated with different end-users, and individual data streams may arrive dynamically in an online fashion. Our work first considers cases where the placements of these junction nodes are pre-specified, and then extends the results to the general case where some junction nodes are not placed beforehand.
+
+For the aforementioned scenario, we obtain the following main results for the problem of application placement with the goal of load balancing among physical nodes and edges:
+
+An optimal offline algorithm for placing a single application graph which is a linear graph, with [formula] time-complexity and O(VN(V + N)) space-complexity, where the application graph has V nodes and the physical graph has N nodes.
+
+An online approximation algorithm for placing single or multiple tree application graphs, in which the placements of all junction nodes are pre-specified, i.e., their placements are given. This algorithm has a time-complexity of [formula] and a space-complexity of O(VN(V + N)) for each application graph placement; its competitive ratio is O( log N).
+
+An online approximation algorithm for placing single or multiple tree application graphs, in which the placements of some junction nodes are not pre-specified. This algorithm has a time-complexity of [formula] and a space-complexity of O(VN1 + H(V + N)) for each application graph placement; its competitive ratio is O( log 1 + HN), where H is the maximum number of junction nodes without given placement on any single path from the root to a leaf in the application graph. Note that we always have H  ≤  D, where D is the depth of the tree application graph.
+
+Our work considers multiple types of resources on each physical node, such as CPU, storage, and I/O resources. The proposed algorithms can work with domain constraints which restrict the set of physical nodes that a particular application node can be assigned to. The exact algorithm for single line placement can also incorporate conflict constraints where some assignments are not allowed for a pair of adjacent application nodes that are connected by an application edge; such constraints may arise in practice due to security policies as discussed in [\cite=VNEmbeddingSurvey].
+
+Problem Formulation
+
+Definitions
+
+We consider the placement of application graphs onto a physical graph, where the application graphs represent applications that may arrive in an online manner. In the following, we introduce some notations that will be used in this paper.
+
+Application Graph: An application is abstracted as a graph, in which nodes represent processing/computational modules of the application, edges represent communication demand between the nodes. Each node v∈ in the application graph  = (,) is associated with parameters that represent the computational resource (of K different types) demands of node v. Similarly, each edge e∈ is associated with a communication bandwidth demand. The notation e = (v1,v2) denotes that application edge e connects application nodes v1 and v2. The application graph [formula] can be either a directed or an undirected graph. If it is a directed graph, the direction of edges specify the direction of data communication; if it is an undirected graph, data communication can occur in either direction along application edges.
+
+Physical Graph: The physical computing system is also abstracted as a graph, with nodes denoting computing devices and edges denoting communication links between nodes. Each node n∈ in the physical graph  = (,) has K different types of computational resources, and each edge l∈ has communication resource. A physical node can also represent a network device such as a router or switch with zero computational resource. We use the notation l = (n1,n2) to denote that physical link l connects physical nodes n1 and n2. Similar to the application graph, the physical graph can be either directed or undirected, depending on whether the physical links are bidirectional (i.e., communication in both directions share the same link) or single-directional (i.e., communication in each direction has a separate link).
+
+Because we consider multiple application graphs in this paper, we denote the tree application graph for the ith application arrival as (i) = ((i),(i)). Throughout this paper, we define V = ||, E = ||, N = ||, and L = ||, where |  ·  | denotes the number of elements in the corresponding set.
+
+We consider undirected application and physical graphs in the problem formulation, which means that data can flow in any direction on an edge, but the proposed algorithms can be easily extended to many types of directed graphs. For example, when the tree application graph is directed and the tree physical graph is undirected, we can merge the two application edges that share the same end nodes in different directions into one edge, and focus on the merged undirected application graph for the purpose of finding optimal placement. This does not affect the optimality because for any placement of application nodes, there is a unique path connecting two different application nodes due to the cycle-free constraint and the tree structure of physical graphs. Thus, application edges in both directions connecting the same pair of application nodes have to be placed along the same path on the physical graph.
+
+Costs: For the ith application, the weighted cost (where the weighting factor can serve as a normalization to the total resource capacity) for type k∈{1,2,...,K} resource of placing v to n is denoted by dv  →  n,k(i). Similarly, the weighted communication bandwidth cost of assigning e to l is denoted by be  →  l(i). The edge cost is also defined for a dummy link l = (n,n), namely a non-existing link that connects the same node, to take into account the additional cost when placing two application nodes on one physical node. It is also worth noting that an application edge may be placed onto multiple physical links that form a path.
+
+Remark: The cost of placing the same application node (or edge) onto different physical nodes (or edges) can be different. This is partly because different physical nodes and edges may have different resource capacities, and therefore different weighting factors for cost computation. It can also be due to the domain and conflict constraints as mentioned earlier. If some mapping is not allowed, then we can set the corresponding mapping cost to infinity. Hence, our cost definitions allow us to model a wide range of access-control/security policies.
+
+Mapping: A mapping is specified by π:  →  . Because we consider tree physical graphs with the cycle-free restriction, there exists only one path between two nodes in the physical graph, and we use (n1,n2) to denote either the link or path between nodes n1 and n2. We use the notation l∈(n1,n2) to denote that link l is included in path (n1,n2). The placement of nodes automatically determines the placement of edges.
+
+In a successive placement of the 1st up to the ith application, each physical node n∈ has an aggregated weighted cost of
+
+[formula]
+
+where the second sum is over all v that are mapped to n. Equation ([\ref=aggNodeCost]) gives the total cost of type k resource requested by all application nodes that are placed on node n, upto the ith application. Similarly, each physical edge l∈ has an aggregated weighted cost of
+
+[formula]
+
+where the second sum is over all application edges e = (v1,v2) for which the path between the physical nodes π(v1) and π(v2) (which v1 and v2 are respectively mapped to) includes the link l.
+
+Objective Function
+
+The optimization objective in this paper is load balancing for which the objective function is defined as
+
+[formula]
+
+where M is the total number of applications (application graphs). Equation ([\ref=eq:objOnline]) aims to minimize the maximum weighted cost on each physical node and link, ensuring that no single element gets overloaded and becomes a point of failure, which is important especially in the presence of bursty traffic. Such an objective is widely used in the literature [\cite=choudhury2014rejecting] [\cite=AzarLoadBalancingSurvey].
+
+Remark: While we choose the objective function ([\ref=eq:objOnline]) in this paper, we do realize that there can be other objectives as well, such as minimizing the total resource consumption. We note that the exact algorithm for the placement of a single linear application graph can be generalized to a wide class of other objective functions as will be discussed in Section [\ref=sub:line-extensions]. For simplicity, we restrict our attention to the objective function in ([\ref=eq:objOnline]) in most parts of our discussion.
+
+A Note on Capacity Limit: For simplicity, we do not impose capacity constraints on physical nodes and links in the optimization problem defined in ([\ref=eq:objOnline]), because even without the capacity constraint, the problem is very hard as we will see later in this paper. However, because the resource demand of each application node and link is specified in every application graph, the total resource consumption at a particular physical node/link can be calculated by summing up the resource demands of application nodes/links that are placed on it. Therefore, an algorithm can easily check within polynomial time whether the current placement violates the capacity limits. If such a violation occurs, it can simply reject the newly arrived application graph.
+
+In most practical cases, the costs of node and link placements should be defined as proportional to the resource occupation when performing such placement, with weights inversely proportional to the capacity of the particular type of resource. With such a definition, the objective function ([\ref=eq:objOnline]) essentially tries to place as many application graphs as possible without increasing the maximum resource occupation (normalized by the resource capacity) among all physical nodes and links. Thus, the placement result should utilize the available resource reasonably well. A more rigorous analysis on the impact of capacity limit is left as future work.
+
+Basic Assignment Unit: Single Linear Application Graph Placement
+
+We first consider the assignment of a single linear application graph (i.e., the application nodes are connected in a line), where the goal is to find the best placement of application nodes onto a path in the tree physical graph under the cycle-free constraint (see Fig. [\ref=fig:cycles]). The solution to this problem forms the building block of other more sophisticated algorithms presented later. As discussed next, we develop an algorithm that can find the optimal solution to this problem. We omit the application index i in this section because we focus on a single application, i.e., M = 1, here.
+
+Sub-Problem Formulation
+
+Without loss of generality, we assume that [formula] and [formula] are indexed sets, and we use v to exchangeably denote elements and indices of application nodes in [formula], and use n to exchangeably denote elements and indices of physical nodes in [formula]. This index (starting from 1 for the root node) is determined by the topology of the graph. In particular, it can be determined via a breadth-first or depth-first indexing on the tree graph (note that linear graphs are a special type of tree graphs). From this it follows that, if n1 is a parent of n2, then we must have n1 < n2. The same holds for the application nodes [formula].
+
+With this setting, the edge cost can be combined together with the cycle-free constraint into a single definition of pairwise costs. The weighted pairwise cost of placing v - 1 to n1 and v to n2 is denoted by c(v - 1,v)  →  (n1,n2), and it takes the following values with [formula]:
+
+If the path from n1 to n2 traverses some n < n1, in which case the cycle-free assumption is violated, then c(v - 1,v)  →  (n1,n2)  =    ∞  .
+
+Otherwise,
+
+[formula]
+
+The maximum operator in ([\ref=eq:pairwiseCost]) follows from the fact that, in the single line placement, at most one application edge can be placed onto a physical link. Also recall that the edge cost definition incorporates dummy links such as l = (n,n), thus there always exists l∈(n1,n2) even if n1 = n2.
+
+Then, the optimization problem ([\ref=eq:objOnline]) with M = 1 becomes
+
+[formula]
+
+The last maximum operator in ([\ref=eq:objOfflineWithPairwise]) takes the maximum among all application edges (rather than physical links), because when combined with the maximum in ([\ref=eq:pairwiseCost]), it essentially computes the maximum among all physical links that are used for data transmission under the mapping π.
+
+Decomposing the Objective Function
+
+In this subsection, we decompose the objective function in ([\ref=eq:objOfflineWithPairwise]) to obtain an iterative solution. Note that the objective function ([\ref=eq:objOfflineWithPairwise]) already incorporates all the constraints as discussed earlier. Hence, we only need to focus on the objective function itself.
+
+When only considering a subset of application nodes 1,2,...,v1  ≤  V, for a given mapping π, the value of the objective function for this subset of application nodes is
+
+[formula]
+
+Compared with ([\ref=eq:objOfflineWithPairwise]), the only difference in ([\ref=eq:objOfflineWithPairwiseAppSubset]) is that we consider the first v1 application nodes and the mapping π is assumed to be given. The optimal cost for application nodes 1,2,...,v1  ≤  V is then
+
+[formula]
+
+where π* denotes the optimal mapping.
+
+(Decomposition of the Objective Function): Let Jπ*|π(v1)(v1) denote the optimal cost under the condition that π(v1) is given, i.e. Jπ*|π(v1)(v1) =  min π(1),...,π(v1 - 1)Jπ(v1) with given π(v1). When [formula], where 1  ≤  vs  ≤  v1, which means that [formula] is mapped to a different physical node from [formula] and nodes vs,...,v1 are mapped onto the same physical node, then we have
+
+[formula]
+
+The optimal mapping for v1 can be found by
+
+[formula]
+
+Because π(vs) = π(vs + 1) = ... = π(v1), we have
+
+[formula]
+
+The three terms in the maximum operation in ([\ref=eq:objDecomp]) respectively correspond to: 1) the cost at physical nodes and edges that the application nodes 1,...,vs - 1 (and their connecting edges) are mapped to, 2) the costs at the physical node that vs,...,v1 are mapped to, and 3) the pairwise costs for connecting vs - 1 and vs as well as interconnections of nodes in vs,...,v1. Taking the maximum of these three terms, we obtain the cost function in ([\ref=eq:objOfflineWithPairwiseAppSubset]).
+
+In the following, we focus on finding the optimal mapping based on the cost decomposition in ([\ref=eq:objDecomp]). We note that the pairwise cost between vs - 1 and vs depends on the placements of both vs - 1 and vs. Therefore, in order to find the optimal Jπ(v1) from Jπ(vs - 1), we need to find the minimum cost among all possible placements of vs - 1 and vs, provided that nodes vs,...,v1 are mapped onto the same physical node and vs and vs - 1 are mapped onto different physical nodes. For a given v1, node vs may be any node that satisfies 1  ≤  vs  ≤  v1. Therefore, we also need to search through all possible values of vs. This can then be expressed as the proposition, where we first find Jπ*|π(v1)(v1) as an intermediate step.
+
+Equation ([\ref=eq:iterativeFunction]) is the Bellman's equation [\cite=powell2007approximate] for problem ([\ref=eq:objOfflineWithPairwise]). Using dynamic programming [\cite=powell2007approximate], we can solve ([\ref=eq:objOfflineWithPairwise]) by iteratively solving ([\ref=eq:iterativeFunction]). In each iteration, the algorithm computes new costs Jπ*|π(v1)(v1) for all possible mappings π(v1), based on the previously computed costs Jπ*|π(v)(v) where v < v1. For the final application node v1 = V, we use ([\ref=eq:iterativeFunctionFinal]) to compute the final optimal cost Jπ*(V) and its corresponding mapping π*.
+
+Optimal Algorithm
+
+The pseudocode of the exact optimal algorithm is shown in Algorithm [\ref=algLineToTree]. It computes V  ·  N number of Jπ*|π(v) = n(v) values, and we take the minimum among no more than V  ·  N values in ([\ref=eq:iterativeFunction]). The terms in ([\ref=eq:iterativeFunction]) include the sum or maximum of no more than V values and the maximum of K values. Because K is a constant in practical systems, we conclude that the time-complexity of this algorithm is [formula].
+
+The space-complexity of Algorithm [\ref=algDoubling] is O(VN(V + N)), which is related to the memory required for storing matrices [formula], [formula], [formula], and [formula] in the algorithm, where K is also regarded as a constant here.
+
+Also note that the optimality of the result from Algorithm [\ref=algLineToTree] is subject to the cycle-free constraint, and the sequence of nodes is always preserved in each iteration.
+
+Example
+
+To illustrate the procedure of the algorithm, we construct an auxiliary graph from the given application and physical graphs, as shown in Fig. [\ref=fig:auxGraph]. Each node (v1,n1) in the auxiliary graph represents a possible placement of a particular application node, and is associated with the cost value Jπ*|π(v1) = n1(v1), where v1 is the application node index and n1 is the physical node index in the auxiliary graph. When computing the cost at a particular node, e.g. the cost Jπ*|π(4) = (4) at node (4,C) in Fig. [\ref=fig:auxGraph], the algorithm starts from the "earlier" costs [formula] where the tuple (vs - 1,π(vs - 1)) is either (1,A), (1,B), (2,A), (2,B), (3,A), or (3,B). From each of these nodes, the subsequent application nodes (i.e. from vs to node 4) are all mapped onto physical node C, and we compute the cost for each such "path" with the maximum operations in ([\ref=eq:iterativeFunction]), by assuming the values of vs - 1 and π(vs - 1) are given by its originating node in the auxiliary graph. For example, one path can be (2,B) - (3,C) - (4,C) where vs - 1 = 2 and π(vs - 1) = B, another path can be (1,A) - (2,C) - (3,C) - (4,C) where vs - 1 = 1 and π(vs - 1) = A. Then, the algorithm takes the minimum of the costs for all paths, which corresponds to the minimum operations in ([\ref=eq:iterativeFunction]) and gives Jπ*|π(4) = (4). In the end, the algorithm searches through all the possible mappings for the final application node (node 5 in Fig. [\ref=fig:auxGraph]) and chooses the mapping that results in the minimum cost, which corresponds to the procedure in ([\ref=eq:iterativeFunctionFinal]).
+
+Extensions
+
+The placement algorithm for single linear application graph can also be used when the objective function (in the form of ([\ref=eq:objOnline]) with M = 1) is modified to one of the following:
+
+[formula]
+
+[formula]
+
+where fn,k(  ·  ) and gl(  ·  ) are increasing functions with fn,k(0) = 0, gl(0) = 0, fn,k(  ∞  ) =   ∞  , and gl(  ∞  ) =   ∞  . The algorithm and its derivation follow the same procedure as discussed above. These alternative objective functions can be useful for scenarios where the goal of optimization is other than min-max. The objective function in ([\ref=eq:objOfflineExtSum]) will also be used later for solving the online placement problem.
+
+Online Placement Algorithms for Tree Application Graphs
+
+Using the optimal algorithm for the single linear application graph placement as a sub-routine, we now present algorithms for the generalized case; namely, placement of an arriving stream of application graphs with tree topology. We first show that even the offline placement of a single tree is NP-hard. Then, we propose online algorithms to approximate the optimal placement with provable competitive ratio, by first considering the case where junction nodes in the application graph have pre-specified placements that are given beforehand, and later relax this assumption.
+
+Hardness Result
+
+(NP-hardness) Placement of a tree application graph onto a tree physical graph for the objective function defined in ([\ref=eq:objOnline]), with or without pre-specified junction node placement, is NP-hard.
+
+To show that the given problem is NP-hard, we show that the problem can be reduced from the NP-hard problem of minimum makespan scheduling on unrelated parallel machines (MMSUPM) [\cite=bookApproxAlg], which minimizes the maximum load (or job processing time) on each machine.
+
+Consider a special case in our problem where the application graph has a star topology with two levels (one root and multiple leaf nodes), and the physical graph is a line with multiple nodes. Assume that the number of resource types in the nodes is K = 1, the application edge resource demand is zero, and the application node resource demand is non-zero. Then, the problem is essentially the MMSUPM problem. It follows that the MMSUPM problem reduces to our problem. In other words, if we can solve our problem in polynomial time, then we can also solve the MMSUPM problem in polynomial time. Because MMSUPM is NP-hard, our problem is also NP-hard. The above result holds no matter whether the root node (junction node) of the application graph has pre-specified placement or not.
+
+When All Junction Node Placements Are Given
+
+We first consider tree application graphs for which the placements of junction nodes are given, and focus on placing the remaining non-junction nodes which are connected to at most two edges. An example is shown in Fig. [\ref=fig:exampleFixedDegree3]. Given the placed junction nodes, we name the set of application edges and nodes that form a chain between the placed nodes (excluding each placed node itself, but including each edge that is connected to a placed node) as a simple branch, where the notion "simple" is opposed to the general branch which will be defined in Section [\ref=sec:UnfixedDegree3]. A simple branch can also be a chain starting from an edge that connects a placed node and ending at a leaf node, such as the nodes and edges within the dashed boundary in the application graph in Fig. [\ref=fig:exampleFixedDegree3]. Each node in a simple branch is connected to at most two edges.
+
+Algorithm Design
+
+We propose an online placement algorithm, where we borrow some ideas from [\cite=OnlineRoutingWithExpCost]. Different from [\cite=OnlineRoutingWithExpCost] which focused on routing and job scheduling problems, our work considers more general graph mapping.
+
+When an application (represented by a tree application graph) arrives, we split the whole application graph into simple branches, and regard each simple branch as an independent application graph. All the nodes with given placement can also be regarded as an application that is placed before placing the individual simple branches. After placing those nodes, each individual simple branch is placed using the online algorithm that we describe below. In the remaining of this section, by application we refer to the application after splitting, i.e. each application either consists of a simple branch or a set of nodes with given placement.
+
+How to Place Each Simple Branch: While our ultimate goal is to optimize ([\ref=eq:objOnline]), we use an alternative objective function to determine the placement of each newly arrived application i (after splitting). Such an indirect approach provides performance guarantee with respect to ([\ref=eq:objOnline]) in the long run. We will first introduce the new objective function and then discuss its relationship with the original objective function ([\ref=eq:objOnline]).
+
+We define a variable Ĵ as a reference cost. The reference cost may be an estimate of the true optimal cost (defined as in ([\ref=eq:objOnline])) from optimal offline placement, and we will discuss later about how to determine this value. Then, for placing the ith application, we use an objective function which has the same form as ([\ref=eq:objOfflineExtSum]), with fn,k(  ·  ) and gl(  ·  ) defined as subject to the cycle-free placement constraint, where we define [formula] and [formula] (γ > 1 is a design parameter).
+
+Why We Use an Alternative Objective Function: The objective function ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]) is the increment of the sum exponential values of the original costs, given all the previous placements. With this objective function, the performance bound of the algorithm can be shown analytically (see Proposition [\ref=prop:Bound] below). Intuitively, the new objective function ([\ref=eq:objOfflineExtSum]) serves the following purposes:
+
+"Guide" the system into a state such that the maximum cost among physical links and nodes is not too high, thus approximating the original objective function ([\ref=eq:objOnline]). This is because when the existing cost at a physical link or node (for a particular resource type k) is high, the incremental cost (following ([\ref=eq:objOfflineExtSum])) of placing the new application i on this link or node (for the same resource type k) is also high, due to the fact that exp α(y) is convex increasing and the cost definitions in ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]).
+
+While ([\ref=eq:objOnline]) only considers the maximum cost, ([\ref=eq:objOfflineExtSum]) is also related to the sum cost, because we sum up all the exponential cost values at different physical nodes and links together. This "encourages" a low resource consuming placement of the new application i (which is reflected by low sum cost), thus leaving more available resources for future applications. In contrast, if we use ([\ref=eq:objOnline]) directly for each newly arrived application, the placement may greedily take up too much resource, so that future applications can no longer be placed with a low cost.
+
+In practice, we envision that objective functions with a shape similar to ([\ref=eq:objOfflineExtSum]) can also serve our purpose.
+
+How to Solve It: Because each application either obeys a pre-specified placement or consists of a simple branch, we can use Algorithm [\ref=algLineToTree] with appropriately modified cost functions to find the optimal solution to ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]). For the case of a simple branch having an open edge, such as edge (2,4) in Fig. [\ref=fig:exampleFixedDegree3], we connect an application node that has zero resource demand to extend the simple branch to a graph, so that Algorithm [\ref=algLineToTree] is applicable.
+
+Algorithm [\ref=algMultiLine] summarizes the above argument as a formal algorithm for each application placement, where πi denotes the mapping for the ith application. Define a parameter, [formula], then Algorithm [\ref=algMultiLine] performs the placement as long as the cost on each node and link is not bigger than βĴ, otherwise it returns FAIL. The significance of the parameter β is in calculating the competitive ratio, i.e., the maximum ratio of the cost resulting from Algorithm [\ref=algMultiLine] to the optimal cost from an equivalent offline placement, as shown below.
+
+Why We Need the Reference Cost Ĵ: The reference cost Ĵ is an input parameter of the objective function ([\ref=eq:objOfflineExtSum]) and Algorithm [\ref=algMultiLine], which enables us to show a performance bound for Algorithm [\ref=algMultiLine], as shown in Proposition [\ref=prop:Bound].
+
+If there exists an offline mapping πo that considers all M application graphs and brings cost Jπo, such that Jπo  ≤  Ĵ, then Algorithm [\ref=algMultiLine] never fails, i.e., pn,k(M) and ql(M) from Algorithm [\ref=algMultiLine] never exceeds βĴ. The cost Jπo is defined in ([\ref=eq:objOnline]).
+
+See Appendix [\ref=app:ProofGraphPlacementApproxBound].
+
+Proposition [\ref=prop:Bound] guarantees a bound for the cost resulting from Algorithm [\ref=algMultiLine]. We note that the optimal offline mapping πo * produces cost Jπo *, which is smaller than or equal to the cost of an arbitrary offline mapping. It follows that for any πo, we have Jπo *  ≤  Jπo. This means that if there exists πo such that Jπo  ≤  Ĵ, then we must have Jπo *  ≤  Ĵ. If we can set Ĵ = Jπo *, then from Proposition [\ref=prop:Bound] we have [formula], which means that the competitive ratio is β.
+
+How to Determine the Reference Cost Ĵ: Because the value of Jπo * is unknown, we cannot always set Ĵ exactly to Jπo *. Instead, we need to set Ĵ to an estimated value that is not too far from Jπo *. We achieve this by using the doubling technique, which is widely used in online approximation algorithms. The idea is to double the value of Ĵ every time Algorithm [\ref=algMultiLine] fails. After each doubling, we ignore all the previous placements when calculating the objective function ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]), i.e., we assume that there is no existing application, and we place the subsequent applications (including the one that has failed with previous value of Ĵ) with the new value of Ĵ. At initialization, the value of Ĵ is set to a reasonably small number Ĵ0.
+
+In Algorithm [\ref=algDoubling], we summarize the high-level procedure that includes the splitting of the application graph, the calling of Algorithm [\ref=algMultiLine], and the doubling process, with multiple application graphs that arrive over time.
+
+Complexity and Competitive Ratio
+
+In the following, we discuss the complexity and competitive ratio of Algorithm [\ref=algDoubling].
+
+Because the value of Jπo * is finite, the doubling procedure in Algorithm [\ref=algDoubling] only contains finite steps. The remaining part of the algorithm mainly consists of calling Algorithm [\ref=algMultiLine] which then calls Algorithm [\ref=algLineToTree] for each simple branch. Because nodes and links in each simple branch together with the set of nodes with given placement add up to the whole application graph, similar to Algorithm [\ref=algLineToTree], the time-complexity of Algorithm [\ref=algDoubling] is [formula] for each application graph arrival.
+
+Similarly, when combining the procedures in Algorithms [\ref=algLineToTree]-[\ref=algDoubling], we can see that the space-complexity of Algorithm [\ref=algDoubling] is O(VN(V + N)) for each application graph arrival, which is in the same order as Algorithm [\ref=algLineToTree].
+
+For the competitive ratio, we have the following result.
+
+(Competitive Ratio): Algorithm [\ref=algDoubling] is [formula]-competitive.
+
+If Algorithm [\ref=algMultiLine] fails, we know that Jπo *  >  Ĵ according to Proposition [\ref=prop:Bound]. Hence, by doubling the value of Ĵ each time Algorithm [\ref=algMultiLine] fails, we have Ĵf < 2Jπo *, where Ĵf is the final value of Ĵ after placing all M applications. Because we ignore all previous placements and only consider the applications i0,...,i for a particular value of Ĵ, it follows that
+
+[formula]
+
+for the particular value of Ĵ.
+
+When we consider all the placements of M applications, by summing up ([\ref=eq:doublingProof]) for all values of Ĵ, we have
+
+[formula]
+
+Hence, the proposition follows.
+
+The variables α, γ and K are constants, and L = N - 1 because the physical graph is a tree. Hence, the competitive ratio of Algorithm [\ref=algDoubling] can also be written as O( log N).
+
+It is also worth noting that, for each application graph, we can have different tree physical graphs that are extracted from a general physical graph, and the above conclusions still hold.
+
+When at Least One Junction Node Placement Is Not Given
+
+In this subsection, we focus on cases where the placements of some or all junction nodes are not given. For such scenarios, we first extend our concept of branches to incorporate some unplaced junction nodes. The basic idea is that each general branch is the largest subset of nodes and edges that are interconnected with each other not including any of the nodes with pre-specified placement, but (as with our previous definition of simple branches) the subset includes the edges connected to placed nodes. A simple branch (see definition in Section [\ref=sec:FixedDegree3]) is always a general branch, but a general branch may or may not be a simple branch. Examples of general branches are shown in Fig. [\ref=fig:exampleUnfixedDegree3].
+
+Algorithm Design
+
+The main idea behind the algorithm is to combine Algorithm [\ref=algMultiLine] with the enumeration of possible placements of unplaced junction nodes. When there is only a constant number of such nodes on any path from the root to a leaf, the algorithm remains polynomial in time-complexity while guaranteeing a polynomial-logarithmic (poly-log) competitive ratio.
+
+To illustrate the intuition, consider the example application graph shown in Fig. [\ref=fig:exampleUnfixedDegree3](a), where nodes 2 and 5 are both initially unplaced. We follow a hierarchical determination of the placement of unplaced nodes starting with the nodes in the deepest level. For the example in Fig. [\ref=fig:exampleUnfixedDegree3](a), we first determine the placement of node 5, given each possible placement of node 2; then determine the placement of node 2. Recall that we use the cost function in ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]) to determine the placement of each simple branch when all the junction nodes are placed. We use the same cost function (with slightly modified parameters) for the placement of nodes 2 and 5. However, when determining the placement of node 5, we regard the general branch that includes node 5 (which contains nodes 3, 5, 7, and 8 and the corresponding edges as shown in Fig. [\ref=fig:exampleUnfixedDegree3](b)) as one single application, i.e. the values of [formula] and [formula] in ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]) correspond to the resource utilization at nodes and links before placing this whole general branch, and the application i contains all the nodes and edges in this general branch. Similarly, when determining the placement of node 2, we consider the whole application graph as a single application.
+
+It is worth noting that in many cases we may not need to enumerate all the possible combinations of the placement of unplaced junction nodes. For example, in Fig. [\ref=fig:exampleUnfixedDegree3](c), when the placement of node 2 is given, the placement of nodes 5 and 6 does not impose additional restrictions upon each other (i.e., the placement of node 5 does not affect where node 6 can be placed, for instance). Hence, the general branches that respectively include node 5 and node 6 can be placed in a subsequent order using the online algorithm.
+
+Based on the above examples, we summarize the procedure as Algorithm [\ref=algTreeToTreeNotFixedSub], where we solve the problem recursively and determine the placement of one junction node that has not been placed before in each instance of the function Unplaced(v,h). The parameter v is initially set to the top-most unplaced junction node (node 2 in Fig. [\ref=fig:exampleUnfixedDegree3](a)), and h is initially set to H (the maximum number of unplaced junction nodes on any path from the root to a leaf in the application graph).
+
+Algorithm [\ref=algTreeToTreeNotFixedSub] can be embedded into Algorithm [\ref=algDoubling] to handle multiple arriving application graphs and unknown reference cost Ĵ. The only part that needs to be modified in Algorithm [\ref=algDoubling] is that it now splits the whole application graph into general branches (rather than simple branches without unplaced junction nodes), and it either calls Algorithm [\ref=algMultiLine] or Algorithm [\ref=algTreeToTreeNotFixedSub] depending on whether there are unplaced junction nodes in the corresponding general branch. When there are such nodes, it calls Unplaced(v,h) with the aforementioned initialization parameters.
+
+Complexity and Competitive Ratio
+
+The time-complexity of Algorithm [\ref=algTreeToTreeNotFixedSub] together with its high-level procedure that is a modified version of Algorithm [\ref=algDoubling] is [formula] for each application graph arrival, as explained below. Note that H is generally not the total number of unplaced nodes.
+
+Obviously, when H = 0, the time-complexity is the same as the case where all junction nodes are placed beforehand. When there is only one unplaced junction node (in which case H = 1), Algorithm [\ref=algTreeToTreeNotFixedSub] considers all possible placements for this vertex, which has at most N choices. Hence, its time-complexity becomes N times the time-complexity with all placed junction nodes. When there are multiple unplaced junction nodes, we can see from Algorithm [\ref=algTreeToTreeNotFixedSub] that it only increases its recursion depth when some lower level unplaced junction nodes exist. In other words, parallel general branches (such as the two general branches that respectively include node 5 and node 6 in Fig. [\ref=fig:exampleUnfixedDegree3](c)) do not increase the recursion depth, because the function Unplaced(v,h) for these general branches is called in a sequential order. Therefore, the time-complexity depends on the maximum recursion depth which is H; thus, the overall time-complexity is [formula].
+
+The space-complexity of Algorithm [\ref=algTreeToTreeNotFixedSub] is O(VN1 + H(V + N)) for each application graph arrival, because in every recursion, the results for all possible placements of v are stored, and there are at most N such placements for each junction node.
+
+Regarding the competitive ratio, similar to Proposition [\ref=prop:Bound], we can obtain the following result.
+
+If there exists an offline mapping πo that considers all M application graphs and brings cost Jπo, such that Jπo  ≤  Ĵ, then Algorithm [\ref=algTreeToTreeNotFixedSub] never fails, i.e., pn,k(M) and ql(M) resulting from Algorithm [\ref=algTreeToTreeNotFixedSub] never exceeds β1 + HĴ.
+
+When H = 0, the claim is the same as Proposition [\ref=prop:Bound]. When H = 1, there is at most one unplaced junction node in each general branch. Because Algorithm [\ref=algTreeToTreeNotFixedSub] operates on each general branch, we can regard that we have only one unplaced junction node when running Algorithm [\ref=algTreeToTreeNotFixedSub]. In this case, there is no recursive calling of Unplaced(v,h). Recall that v is the top-most unplaced junction node. The function Unplaced(v,h) first fixes the placement of v to a particular physical node n0, and finds the placement of the remaining nodes excluding v. It then finds the placement of v.
+
+From Proposition [\ref=prop:Bound], we know that when we fix the placement of v, the cost resulting from the algorithm never exceeds βĴ if there exists a mapping πo|π(v) = n0 (under the constraint that v is placed at n0) that brings cost Jπo|π(v) = n0  ≤  Ĵ.
+
+To find the placement of v, Algorithm [\ref=algTreeToTreeNotFixedSub] finds the minimum cost placement from the set of placements that have been obtained when the placement of v is given. Reapplying Proposition [\ref=prop:Bound] for the placement of v, by substituting Ĵ with βĴ, we know that the cost from the algorithm never exceeds β2Ĵ, provided that there exists a mapping, which is within the set of mappings produced by the algorithm with given v placements, that has a cost not exceeding βĴ. Such a mapping exists and can be produced by the algorithm if there exists an offline mapping πo (thus a mapping πo|π(v) = n0 for a particular placement of v) that brings cost Jπo with Jπo  ≤  Ĵ. Hence, the claim follows for H = 1.
+
+When H > 1, because we decrease the value of h by one every time we recursively call Unplaced(v,h), the same propagation principle of the bound applies as for the case with H = 1. Hence, the claim follows.
+
+Using the same reasoning as for Proposition [\ref=prop:competRatio], it follows that Algorithm [\ref=algTreeToTreeNotFixedSub] in combination with the extended version of Algorithm [\ref=algDoubling] is [formula]-competitive, thus its competitive ratio is O( log 1 + HN) .
+
+Numerical Evaluation
+
+We compare the proposed algorithm against two heuristic approaches via simulation. The first approach is one that greedily minimizes the maximum resource utilization (according to ([\ref=eq:objOnline])) for the placement of every newly arrived application graph. The second approach is the Vineyard algorithm proposed in [\cite=refViNEYard], where load balancing is also considered as a main goal in application placement.
+
+Both the greedy and Vineyard algorithms require an optimization problem to be solved as a subroutine, for the placement of every newly arrived application. This optimization problem can be expressed as a mixed-integer linear program (MILP). MILPs are generally not solvable in polynomial-time, thus an LP-relaxation and rounding procedure is used in [\cite=refViNEYard]. In this paper, to capture the best generality and eliminate inaccuracies caused by heuristic rounding mechanisms (because there are multiple ways of rounding that one could use), we solve the MILP subroutines directly using CPLEX [\cite=IBMCPLEX]. This gives an exact solution to the subroutine, thus the greedy and Vineyard algorithms in the simulation may perform better than they would in reality, and we are conservative in showing the effectiveness of the proposed algorithm.
+
+Note that these MILP solutions do not represent the optimal offline solution, because an optimal offline solution needs to consider all application graphs at the same time, whereas the methods that we use for comparison only solve the MILP subroutine for each newly arrived application. Obtaining the optimal offline solution requires excessive computational time such that the simulation infeasible, hence we do not consider it here. We also do not compare against the theoretical approach in [\cite=PODC2011] via simulation, because that approach is non-straightforward to implement. However, we have outlined the benefits of our approach against [\cite=PODC2011] in Section [\ref=sub:contributionsInIntro] and some further discussion will be given in Section [\ref=sec:discussion].
+
+To take into account possible negative impacts of the cycle-free restriction in the proposed algorithm, we do not impose the cycle-free constraint in the baseline greedy and Vineyard algorithms. However, for a fair comparison, we do require in the baseline approaches that when the placements of junction nodes are given, the children of this junction node can only be placed onto the physical node on which the junction node has been placed, or onto the children of this physical node.
+
+Because MEC is a very new concept which has not been practically deployed in a reasonably large scale, we currently do not have real topologies available to us for evaluation. Therefore, similar to [\cite=refViNEYard], we consider synthetic tree application and physical graphs. The number of application nodes for each application is randomly chosen from the interval
+
+[formula]
+
+; and in Figs. [\ref=fig:simFixed](b) and [\ref=fig:simUnfixed](b), the maximum cost per application node/link is set to 0.015. It is evident that the proposed method outperforms those methods in comparison. The resource utilization tends to converge when the number of physical nodes is large because of the fixed root placement. As mentioned earlier, practical versions of greedy and Vineyard algorithms that have LP-relaxation and rounding may perform worse than what our current results show.
+
+We now explain why the proposed method outperforms other methods. We first note that the uniqueness in the proposed algorithm is that it uses a non-linear objective function for placing each new application, whereas the baseline methods and most other existing approaches use linear objective functions. The exponential-difference cost ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]) used in the proposed algorithm for the placement of each newly arrived application graph aims at both load balancing and reducing sum resource utilization. It leaves more space for applications that arrive in the future. Therefore, it outperforms the greedy approach which does not take future arrivals into account. The Vineyard approach does not strongly enforce load balancing unless operating close to the resource saturation point, due to the characteristics of its objective function used in each subroutine of application arrival.
+
+When comparing Fig. [\ref=fig:simFixed] to Fig. [\ref=fig:simUnfixed], we can find that the performance gaps between the proposed method and other methods are larger when the junction nodes are not placed beforehand. This is mainly because the judgment of whether Algorithm [\ref=algTreeToTreeNotFixedSub] has failed is based on the factor β1 + H, and for Algorithm [\ref=algMultiLine] it is based on β. It follows that Algorithm [\ref=algTreeToTreeNotFixedSub] is less likely to fail when H > 0. In this case, the value of Ĵ is generally set to a smaller value by the doubling procedure in Algorithm [\ref=algDoubling]. A smaller value of Ĵ also results in a larger change in the exponential-difference cost when the amount of existing load changes. This brings a better load balancing on average (but not for the worst-case, the worst-case result is still bounded by the bounds derived earlier in this paper).
+
+Discussion
+
+Is the Tree Assumption Needed? For ease of presentation and considering the practical relevance to MEC applications, we have focused on tree-to-tree placements in this paper. However, the tree assumption is not absolutely necessary for our algorithms to be applicable. For example, consider the placement problem shown in Fig. [\ref=fig:nonTreeExample], where the application graph contains two junction nodes (nodes 1 and 2) and multiple simple branches (respectively including nodes 3, 4, 5, and 6) between these two junction nodes. Such an application graph is common in applications where processing can be parallelized at some stage. The physical graph shown in Fig. [\ref=fig:nonTreeExample](b) still has a hierarchy, but we now have connections between all pairs of nodes at two adjacent levels. Obviously, neither the application nor the physical graph in this problem has a tree structure.
+
+Let us assume that junction node 1 has to be placed at the top level of the physical graph (containing nodes A, B, C, D, E), junction node 2 has to be placed at the bottom level of the physical graph (containing nodes K, L, M, N, O), and application nodes 3,4,5,6 have to be placed at the middle level of the physical graph (containing nodes F, G, H, I, J). One possible junction node placement under this restriction is shown in Fig. [\ref=fig:nonTreeExample](c). With this pre-specified junction node placement, the mapping of each application node in {3,4,5,6} can be found by the simple branch placement algorithm (Algorithm [\ref=algDoubling] which embeds Algorithm [\ref=algMultiLine]) introduced earlier, because it only needs to map each application node in {3,4,5,6} onto each physical node in {F, G, H, I, J}, and find the particular assignment that minimizes ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]). Therefore, in this example, when the junction node placements are pre-specified, the proposed algorithm can find the placement of other application nodes with [formula] time-complexity, which is the complexity of Algorithm [\ref=algDoubling] as discussed in Section [\ref=sec:online-fixed-compratio]. When the junction node placements are not pre-specified, the proposed algorithm can find the placement of the whole application graph with [formula] time-complexity, because here H = 2 (recall that the complexity result was derived in Section [\ref=sec:online-unfixed-competRatio]).
+
+We envision that this example can be generalized to a class of application and physical graphs where there exist a limited number of junction nodes that are not placed beforehand. The algorithms proposed in this paper should still be applicable to such cases, as long as we can find a limited number of cycle-free paths between two junction nodes when they are placed on the physical graph. We leave a detailed discussion on this aspect as future work.
+
+Practical Implications: Besides the proposed algorithms themselves, the results of this paper also reveal the following insights that may guide future implementation:
+
+The placement is easier when the junction nodes are placed beforehand. This is obvious when comparing the time-complexities and competitive ratios for cases with and without unplaced junction nodes.
+
+There is a trade-off between instantaneously satisfying the objective function and leaving more available resources for future applications. Leaving more available resources may cause the system to operate in a sub-optimal state for the short-term, but future applications may benefit from it. This trade-off can be controlled by defining an alternative objective function which is different from (but related to) the overall objective that the system tries to achieve (see Section [\ref=sub:unplacedAlgDesign]).
+
+Comparison to [\cite=PODC2011]: As mentioned in Section [\ref=sec:intro], [\cite=PODC2011] is the only work which we know that has studied the competitive ratio of online application placement considering both node and link optimization. Our approach has several benefits compared to [\cite=PODC2011] as discussed in Section [\ref=sub:contributionsInIntro]. Besides those benefits, we would like to note that the proposed algorithm outperforms [\cite=PODC2011] in time-complexity, space-complexity, and competitive ratio when the junction node placements are pre-specified (the performance bounds of these two approaches can be found in Sections [\ref=sub:relatedWork] and [\ref=sec:mainResults], respectively). When some junction node placements are not pre-specified, our approach provides a performance bound comparable to that in [\cite=PODC2011], where we also note that H  ≤  D. Moreover, [\cite=PODC2011] does not consider exact optimal solutions for the placement of a single linear application graph, and it also does not have simulations to show the average performance of the algorithm.
+
+Tightness of Competitive Ratio: By comparing the competitive ratio result of our approach to that in [\cite=PODC2011], we see that both approaches provide poly-log competitive ratios for the general case. It is however unclear whether this is the best performance bound one can achieve for the application placement problem. This is an interesting but difficult aspect worth studying in the future.
+
+Conclusions
+
+In this paper, the placement of an incoming stream of application graphs onto a physical graph has been studied under the MEC context. We have first proposed an exact optimal algorithm for placing one linear application graph onto a tree physical graph which works for a variety of objective functions. Then, with the goal of minimizing the maximum resource utilization at physical nodes and links, we have proposed online approximation algorithms for placing tree application graphs onto tree physical graphs. When the maximum number of unplaced junction nodes on any path from the root to a leaf (in the application graph) is a constant, the proposed algorithm has polynomial time and space complexity and provides poly-log worst-case optimality bound (i.e., competitive ratio). Besides the theoretical evaluation of worst-case performance, we have also shown the average performance via simulation. A combination of these results implies that the proposed method performs reasonably well on average and it is also robust in extreme cases.
+
+The results in this paper can be regarded as an initial step towards a more comprehensive study in this direction. Many constraints in the problem formulation are for ease of presentation, and can be readily relaxed for a more general problem. For example, as discussed in Section [\ref=sec:discussion], the tree-topology restriction is not absolutely essential for the applicability of our proposed algorithms. The algorithms also work for a class of more general graphs as long as the cycle-free constraint is satisfied. While we have not considered applications leaving at some time after their arrival, our algorithm can be extended to incorporate such cases, for example using the idea in [\cite=AzarTemporaryTasks]. The algorithm for cases with unplaced junction nodes is essentially considering the scenario where there exists some low-level placement (for each of the branches) followed by some high level placement (for the junction nodes). Such ideas may also be useful in developing practical distributed algorithms with provable performance guarantees.
+
+Acknowledgment
+
+The authors gratefully thank Dr. Moez Draief, Dr. Ting He, Dr. Viswanath Nagarajan, Dr. Theodoros Salonidis, and Dr. Ananthram Swami for their valuable suggestions to this work.
+
+Approximation Ratio for Cycle-free Mapping
+
+We focus on how well the cycle-free restriction approximates the more general case which allows cycles, for the placement of a single linear application graph. We first show that with the objective of load balancing (defined in ([\ref=eq:objOnline]) in Section [\ref=subSec:overallObjectiveinProbFormulation]), the problem of placing a single linear application graph onto a linear physical graph when allowing cycles is NP-hard, and then discuss the approximation ratio of the cycle-free restriction.
+
+The line-to-line placement problem for the objective function defined in ([\ref=eq:objOnline]) while allowing cycles is NP-hard.
+
+The proof is similar with the proof of Proposition [\ref=propTreeToTreeNPHard] in Section [\ref=sec:hardnessTreeToTree], namely the problem can be reduced from the minimum makespan scheduling on unrelated parallel machines (MMSUPM) problem. Consider the special case where the edge demand is zero, then the problem is the same with the MMSUPM problem, which deals with placing V jobs onto N machines without restriction on their ordering, with the goal of minimizing the maximum load on each machine.
+
+To discuss the approximation ratio of the cycle-free assignment, we separately consider edge costs and node costs. The worst case ratio is then the maximum among these two ratios, because we have [formula], for arbitrary [formula]. The variables x1 and x2 can respectively denote the true optimal maximum costs at nodes and links, and the variables r1 and r2 can be their corresponding approximation ratios. Then, [formula] is the true optimal maximum cost when considering nodes and links together, and [formula] is their joint approximation ratio. The joint approximation ratio [formula] is tight (i.e., there exists a problem instance where the actual optimality gap is arbitrarily close the approximation ratio, recall that the approximation ratio is defined in an upper bound sense) when r1 and r2 are tight, because we can construct worst-case examples, one with zero node demand and another with zero link demand, and there must exist one worst-case example which has approximation ratio [formula].
+
+In the following discussion, we assume that the application and physical nodes are indexed in the way described in Section [\ref=subSec:lineToLineProbFormulation]. The following proposition shows that cycle-free placement is always optimal when only the edge cost is considered.
+
+Cycle-free placement on tree physical graphs always has lower or equal maximum edge cost compared with placement that allows cycles.
+
+Suppose a placement that contains cycles produces a lower maximum edge cost than any cycle-free placement, then there exists v and v1 (v1 > v + 1) both placed on a particular node n, while nodes v + 1,...,v1 - 1 are placed on some nodes among n + 1,...,N. In this case, placing nodes v + 1,...,v1 - 1 all onto node n never increases the maximum edge cost, which shows a contradiction.
+
+For the node cost, we first consider the case where the physical graph is a single line. We note that in this case the cycle-free placement essentially becomes an "ordered matching", which matches V items into N bins, where the first bin may contain items 1,...,v1, the second bin may contain items v1 + 1,...,v2, and so on. We can also view the problem as partitioning the ordered set [formula] into N subsets, and each subset contains consecutive elements from [formula].
+
+When each application node has the same cost when placing it on any physical node, then the cycle-free line-to-line placement has a tight approximation ratio of 2.
+
+Suppose we have V items that can be packed into N bins by a true optimal algorithm (which does not impose ordering on items), and the optimal cost at each bin is [formula].
+
+To show that the worst case cost ratio resulting from the ordering cannot be larger than 2, we consider a bin packing where the size of each bin is [formula]. (Note that the bin packing problem focuses on minimizing the number of bins with given bin size, which is slightly different from our problem.) Because an optimal solution can pack our V items into N bins with maximum cost [formula], when we are given that the size of each bin is [formula], we can also pack all the V items into N bins. Hence, the optimal solution to the related bin packing problem is N. When we have an ordering, we can do the bin packing by the first-fit algorithm which preserves our ordering. The result of the first-fit algorithm has been proven to be at most 2N bins [\cite=bookApproxAlg].
+
+Now we can combine two neighboring bins into one bin. Because we have at most 2N bins from the first-fit algorithm, we will have at most N bins after combination. Also because each bin has size [formula] in the bin packing problem, the cost after combination will be at most [formula] for each bin. This shows that the worst-case cost for ordered items is at most [formula].
+
+To show that the approximation ratio of 2 is tight, we consider the following problem instance as a tight example. Suppose V = 2N. Among the 2N items, N of them have cost of [formula], where [formula], the remaining N have a cost of [formula]. Obviously, an optimal allocation will put one [formula] item and one [formula] item into one bin, and the resulting maximum cost at each bin is [formula].
+
+A bad ordering could have all [formula] items coming first, and all [formula] items coming afterwards. In this case, if the ordered placement would like the maximum cost to be smaller than [formula], it would be impossible to fit all the items into N bins, because all the [formula] items will already occupy N bins, as it is impossible to put more than one [formula] item into each bin if the cost is smaller than [formula]. Because [formula], it is also impossible to put all [formula] into the last bin on top of the existing [formula] item. This means an ordered placement of these V items into N bins has a cost that is at least [formula]
+
+Considering arbitrarily large N and thus arbitrarily small ε, we can conclude that the approximation ratio of [formula] is tight.
+
+When the physical graph is a tree and the maximum to minimum cost ratio for placing application node v on any physical node is d%,v, then the cycle-free line-to-line placement has an approximation ratio of 2V  ·   max vd%,v = O(V).
+
+This follows from the fact that [formula] may choose the minimum cost for each v while the ordered assignment may have to choose the maximum cost for some v, and also, in the worst case, the cycle-free placement may place all application nodes onto one physical node. The factor 2 follows from Proposition [\ref=prop:cycleFreeApproxRatio2].
+
+It is not straightforward to find out whether the bound in the above corollary is tight or not, thus we do not discuss it here.
+
+We conclude that the cycle-free placement always brings optimal link cost, which is advantageous. The approximation ratio of node costs can be O(V) in some extreme cases. However, the cycle-free restriction is still reasonable in many practical scenarios. Basically, in these scenarios, one cannot split the whole workload onto all the available servers without considering the total link resource consumption. The analysis here is also aimed to provide some further insights that helps to justify in what practical scenarios the proposed work is applicable, while further study is worthwhile for some other scenarios.
+
+Proof of Proposition [\ref=prop:Bound]
+
+The proof presented here borrows ideas from [\cite=OnlineRoutingWithExpCost], but is applied here to the generalized case of graph mappings and arbitrary reference offline costs Jπo. For a given Ĵ, we define [formula], [formula], [formula], and [formula]. To simplify the proof structure, we first introduce some notations so that the link and node costs can be considered in an identical framework, because it is not necessary to distinguish them in the proof of this proposition. We refer to each type of resources as an element, i.e., the type k resource at node n is an element, the resource at link l is also an element. Then, we define the aggregated cost up to application i for element r as r(i). The value of r(i) can be either [formula] or [formula] depending on the resource type under consideration. Similarly, we define [formula] as the incremental cost that application i brings to element r under the mapping π. The value of [formula] can be either [formula] or [formula]. Note that both r(i) and [formula] are normalized by the reference cost Ĵ.
+
+Using the above notations, the objective function in ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]) becomes
+
+[formula]
+
+Note that due to the notational equivalence, ([\ref=app:ProofGraphPlacementApproxBound:eq:onlineExpObjWithElements]) is the same as ([\ref=eq:objOfflineExtSum]) with ([\ref=eq:onlineExpObj_fnk]) and ([\ref=eq:onlineExpObj_fl]).
+
+Recall that πo denotes the reference offline mapping result, let πoi denote the offline mapping result for nodes that correspond to the ith application, and or(i) denote the corresponding aggregated cost until application i. Define the following potential function:
+
+[formula]
+
+which helps us prove the proposition. Note that variables without superscript "o" correspond to the values resulting from Algorithm [\ref=algMultiLine] that optimizes the objective function ([\ref=app:ProofGraphPlacementApproxBound:eq:onlineExpObjWithElements]) for each application independently.
+
+The change in Φ(i) after new application arrival is
+
+[formula]
+
+where the notation πi(  ·  ) = r or πoi(  ·  ) = r means that application i has occupied some resource from element r when respectively using the mapping from Algorithm [\ref=algMultiLine] or the reference offline mapping.
+
+We explain the relationships in ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange1])-([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange4]) in the following. Equality ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange1]) follows from
+
+[formula]
+
+where the last equality follows from the fact that αr(i)  -  αr(i - 1) = 0 for all r that [formula], and [formula] for all r that [formula]. Inequality ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange2]) follows from [formula] and [formula]. Note that the first term in ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange2]) is the same as the objective function ([\ref=app:ProofGraphPlacementApproxBound:eq:onlineExpObjWithElements]). Because the mapping πi results from Algorithm [\ref=algMultiLine] which optimizes ([\ref=app:ProofGraphPlacementApproxBound:eq:onlineExpObjWithElements]), we know that the reference mapping π0 must produce a cost [formula] that is greater than or equal to the optimum, hence following ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange3]). Equality ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange4]) is obvious.
+
+Now we proof that the potential function Φ(i) does not increase with i, by proving that ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange4]) is not larger than zero. For the ith request, the reference offline mapping produces the mapping result πoi. Therefore, for all r such that [formula], we have [formula]. Hence, we only need to show that [formula] for [formula], which is true for [formula]. From ([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange1])-([\ref=app:ProofGraphPlacementApproxBound:eq:potentialChange4]), it follows that Φ(i)  ≤  Φ(i - 1). (We take α = 1 + 1 / γ because this gives the smallest value of β.)
+
+Because r(0) = or(0) = 0, we have Φ(0) = γ(NK + L). Because Φ(i) does not increase, α > 1, and [formula] due to Jπo  ≤  Ĵ, we have
+
+[formula]
+
+Taking the logarithm on both sides of ([\ref=app:ProofGraphPlacementApproxBound:eq:boundInequ]), we have
+
+[formula]
+
+which proves the result because zr(i) = r(i)  ·  Ĵ.

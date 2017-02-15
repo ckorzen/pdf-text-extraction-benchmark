@@ -1,0 +1,237 @@
+GridCertLib: a Single Sign-on Solution for Grid Web Applications and Portals
+
+Abstract
+
+This paper describes the design and implementation of GridCertLib, a Java library leveraging a Shibboleth-based authentication infrastructure and the SLCS online certificate signing service, to provide short-lived X.509 certificates and Grid proxies.
+
+The main use case envisioned for GridCertLib, is to provide seamless and secure access to Grid X.509 certificates and proxies in web applications and portals: when a user logs in to the portal using SAML-based Shibboleth authentication, GridCertLib uses the SAML assertion to obtain a Grid X.509 certificate from the SLCS service and generate a VOMS proxy from it.
+
+We give an overview of the architecture of GridCertLib and briefly describe its programming model. Its application to some deployment scenarios is outlined, as well as a report on practical experience integrating GridCertLib into portals for Bioinformatics and Computational Chemistry applications, based on the popular P-GRADE and Django softwares.
+
+Introduction
+
+Most Grid computing middleware in production use today relies on X.509 certificate proxies [\cite=RFC3820] for user authentication. This has been an issue when implementing web-based interfaces to Grid computing facilities: in order to generate a proxy, a copy of the X.509 private key is needed together with the passphrase used to encrypt it. However, uploading the public/private key pair to a web portal is undesirable on security grounds. Several solutions and workarounds have been implemented (see Section [\ref=an-overview-of-existing-solutions] below), but none of them can be considered entirely satisfactory: either because they do not fully address the security concerns, or because they require end users to take multiple steps, possibly through different and unrelated user interfaces (e.g. a web portal and UNIX shell commands).
+
+The solution we developed leverages two features offered by SWITCH: the federated authentication and authorization infrastructure SWITCHaai and the . SWITCHaai is a federated authentication and authorization infrastructure [\cite=SWITCHAAI], based on Shibboleth2 [\cite=SHIB2]; SWITCHaai federates all Universities in Switzerland, plus major research centers and educational institutions. Similar nationwide exist in Germany, Denmark, Belgium, the Netherlands and other countries [\cite=Federation]. A web service provider (e.g., a portal) requiring SWITCHaai authentication will delegate the authentication step to the user's home institution . Users will be prompted with the familiar login page of the home institution; after successful logon, the service provider will receive a set of parameters and additional metadata (about the user) to proceed with authorization [\cite=SWITCHaaiDemo].
+
+SWITCH also provides the and makes it available to all SWITCHaai users [\cite=SLCS]. is a web-service that can sign an X.509 certificate online; authentication and authorization to the service are based on the SWITCHaai Shibboleth system. The online that signs certificates is included in the bundle [\cite=IGTF], so certificates can be used for any legitimate Grid purpose. This enables any user from a Swiss institution participating in the SWITCHaai Federation to request a Grid-enabled X.509 certificate. It is valid up to 1'000'000 seconds (corresponding to almost 11 days) which is short-lived in comparison to regular one-year certificates issued by other CAs. A command-line client is also part of the gLite middleware distribution [\cite=gLite-SLCS].
+
+The last key enabler for our project is the Shibboleth delegation feature, developed in the Shibboleth uPortal project [\cite=ShibUPortal]. The delegation is based on the Liberty profile [\cite=ECPProfile], and allows SAML-based authentication for Shibboleth-protected web service providers.Based on the assertion resulting from the web authentication through Shibboleth on the user portal, we are able to call the service on the user's behalf using the profile. Delegation, however, is still an experimental feature in Shibboleth, and is expected to become standard in the next Shibboleth version 3.0. For our project, SWITCH has upgraded their Shibboleth Virtual Home Organization identity provider and the service provider with delegation features.
+
+GridCertLib is a Java library providing programming interfaces to create a certificate and Grid proxy (optionally -enabled), given the assertion resulting from a successful previous Shibboleth authentication. The main use case envisioned for GridCertLib, is to provide seamless and secure access to Grid X.509 certificates and proxies in web portals: when a user logs in to the portal using the regular SWITCHaai Shibboleth authentication, GridCertLib uses the assertion to obtain a Grid X.509 certificate from the service and generate a proxy from it. None of these steps requires user interaction (after the initial Shibboleth authentication), making Grid resources as easy to use as any single-sign-on enabled web service while retaining the full security stack.
+
+The outline of the paper is as follows: first we provide an overview of similar solutions already implemented in production-grade Grid web portals. In the next Section, we review the requirements that were set for GridCertLib, its actual design and discuss some implementation details. Finally, we report on some deployment scenarios and particularly on the integration of GridCertLib within a Bionformatics portal (based on P-GRADE, [\cite=PGRADE]) and within a Computational Chemistry portal (based on Django, [\cite=Django]).
+
+An overview of existing solutions
+
+Distributed authentication and authorization is a difficult problem to solve in a standard and integrated manner. In past Grid projects, proprietary services have often been developed to address this issue (e.g. CAS[\cite=cas], PRIMA[\cite=prima], ROAM[\cite=roam]) but none of them established itself as a widely accepted community standard as they were too tightly coupled with the middleware and the local resources. A standardization on / profiles to be used by all middlewares is available [\cite=samlprofile] but has not been widely adopted yet.
+
+However, we can see two technologies that are widely accepted also outside of the Grid community: -based authentication using Shibboleth and X.509 certificates to authenticate local resources, using short-lived proxy certificates. In most Grids, also the cervice is used to enrich the proxy certificate with usage attributes for fine-grained authorization. We are using the service as developed by SWITCH for the consortium to generate certificates from the users' Shibboleth login. A similar but now defunct project was the U.S. GridShib effort [\cite=GridShib] to create a certificate based on a Shibboleth login also as a Certificate Authority.
+
+In order to generate a certificate proxy, a copy of the X.509 private key is needed together with the passphrase used to encrypt it. This poses a basic problem in web portals: having direct access to the public/private certificate key pair of a user, although technically feasible, is undesirable on security grounds: intruders getting access to the portal machine would gain unrestricted access to all of the portal users' credentials.
+
+Some projects have worked around this issue by submitting to the Grid as a single portal superuser, using credentials of a single entity for all Grid jobs issued through the portal or through special-purpose certificates for automation, called "robot" certificates.
+
+Robot certificates are X.509 certificates granted to a portal service or application, rather than a human; users interested in running a certain application on the Grid can log in to the portal, and the portal will operate on the Grid using the robot certificate. This approach a few drawbacks:
+
+The solution adopted in the P-GRADE portal [\cite=PGRADE] [\cite=PGRADE2] is to have users upload a long-lived proxy to a MyProxy server [\cite=MyProxyHomePage] [\cite=MyProxy1] [\cite=MyProxy2] and authorize the portal software for automated retrieval of short-lived proxies for job submission and data movement. However, this still requires users to deal with many of the complexities of managing X.509-based certificates and command-line tools, which has been found to be a real barrier to Grid adoption in less tech-savvy user communities. In the newer WS-PGRADE portal [\cite=wspgrade] the interaction with the MyProxy service has been streamlined so no command-line interaction is necessary, user certificate can be directly uploaded. However, the user still needs to apply for and manage a certificate that expires every year. For the end-user it is a complication to use an authentication infrastructure that does not blend with the native web portal authentication system. It interrupts the natural flow of operations in the web user interface, requiring either an additional password (the certificate password to generate the proxy) or additional command-line operations in order to proceed with Grid job submission and control.
+
+An extension to this mechanism that blends more seamlessly with P-GRADE's web-based interface has been developed by the UK project SARoNGS in [\cite=SARoNGS-PGRADE]. Clicking a button on the MyProxy web details page redirects the user to a web service (Shibboleth-protected), which in turn loads a long-lived proxy into a specific MyProxy server, and fills in the details in the P-GRADE configuration page.
+
+The approach taken in GridCertLib, instead, requires no user interaction: once the web-based Shibboleth login is successfully completed, the GridCertLib code can generate an X.509 certificate through the service using the web service based delegation, and an accompanying Grid proxy. Details of this process are given in the following sections.
+
+The source code of GridCertLib is publicly available from under the Apache License 2.0 [\cite=ApacheLicence2].
+
+Design and Implementation
+
+Architecture overview
+
+GridCertLib was designed to bridge Shibboleth-based and Grid X.509-based authentication services for web applications and portals. Its design goals were to allow easy integration into any Java portal, and to minimize interaction with the user while retaining the full security stack for Grid authentication and authorization.
+
+The flow of interaction with the Java portal code and the SWITCHaai services illustrated in Figure 1 was devised in order to accomplish the design objectives (numbers in parentheses correspond to arrows in Figure [\ref=fig:interactions]):
+
+Users initiates log in to the web portal using Shibboleth single sign-on (i.e., request a Shibboleth-protected URL).
+
+They are authenticated by their home organization's identity provider ; this is handled transparently by the Shibboleth software.
+
+GridCertLib queries Apache's mod_shib to get the assertion. The assertion is exported, together with other authentication parameters, to any proxied web service; portals may make use of these Shibboleth attributes to restrict certain services or map users into user groups.
+
+The portal application code calls GridCertLib to obtain a short-lived Grid X.509 certificate signed by the . This step requires delegation of the Shibboleth credentials ( assertion) to the login service, which is done through the generic Web Service Client, developed by SWITCH [\cite=ECP].
+
+After logging in to the service, GridCertLib proceeds to generate an X.509 certificate and have it signed by the online , using code similar to the one used by gLite's slcs-init command-line client [\cite=gLite-SLCS].
+
+The portal calls GridCertLib to create a grid proxy (with or without extensions). Here GridCertLib is just a thin wrapper around the regular libraries, mainly providing simpler façade calls for commonly-used cases.
+
+The certificate, private key and proxies are stored. Currently, GridCertLib provides methods for persisting certificates and proxies to the filesystem; it is up to the portal to move the files to different storage back-ends (e.g., databases), although it should be noted that most Grid middlewares require the proxy to be in a known location on the filesystem.
+
+As soon as the GridCertLib code completes successfully, a valid certificate and proxy are available on the filesystem and Grid operations can proceed.
+
+The foreseen usage of GridCertLib in web portals (see Section ) called for implementation of additional features in GridCertLib:
+
+Feature a. led us to provide GridCertLib with two main independent entry points, SLCSFactory and GridProxyFactory. An instance of each class is responsible for generating certificate and Grid proxies, respectively. To achieve portal independence, each class constructor takes an explicit list of all the parameters needed for instantiation, although they can also be conveniently provided by a single Java Properties object.
+
+Similarly, for the same goal c. of portal technology independence, GridCertLib certificate and proxy generation functions accept an explicit list of all the required parameters, but provide shortened forms that have common defaults.
+
+Feature b. implies that the -generation methods in GridCertLib only require the Shibboleth assertion as input. However, the assertion can expire long before the Shibboleth session itself does (see Section [\ref=creating-slcs-certificates]). To solve this problem, GridCertLib provides a re-usable servlet , which can also be used as a model for implementing assertion renewal in the portal code.
+
+Core Library Implementation
+
+GridCertLib core functions reside in the single Java package ch.swing.gridcertlib; an additional package ch.swing.gridcertlib.servlet provides example servlets (with fully-commented code) that show how the library can be used.
+
+The main package ch.swing.gridcertlib has two public entry points:
+
+The SLCSFactory class provides the certificate generation functionality and can store the certificate and its associated private key on the filesystem.
+
+The GridProxyFactory class creates Globus Toolkit proxy certificates with or without extensions from available user certificates and stores them to a temporary location on the filesystem.
+
+A single instance of each of these classes can generate multiple certificates or proxies, possibly for different Portal users, via repeated invocation of the certificate creation methods.
+
+Since the parameters used to configure the factory objects are portal-wide global variables and their values are fixed while the portal application is running, each factory class can be configured (at construction time) through a java.util.Properties object, which can be conveniently loaded from a file with standard Java calls. Alternatively, a constructor that allows to specify all instance parameters explicitly is also provided.
+
+However, GridCertLib does not enforce that only a single instance of these factory objects exists. Different factory objects can be created to cater for different classes of users (e.g., users coming from different Shibboleth federations). It is up to the web application/portal code to route requests to the correct factory.
+
+Creating SLCS Certificates
+
+Upon calling the newSLCS method of the SLCSFactory class, a SLCSRequestor object is created to carry out generation of the certificate and actual interaction with the server. The reason for this split is twofold:
+
+SLCSFactory handles system-wide defaults, and thus a single instance is needed to serve the whole portal, whereas a new SLCSRequestor object is created for every certificate request.
+
+The SLCSRequestor corresponds to the slcs-init command-line tool provided in the gLite middleware distribution [\cite=gLite-SLCS]; this eases porting of fixes from the official client on to GridCertLib.
+
+certificates are created following these steps:
+
+All of the above steps keep data (like the password), which is necessary for the private key, in memory. Only after a certificate has been successfully generated by the SLCSRequestor will SLCSFactory save the result in a file and return the certificate file path, private key path and private key password to the caller. Any of these three can be defined by the client code by passing an optional argument to the newSLCS method; by default, SLCSFactory uses a random password and stores the certificate and private key files in a configurable directory (using a random file name, which is also returned as a result of the call).
+
+The service is a properly authorized Shibboleth . Since GridCertLib is contacting on behalf of the user, and with no user intervention at all, delegation of credentials is needed. Shibboleth delegation is an experimental feature available in Shibboleth2, by which the assertion that initiates a Shibboleth session on an , may be re-used to authenticate towards other web service based SPs. Shibboleth delegation must be supported both on the granting the assertion and the target receiving the delegated assertion (the server in this case).
+
+The requirement that generation may happen at any time after login to the portal creates an additional complication: assertions have a short time validity (5 minutes in the default configuration) but and sessions last much longer (8 hours by default), i.e., users are authenticated with the Shibboleth even after the assertion is long expired. Therefore, by the time SLCSFactory.newSLCS is called, the assertion might be unusable for delegated authentication with the server. There is no support in the Shibboleth to get a fresh assertion in the and store it in the session, but this can be worked around by forcing an session logout, followed by a redirection to a Shibboleth-protected : the will start a new session and request a fresh assertion from the . This can be implemented by a chain of redirections, so that the whole procedure does not require any user intervention. We implemented this workaround in the RenewAssertion servlet, described in Section [\ref=example-servlets].
+
+Creating Grid and VOMS proxies
+
+The GridProxyFactory class is a interface wrapper on top of the Java . GridProxyFactory implements a simplified interface to create a Grid proxy in the use case most frequently needed in web applications and portals: its newProxy method creates a proxy (with optional extensions) given an X.509 certificate and private key, and a (possibly empty) list of VOs to contact for ACs.
+
+A single instance of the class can generate multiple proxies (possibly for different users) via repeated invocation of the newProxy method. Since the org.glite.voms.contact.VOMSProxyInit class uses system properties to determine part of its configuration, it is not possible to create different instances of this class, each using its own configuration. This is not a limit in practice, as the org.glite.voms library has native support for multiple servers and endpoints.
+
+Example servlets
+
+The provided sample servlets can run in any Java servlet container. They have been successfully tested with the Jetty and Tomcat Java application servers (with an Apache proxy front-end for managing the Shibboleth session).
+
+Three servlets are distributed with the GridCertLib source code:
+
+SlcsInit: This servlet generates an X.509 certificate and private key and uses the service to sign it. Upon successful completion, the certificate and private key are stored in the filesystem.
+
+VomsProxyInit: This servlet creates a proxy and stores it in the filesystem.
+
+RenewAssertion: This servlet ensures that a fresh assertion is stored in the Shibboleth session cache.
+
+A detailed description of each of these servlets follows.
+
+SlcsInit.
+
+The ch.swing.gridcertlib.servlet.SlcsInit servlet extracts the assertion from the Shibboleth headers, downloads the assertion into memory, and uses it to authenticate to a remote service and get a new certificate/private key pair. The key is encrypted with a random password, and the certificate and private key locations (on the filesystem) are printed in the response text.
+
+If SLCSFactory detects an expired assertion in the session, it will raise an exception. The SlcsInit code catches the error and redirects the user's browser to the servlet, setting the return address to the current page: when the user browser is sent back to the return , a new assertion will be in the cache.
+
+VomsProxyInit.
+
+The ch.swing.gridcertlib.servlet.VomsProxyInit servlet creates a proxy and stores it on the filesystem, in the default store directory. query parameters can set arguments that are passed to the GridProxyFactory.newProxy method, thus making this servlet a generic front-end to the GridProxyFactory class functionality.
+
+This servlet does not require any interaction with the Shibboleth subsystem, and can be deployed unprotected. It requires, however, that the certificate and private key are available on the filesystem.
+
+RenewAssertion.
+
+The ch.swing.gridcertlib.servlet.RenewAssertion servlet ensures that a fresh assertion is stored in the Shibboleth session cache. It implements the workaround described in a previous section for the "expired assertion" problem:
+
+Note that none of the above steps requires any user interaction (unless the Shibboleth session on the is expired).
+
+A request to RenewAssertion must be properly formatted; the convenience method RenewAssertion.getRenewalUrl is provided to this purpose. However, the encoding system in the RenewAssertion servlet imposes a limit on the length of return URLs; more importantly, it cannot be used with POST requests, as there is no way of encoding the POST data into a single . This is a technical issue which we have not been able to work around so far: due to the large number of redirects taking place, session cookies, query parameters, and other commonly-used ways of associating state data with requests, may be lost before the final visit to the RenewAssertion servlet.
+
+Deployment experiences
+
+The following points need to be taken into consideration by the portal providers:
+
+Since certificate generation can be time-consuming (relative to user interface reaction times), it could be delayed to a later stage or executed asynchronously in a separate thread. However, this delay was not a problem on the P-GRADE Bioinformatics portal.
+
+The validity of the Shibboleth assertion is usually limited to a few minutes, so the certificate request should not be delayed for too long. Of course if a valid certificate for the user is already available from a previous login of the user, the request can simply be omitted.
+
+When a -enabled proxy is needed, it is the portal's responsibility to prompt the user for the relevant information, e.g., name or list. In the P-GRADE implementation, the users can set their VOs in their settings page. There is a global default configuration option for the administrator if every user is expected to be always member of the same .
+
+Integration into the P-GRADE portal
+
+The P-GRADE portal comes with full Grid X.509 proxy support, which in this case is a mixed blessing as many of the certificate management features need to be modified in various places of the portal code. Out of the box, P-GRADE supports proxy certificate upload or the usage of a MyProxy server to which the user has to upload the certificate outside of P-GRADE.
+
+In its standard form, P-GRADE provides no facilities for the creation of the certificates; this is a new feature we add using GridCertLib. We extended the Shibboleth-enabled login [\cite=GridSphereAndShibboleth] for the Gridsphere portal [\cite=GridSphere] (provided by the Australian MAMS project [\cite=MAMS]) by storing all Shibboleth attributes including the assertion and other attributes that were not previously requested into a singleton object.
+
+In the MAMS implementation, on first-time login using Shibboleth, the user is presented with a registration request portlet which simply displays the attributes of the user as received through the Shibboleth login by the server. Users can then simply press a button "Send registration request", which triggers an email to the portal administrator, who can decide whether to enable the user account, and optionally assign it certain roles in Gridsphere.
+
+Users can simply reload the page or re-login once the admin has enabled them. At the same time it is checked whether an certificate still exists for the given user and whether it is valid for longer than 24 hours. If not, GridCertLib is used to create a new certificate. The certificate location and other related information is stored together with all other user attributes in the user table, which has been extended accordingly.
+
+The configuration is the same for all users of the portal in our current implementation, which is set to the "life" of the national grid computing infrastructure [\cite=SMSCG], using a portal-wide configuration of GridCertLib.
+
+An issue remains: the delegation feature used by GridCertLib is not yet deployed as a standard feature in the Swiss SWITCHaai federation, therefore we currently can only make use of this whole mechanism through a special home organization, the , provided by SWITCH for collaboration purposes. We have a dedicated group in the where we can administer our own users. This should not be necessary anymore after the SWITCHaai federation has upgraded to a version of Shibboleth that supports delegation, which should happen sometime in late 2011 or 2012.
+
+For now, in the optimal case a user can log in through by selecting the as the "home organization", and is ready to submit Grid jobs to the Swiss Multi-Science Computing Grid. Clicking on the "Certificates" tab will show the details of the current certificates and their validity.
+
+Expiration of the certificate is not an issue, as P-GRADE requests the download of the results only when the user asks for it through the portal. The portal makes sure that a new proxy is generated automatically in the background from the certificate (if the existing proxy is not valid anymore). Should the certificate expire, a new one is requested automatically at the next login, so unless the user is actively using the portal browser window for 10 days with no interruption, this will not happen.
+
+Integration into Django-based web applications
+
+Django [\cite=Django] is a high-level Python Web framework, providing reusable components to build any sort of web application. We have used it to build a simple portal for users of the computational chemistry application GAMESS-US [\cite=GAMESS:1993] [\cite=GAMESS:2005]. The portal uses the django-shibboleth application [\cite=DjangoShibboleth] to enable users to log in using their SWITCHaai/Shibboleth credentials; new users will have their account created automatically when they log in for the first time.
+
+Django support in GridCertLib thus comprises two (inter-dependent) parts:
+
+A Python package, containing the access-control decorators certificate_required and gridproxy_required. By using these decorators, a Django programmer can easily mark some URLs as requiring the use of a valid certificate and/or proxy.
+
+A set of Java servlets, which should be deployed alongside the Django site, that interface with GridCertLib to provide the SLCS- and proxy-generation functionality.
+
+All communication between the Django decorators and the corresponding servlets happens by means of redirects through the users' web browser.
+
+The GridCertLib Django decorators will first ensure that the request is authenticated with the standard Django login system; when the django-shibboleth application is installed, this automatically ensures that the request is part of a valid Shibboleth session.
+
+Next, GridCertLib Django decorators check that the certificate (resp. proxy certificate) exists and is valid. For the sake of processing speed (no response can be sent to the web browser until the decorator has passed control to the view function), the decorators assume that no other actor can modify the certificate/proxy files they have created: thus a simple "modification time" check suffices to prove that a certificate/proxy is still in its validity period. Note that, in contrast to what happens in the P-GRADE portal, the certificate/proxy check happens each time the Django view function is invoked, and it is thus essential to keep it performant.
+
+If the certificate/proxy exists and is valid, environment variables are set to the filesystem path of the relevant files to communicate the location to the Grid middleware, and control is passed to the view function.
+
+Otherwise, an redirect response is issued, channeling the web browser to the corresponding to a Django-specific version or servlets. As mentioned for the Example Servlets (see Section [\ref=vomsproxyinit]), only the URL needs to be Shibboleth-protected.
+
+session cookies are used to tell the servlets to store the certificate/proxy in a certain filesystem location; however this poses a mild security threat: since the servlets URLs must be public (so that the users' web browsers can visit them), then an request could be crafted to make the servlets read/write the certificate/proxy file in an arbitrary location on the filesystem. Security is enforced with the following procedure:
+
+Before starting the redirect to the a servlet, the Django access decorator creates an empty directory L, creates a "marker" file in it, and writes a random string K into this "marker" file.
+
+The decorator redirects the web browser to the servlet , passing along L and K (as cookies).
+
+The servlet verifies that the "marker" file exists in L and that it has the expected content K, then it deletes the "marker" file and proceeds. For added security, it can optionally verify that L is a filesystem path starting with a configured prefix (e.g., /var/www/portal), so that possible damage is confined to a portion of the filesystem.
+
+It is clear that the above procedure guarantees that hypothetical attackers can only trick the GridCertLib servlets into writing into a location L if and only if they can already write to L.
+
+The added security layer is basically the only difference between the Django-support servlets and the GridCertLib example servlets (see Section [\ref=example-servlets]). After successful creation of the certificate or proxy, the servlet redirects the web browser back to the initial requesting page with no output.
+
+As in the P-GRADE integration, two issues remain that might need special attention in the future:
+
+The configuration is the same for all users: while it is possible to extend the Django user object model to include individual information, this is not necessary at present since all users of the portal belong to the same Virtual Organization.
+
+Until the delegation feature becomes a standard feature of SWITCHaai, users have to select the special home organization in order to use the portal.
+
+Django support for GridCertLib provides an example of how GridCertLib can be integrated into an existing web framework with little coding and only small edits to tune the example servlet behavior to the interface expected by other portal components.
+
+Conclusions and Future Developments
+
+GridCertLib is an easy to use Java library that enables automatic creation of certificates and/or Grid proxies from assertions obtained from successful Shibboleth authentication. It can be integrated into real-world Grid portals, hiding the complexities of X.509 certificate usage from the portal user. This considerably lowers the barrier to Grid usage, potentially allowing much larger communities to profit from Grid resources securely. Source code for GridCertLib is publicly available from under the Apache License version 2.0 [\cite=ApacheLicence2].
+
+The current implementation of GridCertLib relies on three key features of the SWITCHaai infrastructure: Shibboleth authentication, delegation, and the online service. The integration of these three components together with a valid access to a server, allow the creation of any community-specific web portal that can leverage the national grid computing infrastructure [\cite=SMSCG] thus enabling Grid use by virtually any Swiss scientific community.
+
+An interesting future development could be to adapt GridCertLib to draw certificates from the (recently created) on-line ; this would lift the dependency on the Swiss infrastructure and potentially allow usage of GridCertLib on any European Grid infrastructure.
+
+More generally, one could investigate whether GridCertLib could be ported to provide its functionality on top of equivalent base technologies (e.g., substitute Shibboleth with a different -based federated authentication infrastructure). Developments in this area could turn GridCertLib into a modular system capable of providing its functionality for almost all Grid users today. No investigation has been carried out by us in this area: the project that funded GridCertLib development had a practical scope of producing a simple single sign-on solution for the selected portals; we are anyway open to collaborations in this respect.
+
+GridCertLib has already been successfully deployed and integrated into a Bioinformatics portal based on P-GRADE, and into a Django-based Computational Chemistry portal, proving the flexibility and re-usability of the library and its design.
+
+We will assist in the integration of GridCertLib into portals that are in use in Switzerland, like JOpera [\cite=JOpera] and the new WS-PGRADE [\cite=WsPgrade]. We will consider requests for extensions in functionality of the GridCertLib based on the experience with these new portals.
+
+Looking further into the future, GridCertLib will greatly profit from the upgrade of the SWITCHaai federation to the next version of Shibboleth: this will enable true single-sign on and Grid usage in one portal, without the need to use a special account. The SystemsX project SyBIT [\cite=SyBIT] also plans to upgrade its P-GRADE portal from the current Gridsphere-based implementation to the more modern WS-PGRADE, which makes use of the Liferay portal [\cite=Liferay] technology: besides many portal-related improvements, this will allow the users to freely choose the attributes they wish to associate with their proxy. However, due to the entirely new portal code base, a new programming effort will be needed to integrate GridCertLib into the Liferay framework.
+
+Acknowledgements
+
+This work was carried out in the context of the "Swiss Grid Portal" project, funded through the SWITCH-AAA track and through the SyBIT project of SystemsX.ch. We would like to thank all our collaborators in the Swiss Grid Portal project --Cesare Pautasso, Frédérique Lisacek, Heinz Stockinger-- and also all the help we received from the Hungarian Academy of Sciences SZTAKI for the integration with P-GRADE, especially Ákos Balasko.
+
+List of acronyms

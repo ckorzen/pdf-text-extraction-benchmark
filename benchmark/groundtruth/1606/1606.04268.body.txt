@@ -1,0 +1,271 @@
+Local Canonical Correlation Analysis for Nonlinear Common Variables Discovery
+
+Introduction
+
+need to study and analyze complex systems arises in many fields. Nowadays, in more and more applications and devices, many sensors are used to collect and to record multiple channels of data, a fact that increases the amount of information available to analyze the state of the system of interest. In such cases, it is typically insufficient to study each channel separately. Yet, the ability to gain a deep understanding of the true state of the system from the overwhelming amount of collected data from multiple (usually different) sources of information is challenging; it calls for the development of new technologies and novel ways to observe the system of interest and to fuse the available information [\cite=lahat2015multimodal]. For example, the study of human physiology in many fields of medicine is performed by simultaneously monitoring various medical features through electroencephalography (EEG) signals, electrocardiography (ECG) signals, respiratory signals, etc. Each type of measurement carries different and specific information, while our purpose is to systematically discover an accurate description of the state of the patient/person.
+
+A commonly-used method that has the ability to reveal correlations between multiple different sets, which often furthers our understanding of the system, is the Canonical Correlation Analysis (CCA) [\cite=hotelling36cca] [\cite=hardoon2004canonical] [\cite=bach2005probabilistic]. CCA is a well known and studied algorithm, where linear projections maximizing the correlation between the two data sets are constructed. The main limitation of the CCA algorithm is the inherent restriction to linear relationships, whereas in medical recordings, for example, it is unlikely that the collected data carry only linear information on the human physiological features. To circumvent this linear restriction and to accommodate nonlinearities, kernel-based extensions of CCA (KCCA) have been developed, e.g., [\cite=lai2000kernel], which allow for the discovery of nonlinear relationships between data sets. Indeed, KCCA has proven to be beneficial in many cases [\cite=zheng2006facial] [\cite=melzer2003appearance] [\cite=hardoon2007unsupervised]. Recently, a gamut of work extending CCA based on various combinations and manipulations of kernels has been presented, e.g., [\cite=de2005spectral] [\cite=wang2012unsupervised] [\cite=boots2012] [\cite=Lederman2015] [\cite=lederman2015alternating].
+
+In this paper, we use a different approach using manifold learning [\cite=roweis2000nonlinear] [\cite=belkin2003laplacian] [\cite=coifman2006diffusion]. The core of manifold learning resides in the construction of a kernel representing affinities between data samples based on pairwise distance metrics. Such distance metrics define local relationships, which are then aggregated into a global nonlinear representation of the entire data set. Indeed, in recent studies, various local distance metrics extending the usage of the prototypical Euclidean metric in the context of kernel-based manifold learning have been introduced, e.g. [\cite=Singer2008226] [\cite=talmon2013empirical] [\cite=Talmon2015138] [\cite=talmon2015manifold] [\cite=berry2015local] [\cite=giannakis2015dynamics] [\cite=de2010multi] [\cite=kumar2011co] [\cite=lin2011multiple] [\cite=wang2012unsupervised] [\cite=huang2012affinity] [\cite=boots2012two] [\cite=lindenbaum2015multiview] [\cite=lindenbaum2015learning] [\cite=michaeli2015nonparametric]. Along this line of research, our focus in the present work has been on the construction of a local Riemannian metric for sensor data fusion, which in turn, can be incorporated in a kernel-based manifold learning technique.
+
+The contribution of our work is two-fold. First, we present a metric for discovering the hidden common variables underlying multiple data sets of observations. Second, we devise a data-driven method based on this metric that extends manifold learning to multiple data sets and gives a nonlinear parametrization of the hidden common variables.
+
+Here, we consider the following setting. We assume a system of interest, observed by two (or more) observation functions. Each observation captures via a nonlinear and high-dimensional function the system intrinsic variables. These variables are common to all the observations. In addition, each observation may introduce additional (noise) variables, which are specific to each function. In other words, we assume that our system of interest is monitored via several observations, each observation, in addition to observing the system itself, observes additional features which are not related to the system. Consequently, our focus is on obtaining the common hidden variables which hopefully represent the true state of the system. Our method includes two main steps. (i) The construction of a local metric. This metric estimates the Euclidean distance between any two realizations of the hidden common variables among nonlinear and high-dimensional data sets. This is accomplished by using a "local" application of CCA, which emphasizes the common variables underlying the collected data sets while suppressing the observation-specific features which tend to mask the important information on the system. We show that the local metric computed from multiple data sets is a natural extension of a modified Mahalanobis distance presented in [\cite=Singer2008226] [\cite=talmon2013empirical] [\cite=Talmon2015138], which is computed from only on a single data set. (ii) The usage of a manifold learning method, Diffusion Maps [\cite=coifman2006diffusion], which recovers a nonlinear global parametrization of the common variables based on the constructed local metric. Initially, we focus on a setting with only two data sets, and then, we present an extension of our method for multiple sets using multi-linear algebra involving tensor product and tensor decomposition [\cite=luo2015tensor] [\cite=de2000multilinear].
+
+Experimental results demonstrate that our method is indeed able to identify the hidden common variables in simulations. In particular, we present an example of a dynamical system with a definitive underlying model and demonstrate that without any prior model knowledge, our method obtains an accurate description of the state of the system solely from high-dimensional nonlinear observations. Moreover, the experiments demonstrate the ability of the algorithm to successfully cope with observations that are only weakly related to the system, a situation in which we show that KCCA and another recently introduced method fail.
+
+This paper is organized as follows. In Section [\ref=sec:Problem_Formulation] we formulate the problem. Section [\ref=sec:CCA_Background] gives a brief scientific background presenting CCA and defining the notation used throughout this paper. In Section [\ref=sec:Local] we derive the local Riemannian metric that estimates the Euclidean distance between realizations of the hidden common variable, and we present several results regarding the equality of the estimation. We also compare the proposed metric to a metric which was recently introduced in [\cite=yair2016multimodal] and show the advantages of the present one. In Section [\ref=sec:Global-Parametrization] we incorporate the metric into Diffusion Maps and construct a global parametrization of the common variables. Section [\ref=sec:Multi-Observations-Scenario] presents an extension of our method for the case of multiple (more than two) data sets. In Section [\ref=sec:Experimental-Results], experimental results demonstrate the ability to discover an accurate parametrization of the hidden common variables from multiple data sets of observations in three different experiments and simulations. Finally, in Section [\ref=sec:Conclusions], we conclude with several insights and directions for future work.
+
+Problem Formulation
+
+We consider a system of interest whose hidden state is governed by dz isotropic variables [formula], [formula]. We assume that the hidden variables [formula] can only be accessed via some observation functions. In this paper, we focus on the case where the hidden state of the system is accessed using two (or more) observation functions, which are possibly nonlinear and are assumed to be locally invertible. For simplicity, the exposition here focuses on two observation functions. In Section [\ref=sec:Multi-Observations-Scenario], we present an extension for more than two. The observations are given by
+
+[formula]
+
+where [formula] and [formula] are (hidden) observation-specific variables which depend on the observation mechanism and are assumed as not related to the system of interest. The two observation functions can represent, for example, two different sensors, each introducing additional variables. The probability densities of the hidden variables [formula] and [formula] are unknown. We assume that the common variables [formula] and the observation-specific variables [formula] and [formula] are uncorrelated, i.e., [formula], where [formula]. Finally, we assume that the observations are in higher dimension, i.e., dz + dε  ≤  dx,  dz + dη  ≤  dy.
+
+Given N realizations of the hidden variables, [formula], we obtain two data sets of observations:
+
+[formula]
+
+Our goal in this paper is to devise a method which builds a parametrization of the hidden common variables [formula] from the two observation sets X and Y. The method consists two main steps. First, a local metric for the hidden variables is constructed. More specifically, we derive a pairwise metric Dij from the sets X and [formula] that corresponds to the Euclidean distance between the common variables [formula] and neglects the observation-specific variables, [formula] and [formula], i.e.,
+
+[formula]
+
+Second, manifold learning is applied with a kernel based on the local metric Dij.
+
+Background and Notation
+
+Let [formula] be the inner product between the vector [formula] and a direction [formula], defined by [formula]. Analogously, let [formula]. CCA is traditionally applied to two zero mean random vectors [formula] and [formula] and finds the directions that maximize the correlation between vx and vy. The first direction is obtained by solving the following optimization problem:
+
+[formula]
+
+where the correlation between vx and vy is given by:
+
+[formula]
+
+In a similar manner, d directions are obtained iteratively, where [formula]. In each iteration, an additional direction is computed by solving [\eqref=eq:cca], with the restriction that the projection of the random vector on the current direction is orthogonal to the projections on the directions attained in previous iterations. Since the correlation between vx and vy is invariant to (nonzero) scalar multiplication, we have
+
+[formula]
+
+Thus, CCA constrains the projected variable to have a unit variance, namely [formula].
+
+Using Lagrange multipliers the problem is reduced to an eigenvalue problem given by
+
+[formula]
+
+where [formula] and [formula] is an unknown scalar. The d right eigenvectors [formula] of [formula] corresponding to the largest d eigenvalues of [formula] are solutions of the optimization problem, where the eigenvalues λ2 are the maximal correlations. Thus, the d directions of CCA can be computed via the eigenvalue decomposition problem [\eqref=eq:cca_evd], circumventing the iterative procedure.
+
+In summary, the application of CCA to two random vectors [formula] and [formula] results in two matrices [formula] and [formula] and a diagonal matrix [formula] , where [formula] consists of the d directions [formula], [formula] consists of the d directions [formula], and [formula] consists of the d eigenvalues λ2 on the diagonal. As a result, the random vector [formula] satisfies [formula]. In the same manner, [formula]. In addition, the correlation between the ith entry in [formula] and the ith entry in [formula] is greater or equal than the correlation between the (i + 1)th entry. For more details, see [\cite=hotelling36cca].
+
+Learning the Local Metric
+
+To obtain a parametrization of the hidden common variables, we construct a metric that satisfies [\eqref=eq:D_ij], which simultaneously implies good approximation of the Euclidean distance between any two realizations of the hidden state variables [formula] and [formula], as well as the attenuation of any effect caused by the observation-specific variables [formula] and [formula].
+
+Linear Case
+
+We first describe a special case where f and g are linear functions, namely:
+
+[formula]
+
+where [formula] and [formula]. Note that the assumption dz + dε  ≤  dx,  dz + dη  ≤  dy entails that the set of equations [\eqref=eq:Linear_Case] are overdetermined. By the notation of Section [\ref=sec:CCA_Background], applying CCA to the random vectors [formula] and [formula] results in the following projection matrices:
+
+[formula]
+
+and with the following correlation matrix:
+
+[formula]
+
+where [formula] are arbitrary unitary matrices, and [formula] and [formula] are the Moore-Penrose pseudoinverse of [formula] and [formula], respectively, i.e., [formula] and [formula].
+
+In the linear case, the Euclidean distance between any two realizations [formula] and [formula] of the random variable [formula] is given by:
+
+[formula]
+
+Note that the resulting metric takes into account only the common hidden variables [formula] and filters out the observation-specific variables [formula] using the matrix [formula]. The Euclidean distance between realizations of [formula] can be expressed in an analogous manner based on realizations of [formula]; one can also take the average of the two metrics using both realizations of [formula] and [formula].
+
+Nonlinear Case
+
+In the general case, where [formula] and [formula] are nonlinear, we use a linearization approach to obtain a similar result to the linear case (up to some bounded error). We denote [formula], such that [formula], and expand f via its Taylor series around [formula]:
+
+[formula]
+
+where [formula] is the Jacobian of f at [formula]. Reorganizing the expression above yields:
+
+[formula]
+
+Thus, when the higher-order terms are negligible, this form is similar to the linear function considered in Section [\ref=sub:Linear_Case] with an additional constant term. Define the matrices [formula] and [formula] similarly to [\eqref=eq:CCA_Linear_Output_1] and [\eqref=eq:CCA_Linear_Output_2], respectively, using [formula] (instead of [formula]) as the linear function.
+
+In the nonlinear case, the Euclidean distance between any two realizations [formula] and [formula] of the random variable [formula] is given by:
+
+[formula]
+
+where [formula] denotes the middle point, and [formula].
+
+We note that similarly to Proposition [\ref=prop:Linear_Case], Proposition [\ref=prop:Non_Linear_Case] can be analogously formulated based on realizations of [formula] instead of realizations of [formula].
+
+In [\cite=yair2016multimodal] we presented a different way to calculate the Euclidean distance between two realization:
+
+[formula]
+
+where [formula]. Yet, both expressions approximate [formula] up to the second-order. In Section [\ref=sec:Global-Parametrization], we discuss the advantage of the metric using the middle point ij in terms of computational complexity. In addition, we address the case where the middle points [formula] and [formula] are inaccessible. In Section [\ref=sub:Local-Metric-Comparison], we compare the proposed metric using the middle point [\eqref=eq:prop_metric] with the metric proposed in [\cite=yair2016multimodal] in a toy problem, which demonstrates that the computation based on the middle point attains a better estimation for the Euclidean distance.
+
+Implementation
+
+Given X, we define a pairwise metric between the N realizations based on Proposition [\ref=prop:Non_Linear_Case].
+
+Let Dij be the metric between each pair of realizations [formula] and [formula] in X, given by:
+
+[formula]
+
+where [formula]. We can also define an analogous metric between any two realizations [formula] and [formula] in Y or define a metric which is the average of the two.
+
+We now describe the computation of the matrices [formula] from the sets X and Y provided that we have access to the neighborhoods of the middle points; for the case where they are inaccessible, see Section [\ref=sec:Global-Parametrization]. For any point [formula] (including the middle point), by Proposition [\ref=prop:Non_Linear_Case], [formula] can be computed from the matrices [formula] and [formula]. Let Xi  ⊂  X and Yi  ⊂  Y be two subsets of realizations defining a small neighborhood [formula] around [formula]. The definition of the neighborhoods is application-specific. For example, for time series data, we could use a time window around each point to defined its neighbors. Finding the k nearest neighbors for each realization could be another possibility. When considering subsets (Xi,Yi) consisting of only samples [formula] within the neighborhood of [formula] and [formula], then in particular the distance [formula] between any two realizations in the neighborhood is indeed negligible, and applying CCA to the two sets Xi and Yi results in the estimation of [formula] and [formula], which leads to the estimation of [formula] as desired.
+
+In the absence of the observation-specific variables, the metric Dij can be written as
+
+[formula]
+
+where [formula] and [formula] is the covariance of the random variable [formula] at the point [formula] (noting that the covariance changes from point to point due to the nonlinearity of the observation function f).
+
+In other words, when there are no observation-specific variables, i.e., [formula], the metric we build based on local applications of CCA is a modified Mahalanobis distance, which was presented and analyzed in [\cite=kushnir2012anisotropic] [\cite=talmon2013empirical] [\cite=Talmon2015138] for the purpose of recovering the intrinsic representation from nonlinear observation data.
+
+Global Parametrization
+
+In Section [\ref=sec:Local], we proposed a metric that approximates the Euclidean distance between two realizations. The estimation of the Euclidean distance is accurate for small distances, whereas the overall goal is to obtain a global parametrization which corresponds to the hidden common variables [formula]. For this purpose, i.e., for obtaining a global parametrization from the local metric, we use a kernel-based manifold learning method, Diffusion Maps [\cite=coifman2006diffusion]. Following common practice, we use a Gaussian kernel [formula], which emphasizes the notion of locality using the kernel scale σ: for Dij  ≫  σ, the kernel value Wij is negligible. Therefore, a proper selection of σ entails that only (sufficiently) small distances Dij are taken into account in the kernel. By appropriately tuning the value σ to correspond to the linear part of [\eqref=eq:prop_2], Wij accurately represents an affinity between the common variables, since the higher-order error terms in [\eqref=eq:prop_2] disappear. For more details, see [\cite=dsilva2015data]. The entire method is presented in Algorithm [\ref=alg:1].
+
+In Step 1-b, Algorithm [\ref=alg:1] assumes that the neighborhoods of the middle points [formula] and [formula] are accessible. In addition, for sets of size [formula], Step 1 is repeated [formula] times. This entails that in Step 1-d, the matrix [formula] is computed for every possible middle point ij, and overall [formula] such CCA matrices are computed, one for each possible pair [formula].
+
+In order to relaxe the above assumption and to reduce the computational complexity, we present an algorithm based on [\cite=kushnir2012anisotropic]. The more efficient algorithm is presented in Algorithm , where the CCA matrices [formula] are constructed only for a subset of L  ≤  N points [formula] (without the need to directly address the middle point), i.e., [formula] is computed only L times. This modification does not affect the algorithm; Theorem 3.2 presented in [\cite=kushnir2012anisotropic] states that the entries of matrix [formula] calculated in Step 3 in Algorithm are approximations of the entries of the matrix [formula] calculated in Step 2 in Algorithm [\ref=alg:1]. For more details, see [\cite=kushnir2012anisotropic]. The modification gives rise to two benefits. First, it circumvents the need to have access to the middle points (and their respective neighborhoods). Second, in Algorithm one can reduce the computational load by setting XL  ⊂  X and then by calculating [formula] only at L < N different points.
+
+Multiple Observation Scenario
+
+The proposed method can be extended to the case where there are more than two sets of observations. The core of the proposed method relies on the local metric . As described in , this metric requires the computation of the matrix [formula] (at the middle points in Algorithm 1 or at the observations in Algorithm 2). In either case, this matrix is computed based on the canonical directions extracted by a local application of CCA to two sets of observations from two (possibly different) observation functions. Consequently, the extension to more than two sets involves an extension of the local CCA application that enables to compute the canonical directions from more than two sets of observations. Once such canonical directions are identified, [formula] can be constructed analogously, and the remainder of the algorithm remains unchanged.
+
+Therefore, this multiple observations case requires a suitable alternative to CCA, which is not restricted to two sets. Here, we exploit the method presented in [\cite=luo2015tensor], which extends CCA for the case of more than two data sets. As mentioned in [\cite=luo2015tensor], this method is limited to finding only the dominant canonical direction for each observation, since finding multiple directions that satisfy the orthogonality constraint is still an open problem [\cite=de2000multilinear].
+
+In the remainder of this section, we extend our notation to support multiple observations. Then, we briefly describe the (linear) Tensor CCA (TCCA) method based on [\cite=luo2015tensor] using multi-linear algebra, i.e. using tensor products and tensor decompositions. Finally, we present an algorithm for the general multimodal scenario, which extends the algorithm presented in Section [\ref=sec:Global-Parametrization] for more than two sets of observations.
+
+Let [formula] denote the kth observation function, i.e., [formula], where [formula] is a kth observation-specific variable. Let [formula] denote the kth set of observations, where 1  ≤  k  ≤  K.
+
+As mentioned above, extending the derivation of the local metric presented in Section [\ref=sec:Global-Parametrization] for K > 2 observation sets requires the use of tensors instead of matrices. The notation that is used throughout this section is as follows.
+
+The kth [formula] mode product between a Kth order tensor [formula] and a matrix [formula] is defined by
+
+[formula]
+
+In matrix form this product can be expressed by K  =  T  ×  kM, where
+
+[formula]
+
+In a similar manner, we define by
+
+[formula]
+
+the product of T with a sequence of matrices [formula] for 1  ≤  k  ≤  K. Note that in this case [formula].
+
+Given a Kth order tensor [formula], and a Jth order tensor [formula], their outer product [formula] is a (K + J)th order tensor [formula] which holds:
+
+[formula]
+
+In Section [\ref=sub:Non-Linear-Case], we estimate the Euclidean distance [formula] by projecting the observations from each set on the respective canonical directions obtained by a local application of CCA. In the case of multiple sets, we aim to find the generalized canonical directions which maximize the correlation of observations [formula] from all sets [formula]. Assuming zero mean random variables for simplicity, the corresponding optimization problem can be written as follows:
+
+[formula]
+
+where [formula] and [formula].
+
+A summary of the algorithm presented in [\cite=luo2015tensor] for obtaining the generalized canonical directions is outlined in Algorithm [\ref=alg:Linear-TCCA]. Note that in Step 4, Algorithm [\ref=alg:Linear-TCCA] uses a low-rank tensor decomposition to solve the optimization problem [\eqref=eq:tcca_opt_prob]. To compute this decomposition, one can use the alternating least squares (ALS) algorithm [\cite=comon2009tensor].
+
+We repeat the same steps done in Section [\ref=sub:Non-Linear-Case] to obtain the generalized canonical direction [formula] at the point [formula], namely, [formula]. In other words, we apply Algorithm [\ref=alg:Linear-TCCA] only to the neighborhood of the ith realizations, X(k)i. In addition, by repeating the same steps as in the proof of Proposition [\ref=prop:Non_Linear_Case], we arrive to the following result.
+
+In the multiple observation case, the Euclidean distance between any two (scalar) realizations zi and zj of the random variable z is given by:
+
+[formula]
+
+where [formula] and [formula].
+
+Note that the common variable z in this case is restricted to be a scalar, due to the limitation of the TCCA algorithm. We note that similarly to Proposition [\ref=prop:Non_Linear_Case], Corollary [\ref=cor:TCCA] can be analogously formulated based on realizations of [formula] (instead of [formula]) for any 1  ≤  k  ≤  K.
+
+Obtaining the global metric from the local metric is achieved similarly to the case where K = 2 and is described in Section [\ref=sub:Non-Linear-Case]. Here as well, we use Diffusion Maps with a Gaussian kernel. The overall algorithm for the multimodal case (K > 2) is presented in Algorithm [\ref=alg:full_TCCA].
+
+Experimental Results
+
+Local Metric Comparison
+
+We generate N = 400 realizations [formula] of a two dimensional random variable with uniform distribution in the [formula] square. To compare only the metric estimation, we use an observation with no observation-specific variables. According to Proposition [\ref=prop:Mahalanobis], only a single observation is needed, and we can compare between Dij as defined in [\eqref=eq:Dij] and the metric defined in [\cite=yair2016multimodal], which we denote here as Qij, namely:
+
+[formula]
+
+By simulating the following nonlinear observation function:
+
+[formula]
+
+we obtain a set of N = 400 observations [formula]. Figure [\ref=fig:Z_And_X_Sets] depicts (a) the hidden variables [formula] and (b) the observations [formula].
+
+Figure [\ref=fig:Comparison-of-Euclidean] shows the estimated metric as a function of the true metric. In Figure [\ref=fig:Comparison-of-Euclidean](a), we plot the estimated metric based on [\cite=yair2016multimodal], and in Figure [\ref=fig:Comparison-of-Euclidean](b) we plot the estimated metric based on . We can see that for small Euclidean distances (small values on the x-axis), both estimated metrics are accurate. For large Euclidean distances, the estimated metric based on the middle point maintains a linear correlation with the true distance, whereas the estimated metric proposed in [\cite=yair2016multimodal] exhibits large error.
+
+Coupled Pendulum
+
+this experiment we simulate a coupled pendulum model. This model consists of two simple pendulums with lengths L1 and L2 and masses m1 and m2, which are connected by a spring as shown in Figure [\ref=fig:Coupled_Pendulum]. For simplicity we set the same length and the same mass for both pendulums, namely L1 = L2 = L and m1 = m2 = m. Let [formula] and [formula] denote the horizontal position and vertical position of the ith pendulum, respectively. Note that a close-form expression for the positions cannot be derived for the general case. Yet, in the case of small perturbations around the equilibrium point, we can consider a linear regime. Accordingly, let [formula] be the angle between the ith pendulum and the vertical axis, and assume that [formula], and [formula]. The ordinary differential equation (ODE) representing the horizontal position under the linear regime is given by:
+
+[formula]
+
+where [formula] is the second derivative of u, g is the gravity of earth, and k is the spring constant. For the following initial conditions:
+
+[formula]
+
+where [formula] is assumed to be sufficiently small to satisfy the linear regime, the closed-form solution of the ODE [\eqref=eq:ODE] is given by:
+
+[formula]
+
+where
+
+[formula]
+
+This example suits our purposes, since the horizontal displacement of each pendulum [formula] is a linear combination of two harmonic motions with the common frequencies ω1 and ω2. In other words, the horizontal displacement of each pendulum can be viewed as a different observation of the same common harmonic motion.
+
+To further demonstrate the power of our method, we assume that we do not have direct access to the horizontal displacement. Instead, we generate movies of the motion of the coupled pendulum in the linear regime. Consequently, on the one hand, we have a definitive ground truth described by the solution of the ODE of the system (the harmonic motion with the two frequencies ω1 and ω2). On the other hand, we only have access to high-dimensional nonlinear observations of the system, and we do not assume any prior model knowledge. Three snapshots of the entire system are displayed in Figure [\ref=fig:Entire_Clean_Movie].
+
+This model is used to test our method in two scenarios. In the first scenario, we generate two movies of the two pendulums without any other features. In the second scenario, we generate two movies of the two pendulums, where each movie also contains an additional pendulum that represents an observation-specific geometric noise.
+
+Case I - Coupled pendulum
+
+We generate two movies, each is 5 seconds long with N = 400 frames (namely, sampling interval of Ts = 0.0125s) of each of the pendulums in the couple pendulum system oscillating in a linear regime as demonstrated in Figure [\ref=fig:Clean_Observations].
+
+Let [formula] and [formula] be two column stack vectors consisting of the pixels of the ith frame of the movies of the left and right pendulums, respectively. Let [formula] and [formula] be two sets of observations, which are random projections of the frames of the movies. In the words, each observation is given by [formula] and [formula], where [formula] and [formula] are two fixed matrices with (approximately) orthonormal columns, drawn independently (once) from a Gaussian distribution. These observations/projections represent two different modalities in two different spaces. We apply Algorithm to X and Y, where we use 8 adjacent projected frames (in time), i.e., [formula] and [formula], as the subset of each observation.
+
+We compare our method to 3 different algorithms: (i) Diffusion Maps with Euclidean metric (using only X), (ii) KCCA, and (iii) Alternating Diffusion Maps (with Euclidean metric) [\cite=Lederman2015]. In all four algorithms, we view the nontrivial eigenvector associated with the largest eigenvalue as the parametrization of the system, and we display its Fourier transform in Figure [\ref=fig:Clean-movie-Results]. In each subfigure the blue line is the Fourier transform of the eigenvector and the two vertical red dashed lines are the two frequencies of the coupled pendulum system: ω1 and ω2. Figure [\ref=fig:Clean-movie-Results](a) displays the output of Diffusion Maps with the Euclidean metric using the set of observations X from only one movie. Figure [\ref=fig:Clean-movie-Results](b) displays the output of KCCA. Figure [\ref=fig:Clean-movie-Results](c) displays the output of Alternating Diffusion Maps. Finally, Figure [\ref=fig:Clean-movie-Results](d) displays the output of Algorithm , i.e., Diffusion Maps with Dij [\eqref=eq:prop_metric] as its metric. We note that only one nontrivial eigenvector is presented, since, as shown in [\eqref=eq:ODE_Solution], the displacement of each pendulum, and hence, the projected frames of each movie, can be represented by a single scalar θ, which is the angle of the pendulum with respect to the equilibrium axis. In other words, the coupled pendulum system can be described using a low-dimensional representation conveyed by the dominant nontrivial eigenvector.
+
+As we can see in Figure [\ref=fig:Clean-movie-Results], both in the result obtained by Diffusion Maps as well as in the result obtained by our method, the presented eigenvector contains the frequencies of the coupled pendulum system: ω1 and ω2. In contrast, the eigenvector attained by Alternating Diffusion Maps and the eigenvector attained by KCCA do not contain the true frequencies of the coupled pendulum system. Specifically, we show in Figure [\ref=fig:Clean-movie-Results](a) that the true frequencies can be extracted simply by applying diffusion maps to one of the observation sets. Consequently, we remark that this experiment serves only as a reference; it implies that in this noiseless case each of the sets carries the full information on the system, and as a result, these frequencies are common to both sets. In the next section, we introduce noise and show that in the noisy case our algorithm is essential.
+
+Case II - Coupled pendulum with observation-specific noise
+
+We repeat the experiment described in Section [\ref=sub:Simulation_Case_I] with additional observation-specific noise. In this experiment, an additional simple pendulum is added to each movie as demonstrated in Figure [\ref=fig:Noisy_Movie]. Note that the two extra pendulums, one in each movie, oscillate in different frequencies: [formula] and ω4 = 4ω1. In other words, we now have 4 different frequencies in the movies, yet only 2 of them (ω1 and ω2) are common to both observations.
+
+We apply Algorithm [\ref=alg:2] with the same selection of subsets Xi and Yi. As in Section [\ref=sub:Simulation_Case_I], we compare our method to the same 3 algorithms.
+
+Figure [\ref=fig:Noisy-movie-Results] is similar to Figure [\ref=fig:Clean-movie-Results], where we display the Fourier transforms of the eigenvectors obtained by the algorithms. In each subfigure the blue curve is the Fourier transform of the eigenvector, the two red dashed vertical lines are the two frequencies of the coupled pendulum ω1 and ω2, and the two green dashed vertical lines are the two frequencies of the simple pendulums ω3 and ω4. Figure [\ref=fig:Noisy-movie-Results](a) displays the output of Diffusion Maps with the Euclidean metric using frames from only one movie X. Figure [\ref=fig:Noisy-movie-Results](b) displays the output of KCCA. Figure [\ref=fig:Noisy-movie-Results](c) displays the output of Alternating Diffusion Maps. Finally, Figure [\ref=fig:Noisy-movie-Results](d) displays the output of Algorithm [\ref=alg:2], i.e., Diffusion Maps with the metric Dij.
+
+As we can see in Figure [\ref=fig:Noisy-movie-Results], only in the result obtained Algorithm [\ref=alg:2], the dominant eigenvector contains the frequencies of the coupled pendulum system ω1 and ω2 as desired. The eigenvectors attained by Diffusion Maps, by KCAA, and by Alternating Diffusion Maps do not contain the true frequencies of the coupled pendulum system.
+
+Multiple Observations of Rotating Icons
+
+In this simulation we show that Algorithm [\ref=alg:full_TCCA] allows for the accurate parametrization of the common variable underlying K = 3 nonlinear high-dimensional observations. We generate three high-dimensional movies containing four rotating icons: Super Mario, Mushroom, Turtle and Flower. Each movie captures only two icons. In the movies, each icon rotates in a constant angular speed: the angular speeds of Super Mario, Mushroom, Turtle and Flower are [formula],[formula],[formula], and [formula] per frame, respectively, as demonstrated in Figure [\ref=fig:TCCA_Movie]. Notice that only Mushroom appears in all the movies, and hence, the angular speed of Mushroom is the hidden common variable z, whereas the angular speeds of the other icons are the hidden observation-specific variables [formula], for 1  ≤  k  ≤  K. Two frames of each movie are depicted for illustration in Figure [\ref=fig:TCCA_Movie].
+
+Each set of nonlinear high-dimensional observations [formula] consists of N = 300 frames. We apply Algorithm [\ref=alg:full_TCCA], where in step 1(a), the subsets [formula] consist of the frames in a time window of length 7 around [formula]. Since, the desired parametrization should convey the fact that the common variable in the sets is the angular speed of Mushroom, and thus, it should be periodic with the same period, we apply the Fourier transform to the first column of [formula] and present it in Figure [\ref=fig:TCCA_Result]. In Figure [\ref=fig:TCCA_Result], the true frequencies of Super Mario, Mushroom, Turtle and Flower are marked by vertical red, green, black and pink dashed lines, respectively.
+
+Figure [\ref=fig:TCCA_Result] shows that indeed the proposed algorithm identifies the frequency of Mushroom (the common variable underlying all observation sets), whereas the frequencies of the observation-specific Super Mario, Turtle and Flower are completely missing, as expected.
+
+To further demonstrate the capabilities of our method, we repeat the simulation in a more complex setting. Here, each pair of movies contains two common icons while only Mushroom is maintained as the common variable of all the movies. Two frames of the new movies are depicted for illustration in Figure [\ref=fig:TCCA_Movie_2].
+
+For similar reasons as in the previous experiment, we apply the Fourier transform to the first column of [formula] and present it in Figure [\ref=fig:TCCA_Result_2]. In Figure [\ref=fig:TCCA_Result_2], the true frequencies of Super Mario, Mushroom, Turtle and Flower are marked by vertical dashed red, green, black and pink lines, respectively. Despite the more complex setting, in which any two observation sets contain additional correlated "noise", Figure [\ref=fig:TCCA_Result_2] shows that the proposed algorithm identifies the true frequency of the common variable (Mushroom).
+
+In summary, in this simulation without assuming any prior knowledge on the structure and content of the data, our extended method successfully discovers the common variable hidden in multiple high-dimensional and nonlinear observations.
+
+Conclusions
+
+In this paper, we have presented a new manifold learning method for extracting the common hidden variables underlying multimodal data sets. Our method does not assume prior knowledge on the system nor on the observed data and relies on a local metric, which is learned from data in an unsupervised manner. Specifically, we proposed a metric between observations based on local CCA and showed that this metric approximates the Euclidean distance between the respective hidden common variables.
+
+The theoretical results were validated in simulations, where we demonstrated the accurate recovery of the hidden common variables from multiple complex and high-dimensional data sets. In addition, we showed that our method can be applied to various different types of observations and attain the same results without adjusting the algorithm to the specific observations at hand. For example, the coupled pendulum system is an example of a dynamical system with a definitive model and a closed-form solution in the linear case. We have shown that without any prior model knowledge our method can obtain an accurate description of the solution solely from high-dimensional nonlinear observations. Note that our solution was obtained also when the observations contained "structured noise".
+
+The capability to obtain the close-form solution solely from observations enables us to demonstrate the power of our approach by carrying out empirical modeling of dynamical systems. One can further extend this to the analysis of the coupled pendulum system in more complex scenarios, such as, with different initial conditions and in nonlinear regimes. In such cases, closed-form solutions may no longer be available. Yet, from a data-driven point of view, our method is expected to attain an accurate description of the system from its observations. Importantly, since our method does not require prior rigid model assumptions, it can be applied to a broad variety of multimodal data sets lacking definitive models. Therefore, future work will address the extension of our analysis to various types of dynamical systems and empirical physics experiments.

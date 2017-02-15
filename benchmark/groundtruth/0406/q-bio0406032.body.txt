@@ -1,0 +1,97 @@
+Amino acid substitution matrices for protein conformation identification
+
+Introduction
+
+The similarity of amino acids is the basis of protein sequence alignment, protein design, and protein structure prediction.The mutation data matrices of Dayhoff[\cite=pam] and the substitution matrices of Henikoff[\cite=blm] are standard choices of scores for amino acid similarity evaluation. Although, widely used in protein design and protein structure prediction, these matrices pay more attention to homologous relationship than to conformation similarity.
+
+However, in studies of protein conformations, the task is to detect whether residue sequences have similar conformations neglecting their homologous relationships. Several works[\cite=bowie] [\cite=pre67] showed that residue behavior is influenced by protein conformations. Therefore, we wondered whether a better approach might be to use alignments in which these relationships are explicitly represented.
+
+For this purpose, we derived many residue segment blocks from the nonredundant PDB_SELECT[\cite=pslt] database. The amino acid segments in each of the block have identical protein secondary structure according to the database of secondary structure in proteins(DSSP)[\cite=dssp]. Consequently, based on the counts of residue substitution in our database, we derived the amino acid substitution matrices for protein conformation identification.
+
+Methods
+
+We created a nonredundant set of 1612 non-membrane proteins from PDB_SELECT with amino acid identity less than 25% issued on 25 September of 2001. The secondary structure for these sequences were taken from DSSP database. In DSSP algorithm, Kabsch and Sander defined eight states of secondary structure according to the hydrogen-bond pattern. As in most methods, we considered 3 states {h,e,c} generated from the 8 by the coarse-graining H,G,I  →  h, E  →  e and X,T,S,B  →  c.
+
+Constructing blocks databases
+
+For this work, we constructed blocks database from our dataset by the following two rules:
+
+(1) Each amino acid segment in a block has the same protein secondary structure;
+
+(2) Each amino acid segment in a block has at least one non-gapped high scored alignment when it is compared with other segments in the block.
+
+Step 1: A window of width l is sliding along every sequence of our dataset. A dataset G of amino acid segments a0a1...al - 1 with the corresponding secondary structure segments s0s1...sl - 1 is created. For an entry aj0aj1...ajl - 1 in dataset G, if there is another entry ak0ak1...akl - 1 in G which satisfies sj0 = sk0,sj1 = sk1,...sjl - 1 = skl - 1 and S  ≥  S0
+
+[formula]
+
+then the entry is added to dataset B's0s1...sl - 1, where score(aji,aki) is the score for residues aji,aki substitution in BLOSUM62[\cite=blm] matrix. After filtering set {B'} to forbid sample recounts in the original dataset, we get some high scored residue segments for different protein secondary structure words.
+
+Step 2: To reduce the contributions to amino acid pair frequencies from the less similar residue segments, segments of each protein secondary structure word in set {B'} are clustered. This is done by specifying the threshold S0, identical to that used in step 1 , in which segments that have alignment score S better than S0 are grouped together. For example, in dataset B's0s1...sl - 1, if the score SXY  ≥  S0 when segments X and Y are aligned, then X and Y are clustered. If segment Z has a high scored alignment with either X or Y, it is also clustered with them.
+
+After these two steps, we get a new blocks database fulfilling our requirements.
+
+Deriving amino acid substitution matrices from conformational blocks databases
+
+To reduce multiple contributions to amino acid pair frequencies from the most closely related members in a block, sequences are clustered within blocks and each cluster is weighted as a single sequence in counting pairs. This is done by specifying a clustering percentage in which sequence segments that are identical for at least that percentage of amino acids are grouped together. In our work, we adjust this percentage to that of the original BLOSUM matrices are derived.
+
+We count all possible pairs of amino acid substitution in each column of every block. All these counts are summed. The result of this counting is a frequency table listing the number of times each of the 20 + 19 + ..1 = 210 different amino acid pairs occurs among the blocks. The table is used to calculate a matrix representing the odds ratio between these observed frequencies and those expected by chance.
+
+We denote the total number of amino acid i,j pairs(1  ≤  j  ≤  i  ≤  20) by fij. Then the observed probability of occurrence for each i,j pair is
+
+[formula]
+
+The probability for the amino acid i to occur is then
+
+[formula]
+
+The expected probability of occurrence eij for each i,j pair is then pipj for i = j and pipj + pjpi = 2pipj for i  ≠  j. An odds ratio matrix is calculated where each entry is qij / eij. A lod ratio is then calculated in bit units as sij  =   log 2(qij / eij). Lod ratios are multiplied by a scaling factor of 2 and then rounded to the nearest integer value to produce CBSM(conformational blocks substitution matrix) matrices in half-bit units. For each substitution matrix, we calculated the average mutual information per amino acid pair H(also called relative entropy)[\cite=rentroy], and the expected score E in bit units as
+
+[formula]
+
+For more details on matrix driving, we refer reader to Refs.[\cite=blm]
+
+Protein secondary structure segment searches
+
+To evaluate the improvement of the performance of our amino acid substitution matrices to that of the original BLOSUM matrix used, we do a protein secondary structure segment search in the learning set. All-against-all segment alignment is carried out in dataset G. For two segments X and Y, the alignment score SXY  ≥  T0, if they have the same protein secondary structure then there is a sample of Ture-Positive, else a False-Positive sample.
+
+Given a threshold T0B, using BLOSUM matrix, we get the counts of Ture-Positive and False-Positive samples in dataset G. As our substitution matrix is used, by varying the threshold T0, we adjust the counts of False-Positive samples to that of the original BLOSUM matrix used. Consequently, we can evaluate the improvement by the counts of Ture-Positive samples.
+
+Homologous pairs detection
+
+To evaluate the validity of the above scheme, we examine whether the sequence alignments with CBSM60 perform better than those with BLOSUM62 for homologous sequences in the twilight zone. For this propose, we use the 176 sequences test set extracted by Elber et, al[\cite=s176]. Each homologous pair in the test set have a sequence identity less than 25%, but very similar structure.
+
+We perform all-against-all sequence alignment on the test set with Blast2.2.6[\cite=blast1] [\cite=blast2]. The gap insertion and elongation parameters used for alignment are set to 11/1. Detective ability is illustrated by the number of successfully identified homologous pairs as a function of errors per query. The error per query is defined as the total number of non-homologous protein sequences detected with expectation value equal to or less than the threshold divided by the total number of aligned sequence pairs. By varying the expectation value cutoff of Blast, we get the results shown in figure 1.
+
+Result
+
+By setting S0 = 27, we created l = 10 width blocks from our dtatset. The resulting amino acid substitution matrices are shown in table 1.
+
+It is interesting to make a comparison between the CBSM60 matrices obtained here with the commonly used BLOSUM62 matrices. There are many remarkable differences between the two score schemes. Lots of amino acid pairs have more negative score in CBSM60 than those in BLOSUM matrices. For example, the scores for residue pairs CN, CD, ID, WD, QC, KC, FC, WK, and WP are more than two bits lesser than those in BLOSUM62 matrix. This means dissimilar residues are strongly forbidden in amino acid substitution. On the other hand, the scores for some pairs of similar residues are slightly improved, such as SA, SN, LI, VI, MI, ML, VL, FM, YF, and ST.
+
+Relative entropy is 0 when the target(or observed) distribution of pair frequencies is same as the background(or expected) distribution and increases as these two distribution become more distinguishable. Based on relative entropy, the BLOSUM90 is comparable to CBSM60 with relative entropy of ≈  1.2 bit. Some differences are seen when BLOSUM90 is subtracted from CBSM60 for every matrix entries. Compared to CBSM60, self substitution is more preferable in BLOSUM90. For some amino acids, especially PW, WD, and QC, CBSM60 is less tolerant to mismatches than BLOSUM90 is . On the contrary, some substitutions, such as MA, FM, SN, VL, and VY, are more tolerable in CBSM60.
+
+The results of protein secondary structure segment searches are shown in table 3. We find that there is a remarkable improvement compared with those using BLOSUM matrix. The Ture-Positive sample count for each T0B increases nearly 15%. For False-positive cases, the proportion of samples with tiny structural differences between two aligned segments increases nearly one percent. This means the CBSM substitution matrices work very well.
+
+In the results of homologous pairs detection shown in figure 1, we find that, compared with BLOSUM62, CBSM60 performs better. The detected homologues increase nearly 1/3. Further more, for cases where signal of sequence similarity is larger, we do the homologues detection too. Compared with BLOSUM62, for SCOP40 database[\cite=scop1] [\cite=scop2] where only PDB sequences that have 40% homology or less are included, there is a slightly increase(≈  2%) with CBSM60 for homologues detection.
+
+Since the residues in each column of a block correspond to an uniform secondary structure, we can get the residue pair counts and calculate the amino acid substitution matrix for different protein conformation states. The results are shown in table 4-6. When the three matrices are compared with each other, we find many differences. For example, comparing helix with sheet , the similarities of CA, SR, MQ, PH, and TP change drastically. There is a positive score for Cysteine and Alanine substitution in helix. While in sheet conformation, the score is negative.
+
+Discussions
+
+We have found that substitution matrices based on amino acid pairs in conformational blocks of aligned protein segments perform better in protein secondary structure segment identification and homologues detection than those based on Henikoff's BLOSUM score scheme. Because the CBSM matrices can also be used in three dimensional structure identification(This part will be published elsewhere. ), the importance of such improved performance can be profound for works in protein design and protein conformation prediction.
+
+Furthermore, CBSM is indeed a different scheme from BLOSUM. For example, in the performance of homologues detection by CBSM60, we found that 6 of 10 detected homologous pairs are different from those detected using BLOSUM62 as the error per query equals 0.05. When the error per query is 0.15, this portion is 19 of 31. This means a new score scheme have been provided which can detect a different scope of remote homologous relationship from Henikoff's BLOSUM matrices.
+
+There are fundamental differences between our approach and that of Henikoff that could account for the superior performance of CBSM matrices. In their case,based on Prosite database, blocks were derived primarily from the most highly conserved regions of proteins in residue sequence means neglecting the conformation identity. Many of the differences between CBSM and BLOSUM matrices may arise from multi-conformation regions of conserved sequence.
+
+Our results show the strong dependence of residue behavior on conformations. From table 4-6, we find that there are many residue pairs displaying strong dependence of similarity on conformations. We expect that specially derived scores for multiple conformations should work better in researches of protein structure. This will be discussed elsewhere.
+
+Table 1. CBSM60 substitution matrix(Lower) and difference matrix(Upper) obtained by subtracting the BLOSUM62 matrix position by position. Table 2. The difference matrix between CBSM60 and BLOSUM90 obtained by subtracting the BLOSUM90 matrix position by position.
+
+Table 3. Results of protein secondary structure segment searches.
+
+Table 4. Amino acid substitution matrix CBSM60c for coil state(Lower) and difference matrix(Upper) obtained by subtracting the CBSM60h matrix position by position. The bold entries are pairs which have different positive/negative signs in the two compared matrices.
+
+Table 5. Amino acid substitution matrix CBSM60e for sheet state(Lower) and difference matrix(Upper) obtained by subtracting the CBSM60c matrix position by position. The bold entries are pairs which have different positive/negative signs in the two compared matrices.
+
+Table 6. Amino acid substitution matrix CBSM60h for helix state(Lower) and difference matrix(Upper) obtained by subtracting the CBSM60e matrix position by position. The bold entries are pairs which have different positive/negative signs in the two compared matrices.

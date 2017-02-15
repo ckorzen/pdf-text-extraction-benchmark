@@ -1,0 +1,605 @@
+New Liftable Classes for First-Order Probabilistic Inference
+
+Introduction
+
+Statistical relational learning (SRL) [\citep=StarAI-Book] aims at unifying logic and probability for reasoning and learning in noisy domains, described in terms of individuals (or objects), and the relationships between them. Statistical relational models [\citep=getoor2007introduction], or template-based models [\citep=Koller:2009] extend Bayesian and Markov networks with individuals and relations, and compactly describe probabilistic dependencies among them. These models encode exchangeability among the objects: individuals that we have the same information about are treated similarly.
+
+A key challenge with SRL models is the fact that they represent highly intractable, densely connected graphical models, typically with millions of random variables. The aim of lifted inference [\citep=Poole:2003] is to carry out probabilistic inference without needing to reason about each individual separately, by instead treating exchangeable, undistinguished objects as a whole. Over the past decade, a large number of lifted inference rules have been proposed [\citep=De:2005] [\citep=Milch:2008] [\citep=Poole:2011] [\citep=Choi:2011] [\citep=jha2010lifted] [\citep=PTP] [\citep=Van:2011] [\citep=van2014skolemization], often providing exponential speedups for specific SRL models. These basic exact inference techniques have applications in (tractable) lifted learning [\citep=van2015lifted], where the main task is to efficiently compute partition functions, and in variational and over-symmetric approximations [\citep=VdBUAI12] [\citep=venugopal2014evidence]. Moreover, they provided the foundation for a rich literature on approximate lifted inference and learning [\cite=singla2008lifted] [\cite=kersting2009counting] [\cite=niepert2012markov] [\cite=bui2013automorphism] [\cite=VenugopalNIPS14] [\cite=kopp2015lifted] [\cite=ahmadi2012lifted] [\cite=jernite2015fast].
+
+The theoretical study of lifted inference began with the complexity notion of domain-lifted inference [\citep=gvdb2011completeness] (a concept similar to data complexity in databases). Inference is domain-lifted when it runs in time polynomial in the number of individuals in the domain. By identifying liftable classes of models, guaranteeing domain-lifted inference, one can characterize the theoretical power of the various inference rules. For example, the class [formula], encoding dependencies among pairs of individuals (i.e., two logical variables), is liftable [\cite=van2014skolemization]. [\citet=LRC2CPP] introduce a liftable class called recursively unary, capturing hierarchical simplification rules. [\citet=beame2015symmetric] identify liftable classes of probabilistic database queries. Such results elevate the specific inference rules and examples to a general principle, and bring lifted inference in line with complexity and database theory [\cite=beame2015symmetric].
+
+This paper studies the domain recursion inference rule, which applies the principle of induction on the domain size. The rule makes one individual A in the domain explicit. Afterwards, the other inference rules simplify the SRL model up to the point where it becomes identical to the original model, except the domain size has decreased. Domain recursion was introduced by [\citet=gvdb2011completeness] and was central to the proof that [formula] is liftable. However, later work showed that simpler rules suffice to capture [formula] [\cite=taghipour2013completeness], and the domain recursion rule was forgotten.
+
+We show that domain recursion is more powerful than expected, and can lift models that are otherwise not amenable to domain-lifted inference. This includes an open problem by [\citet=beame2015symmetric], asking for an inference rule for a logical sentence called S4. It also includes the symmetric transitivity model, and an encoding of the birthday paradox in first-order logic. There previously did not exist any efficient algorithm to compute the partition function of these SRL models, and we obtain exponential speedups. Next, we prove that domain recursion supports its own large classes of liftable models [formula] subsuming [formula], and [formula] subsuming recursive unary. All existing exact lifted inference algorithms (e.g., [\citep=PTP] [\citep=Van:2011] [\citep=LRC2CPP]) resort to grounding the theories in [formula] or [formula] that are not in [formula] or recursively unary, and require time exponential in the domain size.
+
+These results will be established using the weighted first-order model counting (WFOMC) formulation of SRL models [\citep=Van:2011]. WFOMC is close to classical first-order logic, and it can encode many other SRL models, including Markov logic [\citep=Richardson:2006aa], parfactor graphs [\cite=Poole:2003], some probabilistic programs [\citep=DeRaedt:2007], relational Bayesian networks [\citep=Jaeger:1997], and probabilistic databases [\citep=suciu2011probabilistic]. It is a basic specification language that simplifies the development of lifted inference algorithms [\citep=PTP] [\citep=Van:2011] [\citep=beame2015symmetric].
+
+Background and Notation
+
+A population is a set of constants denoting individuals (or objects). A logical variable (LV) is typed with a population. We represent LVs with lower-case letters, constants with upper-case letters, the population associated with a LV x with Δx, and its cardinality with |Δx|.That is, a population Δx is a set of constants [formula], and we use x∈Δx as a shorthand for instantiating x with one of the Xi. A parametrized random variable (PRV) is of the form [formula] where [formula] is a predicate symbol and each ti is a LV or a constant. A unary PRV contains exactly one LV and a binary PRV contains exactly two LVs. A grounding of a PRV is obtained by replacing each of its LVs x by one of the individuals in Δx.
+
+A literal is a PRV or its negation. A formula φ is a literal, a disjunction [formula] of formulas, a conjunction [formula] of formulas, or a quantified formula [formula] or [formula] where x appears in φ(x). A sentence is a formula with all LVs quantified. A clause is a formula not using conjunction. A theory is a set of sentences. A theory is clausal if all its sentences are clauses. An interpretation is an assignment of values to all ground PRVs in a theory. An interpretation I is a model of a theory T, [formula], if given its value assignments, all sentences in T evaluate to .
+
+Let [formula] be the set of predicate symbols in theory T, and [formula] and [formula] be two functions that map each predicate [formula] to weights for ground PRVs [formula] assigned [formula] and [formula] respectively. For an interpretation I of T, let ψTrue be the set of ground PRVs assigned , and ψFalse the ones assigned . The weight of I is given by [formula]. Given a theory T and two functions Φ and [formula], the weighted first-order model count (WFOMC) of the theory given Φ and [formula] is: [formula].
+
+In this paper, we assume that all theories are clausal and do not contain existential quantifiers. The latter can be achieved using the skolemization procedure of [\citet=van2014skolemization], which transforms a theory T with existential quantifiers into a theory T' without existential quantifiers that has the same weighted model count, in time polynomial in the size of T. That is, our theories are sets of finite-domain, function-free first-order clauses whose LVs are all universally quantified (and typed with a population). Furthermore, when a clause mentions two LVs x1 and x2 with the same population Δx, or a LV x with population Δx and a constant C∈Δx, we assume they refer to different individuals.
+
+Consider the theory [formula] having only one clause and assume Δx  =  {A,B}. The assignment [formula] is a model. Assuming [formula], [formula], [formula] and [formula], the weight of this model is 0.2  ·  0.5  ·  0.8  ·  0.8. This theory has eight other models. The WFOMC can be calculated by summing the weights of all nine models.
+
+Converting Inference for SRL Models into WFOMC
+
+For many SRL models, (lifted) inference can be converted into a WFOMC problem. As an example, consider a Markov logic network (MLN) [\citep=Richardson:2006aa] with weighted formulae [formula]. For every weighted formula wi:Fi of this MLN, let theory T have a sentence [formula] such that [formula] is a predicate having all LVs appearing in Fi. Assuming [formula], and Φ and [formula] are 1 for the other predicates, the partition function of the MLN is equal to [formula].
+
+Calculating the WFOMC of a Theory
+
+We now describe a set of rules  that can be applied to a theory to find its WFOMC efficiently; for more details, readers are directed to [\citep=Van:2011], [\citep=Poole:2011] or [\cite=PTP]. We use the following theory T with two clauses and four PRVs ([formula], [formula], [formula] and [formula]) as our running example:
+
+[formula]     [formula]
+
+Lifted Decomposition
+
+Assume we ground x in T. Then the clauses mentioning an arbitrary Xi∈Δx are [formula] and [formula]. These clauses are totally disconnected from clauses mentioning Xj∈Δx (j  ≠  i), and are the same up to renaming Xi to Xj. Given the exchangeability of the individuals, we can calculate the WFOMC of only the clauses mentioning Xi and raise the result to the power of the number of connected components (|Δx|). Assuming T1 is the theory that results from substituting x with Xi, [formula].
+
+Case-Analysis
+
+The WFOMC of T1 can be computed by a case-analysis over different assignments of values to a ground PRV, e.g., [formula]. Let T2 and T3 represent [formula] and [formula] respectively. Then, [formula]. We follow the process for T3 (the process for T2 will be similar) having clauses [formula], [formula] and [formula].
+
+Unit Propagation
+
+When a clause in the theory has only one literal, we can propagate the effect of this clause through the theory and remove it. In T3, [formula] is a unit clause. Having this unit clause, we can simplify the second clause and get the theory T4 having clauses [formula] and [formula].
+
+Lifted Case-Analysis
+
+Case-analysis can be done for PRVs having one logical variable in a lifted way. Consider the [formula] in T4. Due to the exchangeability of the individuals, we do not have to consider all possible assignments to all ground PRVs of [formula], but only the ones where the number of individuals M∈Δm for which [formula] is [formula] (or equivalently [formula]) is different. This means considering |Δm| + 1 cases suffice, corresponding to [formula] being [formula] for exactly [formula] individuals. Note that we must multiply by [formula] to account for the number of ways one can select j out of |Δm| individuals. Let T4j represent T4 with two more clauses: [formula] and [formula], where ΔmT represents the j individuals in Δm for which [formula] is [formula], and ΔmF represents the other |Δm| - j individuals. Then [formula].
+
+Shattering
+
+In T4j, the individuals in Δm are no longer exchangeable: we know different things about those in ΔmT and those in ΔmF. We need to shatter every clause having individuals coming from Δm to make the theory exchangeable. To do so, the clause [formula] in T4j must be shattered to [formula] and [formula] (and similarly for the other formulae). The shattered theory T5j after unit propagation will have clauses [formula] and [formula].
+
+Decomposition, Caching, and Grounding
+
+In T5j, the two clauses have different PRVs, i.e., they are disconnected. In such cases, we apply decomposition, i.e., find the WFOMC of each connected component separately and return the product. The WFOMC of the theory can be found by continuing to apply the above rules. In all the above steps, after finding the WFOMC of each (sub-)theory, we store the results in a cache so we can reuse them if the same WFOMC is required again. By following these steps, one can find the WFOMC of many theories in polynomial time. However, if we reach a point where none of the above rules are applicable, we ground one of the populations which makes the process exponential in the number of individuals.
+
+Domain-Liftability
+
+A theory is domain-liftable [\citep=gvdb2011completeness] if calculating its WFOMC is polynomial in [formula] where [formula] represent the LVs in the theory. A class C of theories is domain-liftable if [formula], T is domain-liftable.
+
+So far, two classes of domain-liftable theories have been recognized: [formula] [\citep=gvdb2011completeness] [\citep=van2014skolemization] and recursively unary [\citep=Poole:2011] [\citep=LRC2CPP].
+
+A theory is in [formula] if all its clauses have up to two LVs.
+
+Let T be a theory. T is recursively unary (RU) if for every theory T' resulting from applying rules in  except lifted case-analysis to T until no more rules apply, there exists some unary PRV in T' and a generic case of lifted case-analysis on this unary PRV is RU.
+
+Let C be a domain-liftable class of theories. We define C to be linear if for any given theory T, determining whether T∈C (i.e. membership checking) can be done in time linear in the size of T, and to be domain size independent if determining whether T∈C is independent of the size of the domains in T. Note that a linear class is domain size independent.
+
+Given the above definitions, [formula] is linear. Membership checking can be done for it by a single pass through the theory, counting the number of LVs of each sentence. RU is not linear as its membership checking may be exponential in the size of theory, but it is domain size independent as none of the operations it applies to the input theory depend on the domain sizes. [formula] offers faster membership checking than RU, but as we will show later, RU subsumes [formula]. This gives rise to a trade-off between fast membership checking and modelling power for, e.g., (lifted) learning purposes.
+
+The Domain Recursion Rule
+
+[\citet=gvdb2011completeness] considered another rule called domain recursion in the set of rules for calculating the WFOMC of a theory. The intuition behind domain recursion is that it modifies a domain Δx by making one element explicit: [formula] with [formula]. Then, by applying standard rules in  on this modified theory, the problem is reduced to a WFOMC problem on the original theory, but on a smaller domain Δx'. This lets us compute WFOMC using dynamic programming. We refer to  extended with the domain recursion rule as .
+
+Suppose we have a theory whose only clause is [formula], stating if x is friends with y, y is also friends with x. One way to calculate the WFOMC of this theory is by grounding only one individual in Δp and then using . Let A be an individual in Δp and let Δp'  =  Δp  -  {A}. We can (using domain recursion) rewrite the theory as: [formula], [formula], and [formula]. Lifted case-analysis on [formula] and [formula], shattering and unit propagation give [formula]. This theory is equivalent to our initial theory, with the only difference being that the population of people has decreased by one. By keeping a cache of the values of each sub-theory, one can verify that this process finds the WFOMC of the above theory in polynomial-time.
+
+Note that the theory in Example [\ref=fxy_then_fyx] is in [formula] and as proved in [\cite=taghipour2013completeness], its WFOMC can be computed without using the domain recursion rule. This proof has caused the domain recursion rule to be forgotten, or even unknown in lifted inference community. In the next section, we revive this rule and identify a class of theories that are only domain-liftable when using the domain recursion rule.
+
+Domain Recursion Makes More Theories Domain-Liftable
+
+S4 Clause: [\citet=beame2015symmetric] identified a clause (S4) with four binary PRVs having the same predicate and proved that even though the rules  in Section [\ref=rules] cannot calculate the WFOMC of that clause, there is a polynomial-time algorithm for finding its WFOMC. They concluded that this set of rules  for finding the WFOMC of theories does not suffice, asking for new rules to compute their theory. We prove that adding domain recursion to the set achieves this goal.
+
+The theory consisting of the S4 clause [formula] is domain-liftable using .
+
+Symmetric Transitivity: Domain-liftable calculation of WFOMC for the transitivity formula is a long-lasting open problem. Symmetric-transitivity is easier as the number of its models corresponds to the Bell number, but solving it using general-purpose rules has been an open problem. Consider clauses [formula] and [formula] defining a symmetric-transitivity relation. For example, Δp may indicate the population of people and [formula] may indicate friendship.
+
+The symmetric-transitivity theory is domain-liftable using .
+
+Birthday Paradox: The birthday paradox problem [\cite=birthday-paradox] concerns finding the probability that in a set of n randomly chosen people, a pair of them have the same birthday. A first-order encoding of this problem requires WFOMC for a theory with clauses [formula], [formula], and [formula], where Δp and Δd represent the population of people and days. The first two clauses impose the condition that every person is born in exactly one day, and the third clause imposes the "no two people are born in the same day" query.
+
+The birthday-paradox theory is domain-liftable using .
+
+[formula] and [formula]: New Domain-Liftable Classes
+
+Let [formula] represent a clausal theory using a single binary predicate [formula] such that each clause has exactly two different literals of [formula], let [formula] where [formula]s are different binary predicates, and let β represent a theory where all clauses c∈β contain at most one [formula] literal, and the clauses c∈β that contain an [formula] literal contain no other literals with more than one LV. Then, [formula] and [formula] are the classes of theories of the form [formula] where [formula] and β∈RU respectively.
+
+[formula] and [formula] are domain-liftable using .
+
+It can be easily verified that [formula] is a linear and [formula] is a domain size independent class.
+
+Suppose we have a set Δj of jobs and a set Δv of volunteers. Every volunteer must be assigned to at most one job, and every job requires no more than one person. If the job involves working with gas, the assigned volunteer must be a non-smoker. And we know that smokers are most probably friends with each other. Then we will have the following first-order theory:
+
+[formula] [formula] [formula] [formula]
+
+[formula] is added to capture the probability assigned to the last rule. This theory is not in [formula] and not in RU and is not domain-liftable using . However, the first two clauses are instances of αAssigned in Def. [\ref=s2fo2-def], the third and fourth are in [formula] (and also in RU), and the third clause which contains [formula] has no other PRVs with more than one LV. Therefore, this theory is in [formula] (and also in [formula]) and domain-liftable based on Theorem [\ref=liftable-class].
+
+[formula], [formula], [formula], [formula], [formula].
+
+Experiments and Results
+
+In order to see the effect of using domain recursion in practice, we find the WFOMC of three theories with and without using the domain recursion rule: 1- the theory in Example [\ref=volunteers-jobs], 2- the S4 clause, and 3- the symmetric-transitivity. We implemented the domain recursion rule in C++ and compiled the codes using the g++ compiler. We compare our results with the WFOMC-v3.0 software. Since this software requires domain-liftable input theories, for the first theory we grounded the jobs, for the second we grounded Δx, and for the third we grounded Δp. For each of these three theories, assuming |Δx| = n for all LVs x in the theory, we varied n and plotted the run-time as a function of n. All experiments were done on a 2.8GH core with 4GB RAM under MacOSX. The run-times are reported in seconds. We allowed a maximum of 1000s for each run.
+
+Obtained results can be viewed in Fig. [\ref=results]. These results are consistent with our theory and indicate the clear advantage of using the domain recursion rule in practice. In Fig. [\ref=results](a), the slope of the diagram for domain recursion is approximately 4 which indicates the degree of the polynomial for the time complexity. Similar analysis can be done for the results on S4 clause and the symmetric-transitivity clause represented in Fig. [\ref=results](b), (c). The slope of the diagram in these two diagrams is around 5 and 2 respectively, indicating that the time complexity for finding the WFOMC of the S4 clause and the symmetric-transitivity theories are n5 and n2 respectively, where n shows the size of the population.
+
+Discussion
+
+We can categorize the theories with respect to the domain recursion rule as: 1- theories proved to be domain-liftable using domain recursion (e.g., S4, symmetric-transitivity, and theories in [formula]), 2- theories that are domain-liftable using domain recursion, but we have not identified them yet, and 3- theories that are not domain-liftable even when using domain recursion. We leave discovering and characterizing the theories in category 2 and 3 as future work. But here we show that even though the theories in category 3 are not domain-liftable using domain recursion, this rule may still result in exponential speedup for these theories.
+
+Consider the (non-symmetric) transitivity rule: [formula]. Since none of the rules in  apply to the above theory, the existing lifted inference engines ground Δp and calculate the weighted model count (WMC) of the ground theory. By grounding Δp, these engines lose great amounts of symmetry. Suppose Δp  =  {A,B,C} and assume we select [formula] and [formula] as the first two random variables for case-analysis. Due to the exchangeability of the individuals, the case where [formula] and [formula] are assigned to [formula] and [formula] respectively has the same WMC as the case where they are assigned to [formula] and [formula]. However, the current engines fail to exploit this symmetry as they consider grounded individuals non-exchangeable. By applying domain recursion to the above theory, one can exploit the symmetries of the theory. Suppose Δp'  =  Δp  -  {P}. Then we can rewrite the theory as follows:
+
+[formula] [formula] [formula] [formula]
+
+By applying lifted case-analysis on [formula], we do not get back the same theory with reduced population and calculating the WFOMC is still exponential. However, we only generate one branch for the case where [formula] is [formula] only once. This branch covers both the symmetric cases mentioned above. Exploiting these symmetries reduces the time-complexity exponentially. This suggests that for any given theory, when the rules in  are not applicable one may want to try the domain recursion rule before giving up and resorting to grounding a population.
+
+Conclusion
+
+We identified new classes of domain-liftable theories called [formula] and [formula] by reviving the domain recursion rule. We also demonstrated how this rule is useful for theories outside these classes. Our work opens up a future research direction for identifying and characterizing larger classes of theories that are domain-liftable using domain recursion. It also helps us get closer to finding a dichotomy between the theories that are domain-liftable and those that are not, similar to the dichotomy result of [\citet=dalvi2007efficient] for query answering in probabilistic databases.
+
+It has been shown [\citep=LRC2CPP] [\citep=Kazemi:2016] that compiling the WFOMC rules into low-level programs (e.g., C++ programs) offers (approx.) 175x speedup compared to other approaches. While compiling the previously known rules to low-level programs was straightforward, compiling the domain recursion rule to low-level programs without using recursion might be tricky as it relies on the population size of the logical variables. A future research direction would be finding if the domain recursion rule can be efficiently compiled into low-level programs, and measuring the amount of speedup it offers.
+
+Proofs of the Theorems, Propositions, and Lemmas
+
+Proof of Proposition [\ref=S4-prop]
+
+Let Δx'  =  Δx  -  {N}. Applying domain recursion on Δx (choosing Δy is analogous) gives the following shattered theory on the reduced domain Δx'.
+
+[formula]
+
+We now reach to the standard rules  to simplify the output of domain recursion. The last clause is a tautology and can be dropped. The theory contains a unary PRV, namely [formula], which is a candidate for lifted case-analysis. Let ΔyT  ⊆  Δy be the individuals of Δy for which [formula] is satisfied, and let [formula] be its complement in Δy. This gives
+
+[formula]
+
+Unit propagation creates two independent theories: one containing the [formula] atoms, which is trivially liftable, and one containing the other atoms, namely
+
+[formula]
+
+The last two clauses are equivalent, hence, we have
+
+[formula]
+
+After shattering, we get four copies of the first clause:
+
+[formula]
+
+The second and third clauses are subsumed by the last clause, and can be removed:
+
+[formula]
+
+Let us now consider the last clause, and ignore the first two for the time being. The last clause is actually in FO2, and the Skolemization-rewriting of reused FO2 variables [\cite=van2014skolemization] can be applied, for example to y2 in its second PRV. The last clause is thus replaced by
+
+[formula]
+
+Next, we perform lifted case-analysis on [formula]. Let Δα  ⊆  Δx' be the individuals in Δx' for which [formula] is satisfied, and let [formula] be its complement in Δx':
+
+[formula]
+
+Unit propagation gives two independent theories: a theory containing the predicate [formula], which is trivially liftable, and the theory
+
+[formula]
+
+Next, we perform atom counting on [formula]. Let Δβ  ⊆  Δα be the individuals of Δα for which [formula] is satisfied, and let [formula] be its complement in Δα. In other words, the original domain Δx is now split up into four parts: Δx̄  =  {N}, [formula], Δβ, and [formula]. This gives the theory
+
+[formula]
+
+Unit propagation gives two independent theories: a theory containing the predicate [formula], which is trivially liftable, and the theory
+
+[formula]
+
+We now reintroduce the first removed clause. Clause [\ref=removed1] has nine copies after shattering:
+
+[formula]
+
+Unit propagation of clauses [\ref=prop02] and [\ref=prop03] satisfies any clause that has a positive literal whose x domain is [formula] or [formula]. This removes all clauses except for
+
+[formula]
+
+We now reintroduce the second removed clause. Clause [\ref=removed2] has four copies after shattering:
+
+[formula]
+
+Unit propagation of clauses [\ref=prop01] satisfies any clause that has a negative literal whose x domain is α. This removes all clauses except for
+
+[formula]
+
+Putting it all together, we have the theory
+
+[formula]
+
+These five clauses are all independent. The last three are trivially liftable. The first two are simply copies of S4 with modified domains Δβ, ΔyT, [formula] and ΔyF instead of Δx and Δy. However, we have that |Δβ|  <  |Δx|, |ΔyT|  ≤  |Δy|, [formula], and |ΔyF|  ≤  |Δy|. The recursion is thus guaranteed to terminate with [formula]. By keeping a cache of WFOMCs for all sizes of Δx and Δy, we can compute the WFOMC of S4 in PTIME.
+
+Proof of Proposition [\ref=sym-trans-prop]
+
+Symmetric-transitivity has the following two sentences:
+
+[formula]
+
+Assuming Δq  =  Δp  -  {N}:
+
+[formula]
+
+Lifted case-analysis on [formula] assuming ΔqT contains individuals in Δq for which [formula] is true and ΔqF is the other individuals in Δq:
+
+[formula]
+
+Unit propagation:
+
+[formula]
+
+Shattering:
+
+[formula]
+
+Unit propagation:
+
+[formula]
+
+The first, second, third, fifth, and sixth clauses are independent of the other clauses and can be reasoned about separately. They can be trivially lifted. The remaining clauses are:
+
+[formula]
+
+The above clauses are an instance of our initial clauses but with smaller domain sizes. We can reason about them by following a similar process, and if we keep sub-results in a cache, the process will be polynomial.
+
+Proof of Proposition [\ref=birth-para-prop]
+
+After skolemization [\cite=van2014skolemization] for removing the existential quantifier, the birthday-paradox theory contains [formula], [formula], and [formula], where [formula] is the Skolem predicate. This theory is not in [formula] and not in RU and is not domain-liftable using . However, this theory is both [formula] and [formula] as the last two clauses are instances of αBorn, the first one is in [formula] and also in RU and has no PRVs with more than one LV other than [formula]. Therefore, this theory is domain-liftable based on Theorem [\ref=liftable-class].
+
+Proof of Theorem [\ref=liftable-class]
+
+The case where [formula] is trivial. Let [formula]. Once we remove all PRVs having none or one LV by (lifted) case-analysis, the remaining clauses can be divided into n + 1 components: the i-th component in the first n components only contains [formula] literals, and the (n + 1)-th component contains no [formula] literals. These components are disconnected from each other, so we can consider each of them separately. The (n + 1)-th component comes from clauses in β and is domain-liftable by definition. The following two Lemmas prove that the clauses in the other components are also domain-liftable. The proofs of both lemmas rely on domain recursion.
+
+A clausal theory with only one predicate [formula] is domain-liftable if all clauses have exactly two different literals of [formula].
+
+Suppose [formula] are mutually exclusive subsets of Δx and [formula] are mutually exclusive subsets of Δy. We can add any unit clause of the form [formula] or [formula] to the theory in Lemma [\ref=nine-clauses] and the theory is still domain-liftable.
+
+Therefore, theories in [formula] and [formula] are domain-liftable.
+
+Proof of Lemma [\ref=nine-clauses]
+
+A theory in this form has a subset of the following clauses:
+
+[formula]
+
+Let N be an individual in Δx. Applying domain recursion on Δx'  =  Δx'  -  {N} for all clauses gives:
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+for (4):
+
+[formula]
+
+for (5):
+
+[formula]
+
+for (6):
+
+[formula]
+
+for (7):
+
+[formula]
+
+for (8):
+
+[formula]
+
+for (9):
+
+[formula]
+
+Then we can perform lifted case-analysis on [formula]. For the case where [formula] is true for exactly k of the individuals in Δy, we update all clauses assuming ΔyT and ΔyF represent the individuals for which [formula] is  and  respectively, and assuming [formula] and [formula]:
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+for (4):
+
+[formula]
+
+for (5):
+
+[formula]
+
+for (6):
+
+[formula]
+
+for (7):
+
+[formula]
+
+for (8):
+
+[formula]
+
+for (9):
+
+[formula]
+
+After subsumptions and shattering:
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+for (4): (For the second clause, the case where y∈ΔyF becomes subsumed by the first clause)
+
+[formula]
+
+for (5): (The third clause was subsumed by the first two)
+
+[formula]
+
+for (6): (Similar to (4))
+
+[formula]
+
+for (7):
+
+[formula]
+
+for (8):
+
+[formula]
+
+for (9):
+
+[formula]
+
+Looking at the first clause for (7) (and some other clauses), we see that there exists a [formula] but y1 does not appear in the formula. If [formula], we can ignore this clause. Otherwise, we can ignore [formula]. So we consider three cases. When k = 0 (i.e. ΔyF  =  Δy, [formula]):
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+for (4):
+
+[formula]
+
+for (5):
+
+[formula]
+
+for (6):
+
+[formula]
+
+for (7):
+
+[formula]
+
+for (8):
+
+[formula]
+
+for (9):
+
+[formula]
+
+If clause #4 is one of the clauses in the theory, then unit propagation either gives , or satisfies all the clauses. The same is true for clauses #5, #7, and #8. In a theory not having any of these four clauses, we will be left with a set of clauses that are again a subset of the initial 9 clauses that we started with, but with a smaller domain size. By applying the same procedure, we can count the number of models. When k = |Δy| (i.e. [formula], ΔyT  =  Δy), everything is just similar to the k = 0 case.
+
+When 0 < k < |Δy| (i.e. neither ΔyT nor ΔyF are empty):
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+for (4):
+
+[formula]
+
+for (5):
+
+[formula]
+
+for (6):
+
+[formula]
+
+for (7):
+
+[formula]
+
+for (8):
+
+[formula]
+
+for (9):
+
+[formula]
+
+If either one of clauses #5, #7, #8 or #9 are in the theory, then unit propagation either gives False or satisfies all clauses. Assume none of these four clauses are in the theory. If both clauses #4 and #6 are in a theory, again unit propagation gives either False or satisfies all clauses. If none of them are in the theory, then the other clauses are a subset of the initial 9 clauses that we started with. So let's consider the case where we have clause #4 and a subset of the first three clauses (the case with #6 instead of #4 is similar). In this case, if clauses #2 or #3 are in the theory, unit propagation either gives False or satisfies all the clauses. If none of them are in the theory and only #1 is in the theory, we will have the following clauses after unit propagation:
+
+[formula]
+
+The first clause is independent of the other two clauses. The second and third clauses are just similar to clauses #4 and #1 in the initial list of clauses and we can handle them using the same procedure.
+
+If we use a cache to store computations for all subproblems, WFOMC is domain-liftable, i.e. polynomial in the population sizes.
+
+Proof of Lemma [\ref=with-unaries]
+
+Let ψ be the set of pairs (i,j) such that the singleton clause [formula] is in the theory, and [formula] be the set of pairs (i,j) such that the singleton clause [formula] is in the theory. Then the singleton clauses can be written as follows:
+
+[formula]
+
+And the 2S clauses are as in Lemma [\ref=nine-clauses]. Without loss of generality, let's assume we select an individual N∈Δp1 for domain recursion, and re-write all clauses to separate N from Δp1. Assuming Δp'1, = Δp1  -  {N} and Δx'  =  Δx  -  {N}, the theory will be:
+
+For singletons:
+
+[formula]
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+for (4):
+
+[formula]
+
+for (5):
+
+[formula]
+
+for (6):
+
+[formula]
+
+for (7):
+
+[formula]
+
+for (8):
+
+[formula]
+
+for (9):
+
+[formula]
+
+We apply lifted case-analysis on each [formula]. For each j, let ΔqTj represent the individuals in Δqj for which [formula] is true and ΔqFj be the other individuals. For each j, lifted case-analysis adds two clauses to the theory as follows:
+
+[formula]
+
+We shatter all other singleton clauses based on these newly added singletons. If the singletons are inconsistent, there is no model. Otherwise, let yT represent [formula] and yF represent [formula]. We add the following two singleton clauses to the theory:
+
+[formula]
+
+We shatter all clauses having 2S based on these two singletons (not considering the shattering caused by the other singletons) and apply unit propagation. Then the theory will be as follows (the details can be checked in Lemma [\ref=nine-clauses]. Here we only consider the case where [formula] and [formula]; the case where one of them is empty can be considered similarly as in Lemma [\ref=nine-clauses]):
+
+For singletons:
+
+[formula]
+
+The two singletons on ΔyF and ΔyT:
+
+[formula]
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+for (4):
+
+[formula]
+
+for (5):
+
+[formula]
+
+for (6):
+
+[formula]
+
+for (7):
+
+[formula]
+
+for (8):
+
+[formula]
+
+for (9):
+
+[formula]
+
+Clauses number [\ref=lemma2-r01], [\ref=lemma2-r02], [\ref=lemma2-r03] and [\ref=lemma2-r04] are disconnected from the rest of the theory and can be reasoned about separately. It is trivial to lift these clauses. Now let's consider the other clauses.
+
+If either one of the clauses #5, #7, #8. or #9 are in the theory, then unit propagation either gives false or satisfies all clauses. The same is true when both #4 and #6 are in the theory. If neither #4 nor #6 are in the theory, then we can conjoin the individuals in ΔyT and ΔyF as well as those in ΔqjT and ΔqjF and write the theory as follows: For singletons:
+
+[formula]
+
+for (1):
+
+[formula]
+
+for (2):
+
+[formula]
+
+for (3):
+
+[formula]
+
+This theory is an instance of our initial theory, but with p1 having a smaller domain size. So we can continue this process recursively on the remaining clauses.
+
+Now let's consider the case where #4 is in the theory but #6 is not (the case where #6 is in the theory and #4 is not is similar). In this case, if #2 or #3 are in the theory, then unit propagation either gives false or satisfies all the clauses. If #4 and #1 are in the theory, then the theory is as follows:
+
+For singletons:
+
+[formula]
+
+for (1):
+
+[formula]
+
+for (4):
+
+[formula]
+
+Clause number [\ref=lemma2-r25] and the singleton clauses having qj∈ΔqFj are disconnected from the rest of the theory and can reasoned about separately. They can be trivially lifted. Once we remove these clauses, the theory will be as follows:
+
+[formula]
+
+which is an instance of our initial theory, but where Δqjs have smaller domain sizes. So we can continue this process recursively on the remaining clauses.
+
+We showed that in all cases, after domain recursion we will have an instance of our initial theory again, but with smaller domain sizes. By keeping the WFOMC of sub-problems in a cache, the whole process will be domain-liftable: i.e. polynomial in the population sizes.
+
+Proof of Proposition [\ref=subsets-prop]
+
+Let [formula] and T' be any of the theories resulting from exhaustively applying rules in  expect lifted case-analysis on T. If T initially contains a unary PRV with predicate [formula], either it is still unary in T' or lifted decomposition has replaced the LV with a constant. In the first case, we can follow a generic branch of lifted case-analysis on [formula], and in the second case, either T' is empty or all binary PRVs in T have become unary in T' due to applying the lifted decomposition and we can follow a generic branch of lifted case-analysis for any of these PRVs. The generic branch in both cases is in [formula] and the same procedure can be followed until all theories become empty. If T initially contains only binary PRVs, lifted decomposition applies as the grounding of T is disconnected for each pair of individuals, and after lifted decomposition all PRVs have no LVs. Applying case analysis on all PRVs gives empty theories. Therefore, T∈RU. The theory [formula] is an example of a RU theory that is not in [formula], showing [formula]. [formula] and RU are special cases of [formula] and [formula] respectively, where [formula], showing [formula] and [formula]. However, Example [\ref=volunteers-jobs] is both in [formula] and [formula] but is not in [formula] and not in RU, showing [formula] and [formula]. Since [formula] and the class of added α(S) clauses are the same, [formula].

@@ -1,0 +1,387 @@
+Lemma Corollary Claim Fact Definition Example Observation Invariant Assertion
+
+Go-With-The-Winner: Client-Side Server Selection for Content Delivery
+
+Introduction
+
+Modern content delivery networks (CDNs) host and deliver a large fraction of the world's web content, video content, and application services on behalf of enterprises that include most major web portals, media outlets, social networks, application providers, and news channels [\cite=nygren2010akamai]. CDNs deploy large numbers of servers around the world that can store content and deliver that content to users who request it. When a user requests a content item, say a web page or a video, the user is directed to one of the CDN's servers that can serve the desired content to the user. The goal of a CDN is to maximize the performance as perceived by the user while efficiently managing its server resources.
+
+A key functionality of a CDN is the server selection process by which client software running on the user's computer or device, such as media player or a browser, is directed to a suitable server of a CDN [\cite=dilley2002globally]. The desired outcome of the server selection process is that each user is directed to a server that can provide the requested content with good performance. The metrics for performance that are optimized vary by the type of content being accessed. For instance, good performance for a user accessing a web page might mean that the web page downloads quickly. Good performance for a user watching a video might mean that the content is delivered by the server at a sufficiently high bitrate to avoid the video from freezing and rebuffering [\cite=KrishnanS12].
+
+Server selection can be performed in two distinct ways that are not mutually exclusive. Network-side server selection algorithms monitor the real-time characteristics of the CDN and the Internet. Such algorithms are often complex and measure liveness and load of the CDN's servers, as well as latency, loss, and bandwidth of the communication paths between servers and users. Using this information, the algorithm computes a good "mapping" of users to servers, such that each user is assigned a "proximal" server capable of serving that user's content [\cite=nygren2010akamai]. This mapping is computed periodically and is typically made available to client software running on the user's computer or device using the domain name system (DNS). Specifically, the user's browser or media player looks up the domain name of the content that it wants to download and receives as translation the ip address of the selected server.
+
+A complementary approach to network-side server selection that is commonly is used is client-side server selection where the client software running on the user's computer or device embodies a server selection algorithm. The client software is typically unaware of the global state of the server infrastructure, the Internet, or other users. Rather, the client software typically makes future server selection decisions based on its own historical performance measurements from past server downloads. Client-side server selection can often be implemented as a plug-in within media players, web browsers, and web download managers [\cite=AkamaiDLM].
+
+While client-side server selection can be used to select servers within a single CDN, it can also be used in a multi-CDN setting. Large content providers often make the same content available to the user via multiple CDNs. In this case, the client software running on the user's device tries out the different CDNs and chooses the "best" server from across multiple CDNs. For instance, NetFlix uses three different CDNs and the media player incorporates a client-side server selection algorithm to choose the "best" server (and the corresponding CDN) using performance metrics such as the video bitrates achievable from the various choices [\cite=adhikari2012unreeling]. Note also that in the typical multi-CDN case, both network-side and client-side server selection are used together, where the former is used to choose the candidate servers from each CDN and the latter is used by the user to pick the "best" among all the candidates.
+
+The Go-With-The-Winner paradigm
+
+A common and intuitive paradigm that is often used for client-side server selection in practice is what we call "Go-With-The-Winner" that consist of an initial trial period during which each user independently "tries out" a set of candidate servers by requesting content or services from them (cf. Figure [\ref=fig:serverselection]). Subsequently, each user independently decides on the "best" performing server using historical performance information that the user collected for the candidate servers during the trial period. It is commonly implemented in the content delivery context that incorporate choosing a web or video content server from among a cluster of such servers.
+
+Besides content delivery, the Go-With-The-Winner paradigm is also common for other Internet services, though we do not explicitly study such services in our work. For instance, BIND, which is the most widely deployed DNS resolver (i.e., DNS client) on the Internet, tracks performance as a smoothed value of the historical round trip times (called SRTT) from past queries for a set of candidate name servers. Then BIND chooses a particular name server to query in part based on the computed SRTT values [\cite=liu2009dns]. It is also notable that BIND implementations incorporate randomness in the candidate selection process.
+
+The three key characteristics of the Go-With-The-Winner paradigm are as follows.
+
+Distributed control. Each user makes decisions in a distributed fashion using only knowledge available to it. There is no explicit information about the global state of the servers or other users, beyond what the user can infer from it's own historical experience.
+
+Performance feedback only. There is no explicit feedback from a server to a user who requested service beyond what can be inferred by the performance experienced by the user.
+
+Choosing the "best" performer. The selection criteria is based on historical performance measured by the user and consists of selecting the best server according to some performance metric (i.e., go with the winner).
+
+Besides its inherent simplicity and naturalness, the paradigm is sometimes the only feasible and robust solution. For instance, in many settings, the client software running on the user's device that performs server selection has no detailed knowledge of the state of the server infrastructure as it is managed and owned by other business entities. In this case, the primary feedback mechanism for the client is its own historical performance measurements.
+
+While client-side server selection is widely implemented, its theoretical foundations are not well understood. A goal of our work is to provide such a foundation in the context of web and video content delivery. It is not our intention to model a real-life client-side server selection process in its entirety which can involve other adhoc implemention-specific considerations. But rather we abstract an analytical model that we can explore to extract basic principles of the paradigm that are applicable in a broad context.
+
+Our contributions
+
+We propose a simple theoretical model for the study of client-side server selection algorithms that use the Go-With-The-Winner paradigm. Using our model, we answer foundational questions such as how does randomness help in the trial period when selecting candidate servers? How many candidate servers should be selected in the trial phase? How long does it take for users to narrow down their choice and decide on a single server? Under what conditions does the selection algorithm converge to a state where all users have made the correct server choices, i.e., the selected servers provide good performance to their users? Some of our key results that help answer these questions follow.
+
+(1) In Section [\ref=sec:maxhitrate], in the context of web content delivery, we analyze a simple algorithm called [formula] where each user independently selects two or more random servers as candidates and decides on the server that provided the best cache hit rate,. We show that with high probability, the algorithm converges quickly to a state where no cache is overloaded and all users obtain a 100% hit rate. Further, we show that two or more random choices of candidate servers are necessary, as just one random choice will result in some users (and some servers) incurring cache hit rates that tend to zero, as the number of users and servers tend to infinity. This work represents the first demonstration of the "power of two choices" phenomena in the context of client-side server selection for content delivery, akin to similar phenomena observed in balls-into-bins games [\cite=mitzenmacherRS2001], load balancing, circuit-switching algorithms [\cite=cole1998randomized], relay allocation for services like Skype [\cite=Nguyen:2008], and multi-path communication [\cite=Peter:2007].
+
+(2) In Section [\ref=sec:maxbitrate], in the context of video content delivery, we propose a simple algorithm called [formula] where each user independently selects two or more random servers as candidates and decides on the server that provided the best bitrate for the video stream, We show that with high probability, the algorithm converges quickly to a state where no server is overloaded and all users obtain the required bitrate for their video to play without freezes. Further, we show that two or more random choices of candidate servers are necessary, as just one random choice will result in some users receiving bitrates that tend to zero, as the number of users and servers tends to infinity.
+
+(3) In Section [\ref=sec:empirical], we go beyond our theoretical model and simulate algorithm [formula] in more complex settings. We establish an inverse relationship between the length of the history used for hitrate computation (denoted by τ) and the failure rate defined as the probability that the system converges to a non-optimal state. We show that as τ increases the convergence time increases, but the failure rate decreases. We also empirically evaluate the impact of the number of choices of candidate servers. We show that two or more random choices are required for all users to receive a 100% hitrate. Though even if only 70% of the users make two choices, it is sufficient for 95% of the users to receive a 100% hitrate. Finally, we show that the convergence time increases with system load. But, convergence time decreases when the exponent of power law distribution that describes content popularity increases.
+
+Hit Rate Maximization for Web Content
+
+The key measure of web performance is download time which is the time taken for a user to download a web object, such as a html page or an embedded image. CDNs enhance web performance by deploying a large number servers in access networks that are "close" to the users. Each server has a cache that is capable of storing web objects. When a user requests an object, such as a web page, the user is directed to a server that can serve the object (cf. Figure [\ref=fig:serverselection]). If the server already has the object in its cache, i.e, the user's request is a cache hit, the object is served from the cache to the user. In this case, the user experiences good performance, since the CDN's servers are proximal to the user and the object is downloaded quickly. However, if the requested object is not in the server's cache, i.e., the user's request is a cache miss, then the server first fetches it from the origin, places it in its cache, and then serves the object to the user. In the case of a cache miss, the performance experienced by the user is often poor since the origin server is typically far away from the server and the user. In fact, if there is a cache miss, the user would have been better off not using the CDN at all, since downloading the content directly from the content provider's origin would likely have been faster! Since the size of a server's cache is bounded, cache misses are inevitable. A key goal of server selection for web content delivery is to jointly orchestrate server assignment and content placement in caches such that the cache hit rate is maximized. While server selection in CDNs is a complex process [\cite=nygren2010akamai], we analytically model the key elements that relate to content placement and cache hit rates, leaving other factors that impact performance such as server-to-user latency for future work.
+
+Problem Formulation
+
+Let U be a set of nu users who each request an object picked independently from a set C of size nc using a power law distribution where the kth most popular object in C is picked with a probability
+
+[formula]
+
+where α  ≥  0 is the exponent of the distribution and H(nc,α) is the generalized harmonic number that is the normalizing constant, i.e., [formula]. Note that power law distributions (aka Zipf distributions) are commonly used to model the popularity of online content such as web pages, and videos. This family of distributions is parametrized by a Zipf rank exponent α with α  =  0 representing the extreme case of an uniform distribution and larger values of α representing a greater skew in the popularity. It has been estimated that the popularity of web content can be modeled by a power law distribution with an α in the range from 0.65 to 0.85 [\cite=Breslau:1999] [\cite=Gill:2007] [\cite=Fricker:2012]. The user then sticks with that content and makes a sequence of requests to the set of available servers. Relating to the reality, users tend to stay with one website for a while, say reading the news or looking at a friend's posts. Here the whole website is what we considered a content. We model the sequence of requests generated by each user as a Poisson process with a homogeneous arrival rate λ. Note that each request from user u can be sent to one or more servers selected from Su  ⊆  S, where Su is the server set chosen by user u.
+
+Let S be the set of ns servers that are capable of serving content to the users. Each server can cache at most κ objects and a cache replacement policy such as LRU is used to evict objects when the cache is full. Given that the download time of a web object is significantly different when the request is a cache hit versus a cache miss, we make the reasonable assumption that the user can reliably infer if its request to download an object from a server resulted in a cache hit or a cache miss immediately after the download completes.
+
+The objective of client-side server selection is for each user u∈U to independently select a server s∈S using only the performance feedback obtained on whether each request was a hit or a miss. Let the hit rate function H(u,s,t) denote the probability of user u receiving a hit from server s∈Su at time t. We define the system-wide performance measure H(t), as the best hit rate obtained by the worst user at time t,
+
+[formula]
+
+a.k.a. the minmax hit rate. Our goal is to maximize H(t).In the rest of the section, we describe a simple canonical "Go-With-The-Winner" algorithm for server selection and show that it converges quickly to an optimal state, with high probability.
+
+Note: Our formulation is intentionally simple so that it could model a variety of other situations in web content delivery. For instance, a single server could in fact model a cluster of front-end servers that share a single backend object cache. A single object could in fact model a bucket of objects that cached together as is often done in a CDN context [\cite=nygren2010akamai].
+
+The GoWithTheWinner Algorithm
+
+After each user u∈U has picked an content item au∈A using the power law distribution described in Equation [\ref=eq:powerlaw], algorithm GoWithTheWinner described below is executed independently by each user u∈U to select a server that's likely to have the content. In this algorithm, each user locally executes a simple "Go-With-The-Winner" strategy of trying out σ randomly chosen candidate servers initially. Then, using the past hit rate over a time window of length τ as feedback, each user independently either chooses to continue with all the servers in Su or decides on a single server that provided the best performance. If multiple servers provided a 100% hit rate in line 8 of the algorithm, the user decides to use the first one found.
+
+Analysis of Algorithm MaxHitRate
+
+Here we rigorously analyze the case where nu  =  nc  =  ns  =  n and experimentally explore other variants where nc and nu are larger than ns in Section [\ref=sec:nu>ns] and [\ref=sec:empirical]. Let H(t) be as defined in ([\ref=eq:Ht]). If σ  ≥  2, we show that with high probability H(t)  =  100%, for all t  ≥  T, where [formula]. That is, the algorithm converges quickly with high probability to an optimal state where every user has decided on a single server that provides a 100% hit rate, and every server has the content requested by its users.
+
+Definitions. A server s is said to be overbooked at some time t if users request more than κ distinct content items from server s, where κ is the number of content items a server can hold. Note that a server may have more than κ users and not be overbooked, provided the users collectively request a set of κ or fewer content items. Also, note that a server that is overbooked at time t is overbooked at every t'  ≤  t since the number of users requesting a server can only remain the same or decrease with time. Finally, a user u is said to be undecided at time t if |Su|  >  1 and is said to be decided if it has settled on a single server to serve its content and |Su|  =  1. Note that each user starts out undecided at time zero, then decides on a server at some time t and remains decided in all future time later than t. Users calculate the hit rates of each of the available servers based on a history record of the last τ requests, where τ is called the sliding window size.
+
+If the sliding window size τ  =  Θ( log κ + 1n), the probability that some user u∈U decides on an overbooked server s∈Su upon any request arrival is at most 1 / nΩ(1).
+
+If user u decides on server s then the current request together with the previous τ - 1 requests are all hits. Let Hk, [formula] be Bernoulli random variables, s.t. Hk  =  1 if the most recent k-th request of u is a hit and Hk = 0 if it is a miss. To prove Lemma [\ref=lem:overbookhit] we need to show
+
+[formula]
+
+Let t0 be the time a request for content a from u is generated and appears at server s. Let t0  -  Δ be the time that the last request for a arrives at s. Let H be an indicator variable so that H = 1 if the request at t0 resulted in a hit and H = 0 if resulted in a miss. Let [formula] be the set of different content items requested at s, where M > κ. Let Ni be the number of users requesting ai from s. WLOG, let a1 = a be the content that u requests. Δ is an exponential random variable, Δ  ~  Exp(Nλ), where N = N1 is the number of users requesting a at server s. Let [formula] be an indicator that a request for ai arrives at s during time interval (t0  -  Δ,t0),Xi  ~  Bernoulli(1 - e- NiλΔ). Thus, random variabe [formula] is the number of requests for different content items that arrive in the time interval. With the server running LRU replacement policy,
+
+[formula]
+
+because more than κ different requests other than a must have arrived for content a to be swapped out of the server. ([\ref=eq:hitrate2arrivals]) shows that H only depends on the arrival of other requests, which means events [formula] are mutually independent. Furthermore,
+
+[formula]
+
+where X'  ~  Bernoulli(1 - e-  λΔ). Furthermore because M  ≥  κ + 1,
+
+[formula]
+
+where Z  ~  Binomial(κ,(1 - e-  λΔ)).
+
+Thus, we have
+
+[formula]
+
+where fΔ(t) is the probability density function of Δ.
+
+Note that N is the number of users requesting a at server s, and is bounded by [formula], with high probability [\cite=raab1998balls].
+
+Now, we can finally prove ([\ref=eq:hittau]). Let c' be an appropriate constant,
+
+[formula]
+
+which is n-  Ω(1) when τ  =  Θ( log κ + 1n).
+
+By bounding the time for τ requests to arrive at user u, we have the following,
+
+If user u is not decided with server s∈Su at time t, then the server is overbooked at time t - δ for [formula] where c0 > 1 is a constant, with high probability.
+
+Let random variable Nδ be the number of requests from u during time (t - δ,t),Nδ  ~  Poisson(λδ). A bound on the tail probability of Poisson random variables is developed in [\cite=PoissonTailBound] as
+
+[formula]
+
+where X  ~  Poisson(λ') and x < λ'.
+
+Based on that we can show there are at lease τ + 1 requests during (t - δ,t) w.h.p. as the following,
+
+[formula]
+
+as c0 > 1 and τ  =  Θ( log κ + 1n). Thus, w.h.p. no less than τ + 1 requests arrives at u. And because user is not decided at time t we know that with high probability, at least one of previous τ requests receives a miss, which mean between the previous (τ + 1)-th request and the miss, there are κ different other requests arrive at the server. Thus server s is overbooked at the time the previous (τ + 1)-th request arrives, which with high probability is no earlier than t - δ.
+
+Based on Lemmas [\ref=lem:overbookhit] and [\ref=lem:timefortau], we can then establish the following theorem about the performance of Algorithm GoWithTheWinner.
+
+With probability at least [formula], the minmax hit rate H(t)  =  100% for all t  ≥  T, provided σ  ≥  2 and [formula]. That is, with high probability, algorithm GoWithTheWinner converges by time T to an optimal state where each user u∈U has decided on a server s∈S that serves it content with a 100% hit rate.
+
+This is the main result for the performance analysis of the algorithm. Due to space limit, please see appendix for detailed proof of this theorem.
+
+Are two or more random choices necessary for all users to receive a 100% hit rate? Analogous to the "power of two choices" in the balls-into-bins context [\cite=mitzenmacherRS2001], we show that two or more choices are required for good performance.
+
+For any fixed constants 0  ≤  α  <  1 and κ  ≥  1, when algorithm [formula] uses one random choice for each user (σ  =  1), the minmax hit rate H(t)  =  o(1), with high probability, i.e., H(t) tends to zero as n tends to infinity, with high probability.
+
+Please see appendix for the proof.
+
+The case when nu = ns  ×   log ns
+
+Now we analyze the case that there are much more users than the number of servers, which is often the case in reality. Assume nu  =  ns log ns and κ  =   log ns, we have the following results,
+
+When nu  =  ns log ns, with probability at least [formula], the maximum load (number of incoming servers) over all servers is [formula]. Furthermore, if κ  =   log ns, all users have 100% hit rate.
+
+Lemma [\ref=lem:nu>ns] implies that when nu = ns log ns all the servers have balanced load of [formula], thus we don't need more server selection mechanism for load balancing other than just letting all users randomly choose the server. And in this case, it's not beneficial to let users start with more than 1 randomly selected servers, because with σ = 1 the load on all servers are balanced already. Thus, as long as we have feasible server capacity [formula], all the users will have enough resources from the server and have 100% hit rate by randomly select 1 server.
+
+The number of content items nc here doesn't not affect the result of load balancing. Actually, the result stays the same when nc  ≥  nu. And when the number of content items is much smaller than number of users, nc <  < nu, the cache size can become smaller ([formula]) because the number of distinct requests at each server becomes smaller.
+
+Bitrate Maximization for Video Content
+
+In video streaming, a key performance metric is the bitrate at which an user can download the video stream. If the server is unable to provide the required bitrate to the user, the video will freeze frequently resulting in an inferior viewing experience and reduced user engagement [\cite=KrishnanS12]. For simplicity, we model the server's bandwidth capacity that is often the critical bottleneck resource, while leaving other factors that could influence video performance such as the server-to-user connection and the server's cache for future work.
+
+Problem formulation
+
+The bitrate required to play a stream without freezes is often the encoded bitrate of the stream. For simplicity, we assume that each user requires a bitrate of 1 unit for playing its video and each server has the capacity to serve κ units in aggregate. And we assume each server evenly divides its available bitrate capacity among all users who keeps a streaming connection with it. We make the reasonable assumption that each user can compute the bitrate that it receives from its chosen candidate servers and that this bitrate is used as the performance feedback (cf. Figure [\ref=fig:serverselection]).
+
+Different from the delivering web content, where users make repetitive requests to the same website with Poisson processes, we consider users for video streaming have persistent connection with the server. We use a discrete time model in this case as compared to web content delivery where everything is in continuous time. We assume after each time unit, the users look at the bit rate provided by each of the available servers and then make decisions according to the performance (measured by bit rate). The goal of each user is to find a server who can provide the required bitrate of 1 unit for viewing the video.
+
+Algorithm MaxBitRate
+
+After each user u∈U has picked a video object cu∈C using the power law distribution described in Equation [\ref=eq:powerlaw], Algorithm [formula] described below is executed independently by each user u∈U, in discrete time steps.
+
+Choose a random subset of candidate servers Su  ⊆  S such that |Su|  =  σ.
+
+At each time step t  ≥  0, do the following:
+
+Request the video content from all servers s∈Su.
+
+For each server s∈Su, compute [formula] bitrate provided by server s to user u in the current time step.
+
+If there exists a server s∈Su such that B(u,s,t)  =  1, then decide on server s by setting Su←{s}.
+
+Note that the users are executing a simple strategy of trying out σ randomly chosen servers initially. Then, using the bitrate received in the current time step as feedback, each user independently narrows it's choice of servers to a single server that provided the required unit bitrate. If multiple servers provided the required bitrate, the user decides to use an arbitrary one. Further, note that a user u downloading from a server s at time t knows immediately whether or not the server is overloaded, since server s is overloaded iff user u received a bitrate of less than 1 unit from the server, i.e., B(u,s,t)  <  1. This is a point of simplification in relation to the more complex situation for hit rate maximization where any single cache hit is not indicative of a non-overloaded server and a historical average of hit rates over a large enough time window τ is required as a probabilistic indicator of server overload. And furthermore, this simplification yields both faster convergence to an optimal state in T  =  O( log  log n /  log (κ  +  1)) steps and a much simpler proof of that convergence.
+
+Analysis of Algorithm MaxBitRate
+
+As before, we rigorously analyze the case where nu  =  ns  =  nc  =  n. Let the minmax bitrate B(t) be the best bitrate obtained by the worst user at time t, i.e.,
+
+[formula]
+
+When σ  ≥  2, the minmax bitrate converges to B(t)  =  1 unit, for all t  ≥  T, within time T  =  O( log  log n /  log (κ + 1)), with high probability. When σ  =  1 on the other hand, the minmax bitrate B(t) = O(κ log  log n /  log n), with high probability. In particular, when σ  =  1 and the cache size κ is o( log n  /   log  log n), including the case when κ is a fixed constant, B(t) tends to zero as n tends to infinity, with high probability.
+
+Please refer to appendix for the proof.
+
+Empirical Evaluation
+
+We empirically study our algorithm [formula] by building a simulator. Each user is implemented as a Poisson arrival sequence with unit rate. We use nu  =  1000 users. To simulate varying numbers of servers, users, and applications, we also varied ns and na such that 1  ≤  nu / nc,nu / ns  ≤  100. We also simulate a range of values for the spread 1  ≤  σ  ≤  6, and sliding window size 1  ≤  τ  ≤  20. Each server implements an LRU application replacement policy of size κ  ≥  2. The applications are requested by users using the power law distribution of Equation [\ref=eq:powerlaw] with α  =  0.65 to model realistic content popularity [\cite=Breslau:1999] [\cite=Gill:2007]. However, we also vary α from 0 (uniform distribution) to 1.5 in some of our simulations.
+
+The system is said to have converged when all users have decided on a single server from their set of candidate servers. There are two complementary metrics that relate to convergence. Failure rate is the probability that the system converged to a non-optimal state where there exists servers that are overbooked, resulting in some users incurring application misses after convergence occurred. The failure rate is measured by performing the simulation multiple times and assessing the goodness of the converged state. Convergence time is the time it takes for the system to converge provided that it converged to an optimal state.
+
+Speed of convergence
+
+Figure [\ref=fig:assign] shows how the fraction of undecided users decreases over time till it reaches zero, resulting in convergence. Note that users do not decide in the first τ steps, since they must wait at least that long to accumulate a window of τ application hits. However, once the first τ steps complete, the decrease in the number of undecided users is fast as users discover that at least one of their two randomly chosen candidate servers have less load. The rate of decrease in undecided users slows down again towards the end, as pockets of users who experience cache contention in both of their server choices require multiple iterations to resolve.
+
+In this simulation, we keep the number of users nu  =  1000 but vary the number of servers ns to achieve different values for nu / ns. Note that for a fair comparison, we keep the system-wide load the same. Load l is a measure of cache contention in the network and is naturally defined as the ratio of the numbers of users in the system and total serving capacity that is available in the system. That is, [formula]. For all three setting of Figure [\ref=fig:assign], we keep load l  =  0.5. The figure shows that with fewer (but larger) servers (nu / ns is larger) the convergence time is faster, because having server capacity in a few larger servers provides a larger application hit rate than having the same capacity in several smaller servers. Similar performance gains are also found in the context of web caching and parallel jobs scheduling [\cite=Sparrow]. The convergence times are plotted explicitly in Figure [\ref=fig:utos] for a greater range of user-to-server ratios. As nu / ns increases from 1 to 40, convergence time decreases. The decrease in convergence times are not significant beyond nu / ns  ≥  40.
+
+Impact of sliding window τ
+
+The sliding window τ is the number of recent requests used by algorithm [formula] to estimate the hit rate. As shown in Figure  [\ref=fig:tau], there is a natural tradeoff between convergence time and failure rate. When τ increases, the users take longer to converge, as they require a 100% hit rate in a larger sliding window. However, waiting for a longer period also makes their decisions more robust. That is, a user is less likely to choose an overbooked server, since an overbooked server is less likely to provide a string of τ application hits for large τ. In our simulations with many smaller caches (nu / ns  =  1), when τ  ≤  4, users made quick choices based on a smaller sliding window. But, this resulted in the system converging to a non-optimal state 100% of the time. As τ further increases, the failure rate decreased. The value of τ  =  11 is a suitable sweet spot as it results in the smallest convergence time for a zero failure rate. However, for fewer but larger servers (ns / nu  =  20), all selections of window size τ (thus the small values like τ = 5) yielded a 0% failure rate, while the convergence time still increases as the window size gets larger.
+
+Impact of spread σ
+
+As shown in Theorems [\ref=thm:hitrate] and [\ref=thm:onechoice], a spread of σ  ≥  2 is required for the system to converge to an optimal solution, while a spread of σ = 1 is insufficient. As predicted by our analysis, our simulations did not converge to an optimal state with σ  =  1. Figure [\ref=fig:sigma] shows the convergence time as a function of spread, for σ  ≥  2.
+
+As σ increases, there are two opposing factors that impact the convergence time. The first factor is that as σ increases, each user has more choices and the user is more likely to find a suitable server with less load. On the other hand, an increase in σ also increases the total number of initial requests in the system that equals σnu. Thus, the system starts out in a state where servers have greater average load when σ is larger. These opposing forces result in a very small incremental benefit when using σ  =  3 instead of 2, though the higher values of σ  >  3 showed no benefit as convergence time increases with σ increases.
+
+We established the "power of two random choices" phenomenon where two or more random server choices yield superior results to having just one. It is intriguing to ask what percentage of users need two choices to reap the benefits of multiple choices? Consider a mix of users, some with two random choices and others with just one. Let σavg, 1  ≤  σavg  ≤  2, denote the average value of the spread among the users.
+
+In Figure [\ref=fig:mix], we show different order statistics of the hit rate as a function of σavg. Specifically, we plot the minimum value, 1st-percentile, 5th- percentile and the median (50th-percentile) of the hit rates of the users after running the system for a long enough period of 200 time units. As our theory predicts, when σavg  =  2, the minimum and all the order statistics converge to 100%, as all users converge to a 100% hit rate. Further, if we are interested in only the median user, any value of the spread is sufficient to guarantee that 50% of the users obtain a 100% hit rate. Perhaps the most interesting phenomena is that if σavg  =  1.7, i.e., 70% of the users have two choices and the rest have one choice, the 5th-percentile converges to 100%, i.e., all but 5% of the users experience a 100% hit rate. For a higher value of σavg  =  1.9, the 1st-percentile converges to 100%, i.e., all but the 1% of the users experience a 100% hit rate. This result shows that our algorithm still provides benefits even if only some users have multiple random choices of servers available to them.
+
+Impact of demand distribution
+
+We now study how hit rate changes with the exponent α in the power law distribution of Equation [\ref=eq:powerlaw]. Note that the distribution is uniform when α  =  0 and is the harmonic distribution when α  =  1. As α increases, since the tails fall as a power of α, the distribution gets more and more skewed towards applications with a smaller rank. In Figure [\ref=fig:dist], we plot the minmax hitrate over time for different α, where we see that a larger α leads to faster convergence. The reason is that as the popularity distribution gets more skewed, a larger fraction of users can share the same VMs for popular applications, leading to better hit rate and faster convergence. Thus, the uniform application popularity distribution (α = 0) is the worst case and the algorithm converges faster for the distributions that tend to occur more commonly in practice. Providing theoretical support for this empirical result by analyzing the convergence time to show faster convergence for larger α is a topic for future work.
+
+Related work
+
+Server selection algorithms have a rich history of both research and actual implementations over the past two decades. Several server selection algorithms have been proposed and empirically evaluated, including client-side algorithms that use historical performance feedback using probes [\cite=dykes2000empirical] [\cite=crovella1995dynamic]. Server selection has also been studied in a variety of contexts, such as the web [\cite=crovella1995dynamic] [\cite=sayal1998selection], video streaming[\cite=torres2011dissecting], and cloud services[\cite=wendell2010donar]. Our work is distinguished from the prior literature in that we theoretically model the "Go-With-The-Winner" paradigm that is common to many proposed and implemented client-side server selection algorithms. Our work is the first formal study of the efficacy and convergence of such algorithms.
+
+In terms of analytical techniques, our work is closely related to prior work on balls-into-bins games where the witness tree technique was first utilized [\cite=mitzenmacherRS2001]. Witness trees were subsequently used to analyze load balancing algorithms, and circuit-switching algorithms [\cite=cole1998randomized]. However, our setting involves additional complexity requiring novel analysis due to the fact that users can share a single cached copy of an object and the hitrate feedback is only a probabilistic indicator of server overload. Also, our work shows that the "power of two random choices" phenomenon applies in the context of content delivery, a phenomenon known to hold in other contexts such as balls-into-bins, load balancing, relay allocation for services like Skype [\cite=Nguyen:2008], and circuit switching in interconnection networks [\cite=mitzenmacherRS2001].
+
+Conclusion
+
+Our work constitutes the first formal study of the simple "Go-With-The-WInner" paradigm in the context of web and video content delivery. For web (resp., video) delivery, we proposed a simple algorithm where each user randomly chooses two or more candidate servers and selects the server that provided the best hitrate (resp., bitrate). We proved that the algorithm converges quickly to an optimal state where all users receive the best hitrate (resp., bitrate) and no server is overloaded, with high probability. While we make some assumptions to simplify the theoretical analysis, our simulations evaluate a broader setting that incorporates a range of values for τ and σ, varying content popularity distributions, differing load conditions, and situations where only some users have multiple server choices. Taken together, our work establishes that the simple "Go-With-The-Winner" paradigm can provide algorithms that converge quickly to an optimal solution, given a sufficient number of random choices and a sufficiently (but not perfectly) accurate performance feedback.
+
+Detailed Proof of Theorem [\ref=thm:hitrate]
+
+For simplicity, we prove the situation where σ  =  2, i.e., each user initially chooses two random candidate servers in step 1 of the algorithm. The case where σ  >  2 is analogous. Wlog, we also assume κ is at most O( log n /  log  log n), which includes the interesting case of κ equal to a constant. When the server capacity is larger, i.e., if κ  =  Ω( log n /  log  log n), there will be no overbooked servers with high probability and the theorem holds trivially. This observation follows from a well-known result that if n balls (i.e., users) uniformly and randomly select k out of n bins (i.e. servers), then the maximum number of users that select a server is O( log n  /   log  log n) with high probability, when k is a fixed constant [\cite=raab1998balls].
+
+In contradiction to the theorem, suppose some user u has not decided on a server by time T. We construct a "witness tree" of degree κ  +  1 and depth at least ρ, where ρ  =  T / δ  =  κ log  log n /  log (κ  +  1). Each node of the witness tree is a server. Each edge of the witness tree is a user whose two nodes correspond to the two servers chosen by that user. We show that the existence of an undecided user in time step T is unlikely by enumerating all possible witness trees and showing that the occurrence of any such witness tree is unlikely. The proof proceeds in the following three steps.
+
+(1) Constructing a witness tree. If algorithm [formula] has not converged to the optimal state at time T, then there exists a user (say u1) and a server s such that Hτ(u1,s,T)  <  100%, since user u1 has not yet found a server with a 100% hit rate. We make server s the root of the witness tree.
+
+We find children for the root s to extend the witness tree as follows. Since Hτ(u1,s,T)  <  100%, by Lemma [\ref=lem:timefortau] we know server s is overbooked at time t'  =  t  -  δ, i.e., there are at least κ  +  1 users requesting server s for κ  +  1 distinct applications at time t'. Let [formula] be the users who sent requests to server s at time t'. Wlog, assume that the users {ui} are ordered in ascending order of their IDs. By Lemma [\ref=lem:overbookhit], we know that the probability of a user deciding on an overbooked server is small, i.e., at most 1 / nΩ(1). Thus, with high probability, users [formula] are undecided at time t' since server s is overbooked. Let si be the other server choice associated with user ui (one of the choices is server s). We extend the witness tree by creating κ + 1 children for the root s, one corresponding to each server si. Note that for each of the servers si we know that H(ui,si,t')  <  100%, since otherwise user ui would have decided on server si in time step t'. Thus, analogous to how we found children for s, we can recursively find κ  +  1 children for each of the servers si and grow the witness tree to an additional level.
+
+Observe that to add an additional level of the witness tree we went from server s at time T to servers si at time t', i.e., we went back in time by an amount of T  -  t'  ≤  δ. If we continue the same process, we can construct a witness tree that is a (κ  +  1)-ary tree of depth T / δ  =  ρ.
+
+(2) Pruning the witness tree. If the nodes of the witness tree are guaranteed to represent distinct servers, proving our probabilistic bound is relatively easy. The reason is that if the servers are unique then the users that represent edges of the tree are unique as well. Therefore the probabilistic choices that each user makes is independent, making it easy to evaluate the probability of occurrence of the tree. However, it may not be the case that the servers in the witness tree constructed above are unique, leading to dependent choices that are hard to resolve. Thus, we create a pruned witness tree by removing repeated servers from the original (unpruned) witness tree.
+
+We prune the witness tree by visiting the nodes of the witness tree iteratively in breadth-first search order starting at the root. As we perform breadth-first search (BFS), we remove (i.e., prune) some nodes of the tree and the subtrees rooted at these nodes. What is left after this process is the pruned witness tree. We start by visiting the root. In each iteration, we visit the next node v in BFS order that has not been pruned. Let β(v) denote the nodes visited before v. If v represents a server that is different from the servers represented by nodes in β(v), we do nothing. Otherwise, prune all nodes in the subtree rooted at v. Then, mark the edge from v to its parent as a pruning edge. (Note that the pruning edges are not part of the pruned witness tree.) The procedure continues until either no more nodes remain to be visited or there are κ  +  1 pruning edges. In the latter case, we apply a final pruning by removing all nodes that are yet to be visited, though this step does not produce any more pruning edges. This process results in a pruned witness and a set of p (say) pruning edges.
+
+Note that each pruning edge corresponds to a user who we will call a pruned user. We now make a pass through the pruning edges to select a set P of unique pruned users. Initially, P is set to [formula]. We visit the pruning edges in BFS order and for each pruning edge (u,v) we add the user corresponding to (u,v) to P, if this user is distinct from all users currently in P and if |P| < ⌈p / 2⌉, where p is the total number of pruning edges. We stop adding pruned users to set P when we have exactly ⌈p / 2⌉ users. Note that since a user who made server choices of u and v can appear at most twice as a pruned edge, once with u in the pruned witness tree and once with v in the pruned witness tree. Thus, we are guaranteed to find ⌈p / 2⌉ distinct pruned users.
+
+After the pruning process, we are left with a pruned witness tree with nodes representing distinct servers and edges representing distinct users. In addition, we have a set P of ⌈p / 2⌉ distinct pruned users, where p is the number of pruning edges.
+
+(3) Bounding the probability of pruned witness trees. We enumerate possible witness trees and bound their probability using the union bound. Observe that since the (unpruned) witness tree is a (κ  +  1)-ary tree of depth ρ, the number of nodes in the witness tree is
+
+[formula]
+
+since ρ  =  2 log  log n  /   log (κ  +  1) and hence (κ  +  1)ρ  =   log 2n.
+
+Ways of choosing the shape of the pruned witness tree: The shape of the pruned witness tree is determined by choosing the p pruning edges of the tree. The number of ways of selecting the p pruning edges is at most [formula] since there are at most m edges in the (unpruned) witness tree. Ways of choosing users and servers for the nodes and edges of the pruned witness tree: The enumeration proceeds by considering the nodes in BFS order. The number of ways of choosing the server associated with the root is n. Consider the ith internal node vi of the pruned witness tree whose server has already been chosen to be si. Let vi have μi children. There are at most [formula] ways of choosing distinct servers for each of the μi children of vi. Also, since there are at most n users in the system at any point in time, the number of ways to choose distinct users for the μi edges incident on vi is also at most [formula]. There are μi! ways of pairing the users and the servers. Further, the probability that a chosen user chooses server si corresponding to node vi and a specific one of μi servers chosen above for vi's children is
+
+[formula]
+
+since each set of two servers is equally likely to be chosen in step 1 of the algorithm. Further, note that each of the μi users chose μi distinct applications and let the probability of occurrence of this event be Uniq(na,μi). This uniqueness probability has been studied in the context of collision-resistant hashing and it is known [\cite=bellare2004hash] that Uniq(na,μi) is largest when the content popularity distribution is the uniform distribution (α  =  0) and progressively becomes smaller as α increases. In particular, Uniq(na,μi)  ≤  e-  Θ(μ2i / na)  <  1. Putting it together, the number of ways of choosing a distinct server for each of the μi children of vi, choosing a distinct user for each of the μi edges incident on vi, choosing a distinct application for each user, and multiplying by the appropriate probability is at most
+
+[formula]
+
+provided μi  >  1. Let m' be the number of internal nodes vi in the pruned witness tree such that μi  =  κ  +  1. Using the bound in Equation [\ref=eq:expbd] for only these m' nodes, the number of ways of choosing the users and servers for the nodes and edges respectively of the pruned witness tree weighted by the probability that these choices occurred is at most
+
+[formula]
+
+Ways of choosing the pruned users in P: Recall that there are ⌈p / 2⌉ distinct pruned users in P. The number of ways of choosing the users in P is at most n⌈p  /  2⌉, since at any time step there are at most n users in the system to choose from. Note that a pruned user has both of its server choices in the pruned witness tree. Therefore, the probability that a given user is a pruned user is at most m2  /  n2. Thus the number of choices for the ⌈p / 2⌉ pruned users in P weighted by the probability that these pruned users occurred is at most
+
+[formula]
+
+Bringing it all together: The probability that there exists a pruned witness tree with p pruning edges, and m' internal nodes with (κ + 1) children each, is at most
+
+[formula]
+
+since (κ  +  1)!  ≥  ((κ  +  1) / e)κ  +  1. There are two possible cases depending on how the pruning process terminates. If the number of pruning edges, p, equals κ  +  1 then the third term of Equation [\ref=eq:bd2] is
+
+[formula]
+
+using Equation [\ref=eq:mbound] and assuming that cache size κ is at least a suitably large constant. Alternately, if the pruning process terminates with fewer than κ  +  1 pruning edges, it must be that at least one of the κ  +  1 subtrees rooted at the children of the root s of the (unpruned) witness tree has no pruning edge. Thus, the number of internal nodes m' of the pruned witness tree with (κ  +  1) children each is bounded as follows:
+
+[formula]
+
+as (κ  +  1)ρ  =   log 2n. Thus, the second term of Equation [\ref=eq:bd2] is
+
+[formula]
+
+assuming κ  >  2e - 1 but is at most O( log n /  log  log n). Thus, in either case, the bound in Equation [\ref=eq:bd2] is 1 / nΩ(1). Further, since there are at most m values for p, the total probability of a pruned witness tree is at most m  ·  1 / nΩ(1) which is 1 / nΩ(1). This completes the proof of the theorem.
+
+Proof of Theorem [\ref=thm:onechoice]
+
+From the classical analysis of throwing n balls into n bins [\cite=mitzenmacherRS2001], we know that there exist a subset U'  ⊆  U such that |U'|  =  Θ( log n  /   log  log n) and all users in U' have chosen a single server s, with high probability. Now we show that some user in U' must have a small hit rate with high probability. Let C' represent the set of all objects accessed by all users in S'. The probability that |C'|  ≤  κw(n) can be upper bounded as follows, where w(n) is an arbitrarily slowly growing function of n. The number of ways of picking C' objects from a set C of n objects is at most n|C'|. The probability that a user in U' will pick an object in C' can be upper bounded by the probability that a user chooses one of the |C'| most popular objects. Thus the probability that a user in U' picks an object in C' is at most H(|C'|,α) / H(n,α)  =  Θ((|C'|  /  n)1 - α), where H(i,α) is the ith generalized harmonic number and H(i,α) = Θ(i1  -  α).Thus, the probability that all users in U' pick objects in C' is at most Θ((|C'| / n)(1  -  α)|U'|). Therefore, the probability that |C'|  ≤  κw(n) is at most
+
+[formula]
+
+Thus, probability that |C'|  ≤  κw(n) is small and hence |C'|  >  κw(n), with high probability. Since the minmax hit rate H(t) is at most κ / |C'| which is at most 1 / w(n), H(t) tends to zero with high probability.
+
+Proof of Lemma [\ref=lem:nu>ns]
+
+We prove the lemma using Chernoff Bound. We firstly look at the load of one server. Let Xi be the indicator that user ui selected the server we looked at, and let [formula] be the total number of incoming users at this server. Because each user chooses σ servers uniformly at random, we have [formula]. Thus we have,
+
+[formula]
+
+With which we can then calculate the bound on the maximum load with union bound. Let Yi be the number of users at server ui, then we have
+
+[formula]
+
+which is in the order of [formula].
+
+Proof for Theorem [\ref=thm:bitrate]
+
+The proof is similar to that of Theorem [\ref=thm:hitrate] in that we create a witness tree, prune it, and then show that a pruned witness tree is unlikely. However, Algorithm MaxBitRate differs with Algorithm GoWithTheWinner differs in that it's a synchronous algorithm that all users make requests in synchronization and the algorithm executes in discrete time steps rather than continuous time scale. Thus before the proof, we need the following lemmas to assist the formal proof.
+
+For any time t  >  0, if user u receives a application miss from server s at some time t, then server s is overbooked at time t  -  1.
+
+If user u requested a service cu from server s at time t, it must have also requested cu from server s at time t  -  1. As soon as the request for cu was processed at time t - 1, it was placed server s. There must have been κ other requests for distinct services that caused the service replacement policy to evict cu, resulting in the application miss at time t. Thus, at least κ  +  1 distinct services were requested from server s at time t  -  1, i.e., server s is overbooked at time t - 1.
+
+To prove convergence, we choose the sliding window size τ  =  cκ log n, for a suitably large positive constant c. Further, consider an initial time interval from time zero to time T that consists of ρ intervals of length τ  +  1 each, where ρ  =  2 log  log n /  log (κ  +  1). Thus, T  =  ρ  ·  (τ  +  1)  =  O(κ log n log  log n /  log (κ  +  1)).
+
+The probability that some user u∈U decides on an overbooked server s∈S at some time t, 0  ≤  t  ≤  T, is at most 1 / nΩ(1).
+
+Suppose user u decides on an overbooked server s at time t. Then, it must be the case that Hτ(u,s,t)  =  100%. Thus, server s provided a application hit to user u in every time t', t  -  τ  <  t'  ≤  t. Recall that each server serves simultaneous requests by first batching the requests according to the requested applications, i.e., each batch contains requests for the same application, and then serving each batch in random order. Since server s is overbooked at time t, it must have been overbooked during all the previous time steps. An overbooked server s has at least κ  +  1 distinct applications being requested, i.e., it has at least κ  +  1 batches of requests. The request made by user u will receive a application miss if the batch in which it belongs to is κ  +  1 or higher in the random ordering. Thus, the probability that user u receives a application miss from the overbooked server s in any time step t'  ≤  t is at least 1  /  (κ  +  1). Since Hτ(u,s,t) is 100% only if there is no application miss at any time t', t  -  τ  <  t'  ≤  t, the probability of such an occurrence is at most
+
+[formula]
+
+since τ  =  cκ log n. Using the union bound and choosing a suitably large constant c, the probability that there exists a user u∈U who decides on an overbooked server s at some t, 0  ≤  t  ≤  T, is at most
+
+[formula]
+
+since there are n users, at most n overbooked servers, and T  +  1  =  O(κ log n log  log n /  log (κ + 1)) time steps.
+
+Now with the two lemmas above, we can prove Theorem [\ref=thm:bitrate] as the following.
+
+For simplicity, we prove the situation where σ  =  2, i.e., each user initially chooses two random candidate servers in step 1 of the algorithm. The case where σ  >  2 is analogous. Wlog, we also assume κ is at most O( log n /  log  log n), which includes the practically interesting case of κ equal to a constant. When the server capacity is larger, i.e., if κ  =  Ω( log n /  log  log n), there will be no overbooked servers with high probability and the theorem holds trivially. This observation follows from a well-known result that if n balls (i.e., users) uniformly and randomly select k out of n bins (i.e. servers), then the maximum number of users that select a server is O( log n  /   log  log n) with high probability, when k is a fixed constant [\cite=raab1998balls].
+
+In contradiction to the theorem, suppose some user u (say) has not decided on a server by time T. We construct a "witness tree" of degree κ  +  1 and depth at least ρ, where ρ  =  T / (τ + 1)  =  2 log  log n /  log (κ  +  1). Each node of the witness tree is a server. Each edge of the witness tree is a user whose two nodes correspond to the two servers chosen by that user. We show that the existence of an undecided user in time step T is unlikely by enumerating all possible witness trees and showing that the occurrence of any such witness tree is unlikely. The proof proceeds in the following three steps.
+
+(1) Constructing a witness tree. If algorithm [formula] has not converged to the optimal state at time T, then there exists an user (say u1) and a server s such that Hτ(u1,s,T - 1)  <  100%, since user u1 has not yet found a server with a 100% hit rate. We make server s the root of the witness tree.
+
+We find children for the root s to extend the witness tree as follows. Since Hτ(u1,s,T - 1)  <  100%, there exists a time t', T  -  1  -  τ  <  t'  ≤  T - 1, such that user u1 received a application miss from server s. By Lemma [\ref=lem:cachemiss], server s was overbooked at time t'  -  1, i.e., there are at least κ  +  1 users requesting server s for κ  +  1 distinct applications at time t'  -  1. Let [formula] be the users who sent requests to server s at time t'  -  1. Wlog, assume that the users {ui} are ordered in ascending order of their IDs. By Lemma [\ref=lem:overbookhit], we know that the probability of a user deciding on an overbooked server is small, i.e., at most 1 / nΩ(1). Thus, with high probability, users [formula] are undecided at time t'  -  1 since they made a request to an overbooked server s. Let si be the other server choice associated with user ui (one of the choices is server s). We extend the witness tree by creating κ + 1 children for the root s, one corresponding to each server si. Note that for each of the servers si we know that H(ui,si,t' - 2)  <  100%, since otherwise user ui would have decided on server si in time step t' - 2. Thus, analogous to how we found children for s, we can recursively find κ  +  1 children for each of the servers si and grow the witness tree to an additional level.
+
+Observe that to add an additional level of the witness tree we went from server s at time T - 1 to servers si at time t' - 2, i.e., we went back in time by an amount of T  -  1  -  (t'  -  2)  ≤  τ  +  1. If we continue the same process, we can construct a witness tree that is a (κ  +  1)-ary tree of depth T / (τ  +  1)  =  ρ.
+
+(2) Pruning the witness tree. If the nodes of the witness tree are guaranteed to represent distinct servers, proving our probabilistic bound is relatively easy. The reason is that if the servers are unique then the users that represent edges of the tree are unique as well. Therefore the probabilistic choices that each user makes is independent, making it easy to evaluate the probability of occurrence of the tree. However, it may not be the case that the servers in the witness tree constructed above are unique, leading to dependent choices that are hard to resolve. Thus, we create a pruned witness tree by removing repeated servers from the original (unpruned) witness tree.
+
+We prune the witness tree by visiting the nodes of the witness tree iteratively in breadth-first search order starting at the root. As we perform breadth-first search (BFS), we remove (i.e., prune) some nodes of the tree and the subtrees rooted at these nodes. What is left after this process is the pruned witness tree. We start by visiting the root. In each iteration, we visit the next node v in BFS order that has not been pruned. Let β(v) denote the nodes visited before v. If v represents a server that is different from the servers represented by nodes in β(v), we do nothing. Otherwise, prune all nodes in the subtree rooted at v. Then, mark the edge from v to its parent as a pruning edge. (Note that the pruning edges are not part of the pruned witness tree.) The procedure continues until either no more nodes remain to be visited or there are κ  +  1 pruning edges. In the latter case, we apply a final pruning by removing all nodes that are yet to be visited, though this step does not produce any more pruning edges. This process results in a pruned witness and a set of p (say) pruning edges.
+
+Note that each pruning edge corresponds to a user who we will call a pruned user. We now make a pass through the pruning edges to select a set P of unique pruned users. Initially, P is set to [formula]. We visit the pruning edges in BFS order and for each pruning edge (u,v) we add the user corresponding to (u,v) to P, if this user is distinct from all users currently in P and if |P| < ⌈p / 2⌉, where p is the total number of pruning edges. We stop adding pruned users to set P when we have exactly ⌈p / 2⌉ users. Note that since a user who made server choices of u and v can appear at most twice as a pruned edge, once with u in the pruned witness tree and once with v in the pruned witness tree. Thus, we are guaranteed to find ⌈p / 2⌉ distinct pruned users.
+
+After the pruning process, we are left with a pruned witness tree with nodes representing distinct servers and edges representing distinct users. In addition, we have a set P of ⌈p / 2⌉ distinct pruned users, where p is the number of pruning edges.
+
+(3) Bounding the probability of pruned witness trees. We enumerate possible witness trees and bound their probability using the union bound. Observe that since the (unpruned) witness tree is a (κ  +  1)-ary tree of depth ρ, the number of nodes in the witness tree is
+
+[formula]
+
+since ρ  =  2 log  log n  /   log (κ  +  1) and hence (κ  +  1)ρ  =   log 2n.
+
+Ways of choosing the shape of the pruned witness tree. The shape of the pruned witness tree is determined by choosing the p pruning edges of the tree. The number of ways of selecting the p pruning edges is at most [formula] since there are at most m edges in the (unpruned) witness tree.
+
+Ways of choosing users and servers for the nodes and edges of the pruned witness tree. The enumeration proceeds by considering the nodes in BFS order. The number of ways of choosing the server associated with the root is n. Consider the ith internal node vi of the pruned witness tree whose server has already been chosen to be si. Let vi have δi children. There are at most [formula] ways of choosing distinct servers for each of the δi children of vi. Also, since there are at most n users in the system at any point in time, the number of ways to choose distinct users for the δi edges incident on vi is also at most [formula]. There are δi! ways of pairing the users and the servers. Further, the probability that a chosen user chooses server si corresponding to node vi and a specific one of δi servers chosen above for vi's children is
+
+[formula]
+
+since each set of two servers is equally likely to be chosen in step 1 of the algorithm. Further, note that each of the δi users chose δi distinct applications and let the probability of occurrence of this event be Uniq(nc,δi). This uniqueness probability has been studied in the context of collision-resistant hashing and it is known [\cite=bellare2004hash] that Uniq(nc,δi) is largest when the content popularity distribution is the uniform distribution (α  =  0) and progressively becomes smaller as α increases. In particular, Uniq(nc,δi)  ≤  e-  Θ(δ2i / nc)  <  1. Putting it together, the number of ways of choosing a distinct server for each of the δi children of vi, choosing a distinct user for each of the δi edges incident on vi, choosing a distinct application for each user, and multiplying by the appropriate probability is at most
+
+[formula]
+
+provided δi  >  1. Let m' be the number of internal nodes vi in the pruned witness tree such that δi  =  κ  +  1. Using the bound in Equation [\ref=eq:expbd] for only these m' nodes, the number of ways of choosing the users and servers for the nodes and edges respectively of the pruned witness tree weighted by the probability that these choices occurred is at most
+
+[formula]
+
+Ways of choosing the pruned users in P. Recall that there are ⌈p / 2⌉ distinct pruned users in P. The number of ways of choosing the users in P is at most n⌈p  /  2⌉, since at any time step there are at most n users in the system to choose from. Note that a pruned user has both of its server choices in the pruned witness tree. Therefore, the probability that a given user is a pruned user is at most m2  /  n2. Thus the number of choices for the ⌈p / 2⌉ pruned users in P weighted by the probability that these pruned users occurred is at most
+
+[formula]
+
+Bringing it all together. The probability that there exists a pruned witness tree with p pruning edges, and m' internal nodes with (κ + 1) children each, is at most
+
+[formula]
+
+since (κ  +  1)!  ≥  ((κ  +  1) / e)κ  +  1. There are two possible cases depending on how the pruning process terminates. If the number of pruning edges, p, equals κ  +  1 then the third term of Equation [\ref=eq:bd2] is
+
+[formula]
+
+using Equation [\ref=eq:mbound] and assuming that cache size κ is at least a suitably large constant. Alternately, if the pruning process terminates with fewer than κ  +  1 pruning edges, it must be that at least one of the κ  +  1 subtrees rooted at the children of the root s of the (unpruned) witness tree has no pruning edge. Thus, the number of internal nodes m' of the pruned witness tree with (κ  +  1) children each is bounded as follows:
+
+[formula]
+
+as (κ  +  1)ρ  =   log 2n. Thus, the second term of Equation [\ref=eq:bd2] is
+
+[formula]
+
+assuming κ  >  2e - 1 but is at most O( log n /  log  log n). Thus, in either case, the bound in Equation [\ref=eq:bd2] is 1 / nΩ(1). Further, since there are at most m values for p, the total probability of a pruned witness tree is at most m  ·  1 / nΩ(1) which is 1 / nΩ(1). This completes the proof of the theorem.

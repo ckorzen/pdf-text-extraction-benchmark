@@ -1,0 +1,199 @@
+The Sum-over-Forests density index: identifying dense regions in a graph
+
+Introduction
+
+General introduction
+
+is an important concept in graph analysis and has been proven to be of particular interest in various areas such as, for example, social networks, biology and World-Wide-Web [\cite=Luce1949] [\cite=Li2007] [\cite=Flake2000].
+
+The task of identifying dense regions on a graph can be based on various concepts (degree of a node, cliques, cores, etc.) leading to various approaches (see Section [\ref=sec:related_work]). The key concept on which our approach is based is forest enumeration and, in particular, the matrix-forest theorem [\cite=Chebotarev-1997] [\cite=Chebotarev-2002b], an extension of the well-known matrix-tree theorem (see, e.g., [\cite=Tutte-2001]). More precisely, the method developed in this paper, inspired by [\cite=Akamatsu-1996] [\cite=Saerens-2008] [\cite=Yen-08K] [\cite=Mantrach2010] (based on paths instead of forests), relies on the enumeration of all the possible forests in the graph, therefore leading to the definition of a new density index which will be called the Sum-over-Forests (SoF) density index. This measure has a clear and intuitive interpretation: when enumerating all the possible forests in the graph, a node will be considered as having a high density index if it is part of a tree of many - preferably low-cost - forests, and has a high outdegree within this forest. Indeed, if a region has a high density, it will contain a large number of trees - and therefore forests - so that the nodes belonging to that region will be part of many forests and have a high outdegree. Those nodes will thus obtain a high SoF density index.
+
+In order to compute this index, we first define a Boltzmann probability distribution on the countable set of forests in the graph by adopting a statistical physics framework. This distribution has the desired property that high-cost forests occur with a low probability while low-cost forests occur with a high probability. As in statistical physics, it depends on a parameter, θ = 1 / T, controlling the temperature T - and thus the entropy - of the system. When T is low, only low-cost forests are taken into account (high-cost forest having a negligible contribution) while for high values of T, high-cost forests are as important as the low-cost ones (uniform distribution).
+
+In a second step, the SoF density index of a node is defined according to this probability distribution. Roughly speaking, it corresponds to the expectation of the outdegree of this node, averaged over all the forests (the expectation is taken on all the possible forests). Technically speaking, the SoF density index is obtained by taking the first-order derivative of the partition function associated to the system. It is shown that it can be computed in closed form by inverting a n  ×  n matrix depending on the immediate costs assigned to the arcs.
+
+Related work
+
+This section provides a short survey of the related work aiming at finding dense regions on graphs.
+
+A well-known approach for finding high density regions on graphs relies on identifying dense, highly connected subgraphs like cliques, plexes, cores, etc. (see, e.g., [\cite=Brandes2005]). Cliques are completely connected subgraphs of the original graph [\cite=Luce1949]. Unfortunately, finding all the cliques, or the maximal clique in a graph is NP-complete. As the notion of clique is very restrictive (if an arc is missing, then the subgraph is no more considered as a clique), other ideas relaxing this notion appeared, such as plexes [\cite=Seidman1978]. A k-plex is a subgraph containing n nodes where each node is connected to at least n - k other nodes. Finding k-plex is alas as hard as finding cliques [\cite=Brandes2005]. Cores are similar to plexes, but instead of specifying how many links are missing to produce a clique, nodes inside k-core only have to present a degree superior to k [\cite=Newman-2010]. All nodes of the core are then connected to at least k other members of the core. Contrarily to cliques and plexes, cores can be computed in polynomial time, and there even exists linear-time algorithm computing the core structure of a network [\cite=Batagelj2010]. A generalization of the notion of core, called the generalized k-core, is based on other vertex properties than the degree (in/out degree, clustering coefficient,...) and can also be found in [\cite=Batagelj2010]. Our SoF density index could be used in conjunction with a generalized k-core.
+
+Density-based clustering methods use a measure of density on graphs as an intermediary step for computing clusters. DBSCAN [\cite=Ester1996], a widely used clustering algorithm, computes the local density around a node as the number of neighbours in a sphere of a certain radius around that node. Mode-seeking methods, like Mean Shift [\cite=Koontz1976], compute the modes of a probability density function to find high density areas. These methods were originally intended to be used in the feature space of the data, but adaptations to graph data were recently proposed [\cite=Falkowski2007] [\cite=Jouili2010] [\cite=Liu2010] [\cite=Cho2012].
+
+Another approach for finding dense zones is to compute a density index (or score) on the nodes of a graph. One of the most intuitive density index is the degree of a node (on undirected graphs, in/out degree on directed graphs) defined as the number of links a node has. Indeed, the larger the number of neighbours of a node, the higher the density around it. This measure is then purely local, taking only into account the direct neighbours. The strength of a node is an extension of the degree to weighted graphs, computing the sum of the weights borne by the arcs of the neighbouring nodes. When those weights are all equal to one, the strength reduces to the degree. The clustering coefficient [\cite=Watts-1998] of a node i is also a notion related to the degree. It counts the number of connected neighbours of i, divided by the total number of possible connections between those neighbours. This measure was extended to weighted graphs in [\cite=Barrat-2004].
+
+Similarly, the Sum-over-Forests (SoF) density index developped in this paper computes a density score on nodes by enumerating forests on a graph using the matrix forest theorem [\cite=Chebotarev-1997]. This method is based on a sum-over-forests statistical physics framework.
+
+Contributions and organization of the paper
+
+This work has three main contributions:
+
+It defines a new density index on nodes of a directed graph.
+
+It shows how this density index can be computed efficiently through a statistical physics framework from the immediate costs associated to each arc by inverting a n  ×  n matrix.
+
+It shows through experiments on artificial and real data sets that the SoF index is an accurate tool for identifying dense regions on graphs.
+
+Section 2 introduces the necessary background and notation. In Section 3, the probability distribution on the set of forests - a Boltzmann distribution - is defined. Section 4 introduces our index and shows how it can be derived analytically from the partition function. Section 5 explains how the partition function can be computed exactly from the immediate costs while Section 6 derives the formulas for computing the density index. Section 7 applies the index to the identification of dense areas on graphs from various origin. Concluding remarks and possible extensions are discussed in Section 8.
+
+Background and notation
+
+Consider a weighted directed graph or network without self-loops, G, not necessarily strongly connected, with a set of n nodes V (or vertices) and a set of arcs E (or edges). To each arc linking node k and k', we associate a positive number ckk' > 0 representing the immediate cost of following this arc. The cost matrix [formula] is the matrix containing the immediate costs ckk' as elements. If, instead of [formula], we are given an adjacency matrix with elements akk'  ≥  0 indicating the affinity between node k and node k', the corresponding costs could be computed from ckk'  =  1 / akk'. Notice, however, that other relations - other than the reciprocal relation - between affinity and cost could be considered as well. The adjacency matrix containing the elements akk' is denoted by [formula], while the Laplacian matrix of a graph having adjacency matrix [formula] is [formula], where [formula] is a diagonal matrix containing the column sums of [formula]. Here, [formula] is a column vector full of 1's. Moreover, if the graph is undirected, it is assumed that, for each arc, there exists directed links in the two directions k  →  k' and k'  →  k.
+
+The objective of the next sections is to define the probability distribution on the set of forests as well as the density index. Before diving into the details, let us briefly describe the main ideas behind the model. In a first step, the set of forests in the graph is enumerated through the matrix-forest theorem and a probability distribution is assigned to each individual forest: the larger the forest, the smaller the weight of its contribution, given that isolated nodes do not contribute. This probability distribution depends on a parameter, θ = 1 / T, controlling the smoothing level carried out in the graph: when θ is large, only the lowest-cost forests are considered while when θ is small, higher-cost forests are also taken into account. In a second step, the expected outdegree each node takes in a forest is computed through a sum-over-forests statistical physics formalism, providing a measure of density on the set of nodes.
+
+A Boltzmann distribution on the set of forests
+
+The present section describes how the probability distribution on the set of forests is assigned. To this end, let us define the set of rooted forests φ that can be defined in the graph G as [formula]. Intuitively, a rooted forest is an acyclic subgraph of G that has the same nodes as G and one marked node (a root) in each component (see [\cite=Chebotarev-1997] [\cite=Chebotarev-2002b] for details). In the directed case, diverging forests are considered, that is, forests containing diverging rooted trees (i.e., trees that contain only directed paths from the root to all the other nodes). Now, as we are dealing with directed graphs, diverging rooted trees and forests will simply be referred to as trees and forests. The total cost of such a forest φ is defined as the sum of the individual costs of the arcs belonging to φ, C(φ). On the other hand, the total weight of such a forest φ is defined as the product of the individual weights (the elements of the adjacency matrix) of the arcs belonging to φ. A forest with no arc (containing only individual nodes without any connection) has a 0 total cost and a total weight of 1.
+
+A Boltzmann probability distribution is defined on the set F:
+
+[formula]
+
+where θ is the inverse temperature. Thus, as expected, low-cost forests φ (having small C(φ)) are favored in that they have a large probability of being chosen. Indeed, from Equation ([\ref=Eq_Probability_distribution01]), we clearly observe that when θ  →  0+, the forest probabilities tend to a uniform probability. On the other hand, when θ is large, the probability distribution defined by Equation ([\ref=Eq_Probability_distribution01]) is biased towards low-cost forests (the most likely forests are the lowest-cost ones). Notice that in Equation ([\ref=Eq_Probability_distribution01]) isolated nodes (with no ingoing or outgoing link) do not contribute to the probability. In the sequel, it will be assumed that the user provides the value of the parameter θ.
+
+For illustration, the simple graph G shown in Figure [\ref=fig:simplegraph] is analysed. Figure [\ref=fig:Forests] represents examples of respectively a high-cost forest φ1 and a low-cost forest φ2 on G. The cost associated to φ1 is 5, as this forest contains five arcs with a cost equal to 1. Similarly, the cost of φ2 is 2. The numerator of the Equation ([\ref=Eq_Probability_distribution01]) for φ1 becomes [formula], the numerator for φ2 [formula], while the denominator is the same for both forests. For small values of θ, those numerators tend to 1 and the probabilities to the uniform distribution. For high values of θ, the probability of the lower-cost forest φ2 is higher than the probability of the higher-cost forest φ1.
+
+The SoF density index
+
+By following arguments inspired from [\cite=Saerens-2008], it is now shown that the density index can be computed from a quantity appearing in the denominator of Equation ([\ref=Eq_Probability_distribution01]), defined as
+
+[formula]
+
+and which corresponds to the partition function in statistical physics (see [\cite=Jaynes-1957] or any textbook in statistical physics; for instance [\cite=Reichl-1998] [\cite=Schrodinger-1952]). For this purpose, let us further define the free energy F in the usual way [\cite=Reichl-1998] [\cite=Schrodinger-1952] as
+
+[formula]
+
+where T = 1 / θ is the temperature of the system. The expected number of times a link k  →  k' is present in a forest can easily be computed through
+
+[formula]
+
+where δ(φ;k,k') is a Kronecker delta indicating if the link k  →  k' is present in forest φ, and thus if the link is part of forest φ. The expected outdegree of node k on a forest, which defines the SoF density index, is
+
+[formula]
+
+and corresponds to the sum of the contributions of the arcs issued from node k.
+
+In the next section, we show that the partition function can easily be computed from the cost matrix.
+
+Computation of the partition function
+
+By using the matrix-forest theorem [\cite=Chebotarev-1997] [\cite=Chebotarev-2002b], let us now show how the partition function Z (Equation ([\ref=Eq_Partition01])) can be computed exactly from the immediate costs. Indeed, let us assume a graph G characterized by an adjacency matrix [formula] containing the weights on the arcs. From the matrix-forest theorem (see [\cite=Chebotarev-1997], lemma 2, or [\cite=Chebotarev-2002b] for details), [formula] is the sum of the total weights of all the rooted (diverging in the directed case) forests φ∈F that can be extracted from the graph. The total weight of a particular rooted forest φ is the product of the weights of the individual arcs defining it.
+
+Let us now apply this concept to a new matrix [formula] defined from the cost matrix, [formula],
+
+[formula]
+
+where the logarithm/exponential functions are taken elementwise. Thus, the elements of matrix [formula] are [formula]. Now, if we set as adjacency matrix [formula], the total weight of a rooted forest φ is the product of the individual weights defining it, i.e, [formula]. We can immediately deduce from the matrix-forest theorem that [formula], where [formula], is equal to [formula]. Therefore,
+
+[formula]
+
+This result is used in next section in order to derive the SoF density index.
+
+Computation of the SoF density index
+
+Now that we have seen how to compute the partition function Z, we turn to the computation of the density index that can be deduced from Z thanks to Equations ([\ref=eq:firstorderderivateZ]) and ([\ref=Eq_Betweenness01]).
+
+We thus have to compute the derivatives of Z (Equation ([\ref=Eq_W_computation01])) in terms of ckk' (see Equation ([\ref=eq:firstorderderivateZ])) in order to obtain the different quantities of interest. Now, it is well-known (see, e.g., [\cite=Harville-97] [\cite=Schott-2005]) that [formula]. Thus, for the expected number of times the link k  →  k' appears in a forest, we obtain
+
+[formula]
+
+where the matrix [formula] is defined as
+
+[formula]
+
+Now, we easily find that [formula] and [formula] so that
+
+[formula]
+
+where [formula] is a basis column vector with zeroes everywhere except in position k where there is a 1.
+
+Thus, by defining [formula] as column k of matrix [formula],
+
+[formula]
+
+Therefore, the expected outdegree of node k - the SoF density index of node k - is
+
+[formula]
+
+where we used Equations ([\ref=Eq_Betweenness01]) and ([\ref=Eq_Computation_between01]). The n  ×  1 column vector containing the elements [formula] will be called [formula], with
+
+[formula]
+
+and where [formula] is a column vector containing the diagonal of matrix [formula]. The SoF index can therefore be found by applying the following, simple, procedure:
+
+Compute the [formula] matrix through Equation ([\ref=Eq_W_matrix01]).
+
+Find the matrix [formula] from Equation ([\ref=Eq:FundamentalMatrix01]).
+
+Compute the column vector [formula] containing the SoF index of each node with Equation ([\ref=Eq_Computation_passage03]).
+
+Experiments
+
+In this experimental section, the SoF density index is assessed on the identification of dense regions on graphs. Unlike classical clustering methods, the goal here is not to find an exact partition of the data, but only regions of graphs where the nodes are tightly aggregated, suggesting some community-like structure.
+
+Datasets
+
+The performance of the SoF density index is assessed on ten datasets belonging to four groups: 3-communities, 10-communities, S-Sets and NewsGroup datasets.
+
+The 3-communities (resp. 10-communities) datasets are artificial datasets we built: each one is made of three (resp. ten) clusters, created using gaussian distributions N(μ,σ), μ being the mean (the center of the cluster) and σ2 the variance of the data. Each cluster is made of 500 nodes, lying in two dimensions. Three values of σ (illustrating various degree of overlapping between the communities) were used to build graphs in the 3-communities case: 0.05, 0.1, 0.5 (the standard deviation is the same in each direction, giving isotropic communities). For the 10-communities datasets, the σ values are different in the two space directions, (x,y). These values, called σx and σy are reported in Table [\ref=Fig:Sigma10C] for two sets : S1 with small overlapping and S2 with strong overlapping.
+
+The S-Sets [\cite=Franti2006] include two datasets: S2 and S4. They are also based on artificial data and are composed of 5000 two-dimensional observations each, grouped in 15 clusters of various shapes. Figure [\ref=fig:S-Sets] illustrates S2, with well separated clusters and S4, showing more overlapped ones.
+
+Finally, graphs generated from the Newsgroup dataset are used. This dataset is originally composed of about 20,000 unstructured documents, taken from 20 discussion groups (newsgroups) of the Usernet diffusion list, and composed of 20 classes. For our experiments, three subsets related to different topics are extracted from the original database (NewsGroup1, 2, and 3) [\cite=Yen-09]. The graphs of documents were built by sampling at random about 200 documents in each of three classes from three different topics.
+
+Graph construction
+
+We constructed the graphs corresponding to the 3/10-communities and the S-Sets datasets using two classical methods: the ε-graph and the k-nearest neighbours (k-NN).
+
+The ε-graph computes the euclidean distance between each pair of observations in the dataset and transforms it into an affinity using
+
+[formula]
+
+where dij is the euclidean distance between nodes i and j, and σ2 is the variance of the distances between all the observations in the dataset. The nodes are then linked to others only if they show an affinity superior to a certain threshold (80, 90, 95, and 99 percentiles were used). The resulting graphs are undirected, and both the weighted case (where arcs bear the nodes affinities) and the unweighted case are investigated.
+
+The k-NN graph construction method simply links a node to its k nearest neighbours, i.e., those who have the highest affinity with that node. This relation is not symmetric, giving birth to directed graphs. We transform them into undirected graphs using
+
+[formula]
+
+where [formula] is the adjacency matrix of the created graph, and the maximum operator is taken elementwise.
+
+For the NewsGroup datasets, the graphs were already build [\cite=Yen-09] and only the adjacency matrices are at our disposal. To visualize those graphs, we use the diffusion maps embedding method [\cite=Nadler-2005] [\cite=Lafon-2006] [\cite=Yen-2011] in two dimensions (see Figure [\ref=fig:News]), whose output is the new spatial coordinates of the nodes. The corresponding graphs are reconstructed with the ε-graph method, allowing to compute the density index on the nodes. Indeed, trying to proceed inversely (computing the densities before the diffusion map embedding) is not visually accurate: during the embedding, the nodes are spatially rearranged and the color of the nodes (indicating high or low density, see below) do not reflect the true density of the 2-D embedding.
+
+The cost matrices used in the evaluation of the SoF density index are then computed as the reciprocals of the affinity matrices constructed above.
+
+Evaluation methods
+
+We use two methods to evaluate to which extent the high density areas are well identified: Spearman's correlation (only applicable to 3/10-communities datasets) and visual checking (applicable to all datasets).
+
+Firstly, since the probability density function is known for every node of the 3/10-communities datasets (i.e., the exact parameters' values of the gaussian distributions are known), we compute Spearman's correlation between those true densities and the SoF densities.
+
+Secondly, we perform a visual checking on the graphs by superimposing the density index on the representation of the nodes. This is done by assigning each node a color: from dark blue for nodes presenting a low density value to dark red for nodes presenting a high density value.
+
+Concerning the tuning of the θ parameter in the SoF method, we used the correlation method on the 3/10-communities graphs. The parameter's value giving the highest correlation score (for threshold graphs, θ = 5 and for k-NN graphs, θ = 50) is then used for the 3/10-communities as well as for the S-Sets and Newsgroup datasets.
+
+The results obtained with the SoF density index are finally compared with two other measures for identifying dense zones: the strength (Str) and the clustering coefficient (CC).
+
+Results
+
+When using the k-NN for constructing graphs, the SoF density index is clearly superior to the strength and to the clustering coefficient (the latter performs badly in every situation, and is not further considered in the sequel of this section). This may be explained by the fact that the information concerning the connectivity is useless in this case, as all the nodes have theoretically almost the same degree. The SoF density index then makes a better use of the affinities borne by the arcs of the graphs than the strength does, which explains its superior results.
+
+When using the ε-graph construction method, the results are not so clear. The results obtained by the strength and the SoF index for the 3-communities case have a correlation with the true density of almost one and are practically identical (only the weighted case is represented here in Figure [\ref=fig:Corr_3comm_Th_W], as the unweigthed case gives similar results). The SoF index is clearly better on the 10-communities datasets in the weighted case and for low threshold (ε) values. Indeed, the number of neighbours increases dramatically when the threshold is low, and again the information of connectivity becomes useless, nodes having each a large degree value. The only useful information are the affinities and, as before, the SoF density index uses it in a more efficient way than the strength. When the threshold is higher the two measures converge to the same value. In the unweighted case (no affinity information), the SoF index and the strength behave similarly: the correlations are low for low threshold values and increase when the threshold increase. The good results of both the SoF index and the strength in the 3-communities dataset with threshold and unweighted arcs are probably due to the fact that these datasets are quite smaller and simpler to handle, having only 3 clusters instead of 10, distributed with gaussians of the same variance in all directions.
+
+A first conclusion can de drawn so far: the SoF density index is much more stable and independent from the type of graph than the strength (and the clustering coefficient).
+
+The dense regions on the S-Sets are also well identified. Figure [\ref=fig:S-Sets_SOF] shows that the SoF density index is able to recover the 15 densest areas on the S2 and S4 graphs, even if they are tightly aggregated. Str and CC are illustrated on Figures [\ref=fig:S-Sets_Strength] and [\ref=fig:S-Sets_CC], showing poor results, mainly on S4. The Newsgroup datasets confirm the results obtained so far (Figure [\ref=fig:News_SOF]). For SoF density index and Str, the three clusters are recovered on those graphs, except on NewsGroup3 where two clusters are too tightly intrictated to be differentiated. The CC does not identify correctly the dense areas, like in the 3-communities case. Figures concerning S-Sets and Newgroup graphs show only results obtained for weighted graphs, as those results are essentially identical for unweighted graphs.
+
+Conclusion and Perspectives
+
+This work introduced a new density index on the nodes of a graph. The main idea behind the model is that a node has a high density index if it is present on a large number of (preferably low-cost) forests, together with a high outdegree. This model depends on a meta-parameter θ, biasing gradually the forests probabilities from uniform towards low-cost forests. A sum-over-paths statistical physics framework is used in order to derive the form of the index in terms of the immediate costs defined on the arcs. It can be computed efficiently by inverting a n  ×  n matrix, where n is the number of nodes, leading to an overall time complexity of O(n3).
+
+The application of the SoF density index to the task of searching dense areas on graphs shows that it performs well, being able to recover all the high density regions - corresponding to the center of clusters - on different graphs. Moreover, the correlation results between the SoF density index and the true density (when available) are often close to one. The SoF density index also gives more stable results than the strength regarding the way a graph is constructed.
+
+In the future, this index could be used together with a density-based clustering method, for instance a mode seeking algorithm on graphs (like in [\cite=Cho2012]), for clustering tasks. We will also investigate the application of the proposed technique on large graphs, as in [\cite=Mantrach-2011]. Indeed, the Sum-over-Forests measure only depends on the diagonal of the inverse matrix [formula] (this can be easily deduced from Equation ([\ref=Eq_Computation_passage03]). Moreover, the matrix [formula] is diagonally dominant). In this case, scalable methods can be used for computing the diagonal of [formula] (see, e.g., [\cite=Duff-1986] [\cite=Erisman-1975] [\cite=Tang-2012]).
+
+Acknowledgments
+
+Acknowledgment
+
+Part of this work has been funded by projects with the Région wallonne. We thank this institution for giving us the opportunity to conduct both fundamental and applied research.

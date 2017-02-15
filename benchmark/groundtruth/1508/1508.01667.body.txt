@@ -1,0 +1,31 @@
+Places205-VGGNet Models for Scene Recognition
+
+Introduction
+
+Convolutional networks (ConvNets) [\cite=lecun1998gradient] have achieved great success for image classification [\cite=KrizhevskySH12]. In the recent ILSVRC competition [\cite=RussakovskyDSKSMHKKBBF14], several successful architectures were proposed for object recognition, such as GoogLeNet [\cite=SzegedyLJSRAEVR14] and VGGNet [\cite=SimonyanZ14a]. However, directly adapting these models trained on the ImageNet dataset [\cite=DengDSLL009] to the task of scene recognition cannot yield good performance. Besides training complicated VGGNets on a large-scale scene dataset is non-trivial, which requires large computational resource and numerous training skills. In this report, we train high-performance VGGNet models for scene recognition on the Places205 dataset [\cite=ZhouLXTO14]. The contribution of this report is twofold:
+
+Our trained Places205-VGGNet models achieve the state-of-the-art performance on the Places2015 dataset [\cite=ZhouLXTO14]. As the training of VGGNet is very time consuming, we release our models to advance the further research on scene recognition.
+
+We transfer the trained models to other scene datasets, including the MIT67 [\cite=QuattoniT09] and SUN397 [\cite=XiaoHEOT10], and extract ConvNet features off-the-shelf. Our trained Places205-VGGNet models achieve the best performance on these two datasets.
+
+Implementation Details
+
+The VGGNets are originally developed for object recognition and detection [\cite=SimonyanZ14a]. They have very deep convolutional architectures with smaller sizes of convolutional kernel (3  ×  3), stride (1  ×  1), and pooling window (2  ×  2). There are four different network structures, ranging from 11 layers to 19 layers. The model capability is increased when the network goes deeper, but imposing a heavier computational cost. Following original implementation of [\cite=SimonyanZ14a], we start with training an 11-layer VGGNet, and then train deeper VGGNets subsequently by using the pre-trained 11-layer model for initialization.
+
+Specifically, we implement ConvNets by using the public Caffe toolbox [\cite=JiaSDKLGGD14]. As the computational cost and memory consumption of VGGNets are much larger than other architectures (e.g. GoogLeNet), we use Multi-GPU extension of Caffe [\cite=2015arXiv150702159W], which is publicly available . Meanwhile, this extension provides more data augmentation techniques, such as corner cropping strategy and multi-scale cropping method, which have been proved to be effective for action recognition in videos. Therefore we also adopt these two augmentation techniques.
+
+The training of ConvNets is performed with mini-batch gradient descent method, where the batch size is set to 256 and the momentum is 0.9. To reduce the effect of over-fitting, the training was regularized by weight decay (the L2 penalty multiplier set to 0.0005) and dropout for the first two fully connected layers (with ratio of 0.5). During training phase, the images are resized to 256  ×  256. For multi-scale training, we randomly select the width and height of cropped regions from {256,224,198,168}. These cropped regions are then resized to 224  ×  224 for further processing. We start with training the 11-layer VGGNet, where network weights are randomly initialized with Gaussian distribution (mean set to 0 and deviation set to 0.01). The learning rate is initially set as 0.01, and decreased to its [formula] every 10k iterations. The whole training process stops at 40k iterations. To train the 13-layer and 16-layer VGGNets, we initialize the first four convolutional layers and first two fully connected layers with the pre-trained 11-layer VGGNet.
+
+For testing the VGGNet models, we follow multi-view classification method [\cite=KrizhevskySH12]. Specifically, we randomly crop regions of 224  ×  224 from four corners and center of the image, whose size is 256  ×  256. After that, these cropped regions are horizontally flipped. Therefore, we obtain 10 views, each of which is fed into ConvNet models for prediction. The final prediction score is the average value of the 10 predictions.
+
+Experiments
+
+In this section, we describe our experimental details and results. The training of VGGNets on the Places205 dataset is implemented with a Multi-GPU extension of Caffe [\cite=2015arXiv150702159W]. In our experiment, we use 4 GTX Titan-X GPUs and the whole training time of VGGNet-16 is around 2 weeks. To test the performance of our trained Places205-VGGNet models, we conduct experiments on three datasets, namely Places205, MIT67, and SUN397.
+
+First we perform evaluation on the Places205 [\cite=ZhouLXTO14] and the results are summarized in Table [\ref=tbl:places]. We compare with other deep network architectures, like AlexNet [\cite=KrizhevskySH12], GoogLeNet [\cite=SzegedyLJSRAEVR14], and CNDS-8 [\cite=WangLTL15a], and observe that VGGNets obtain much better performance than theirs on this dataset.
+
+To further verify the effectiveness of Places205-VGGNet models on scene recognition, we transfer the learned representations to the MIT67 [\cite=QuattoniT09] and SUN397 [\cite=XiaoHEOT10] datasets. Specifically, we extract fc6 features and normalize them with [formula]-norm. Then we employ linear SVMs as classifiers for scene category prediction. The experimental results are shown in Table [\ref=tbl:other]. We compare our Places205-VGGNet models with other public model and our models achieve the best performance on these two challenging datasets.
+
+Conclusions
+
+In this report, we describe our implementation of training the VGGNets on the large-scale Places205 dataset with a Multi-GPU extension of Caffe. The trained Places205-VGGNet models achieve the state-of-the-art performance on three scene recognition benchmarks, namely Places205, SUN397, and MIT67. We release our trained Places205-VGGNet models for further research in scene recognition.

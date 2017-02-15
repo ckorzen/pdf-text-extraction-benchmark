@@ -1,0 +1,261 @@
+= 10000 = 10000 = 10000
+
+Detecting Overlapping Link Communities by Finding Local Minima of a Cost Function with a Memetic AlgorithmPart 1: Problem and Method
+
+Introduction
+
+The utility of algorithms for the detection of communities in networks partly depends on their 'conceptual fit', i.e. on the degree to which they match properties of the phenomenon that is represented [\cite=hric_community_2014]. Achieving such a conceptual fit may require unusual combinations of ideas from network analysis, as is the case with the question and the algorithm presented in this paper.
+
+Consider the following three properties of a network and the task of community detection. First, links between nodes contain better information about communities than the nodes that are to be clustered. In this case, link clustering appears to be the method of choice. Constructing communities by clustering links has been proposed by and by as a method for the construction of overlapping communities of nodes. In addition, clustering links is likely to be advantageous whenever the information asymmetry described above occurs, i.e. whenever links rather than nodes have the real-world properties whose similarity shall be reflected by clusters.
+
+Second, overlapping communities must be a possible outcome of the algorithm because the real-world phenomenon under investigation is known to have such a structure. For the same reason, pervasive overlaps must be possible, i.e. overlaps that extend to all nodes rather than just the boundary nodes of a community. The construction of overlapping communities is by now a well-known and frequently addressed problem of network analysis [\cite=fortunato2010community] [\cite=Xie:2013:OCD] [\cite=amelio_overlapping_2014].
+
+Third, the phenomena to be represented by communities are local in that they emerge from local interactions represented by neighboring nodes and links in the network. If this is the case, the use of local rather than global information may return better communities and a better community structure of the network [\cite=clauset2005flc] [\cite=lancichinetti2009detecting] [\cite=havemann2011identification].
+
+All three ideas have been developed in network analysis. However, as reviews of algorithms indicate , link clustering, pervasively overlapping communities and use of local information have not yet been combined all three, possibly because the task for which this is necessary has not yet arisen.
+
+There is at least one task for which this combination of link-based approach, pervasive overlaps and local approach is necessary, namely the detection of thematic structures (topics) in networks of papers. In networks of papers and their cited sources, citation links (links between a publication and the sources it cites) are thematically more homogenous than nodes (papers), and thus provide better information for clustering, than the papers themselves. While papers commonly belong to more than one scientific topic, many citation links can be assumed to be homogenous in that the link between paper and source belongs to only one topic. Scientific topics are known to overlap pervasively, which means that their reconstruction as communities of papers must reflect this pervasive overlap. Topics are also locally emergent phenomena in that they represent coinciding and mutually referring perspectives of researchers (the authors of the papers).
+
+In order to reconstruct scientific topics from networks of papers and their cited sources, then, we need an algorithm that clusters links, can construct pervasively overlapping communities, and uses local information. In this paper, we present such an algorithm (in Part 1) and its application to a network of papers in astronomy and astrophysics (in Part 2). We propose a local cost function for the independent evaluation of each link community by relating its external to its total connectivity in the network. The cost function is almost completely based on local information, the only global information used is the number of links in the whole network. The independent evaluation of each subgraph with a local cost function means that communities can be constructed independently from each other, which enables pervasive overlaps.
+
+Since the cost landscape of link communities has many local minima, purely deterministic search strategies are not efficient. This is why we designed a memetic search that combines an evolutionary algorithm with deterministic adjustments in the cost landscape. Evolutionary algorithms have already been used for identifying communities in networks [\cite=fortunato2010community]. Some authors have even applied evolutionary algorithms to link clustering but all used global evaluation functions [\cite=pizzuti_overlapped_2009] [\cite=li_discovering_2013]. Memetic evolutionary algorithms have also been applied to reconstruct communities but only for node clustering and only with global evaluation functions [\cite=gong_memetic_2011] [\cite=pizzuti_boosting_2012] [\cite=gach_memetic_2012] [\cite=ma_multi-level_2014].
+
+Strategy
+
+The strategy we apply in response to the three challenges described in the introduction consists of three main steps. We develop an evaluation function for link communities that uses local information. This evaluation function makes it possible to construct each community independently from all others, which in turn enables pervasive overlaps because inner links (links all of whose neighbours are community members) of one community can also be inner links of another community. We then design an algorithm that efficiently constructs local communities. For the first step, we followed a suggestion by to obtain link clusters by clustering vertices in a network's line graph. We defined a local cost function Ψ*(L) in the line-graph approach which we call ratio node-cut. Ψ*(L) essentially relates external to total connectivity of link set L. It can be used to identify link communities (sets of links that are well connected internally and well separated from the rest of the graph) by finding local minima in the cost landscape. Since Ψ*(L) evaluates the boundary between a subgraph and the network, communities can be constructed independently of all other communities.
+
+The cost landscape of Ψ*(L) is often very rough i.e has many local minima that may correspond to very similar subgraphs. Therefore, the resolution of the algorithm must be defined by setting a minimum distance (number of links that differ) between subgraphs corresponding to different local minima. We define the range of a community as a distance in which no subgraph exists that has a lower Ψ*-value.
+
+Since the task of finding communities in large networks is always very complex, heuristics must be applied. This applies even more strongly to link clustering because networks contain many more links than nodes, and particularly to the rough Ψ*-landscape. We chose an evolutionary algorithm but accelerate evolution by combining it with a deterministic local search in the cost landscape. This approach is called memetic [\cite=neri2012handbook]. Memetic algorithms can also find local optima of a local cost function [\cite=vitela_sequential_2012].
+
+In evolutionary algorithms, individuals occupy places in the cost (or fitness) landscape. In our local algorithm, populations are sets of different subgraphs. We start with a random initialisation of the population of some definite size. The genetic operators of crossover, mutation, and selection are repeatedly applied to move the population into optima. In memetic algorithms each crossover and each mutation is followed by a local search.
+
+In large networks exploring the cost landscape by adding or removing individual links is very time-consuming. We therefore begin the search with a coarse search phase that adds or removes groups of links by adding or removing nodes with all their links, and follow it with fine search phase, namely a link-wise local search.
+
+The cost function:ratio node-cut
+
+Node-induced andlink-induced subgraphs
+
+Traditionally, the boundary of a community is drawn between nodes and therefore cuts the links between nodes inside and outside the community. If we consider communities as clusters of links rather than nodes, the perspective must be reversed. While the boundary of a node community cuts links, the boundary of a link community cuts nodes.
+
+A node community is a connected subgraph defined by a node set C. It contains all links existing between nodes in C. A link community is a connected link-induced subgraph. It contains all nodes attached to links of a given set L. There can be links existing between a link community's nodes which are not in L.
+
+Cost functions of a subgraph can be defined by relating a measure of external to a measure of total connectivity. This ratio should be minimal for internally well connected and externally sparsely connected (or well separated) subgraphs, i.e. for communities.
+
+Node communities can be defined as connected subgraphs corresponding to minima in cost landscapes where places correspond to node-induced subgraphs. Correspondingly, link communities can be defined as connected subgraphs corresponding to minima in cost landscapes where places correspond to link-induced subgraphs.
+
+In the following, we only consider connected unweighted graphs G  =  (V,E). The number of edges (or links) is m  =  |E|, the number of vertices (or nodes) is n  =  |V|. With ki we denote the degree of node i. The internal degree of node i, denoted by [formula], is the number of links attached to node i which are in link set L. The external degree of node i is [formula].
+
+External connectivity
+
+We first consider measures of external connectivity of a subgraph which are useful for constructing node or link communities. The simplest measure of external connectivity of a node-induced subgraph is the cut size that equals the sum of weights of boundary links i.e. the links connecting the subgraph with the rest of the graph [\cite=fortunato2010community]. If link weights represent electrical conductance, cut size measures the total conductance of all boundary links. Cut size can be calculated as the sum of external degrees [formula] of boundary nodes (subgraph members with boundary links).
+
+Applying these considerations to the external connectivity of a link-induced subgraph leads to a simple measure of external connectivity as the sum of [formula] of boundary nodes:
+
+[formula]
+
+Only for boundary nodes of L we have [formula]. That means, we can restrict the sum in the formula to boundary nodes. In function σ(L) the external degrees [formula] are weighted with subgraph membership-grade [formula] of the boundary nodes. The function σ(L) can be derived from the total conductance or cut size of link sets in the graph's line graph if the line graph's edges are weighted with 1 / ki--a weighting proposed by . The derivation can be found in Appendix [\ref=app:sigma].
+
+Each term of σ(L) equals the conductance of a boundary node i i.e. the total conductance for currents flowing out of the community through this node. We call σ(L) the node cut of a link-induced subgraph.
+
+Internal and total connectivity
+
+Now we discuss measures of internal and total connectivity of subgraphs induced by node and by link sets, respectively. In the case of node-induced subgraphs [formula] is an appropriate measure of internal connectivity of node set C. Total connectivity of C is then
+
+[formula]
+
+For a link-induced subgraph we can use the sum of internal degrees, weighted with their membership, as a measure of internal connectivity:
+
+[formula]
+
+The sum is restricted to nodes attached to links in L because other nodes have [formula]. Total connectivity of L is then given by the sum [formula]. The derivation can be found in Appendix [\ref=app:sigma].
+
+Cost function
+
+Relating external to total connectivity leads us to cost functions whose minima correspond to well separated communities with high internal cohesion. On the other hand, we also achieve a size normalisation when we divide external by total connectivity. This is welcome, because the boundary length (measured by external connectivity) tends to increase with size (here measured by total connectivity)--at least for not too large communities in not too small networks. If a community occupies more than one half of the network its boundary tends to become shorter with increasing size. A simple size normalisation that accounts for the finite size of the network is achieved by adding to the external-total ratio of a community the same ratio of its complement. For small communities in a large network the second ratio is very small. For node communities this normalisation was introduced by and named ratio cut. For link communities we analogously define a cost function ratio node-cut as
+
+[formula]
+
+The expression on the r.h.s. is obtained because [formula] and [formula]. Ratio node-cut Ψ* is not strictly local but the only global information needed here is the total number of links m. In the limit of small communities in large networks we achieve approximately strict locality because we have [formula] and therefore
+
+[formula]
+
+a strictly local cost function of link communities introduced by us earlier . Function σ(L) vanishes for the empty subgraph with [formula] and for the full graph with L  =  E. In both cases, the denominator of the cost function also vanishes and we obtain zero divided by zero but it makes sense to define [formula] because Ψ* of one link (1, 2) with vanishing weight w12 approximates 1:
+
+[formula]
+
+Our cost function is symmetric: [formula], i.e. the cost function is the same for a link-induced subgraph and the subgraph induced by the complementary link set [formula].
+
+The cost landscape
+
+Each place in the cost landscape represents a link-induced subgraph. Two places in the landscape have a direct relation if and only if the corresponding subgraphs differ in one link. The height of each place is given by the value of the cost function Ψ*(L). The global minimum of the cost function is reached for a division of the set E of all links that produces the two best link communities in terms of cohesion and separation. As a simple example, we determined the Ψ*-landscape of the bow-tie graph (Figure [\ref=bow-tie], for calculations see Appendix [\ref=sec:bowtie]). We expect a cut through the central node to be the best division in two link communities (the two triangles). Indeed, the landscape has two minima at Ψ*  =  1  /  3, which correspond to the two triangles. There are no further local minima.
+
+We do not restrict the search for link communities to finding only the global minimum but define a link community as a connected link-induced subgraph which corresponds to any local minimum in the Ψ*-landscape. Since the Ψ*-landscape of larger graphs contains many local minima, we need a filter to select the best link communities. For this reason, we restrict our search to those minima with a sufficiently large distance to any lower place in the cost landscape. Thus, we have to define the resolution of the search by defining this minimal distance in the landscape. The appropriate resolution depends on the research question about the phenomenon represented by the network. The extent to which two communities should differ in content (of links) to consider them as different depends on the question asked about communities.
+
+Another place in the cost landscape is reached by adding links to and by removing links from the subgraph corresponding to the starting place. The distance between two places in the cost landscape equals the sum of the number of links we have to add and to exclude. In other words: the distance is the size of the symmetric difference between the two link sets. We define the range of a community as the minimal distance to a subgraph with lower cost. Within a community's range there is no better subgraph. The resolution of a search for communities can be defined as the minimal range of communities that are accepted as solutions. Depending on the networks real background, a relative resolution can be more appropriate. That means, we demand that any accepted community should have a range which is larger than a certain percentage of its size.
+
+In order to determine the range of a community we would need to know its whole environment up to the distance to the nearest lower place in the cost landscape. Otherwise, a lower place only determines an upper bound of the community's range. However, searching the whole environment of a subgraph is practically impossible for large networks. A selective search is necessary, which is why we apply evolutionary and deterministic greedy algorithms. If these algorithms find an upper bound smaller than the set resolution, we can deselect the community. If they don't, the community is provisionally kept but can later be replaced by a better community within its minimal range defined by the set resolution. We assume, however, that later found better solutions differ only in some links.
+
+Memetic search
+
+Memetic algorithms combine random evolution with deterministic local search. In this section, we describe
+
+the local search we apply, called adaptation for short,
+
+our implementation of the evolutionary approach,
+
+the genetic operators of mutation, crossover, and selection we employ in the evolutionary approach.
+
+The memetic algorithm is applied in the search for link communities, which ideally would consist of link-wise changes. However, exploring the cost landscape of a large network by adding or removing individual links is very time-consuming. We therefore split the search in a coarse phase, in which we add or remove nodes with all their links to other nodes in the subgraph, and a finer link-wise local search, which is applied after communities have been identified by a node-wise search. The coarse phase includes the application of genetic operators and the local search. After communities with a minimal range defined by the set resolution are found, they are subjected to a link-wise local search.
+
+Local search
+
+The local search in the cost landscape applies a greedy algorithm for finding local cost minima that correspond to communities. The algorithm starts from the place occupied by the current subgraph and moves to subgraphs with lower Ψ*-values. The algorithm is greedy because it always chooses the step that brings the biggest decrease or the smallest increase of Ψ*. A step includes or excludes a node with all their links to the nodes already in a community while a local search is conducted as part of the memetic algorithm, and includes or excludes an individual link at the end of the run, i.e. when a sufficiently good community was found.
+
+The local search can begin by a series of either inclusions or exclusions of nodes (links). When no further improvement can be achieved, the search switches from inclusion to exclusion or vice versa. Inclusion and exclusion are continued until no further improvement is possible.
+
+The local search considers only new subgraphs outside the minimum range of the subgraph for which the search is conducted. In our current experiments, we set this range (the resolution parameter) at 1/3 of the size of the subgraph for which the search is performed. Therefore, the local search can go a number of steps through 'barriers' in the landscape (areas with higher Ψ*) before reaching lower values, which makes the algorithm more efficient. The maximum length of a 'tunnel' through a 'barrier' of higher Ψ*-values is determined by the set resolution. If the exclusion of nodes (links) fragments a subgraph, we proceed with the subgraph's main component.
+
+A greedy algorithm is efficient because the cost reduction for all possible cases of including a neighbour must be calculated only at the beginning of the local search. In the subsequent steps, we only calculate or recalculate cost reductions achieved by adding neighbours of the link (or node) included. Analogously, we proceed when excluding boundary nodes or links . Otherwise it would be more efficient to include or exclude just the first node (link) which reduces cost.
+
+Evolution
+
+The general implementation of the memetic algorithm is described by Algorithm [\ref=pseudcode-mem-evol]. The genetic operators of crossover, mutation, and selection (described below) are applied to each generation of communities. Subgraphs generated by crossover and mutation are adapted by a local search. If the starting subgraph is not connected we replace it by its main component. Evolution is terminated when no better best community is found for many generations.
+
+Genetic operators
+
+Mutation:
+
+We mutate a community C with mutation variance v  <  1 by changing maximally a proportion v of its nodes. This is done by randomly selecting a node in C, to which neighbours in C are randomly added until a connected subgraph of a size larger than (1  -  v)|C| is reached. To this subgraph, further random neighbours are added, which now can also be outside C. This random extension continues until a connected subgraph of size |C| is reached. The mutant is then subjected to two local searches, one each starting with greedy inclusion and exclusion of nodes. Thereby we obtain two communities from each mutation (which can be identical).
+
+Crossover:
+
+From two parent subgraphs we construct two new individuals by taking intersection and union of the subgraphs as starting points for adaptive local searches. Adapting the union is started with exclusion of nodes, adapting the intersection is started with inclusion of nodes. Of course, it has no effect to cross such parents where one of them is part of the other one. We also do not cross disjoint parents because we are interested in connected subgraphs as solutions.
+
+Normally, evolutionary algorithms include some randomness in the crossover, which in our case would mean to enlarge the intersection by some nodes from the union. In contrast, our crossing procedure is deterministic because the boundary of the union of two good communities should also be not too bad. The same holds for the intersection. Deterministic crossover should be (and is) done only once with the same parents.
+
+Selection:
+
+From the old population and the results of mutations and crossovers we select the communities with lowest Ψ*-values, keeping the population size constant. A new best community is only included if it is inside the range of the best community of the original population. Disregarding the best communities outside the range assures that we do not lose communities which can have a range above the resolution limit we apply. Deselected communities can be used as seeds for other memetic searches.
+
+Renewal:
+
+Renewal means to mutate the best community with high variance several times, to adapt the mutants, and to apply a usual selection procedure described above.
+
+Concluding remark
+
+In the forthcoming Part 2 of our paper we describe details of the data and of the experiments we did to test our approach and we discuss the test results.
+
+Acknowledgement
+
+This work is part of a project in which we develop methods for measuring the diversity of research. The project was funded by the German Ministry for Education and Research (BMBF). We would like to thank the members of the project's advisory group and also all developers of R. We thank Alexander Struck for assisting our work and for discussions about the new cost function.
+
+Appendix
+
+Connectivity measures
+
+In this section we derive the connectivity measures for link communities σ(L) and [formula] from analogue measures in the line graph. We closely follow the arguments given in our earlier paper [\cite=havemann2012evaluating].
+
+We here use [formula] to denote nodes and [formula] for links. With C(L) we name the set of nodes attached to links in L. If a link k belongs to L its membership μk(L) = 1 and zero otherwise.
+
+To construct a network's line graph we first define an auxiliary bipartite graph obtained by putting a node on each link of the original network. The affiliation matrix B of the bipartite graph--also called its incidence matrix--has a row for each of the n original nodes and a column for each of the m original links. Each link column contains only two non-zero elements, namely the elements in the rows of the nodes i and j connected by the link. We can project the bipartite graph back onto the original network with the product [formula] which equals its adjacency matrix A (except for the main diagonal).
+
+We obtain the network's line graph by the opposite projection [formula] of the bipartite graph. underline, that in all cases of practical intererest the line graph contains the same amount of information as the original network. Knowing [formula] we can almost ever calculate [formula] and thus also the network's adjacency matrix A.
+
+Because each node of the original network is represented as a clique in the line graph weighted the edges of the line graph with the inverse degree 1 / ki of the node i in the original network. They define the line graph's adjacency matrix as
+
+[formula]
+
+Weighting the line graph's edges with the inverse degrees of nodes in the original network is equivalent to an Euclidean normalisation of the nodes' vectors in the affiliation matrix B of the auxiliary bipartite graph. This becomes clear if we factorise the terms of the sum in equation [\ref=eq:E]:
+
+[formula]
+
+Then we can shortly write [formula] with [formula] and verify the Euclidean normalisation of the n row vectors of D (for unweighted networks for which we have B2ik = Bik):
+
+[formula]
+
+On the other hand, the projection of the normalised bipartite graph described by affiliation matrix D back on a network of the original nodes is given by [formula]. An element of adjacency matrix [formula] is given by
+
+[formula]
+
+Thus, Euclidean normalisation of B's row vectors is equivalent to weighting each link in the original (unweighted) network with the geometric mean of its nodes' inverse degrees. The weighted graph described by adjacency matrix E is not the line graph of the unweighted network described by adjacency matrix A but of the network weighted according to equation [\ref=eq:back-projection]. It depends on the real relations we model with the network whether this is a realistic weighting.
+
+Now we calculate internal connectivity τ(L) as the sum of internal degrees of vertices in the line graph:
+
+[formula]
+
+In the same way, we can calculate external connectivity σ(L) as the sum of external degrees in the line graph:
+
+[formula]
+
+Now we use the relations
+
+[formula]
+
+and
+
+[formula]
+
+which directly follow from the definition of the incidence matrix B. Thus, we get
+
+[formula]
+
+and
+
+[formula]
+
+From this we easily derive total connectivity of a link-induced subgraph as the sum
+
+[formula]
+
+Cost-landscapeof the bow-tie graph
+
+For the bow-tie graph we expect two link communities, namely the triangle {1,2,3} and its complement {4,5,6}, cf. Figure [\ref=bow-tie-app] and . To describe the 2m different possible subgraphs it is advantageous to make use of the spherical topology of any landscape of subgraphs. Indeed, the cost-function landscape of a graph's subgraphs can be seen as the surface of a globe
+
+with the whole and the empty graph at the poles,
+
+with all possible subgraphs of the same size on each circle of latitude, and
+
+with complementary subgraphs situated at antipodes.
+
+The neighbours of a place in the landscape can be reached by adding an element to the set of nodes (for node-induced subgraphs) or of links (for link-induced subgraphs), respectively, or by deleting an element from this set. That means, there are no direct relations between places on the same circle of latitude. Steps (adding or removing nodes or links) are moves between neighbouring circles of latitude.
+
+We define the north pole as corresponding to the empty subgraph and the south pole as corresponding to the whole graph. The Ψ*-globe of the bow-tie graph has five circles of latitude corresponding to six subgraphs with one link, 15 with two, 20 with three, 15 with four, and six with five links, respectively.
+
+For the empty graph at the north pole σ  =  0 and Ψ* = 1 (by definition). The six single links as the smallest real subgraphs are located at the highest circle of latitude. The two outer links 1 and 6 have [formula] and Ψ* = 0.6, the four inner links have σ  =  1  ·  1 / 2  +  1  ·  3 / 4  =  5 / 4 and Ψ* = 0.75.
+
+There are ten connected and five unconnected subgraphs with two links:
+
+four connected subgraphs with one outer link and one inner link (e.g. link set {1,2}) resulting in [formula] and Ψ*  ≈  0.469,
+
+six connected subgraphs with two inner links (e.g. link set {2,3}) and [formula] and Ψ* = 0.75,
+
+four unconnected subgraphs with one outer and one inner link (e.g. link set {1,4}) and σ  =  9 / 4 and Ψ*  ≈  0.844,
+
+one unconnected subgraph with two outer links ({1,6}) and σ  =  2 and Ψ* = 0.75.
+
+On the equator of the Ψ*-globe there are 20 triples of links which can be classified into four types:
+
+the triangle {1,2,3} and its complement {4,5,6} with [formula] and Ψ* = 1 / 3,
+
+four triples of inner links (e.g. link set {2,3,4}) and their unconnected complements (e.g. link set {1,5,6}) with σ  =  3 / 2  +  3 / 4  =  9 / 4 and Ψ* = 0.75,
+
+eight subgraphs with one of the two outer links, one of the two attached inner links and one of the two inner links not attached to the outer link (e.g. link set {1,2,4}): they all have [formula] and Ψ* = 2 / 3,
+
+the unconnected triple with one outer and two inner links (set {1,4,5}) and its unconnected complement (set {2,3,6}) with σ  =  3 and Ψ* = 1.
+
+On the two circles of latitude on the southern hemisphere we find the complements of the subgraphs on the northern hemisphere with the same Ψ*-values. Next to the equator we find 13 connected and two unconnected subgraphs with four links each:
+
+two unconnected quadruples with one triangle and the second outer link (e.g. link set {1,2,3,6}) which have σ = 2 and Ψ* = 0.75,
+
+the central star with all four inner links {2,3,4,5} with σ = 4/2 = 2 and Ψ* = 0.75,
+
+four subgraphs containing one of the two triangles plus one of the two inner links (e.g. link set {1,2,3,5}) which all have σ  =  1  ·  3 / 4  +  1  ·  1 / 2  =  5 / 4 and Ψ*  ≈  0.469,
+
+the four subgraphs with both outer links and two inner links connecting them (e.g. link set {1,2,5,6}) with σ  =  2 / 2  +  4 / 4  =  2 and Ψ* = 0.75,
+
+the four subgraphs with one outer link and three inner links (one of them attached to the outer link, e.g. link set {1,2,4,5}) with σ  =  3 / 2  +  3 / 4  =  9 / 4 and Ψ*  ≈  0.844.
+
+All complements of the six single links containing the five other links are connected and have the same Ψ*-values as their single-link complements (cf. above). The full graph at the south pole with σ  =  0 and Ψ* = 1 is connected.
+
+The Ψ*-landscape of links has two local minima: the two triangles have a locally and globally minimal Ψ* = 1 / 3. There are no other local minima. Thus, we obtain the pair of complementary triangles as the only solution.

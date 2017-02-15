@@ -1,0 +1,257 @@
+A continuation method for the efficient solution of parametric optimization problems in kinetic model reduction
+
+This work was supported by the German Research Foundation (DFG) through the Collaborative Research Center (SFB) 568 and by the Baden-Württemberg Stiftung via project HPC 11.
+
+Institute for Numerical Mathematics, University of Ulm, Helmholtzstraße 20, 89081 Ulm, Germany (dirk.lebiedz@uni-ulm.de, jochen.siehr@uni-ulm.de). Interdisciplinary Center for Scientific Computing (IWR), University of Heidelberg, Im Neuenheimer Feld 368, 69120 Heidelberg, Germany.
+
+A CONTINUATION METHOD IN MODEL REDUCTION
+
+Introduction
+
+Models including multiple time scales arise in many applications as e.g. combustion chemistry and biochemistry. The models under consideration are described by a system of ordinary differential equations (ODE). Model reduction methods for stiff multiple time scale ODE aim at an identification of the slow directions in the phase space of the system. After a short relaxation phase, the dynamics of the ODE model are mainly determined by the slow modes.
+
+The slow dynamics are often described by so-called slow invariant manifolds (SIM). In the phase space of the dynamical system under consideration, trajectories bundle on those SIM being attractors of nearby trajectories. These are hierarchically ordered with decreasing dimension towards stable equilibrium, and the dimension corresponds to the set of slow (large) time scales. Fenichel analyzes slow manifolds in context of singular perturbed systems of ODE in a series of articles [\cite=Fenichel1972] [\cite=Fenichel1974] [\cite=Fenichel1977] [\cite=Fenichel1979]. It is shown there that for a sufficiently large separation of time scales (a sufficiently small singular perturbation parameter) there exists a mapping from a compact subset of the subspace of slow variables into the subspace of fast variables. The graph of this mapping is the slow manifold.
+
+Many model reduction methods identify or approximate such SIM. The quasi steady state approximation identifies the slow manifold of singular perturbed systems of ODE by setting the singular perturbation parameter to zero [\cite=Bodenstein1907] [\cite=Chapman1913] [\cite=Segel1989]. The dynamics are only described by the differential algebraic equation that consists of the ODE for the slow variables and the implicit function relating the fast variables to the slow ones and defining the slow manifold. The ILDM method identifies a local SIM approximation based on an eigenvalue decomposition of the Jacobian of the right hand side of the ODE [\cite=Maas1992]. The CSP method identifies a local basis where fast and slow dynamics in the phase space are separated [\cite=Lam1994]. Many more methods for model reduction based on an analysis of a separation of time scales exist, see e.g. the review [\cite=Gorban2004].
+
+In this article, we discuss the development of an efficient application of a model reduction method based on optimization of trajectories to models including realistic detailed chemical combustion mechanisms. In Section [\ref=s:opt_more], we review the optimization problem for model reduction. The numerical optimization method to solve this optimization problem is explained in Section [\ref=s:opt]. A continuation method including the optimization method as corrector is introduced in Section [\ref=s:continuation]. Existence of a homotopy path is regarded as well as a step size strategy for efficient progress. In Section [\ref=s:results], results of an application to example problems are shown. The article is summarized in Section [\ref=s:conclusion] and an outlook is given.
+
+Optimization based model reduction
+
+An approach for model reduction based on optimization of trajectories is raised in [\cite=Lebiedz2004c]. The idea is to identify certain trajectories along which a criterion takes its minimum value that represents a mathematical characterization of slowness and attraction of nearby trajectories. This relaxation criterion is minimized subject to the constraints of the dynamics, the fixed parameters for parametrization of the SIM, and eventual conservation laws.
+
+Optimization problem
+
+In [\cite=Lebiedz2011a], it is shown for two specific models that the method identifies asymptotically the correct SIM. Here we stick near to the formulation chosen there. We denote the ODE that describe the dynamics of the kinetic system with
+
+[formula]
+
+where [formula] is the derivative of state vector z(t) at time t w.r.t. t. The function [formula] is assumed sufficiently smooth in an open domain [formula]. Conservation relations are valid for many models. Typically, these are restrictions to an initial value z(t0) for an initial value problem with the dynamics ([\ref=eq:dyn]) and represent the conservation of the mass of chemical elements in the system.
+
+A subset of state variables is usually chosen for parametrization of the SIM approximation. In our formulation, these variables zj(t*), [formula], which are called reaction progress variables or represented species, are fixed at t* to a certain value zt*j, [formula] with [formula]. The aim of a model reduction method that allows for species reconstruction is the computation of the corresponding unrepresented variables zj(t*), [formula], at t* leading to a local representation of the SIM.
+
+A general formulation of the optimization problem (similar to [\cite=Lebiedz2011a]) to compute an approximation of a SIM is given by This means, a trajectory (piece) z has to be identified on an interval
+
+[formula]
+
+in Eq. ([\ref=eq:gen_op:pv]). In some applications, positivity of the state variables has to be demanded explicitly to guarantee physical feasibility in the iterative solution algorithm for problem ([\ref=eq:gen_op]) as it is done in ([\ref=eq:gen_op:pos]).
+
+Objective function
+
+Various suggestions for a suitable objective functional Ψ have been made, especially in [\cite=Lebiedz2010]. In [\cite=Lebiedz2011a], the objective function
+
+[formula]
+
+with the integrand in the Lagrange term is used, where JS denotes the Jacobian of S.
+
+This might be motivated by the estimate where a small spectral norm [formula] relates to the attraction property of the SIM and a small [formula] relates to slowness.
+
+Local formulation
+
+The approximation of points on the SIM computed as solution of optimization problem ([\ref=eq:gen_op]) is often used e.g. in computational fluid dynamics (CFD) and other applications. In this context, a large number of approximation points of the SIM for different values of the reaction progress variables is needed. This means, problem ([\ref=eq:gen_op]) has to be solved repeatedly for a range of values of zt*j, [formula]. This is generally very time consuming.
+
+In this case, a local formulation (in time) can be used. It is given by (cf. [\cite=Girimaji1998])
+
+In the case of the objective function Ψ in ([\ref=eq:of]), optimization problem ([\ref=eq:gen_op]) is semi-infinite. A discretization method such as a collocation of orthogonal polynomials or a shooting approach has to be applied to project it into a finite nonlinear programming (NLP) problem. If ([\ref=eq:local_op]) is used, the optimization problem is a finite dimensional NLP problem, and the solution of the system dynamics ([\ref=eq:gen_op:dyn]) is dispensable. This problem can be solved directly with standard NLP software as sequential quadratic programming [\cite=Powell1978] or interior point [\cite=Forsgren2002] methods.
+
+Parametric optimization
+
+In the optimization problem which is solved for model reduction purposes, there is a parameter dependence in terms of the fixation of the reaction progress variables. Therefore, we consider parametric finite dimensional NLP problems in the following. The standard problem is given as where the objective function [formula], the equality constraint function [formula], and the inequality constraint function [formula] depend on the parameter vector r∈D̃ with both [formula], [formula] open. The Lagrangian function can be written as
+
+First order sensitivity results are given by the following theorem of Fiacco [\cite=Fiacco1976]. These results are used in context of real-time optimization, see e.g. [\cite=Bueskens2001], and nonlinear model predictive control, e.g. in [\cite=Ferreau2008] [\cite=Zavala2009], for embedding of neighboring solutions of a function of a parameter r.
+
+Let x* be a feasible point of ([\ref=eq:fd_op_param]) for which the KKT conditions are satisfied with Lagrange multipliers (λ*,μ*). Suppose further that where C is the critical cone. Then x* is a strict local minimizer for ([\ref=eq:fd_op_param]).
+
+See e.g. [\cite=Fletcher1981] [\cite=Nocedal2006].
+
+Let the functions f, g, and h in problem ([\ref=eq:fd_op_param]) be twice continuously differentiable in a neighborhood of (x*,0). Let the second order sufficient conditions hold (see Theorem [\ref=thm:ssc]) for a local minimum of ([\ref=eq:fd_op_param]) at x* with r = 0 and Lagrange multipliers λ*, μ*. Furthermore, let linear independence constraint qualification (LICQ) be valid in (x*,0) and strict complementary slackness, i.e. μ*i > 0 if hi(x*,0) = 0, [formula]. Then the following holds:
+
+The point x* is a isolated local minimizer of ([\ref=eq:fd_op_param]) with r = 0, and the associated Lagrange multipliers λ*, μ* are unique.
+
+For r in a neighborhood of 0, there exists a unique once continuously differentiable function (x(r),λ(r),μ(r)) satisfying the second order sufficient conditions for a local minimum of ([\ref=eq:fd_op_param]) such that and x(r) is a isolated local minimizer of ([\ref=eq:fd_op_param]) with Lagrange multipliers λ(r) and μ(r).
+
+Strict complementarity with respect to μ(r) and LICQ hold at x(r) for r near 0.
+
+See [\cite=Fiacco1976].
+
+Numerically, the inequality constraints ([\ref=eq:fd_op_param:ineq]) can be treated with either an active set (AS) strategy or an interior point (IP) method. In an AS strategy, the AS is updated in each iteration. Active constraints are considered as equality constraints, inactive constraints are omitted. By contrast, the objective function is modified with a barrier term eliminating the inequality constraints in an IP framework. Therefore, we only regard equality constraints in the following.
+
+The necessary optimality (KKT) conditions (stationarity of the Lagrangian function, feasibility, and complementarity) for problem ([\ref=eq:gen_pop]) can shortly be written as
+
+[formula]
+
+with e.g. for an active set method
+
+We are interested in the derivative of the solution (x*(r),λ*(r),μ*(r)) of ([\ref=eq:kkt_simple]) with respect to the parameters. The implicit function theorem yields The symbol [formula] denotes the partial derivative of f w.r.t. x. The same equation in matrix notation is
+
+[formula]
+
+The KKT matrix
+
+[formula]
+
+is nonsingular if LICQ and second order sufficient optimality conditions [\cite=Fletcher1981] [\cite=Nocedal2006] are fulfilled.
+
+Numerical solution of the optimization problem ([\ref=eq:local_op])
+
+The optimization problem ([\ref=eq:local_op]) is a constrained nonlinear least squares (CNLLS) problem of the form where the functions [formula], are supposed to be at least twice continuously differentiable in their open domain [formula]. The problem is solved iteratively: xk + 1  =  xk  +  tkdk, where [formula] is the increment and tk∈(0,1] the step length.
+
+In order to solve this CNLLS problem, we use a generalized Gauss-Newton (GGN) method as described in [\cite=Bock1987] [\cite=Stoer1971], where the step direction (increment) is computed as solution of the linearized optimization problem where Ji is the Jacobian matrix of Fi for i = 1,2.
+
+An AS strategy is used to treat inequality constraints. For globalization, we employ a filter method [\cite=Fletcher2002]. The filter is implemented as in [\cite=Waechter2005] [\cite=Waechter2006]. The most important feature of a filter is the fact, that a step is accepted if it improves the value of the objective function or the constraint violation. The combination of a GGN method with a filter method for globalization of convergence is new to our knowledge.
+
+To prevent the Maratos effect [\cite=Nocedal2006], we use a second order correction (SOC) as in [\cite=Waechter2005] [\cite=Waechter2006]. The SOC increment is computed as solution of the least squares problem, cf. [\cite=Nocedal2006]:
+
+If a trial point is not accepted by the filter after several reductions of the step size, a feasibility restoration phase is necessary. This can be done efficiently in context of a Gauss-Newton method. The aim of the feasibility restoration phase is the computation of a feasible point that is "near" to the last accepted iterate and acceptable to the updated filter.
+
+The goal to find a feasible point that is "near" to the last iterate x = xk can be written in context of GGN methods as the following CNLLS problem Problem ([\ref=eq:resto-CNLLS]) can be solved iteratively with an increment kl with the new iteration index l as solution of a CLLS optimization problem and initial value [formula]. The only difference between ([\ref=eq:resto-CLLS]) and problem ([\ref=eq:CLLS]) is the objective function, matrix factorizations, e.g. of J2, can be reused.
+
+Continuation strategy
+
+It is useful to follow the homotopy path of the zero of the KKT conditions in dependence of the reaction progress variables to solve families of optimization problems alike ([\ref=eq:gen_op]) for different parameters.
+
+In the following, we consider the finite dimensional parametric optimization problem where the functions [formula] and [formula] are C2(D) in the open domain [formula]. The fixed values of the reaction progress variables in ([\ref=eq:gen_pop:pv]) are denoted by the parameter vector [formula], ri = zt*j(i), [formula], nr < n - n2 with the notation of Equation ([\ref=eq:gen_op:pv]), where [formula], i  ↦  j(i) is a bijective map to the index set [formula] of the reaction progress variables.
+
+Parameter sensitivities in the GGN method
+
+If Newton's method together with an active set method is used to find a candidate solution of ([\ref=eq:gen_pop]), i.e. the computation of a root of K, the KKT matrix [formula] has to be computed in every iteration k. This is different if a generalized Gauss-Newton method is employed.
+
+We return to the notation used in Section [\ref=s:opt]: The objective function is written as [formula] with a sufficiently smooth function [formula]. The constraints are given as [formula], n̄2 = n2  +  nr  +  |A(x)| with and the active set A(x) in x. The Jacobian matrices of F1 and F2 are denoted as J1 and J2, respectively.
+
+In every iteration, the equation system
+
+[formula]
+
+is solved in the GGN method (where the argument xk is omitted and the vector λ is used for all equality and active inequality constraints); that is the KKT system of the CLLS problem ([\ref=eq:CLLS]), see Section [\ref=s:opt]. By contrast,
+
+[formula]
+
+is solved if Newton's method is applied to find a KKT point of the original CNLLS problem ([\ref=eq:CNLLS]). The derivative of the Lagrangian function of the CNLLS problem is [formula]. The difference in the KKT matrices in Equations ([\ref=eq:kkt-cnlls]) and ([\ref=eq:kkt-clls]) is the difference in the Hessians of the different Lagrangian functions: In the GGN method, [formula] is used; whereas Newton's method applied to the KKT conditions of the original CNLLS problem ([\ref=eq:CNLLS]) exploits
+
+[formula]
+
+where Fi2 is the i-th component of F2.
+
+In our application in chemical kinetics, the constraints F2 are given via conservation relations. In this case, the second derivative [formula] of Fi2 typically is zero. This might not be true, if an entry in F2 is a nonlinear equation in x representing an energy conservation law, see also [\cite=Lebiedz2013]. This means, the effort for computing Lxx instead of [formula] is mainly the effort to compute the expression [formula]. This can be evaluated using automatic differentiation [\cite=Griewank2000] as a directional derivative of J1 with respect to direction F1.
+
+Euler predictor
+
+If the approximation of points on the SIM is used in simulations in computational fluid dynamics, approximations of the tangent vectors of the SIM in these points are needed, too, see e.g. [\cite=Ren2007b]. These are given via the parameter sensitivities [formula] at the solution x* and z* of the optimization problems ([\ref=eq:gen_pop]) and ([\ref=eq:gen_op]), respectively. As these derivatives are available, we use the Euler prediction in a predictor corrector scheme for initialization of the optimization algorithm (corrector) to solve neighboring problems. In our case, this is the computation of a solution with the optimization algorithm for various parameter values of the reaction progress variables r.
+
+The prediction can be used in a homotopy method with a step size strategy. An effective step size strategy is published in [\cite=Heijer1981] and extensively discussed and modified in [\cite=Allgower1980] [\cite=Allgower1990] [\cite=Allgower1997]. We use the method as discussed in [\cite=Allgower1990]. The aim of the step length strategy of den Heijer and Rheinboldt [\cite=Heijer1981] is to achieve a desired number of iterations for the corrector step. The strategy allows for the computation of a step length based on the contraction rate of the latest corrector iterations and an error model for the corrector such that the desired number of iterations is achieved.
+
+We define a curve c as a mapping from the parameter space to the space of the primal and dual variables of ([\ref=eq:gen_pop])
+
+[formula]
+
+For each value of the parameter vector r, c(r) is the solution (x*(r),λ*(r)) of ([\ref=eq:gen_pop]).
+
+We denote the Euler predictor step
+
+[formula]
+
+The prediction c0i is used as initialization of the corrector to compute the solution of ([\ref=eq:gen_pop]). The corrector iterations are denoted with the corrector [formula]. It is assumed that the corrector iterations converge to the solution
+
+The sophisticated aspect in the work of den Heijer and Rheinboldt [\cite=Heijer1981] is the error model φ. This error model estimates the error of the iterates independently of h via an expression of the form The formula for the error model depends on the contraction rate of the corrector, see [\cite=Allgower1990], where we use the error model for the quadratically convergent Newton's method and for the linearly convergent GGN method.
+
+Linear step
+
+Optimization problem ([\ref=eq:gen_pop]) has to be solved many times for different values of the parameter r. Especially if the approximation of points on a SIM is needed in situ, e.g. in a CFD simulation, it is necessary to compute the solution of neighboring optimization problems fast.
+
+If the values [formula] for the reaction progress variables, for which a SIM approximation is needed, are near to the values r*
+
+[formula]
+
+for which the optimization problem is already solved, it can save computing time to use [formula] as approximation of the SIM. This is defined (in analogy to ([\ref=eq:Euler-prediction])) as
+
+[formula]
+
+where the notation is in accordance with the notation in ([\ref=eq:iop]), ri = zt*j(i), [formula], [formula], j is the bijection, and ri is the i-th component of r.
+
+Numerical results
+
+For numerical validation of our method, we use a test model for model reduction purposes. The reaction mechanism is given in Table [\ref=t:ICE]. We use thermodynamical data in form of coefficients of NASA polynomials we received from J. M. Powers and A. N. Al-Khateeb, which they use in [\cite=Al-Khateeb2010] [\cite=Al-Khateeb2009].
+
+The mechanism is published originally in [\cite=Li2004]. The simplified version shown in Table [\ref=t:ICE] is used by Ren et al. in [\cite=Ren2006a]. The mechanism consists of five reactive species and inert nitrogen, where in comparison to a full hydrogen combustion mechanism the species [formula], [formula], and [formula] are removed. The species are involved in six Arrhenius type reactions, where three combination/decomposition reactions require a third body for an effective collision. The reaction system is considered under isothermal and isobaric conditions at a temperature of [formula] and a pressure of [formula]. Hence, the state of the system is sufficiently described by the specific moles of the chemical species zi, [formula] in [formula].
+
+Conservation relations for the elemental mass in this model are given in terms of amount of substance as [\cite=Ren2006a]
+
+[formula]
+
+The total mass in the system can be computed with the values in Equation ([\ref=eq:ice-conserve]) and has a value of [formula].
+
+One-dimensional SIM approximation
+
+Results of an approximation of a one-dimensional SIM are shown in Figure [\ref=f:result1] and [\ref=f:result2]. We use [formula] as reaction progress variable and vary its value. The values of all remaining species at the solution of the different optimization problems are plotted versus [formula] in form of trajectories through the solution points z*(t*) which are shown as x marks. The computation is done with the GGN method as described in Section [\ref=s:opt].
+
+We use values near the equilibrium state as initial values in the optimization algorithm as we assume this point near a slow manifold. We set the values of the reaction progress variable near its initial value; see Table [\ref=t:init]. This allows for a fast computation of a solution of the first optimization problem with [formula].
+
+All computations are done on an Intel[formula] Core[formula] i5-2410M CPU with 2.30 GHz, operating system openSUSE 12.2 (x86_64) including the Linux kernel 3.4.11 and GCC 4.7.1. We do not use a step size strategy in the predictor corrector scheme. To compute the 17 points shown in Figure [\ref=f:result1], 74 iterations are necessary, which take in sum [formula].
+
+Figure [\ref=f:result2] is presented to illustrate the linear step approximation. For the computation of the three solutions (as [formula] is chosen) of the optimization problem with different values for [formula], 15 iterations are needed (in sum), which is slightly more effort per optimization problem than in the case, where the results are illustrated in Figure [\ref=f:result1], where the distance between the different values for [formula] is only 0.25. It can be seen that the result of the linear approximation can lead to large deviations from a smooth, invariant manifold.
+
+Warm start with step size strategy
+
+We want to demonstrate that a step size strategy for the warm start of the algorithm to solve neighboring optimization problems can have a benefit. So we consider the optimization problem ([\ref=eq:iop]) with [formula], [formula] to be solved for the nominal parameter [formula] with the shooting approach and Ipopt [\cite=Waechter2006]. As neighboring problem we consider the parameter [formula]. Such a large change in the parameter can occur e.g. if the presented method for model reduction is used in situ in a CFD simulation and grid refinements are performed in different regions of the spatial domain.
+
+We solve the optimization problem first with [formula] and second with [formula] with a full step method in the predictor corrector scheme and apply the Euler prediction.
+
+The computations are done on an Intel[formula] Core[formula] i5-2410M CPU with 2.30 GHz, operating system openSUSE 12.2 (x86_64) including the Linux kernel 3.4.11 and GCC 4.7.1. Six iterations in Ipopt [\cite=Waechter2006] have to be preformed to solve the nominal optimization problem and nine iterations to solve the second optimization problem. In sum, 15 iterations are necessary which take [formula] in sum.
+
+If we initialize the step size strategy, see Section [\ref=s:step_size_strategy], with initial step size [formula] and the desired number of iterations  = 10, we need one intermediate step in the predictor corrector scheme described in Section [\ref=ss:derivative-pred]. This is to solve the optimization problem with the parameter [formula]. In this case we need in sum 6 + 5 + 8 = 19 iterations that take only [formula]. The difference in the computation time arises as the point for initialization of the algorithm to solve the second optimization problem in the full step method is not near the solution such that the KKT matrix is ill-conditioned. The inertia correction in Ipopt, see [\cite=Waechter2006], is activated, and 19 line search iterations are performed in sum. In case of an activated step size strategy, the initial value for the algorithm to solve the optimization problem in case of a warm start is near the solution of the optimization problem such that no inertia correction and also 19 line search iterations (one per Newton iteration) are necessary in the presented example.
+
+For an efficient tracking of the SIM for different values of the reaction progress variables, it is important to stay close to the solution in neighboring optimization problems. Therefore, a step size strategy is beneficial.
+
+Two-dimensional SIM approximation
+
+We choose [formula] and [formula] as reaction progress variables. Numerical solutions of ([\ref=eq:iop]) for the reduction of the simplified model for hydrogen combustion are shown in Figure [\ref=f:ice2d].
+
+Local solutions of the optimization problem ([\ref=eq:iop]) approximate different two-dimensional SIM for different values of the reaction progress variables. The two two-dimensional SIM come close to each other. Such occurrences can lead to severe numerical problems in the optimization algorithms as well as in the continuation algorithms as there are regions where the KKT matrix might be singular at least in the range of machine precision.
+
+Optimization landscapes
+
+We want to further illustrate this situation via optimization landscapes, i.e. graphical representations of the objective function versus the (free) optimization variables.
+
+One reaction progress variable
+
+In Figure [\ref=f:ice-1d-log-land], the value of (the objective function of the optimization problem ([\ref=eq:local_op])) [formula] is plotted versus the two degrees of freedom in ([\ref=eq:local_op]) represented by z1 and z2 for one exemplary value of the one reaction progress variable [formula] for the simplified hydrogen combustion model.
+
+The Φ-axis has logarithmic scale. A single local solution of the optimization problem ([\ref=eq:local_op]) for the reduction of the simplified hydrogen combustion model can be seen.
+
+Two reaction progress variables
+
+To compute an optimization landscape in case of two reaction progress variables, we fix [formula]. We regard the value of [formula] (the objective function of the optimization problem ([\ref=eq:local_op])) in dependence of z3 for fixed z1.
+
+The results are shown in Figure [\ref=f:ice-2d-log-land]. It can be seen that there are two distinct local minima of [formula] for a fixed value of e.g. [formula]: There is no unique local solution of the optimization problem ([\ref=eq:local_op]) for the reduction of the simplified hydrogen combustion model with the reaction progress variables [formula] and [formula]. One solution is near the value [formula] and the other one near [formula].
+
+In this case the predictor corrector scheme helps to follow the desired local optimal solution in dependence of the reaction progress variables and not to switch to another curve c of local solutions. This is only possible as long as the KKT matrix is not "too ill-conditioned".
+
+Performance test
+
+We use the specific moles of [formula] and [formula] for the parametrization of a two-dimensional SIM approximation in a performance test.
+
+We consider a test situation of a two-dimensional grid of 108 points [formula], [formula], where points which violate mass conservation in combination with the positivity constraints are ignored such that 80 points remain.
+
+Solutions of the optimization problem ([\ref=eq:local_op]) computed with the GGN method with Euler prediction for initialization of the algorithm to solve neighboring problems are shown in Figure [\ref=f:result3] for illustration.
+
+In Table [\ref=t:comparison], we compare the performance of the algorithm using the different implemented solution methods. We use the generalized Gauss-Newton method as described in Section [\ref=s:GGN] for the solution of ([\ref=eq:local_op]). We solve the same problem with the interior point algorithm Ipopt [\cite=Waechter2006]. Third, we apply a shooting approach for the semi-infinite optimization problem ([\ref=eq:gen_op]) with [formula]. The NLP problem (after solving the ODE with the BDF integrator developed by D. Skanda in [\cite=Skanda2012]) is solved with Ipopt [\cite=Waechter2006]. As a fourth alternative, we use a simple Gauss-Radau collocation with linear polynomials (backward Euler) for ([\ref=eq:gen_op]) with [formula]. The resulting high-dimensional NLP problem is also solved with Ipopt [\cite=Waechter2006] in the latter case. For the optimization problem ([\ref=eq:iop]), an integration horizon of [formula] is used.
+
+An initialization of neighboring problems is done without step size control, as we evaluate the benefit of the Euler prediction here. The computations are done with the same computer configuration as in the example for a warm start with step size control in Section [\ref=ss:res_1d].
+
+It can be seen that the gain in the computation time achieved by the Euler prediction in case of the collocation method, where we use 100 collocation points, is the largest with about 46.5%. This is reasonable because of the strong dependence of the collocation method on the initialization on all collocation points in the time interval
+
+[formula]
+
+Conclusion
+
+In this article, we present a strategy for an efficient solution of parametric optimization problems that arise for a method for model reduction that is raised in [\cite=Lebiedz2004c] [\cite=Lebiedz2010] [\cite=Reinhardt2008].
+
+Two methods are tested to solve the semi-infinite optimization problem ([\ref=eq:iop]) for model reduction: collocation and shooting approaches. The resulting nonlinear programming problem is solved with a state-of-the-art open source interior point algorithm [\cite=Waechter2006]. It turns out that all variants for the solution of the semi-infinite optimization problem are too slow for an in situ application of the model reduction method in e.g. a computational fluid dynamics simulation.
+
+A finite optimization problem in form of a constrained nonlinear least squares problem can be formulated instead. This can be solved efficiently with a generalized Gauss-Newton method. A filter approach is used for globalization of convergence. Second order correction iterations prevent the Maratos effect. The problem that has to be solved in the feasibility restoration phase of the filter algorithm can also be formulated as a least squares problem such that matrix factorizations can be reused.
+
+Parameter sensitivities of the optimization problem are used in a homotopy method for the solution of neighboring problems. The reaction progress variables for parametrization of the slow manifold are considered as parameters in the optimization problem. The problem has to be solved several times for different values of the parameters. An Euler prediction of the solution of neighboring problems is employed based on the parameter sensitivities, which are computed to obtain an approximation of the tangent space of the slow manifold. This linear prediction can be used directly within a certain tolerance as an approximation of a point on the slow manifold. It can also be used in combination with a step size strategy. The step size is computed according to [\cite=Heijer1981] in dependence of the contraction of the corrector method - the solution method for the nonlinear programming problem - and the iterations needed to solve a previous optimization problem.
+
+We study the presented methods for a simplified model for hydrogen combustion. We find that a solution of the optimization problem for approximation of points on a slow manifold can be computed in short time for the presented example. Furthermore it can be seen that there might exist several distinct local solutions of the optimization problem. In such cases, the predictor corrector scheme helps to follow one local minimum in dependence of the chosen parametrization of the slow manifold.
+
+Such a solution strategy could also be used for variations in the model parameters as e.g. the mixture fraction, the internal energy, and others.

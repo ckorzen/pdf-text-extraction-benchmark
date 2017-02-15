@@ -1,0 +1,105 @@
+Image Denoising Using Low Rank Minimization With Modified Noise Estimation
+
+Introduction
+
+based image denoising in conjunction with the notion of non-locality has led to several state-of-the-art algorithms [\cite=buades2005non] [\cite=dabov2007image] [\cite=elad2006image] [\cite=mairal2009non] [\cite=Dongetal_SAIST_6319405]. These algorithms exploit certain prior knowledge like image redundancy and sparse representation of images in suitable transform domains. These assumptions are found to be generally true in case of natural images and greatly improve the denoising results.
+
+In addition to sparsity and redundancy priors, a low rank assumption has also been proposed recently in [\cite=Dongetal_SAIST_6319405] [\cite=GuWNNM6909762]. According to low rank prior, a matrix constructed by stacking non-local similar patches from a given noisy image resides in a low dimensional subspace of a high dimensional space and therefore satisfies the low rank criterion. Dong et al. [\cite=Dongetal_SAIST_6319405] introduced an iterative soft thresholding scheme (SAIST) using L1,2 grouped sparsity regularization to penalize the singular values of the low rank matrices. More recently, Gu et al. [\cite=GuWNNM6909762] have further explored the low rank prior using weighted nuclear norm minimization (WNNM). This algorithm exploits the physical significance of the singular values and treats them differently according to their respective magnitudes. Both low rank minimization algorithms [\cite=Dongetal_SAIST_6319405] [\cite=GuWNNM6909762] have produced outstanding denoising results by exploiting low rank prior confirming to its validity as a suitable assumption for image restoration problem.
+
+In this paper, we investigate WNNM algorithm for its noise estimation scheme. The motivation to consider the noise estimation relies on the fact that the residual noise is one of the key factors for subsequent computation of singular values and corresponding threshold weights which are the indispensable ingredients of low rank minimization schemes,in particular, for WNNM algorithm. WNNM algorithm estimates residual noise by comparing the grouped patch matrices in a given noisy image with the corresponding patch matrices in its denoised version obtained in the previous iteration. In practice, this difference is intuitively assumed to be the noise. However, this assumption may not be generally true, in particular, for the images with the complex geometric structures [\cite=Liu_GNOISE_EST_6466947].
+
+In order to obtain a more reliable estimate of residual noise, we note that the geometric structure of the image should also be taken into account. To the best of our knowledge, this aspect of residual noise estimation for WNNM algorithm has remained unnoticed up to now. By considering the proposed contribution to the existing residual noise estimation, we have obtained remarkable improvements in the denoising results of the original WNNM algorithm for most of the test images. In particular, for moderate and high levels of noise these improvements are quite significant.
+
+We also propose to reinforce edges and texture during iterative denoising by splitting the singular value decomposition (SVD) into low and high components. Subsequently, two denoised images are obtained using low and high components of the SVD, respectively. The difference of these two images is used as feedback to reinforce edges and textural regions during iterative denoising process. This modification further enhances the denoising capability of the proposed algorithm.
+
+The rest of the paper is organized as follows. We briefly describe low rank minimization algorithm for image denoising in Sec. [\ref=sec:WNNM_2]. The proposed algorithm and its implementation are presented in Sec. [\ref=sec:PoposedAlgo_3]. Experimental settings and results are described in Sec. [\ref=sec:results4]. Finally, conclusions are drawn in Sec. [\ref=sec:Conc5].
+
+Low Rank Minimization for image denoising
+
+We consider the well known image denoising problem
+
+[formula]
+
+where [formula] is the original image to be recovered from the noisy observed image [formula] and [formula] is an additive white Gaussian noise with known standard deviation σn. In terms of patch based formulation, non-local similar patches are searched for local patch yj at each pixel location j in the observed image. Afterwards, the patches similar to a patch yj can be stacked to construct a matrix yj. Using patch based formulation, the original problem ([\ref=eq:noisyimage]) can be expressed as [\cite=GuWNNM6909762]
+
+[formula]
+
+where xj and nj denote the corresponding patch matrices of original image and additive noise, respectively.
+
+The patch matrix xj defined in ([\ref=eq:MatrixFormofProblem]) is intuitively assumed to be a low rank matrix because of the image redundancy and similarity prior [\cite=Dongetal_SAIST_6319405]. Thus, a noise free patch can be recovered by using low rank minimization. However, low rank minimization is a non-convex NP hard problem [\cite=CaiCandes_SVDThr] [\cite=Candes:2011:RPC:1970392.1970395]. Therefore, nuclear norm minimization (NNM) has been heuristically proposed as its convex regularization which can be written as [\cite=GuWNNM6909762] [\cite=CaiCandes_SVDThr]
+
+[formula]
+
+where [formula] is the nuclear norm defined using the singular values λi of the matrix [formula] and [formula] denotes Frobenius norm. Convexity of the reformulated problem ([\ref=eq:NNM_form]) assures the global optimal solution through singular value decomposition [\cite=CaiCandes_SVDThr]
+
+[formula]
+
+where θ denotes a soft threshold applied to all the singular values λi of the matrix [formula] without considering the importance of the large and small singular values.
+
+To consider physical significance of singular values, Gu et al. [\cite=GuWNNM6909762] proposed weighted nuclear norm minimization (WNNM) algorithm which replaces [formula] by [formula] in ([\ref=eq:NNM_form]) where [formula] is the weighted nuclear norm and the weights wi are defined as [\cite=GuWNNM6909762]
+
+[formula]
+
+where c > 0 is a constant and m is the number of non-local patches similar to the given patch yj. To avoid possible division by zero, we set the constant ε = 10- 16. Note that in this case, the solution is similar to ([\ref=eq:NNM_solution]) with the exception that Λθ is now written as
+
+[formula]
+
+It can be observed from ([\ref=eq:weightedthreshold]) and ([\ref=eq:WNNM_solution]), the larger singular values are less penalized as compared to the smaller ones in accordance with the basic requirement of the image denoising. However, the global optimal solution is not guaranteed because WNNM becomes a non-convex problem due to the non-descending threshold weights wi [\cite=GuWNNM6909762]. Nevertheless, Gu et al. [\cite=GuWNNM6909762] have shown that iteratively, this optimization scheme reaches its local minimum fixed point solution.
+
+Proposed Algorithm
+
+In the following, we describe how the existing residual noise estimation used in [\cite=Dongetal_SAIST_6319405] [\cite=GuWNNM6909762] can be further enhanced by considering the proposed modification.
+
+Proposed Noise Estimation Method
+
+Due to the pivotal role of residual noise, it is highly desirable to quantify the amount of noise left in the current denoised image for further processing in the next iteration. This remaining noise is termed as residual noise in this paper. The variance of the residual noise for next iteration (k + 1) can be defined as the difference between the variance of the initial given white Gaussian noise σ2n and that of the filtered noise [formula] at previous iteration k. In WNNM algorithm, the variance of the filtered noise is estimated by comparing grouped patches matrix at location j in the given noisy image [formula] and the corresponding matrix in its previously denoised version [formula]. For simplicity, the variance of filtered noised can be expressed at image level as [\cite=Dongetal_SAIST_6319405]
+
+[formula]
+
+By using ([\ref=eq:varianceFilteredNoise]), Dong et al. [\cite=Dongetal_SAIST_6319405] proposed an intuitive estimate for the standard deviation of the residual noise as
+
+[formula]
+
+where σ(k + 1)res denotes the estimated standard deviation of the residual noise present at (k + 1)th iteration. The constant γ > 0 is a scaling factor, heuristically introduced to control the re-estimation of the standard deviation [\cite=Dongetal_SAIST_6319405]. Using this noise estimate, the singular values of local patch matrix yj(k + 1) are adjusted as [\cite=GuWNNM6909762]
+
+[formula]
+
+It is important to note that the noise estimation approach ([\ref=eq:residualNoise_WNNM]) utilizes l2 norm ([\ref=eq:varianceFilteredNoise]) which is sensitive to outliers, more specifically, in the presence of severe noise. More importantly, the difference ([\ref=eq:varianceFilteredNoise]) between a given noisy image and its filtered version is intuitively taken as noise. However, this assumption may not be generally true, in particular, for the images with the complex geometric structures [\cite=Liu_GNOISE_EST_6466947]. In fact, the filtered noise also contains some geometric structure which is lost during denoising. Thus, the above expression of residual noise ([\ref=eq:residualNoise_WNNM]) needs certain modification to account for the geometric details of the previously denoised image for residual noise estimation. In order to identify the image structure in terms of patches, Zhu and Milanfar [\cite=ZHU_MILANFAR_WEAKTEXTURE5484579] proposed the diagonalization of gradient covariance matrix C for each patch yj. The covariance matrix C is defined as [\cite=ZHU_MILANFAR_WEAKTEXTURE5484579]
+
+[formula]
+
+where T denotes the gradient vector at location l within the patch yj. The large and small eigenvalues of the covariance matrix C represent the directions of maximum and minimum variations in the image structure, respectively. Yan-Li et al. [\cite=Liu_GNOISE_EST_6466947] utilized this concept of gradient covariance matrices to identify the weak textured patches for the estimation of the noise variance in a given noisy image. The standard deviation, σ(k)geom, of the noise is subsequently estimated by applying PCA to these weak textured patches iteratively. We propose to consider this geometric contribution in residual noise estimation as
+
+[formula]
+
+Finally, the modified noise estimate is expressed as a convex combination of geometric ([\ref=eq:residualNoise_global]) and non-geometric contributions ([\ref=eq:residualNoise_WNNM])
+
+[formula]
+
+where α∈(0,1) is tuned experimentally according to the initially given standard deviation σ̂(0)res  =  σn. For low levels of initial noise (σn < 30), we choose α = 0.9 and for moderate and severe noise levels [formula], we set α = 0.8. The relatively smaller value of α for [formula] indicates that the previous noise estimation ([\ref=eq:residualNoise_WNNM]) is significantly affected due to higher levels of given noise and is subjected to larger correction from the geometric counterpart. Fine tuning of α is also possible according to different noise levels. However, our primary objective is to highlight the importance of the proposed modification. Subsequently, the singular values can now be adjusted by plugging ([\ref=eq:combinedNoiseEstimate]) into ([\ref=eq:EstimatedSingularValues]).
+
+Edge and Texture Enhancement
+
+Due to thresholding ([\ref=eq:WNNM_solution]), some of the smaller singular values may eventually reduce to zero or very close to zero. However, we propose to utilize these values in the feedback step for edge and texture reinforcement as follows. We identify large and small singular values by setting a threshold τ and then split the truncated matrix [formula] as
+
+[formula]
+
+where [formula] and [formula] contain only large and small singular values of yj, respectively. The optimal solution ([\ref=eq:WNNM_solution]) can then be re-written as
+
+[formula]
+
+As a result of this splitting, we construct two corresponding images [formula] and [formula] which contain high and low energy components, respectively. By exploiting intrinsic nature of these two images, the difference image [formula] can be associated to sharpness and contrast enhancement. Also the noise level is gradually reduced in these two images, iteratively. Thus, the edges and texture may become more clear in the difference image at each iteration. Therefore, we intuitively propose to use this difference in the feedback step to preserve and enhance geometric details of the image during iterative denoising. Experimental results confirm the effectiveness of the proposed modification as well.
+
+The summary of the proposed algorithm is provided in Algorithm [\ref=alg:algo1].
+
+Experimental Results
+
+We consider eleven frequently used standard images to compare the proposed algorithm (GWNNM) with various state-of-the-art algorithms: BM3D [\cite=dabov2007image], LSSC [\cite=mairal2009non], SAIST [\cite=Dongetal_SAIST_6319405], WNNM [\cite=GuWNNM6909762]. We use PSNR values for comparison which are reported in [\cite=GuWNNM6909762].
+
+We use the same default values of the parameters which were selected in WNNM, heuristically, depending upon the initially given noise level [\cite=GuWNNM6909762]. Therefore we skip the details of those parameters due to space limitation. However, we have set the size of search window ([formula]) instead of ([formula]) for all the images of size [formula]. In fact, block matching process in WNNM is computationally very expensive and in case of [formula] for [formula] images, the computational cost is much greater than that of [formula] image. Furthermore, it is pointed out in [\cite=salmon2010two] that selecting larger size of search window has no major benefit in denoising results except for pseudo-periodic images like fingerprint image. Therefore, for fingerprint image we use the same value of [formula] as used in WNNM. The setting of new parameter α has already been explained in the previous section. The other two parameters η and τ are experimentally selected as 0.01 and 0.5, respectively.
+
+The comparison of the denoising results is described in Table. [\ref=tb:ComparisonPSNR] and the best results are highlighted using bold faced values. Also, a limited comparison of visual quality for BM3D, WNNM and GWNNM algorithms is shown in Fig. [\ref=fig:house_barbara_n50] at noise level σn = 50. As shown in Table. [\ref=tb:ComparisonPSNR] that WNNM and GWNNM perform always better than the rest of the algorithms. For low noise (σn = 10) the performance of GWNNM is in general equivalent to WNNM. It is reasonable because the filtered noise ([\ref=eq:varianceFilteredNoise]) contains negligible signatures of geometric details and needs only a small correction from geometric estimate ([\ref=eq:residualNoise_global]). However, for high noise levels ([formula]), GWNNM generally performs better than WNNM. In particular, at σn = 100, the improvements in PSNR values are greater than 0.1 dB for the images of house, jelly beans, peppers, Lena, Barbara and fingerprint. Thus, the improved results, in particular, for geometrically rich and complex images like Barbara, fingerprint, house and Lena, support our assumption that the estimation of residual noise needs modification due to geometric structure of the image.
+
+Conclusion
+
+We have highlighted the importance of residual noise estimation for low rank optimization to further improve the results. Further we have proposed a method to make the noise estimate more precise by using geometrical structure of a given noisy image. Alternate effective approaches for noise estimation also exist and can be utilized. However, our primary intent was to indicate the deficiency in the existing residual noise estimation scheme which only exploits filtered noise in the previous iteration without considering the geometric details present in the filtered noise.

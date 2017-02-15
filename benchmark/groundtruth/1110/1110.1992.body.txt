@@ -1,0 +1,53 @@
+|econst@csd.auth.gr| |gkakaron@teilar.gr| |stamelos@csd.auth.gr|
+
+Open Source Software: How Can Design Metrics Facilitate Architecture Recovery?
+
+Introduction
+
+Software Architecture is considered 'the set of structures needed to reason about the system, which comprise software elements, relations among them, and properties of both' [\cite=Clements2010]. However, open source software documentation does not always facilitate system understanding. Consequently, developers have to inspect the system's source code in order to reuse it. Since source code is available, design metrics can be used for architecture recovery of open source systems [\cite=Buschmann1996].
+
+While most architecture recovery techniques mainly focus on clustering and pattern-based techniques, our approach is based on static source code analysis [\cite=Constantinou2011]. We use the Directed Acyclic Graph(DAG) of the system, produced from static analysis, and derive D-layers (DAG Layers). D-Layers are subsets of classes, where subsets at higher D-Layer depend only on the subset of classes in lower D-layer and not vice versa. Although architectural layers cannot reveal classes' role in the system (user interface, domain class, etc.), they can provide a starting point for the actual layer recovery. Since there is significant statistical variations in D-Layer metrics, we use design metrics to predict D-layers and form tentative architectural layers. D-layer prediction is accomplished using machine learning techniques, and more specifically classification rules generation relating metric values to architecture layers.
+
+Methodology
+
+Software systems following layered architecture are usually consisted of four layers: User Interface (4), Controllers (3), Business Logic (2) and Infrastructure (1). Our initial hypothesis is that classes in different layers have different functional behavior and dependencies with classes in other layers. User Interface classes are focused in information presentation and interaction with system users, while they obtain information from classes in Controller layer. Business Logic layer is consisted of domain-specific classes that use Infrastructure Layer classes for data storage or other general-purpose services.
+
+Our methodology steps are:
+
+Form the DAG of the system using static analysis to derive D-layers.
+
+Arbitrarily combine consecutive D-layers to form four groups of tentative architectural layers
+
+Calculate the Chidamber and Kemerer metrics for each class of the system.
+
+Calculate the correlation of the indicative metrics of architectural layers to the current architectural partition
+
+Extract classification rules that utilize design metrics to predict layers.
+
+Chidamber and Kemerer [\cite=Chidamber1999] metrics measure class-level properties and are calculated by Chidamber and Kemerer Java Metrics (ckjm) software package [\cite=Spinellis2005]. Our methodology includes Weighted Methods per Class (WMC), Depth of Inheritance Tree (DIT), Number of Children (NOC), Coupling Between Object (CBO), Response For a Class (RFC), Lack of Cohesion in Methods (LCOM), Afferent Coupling (Ca) and Number of Public Methods (NPM).
+
+The validation of our methodology for each architecture layer is based on the following measures: Precision: the number of correctly classified instances, divided by the total number of instances classified in this layer. Recall: the number of correctly classified instances, divided by the total number of instances of this layer.
+
+Results
+
+Next, we provide a description of the data used for the validation of the proposed method. We apply our method to four large open source systems written in Java, JabRef, Jbpm, RapidMiner and SweetHome3D. JabRef [\cite=JabRef] is an open source bibliography reference manager which consists of 3265 classes, Jbpm [\cite=Jbpm] is a flexible business project management suite consisted of 627 classes, RapidMiner [\cite=RapidMiner] is a data analysis and data mining system consisted of 4389 classes and SweetHome3D [\cite=SweetHome3D] is a free interior design application consisted of 1284 classes.
+
+Initially, we extract classes' D-layers using Classycle [\cite=Classycle] and the corresponding design metric values using ckjm. Some descriptive statistics are shown for JabRef, Jbpm, RapidMiner and SweetHome3D in Tables [\ref=table_metrics_JabRef]- [\ref=table_metrics_SweetHome3D].
+
+Next, Spearman correlation coefficient is calculated to reveal correlations among the metrics and the results are illustrated in Tables [\ref=table_cor_JabRef]-[\ref=table_cor_SweetHome3D]. While different design metrics appear to be correlated to D-layer, DIT, CBO, RFC, LCOM and Ca are always correlated to D-layer in all datasets.
+
+D-layer and correlated variables are discretized to categorical variables. D-layer is binned to four categories, one per tentative architecture layer. Variables are discretized using Minimal Description Length Principle (MDLP) discretization according to D-layer. Finally, classification rules are generated to predict the architecture layer of a class, D-layer. The discretized values are imported to Weka [\cite=Hall2009] and JRip classification algorithm is applied. The classification rules generated for each project are shown in Appendix [\ref=classification_rules].
+
+The generated rules can partially reveal classes' behavior in respect to the architecture layer. For User Interface classes, D-layer 4, rules state that they must have low LCOM and low/medium DIT. We would suspect that User Interface classes should have such attributes since their main purpose is to interact with the system's user. For D-layer 3, JRip produced rules that consider Controller classes should have relatively low CBO and Ca. This assumption is expected since Controller classes are responsible for obtaining business logic data and passing them to User Interface classes. We would expect that Business Logic classes should have high DIT, CBO and WMC. JRip rules partially confirm our hypothesis, since rules for D-layer 2 include relatively high CBo and WMC. Finally, Infrastructure classes' rules show relatively low CBO and RFC since their main purpose is data storage.
+
+In terms of precision and recall, Table [\ref=table_accuracy_measures] shows the results for each project. CK metrics and JRip classification rules achieve attribute representation according to architecture layer, but they cannot form a solid classification criterion. For example, D-layer 3 and 4 classification rules for Jbpm and D-layer 4 for SweetHome3D are not able to recover layers' classes. The reason why higher architectural layers recovery cannot always be established, could be systems' tentative architectural decomposition.
+
+Conclusion and Future Research Directions
+
+This work aims to verify that object-oriented metrics can reveal architectural layer information. Our methodology is tested on four large open source software systems to recover their architectural layers. The results confirmed that several design metrics can assist in systems' architectural recovery. More precisely, DIT, CBO, RFC, LCOM and Ca appear to be correlated to the architecture layer in our datasets. However, our methodology requires further improvement to capture classes' behavior in all architectural layers.
+
+Concluding, this work verified our assumption that design metrics can assist architecture layer recovery. Our following research includes further improvements, such as weight attribution to metric contribution and more metrics that could assist architecture recovery.
+
+Classification Rules
+
+JabRef Classification Rules 1. IF (CBOBin = 4) and (NPMBin = 5) and (WMCBin = 5) and (CaBin = 1) THEN layerBin=3 2. IF (CBOBin = 4) and (WMCBin = 5) and (CaBin = 2) THEN layerBin=3 3. IF (CaBin = 1) and (WMCBin = 4) and (CBOBin = 3) and (RFCBin = 4) THEN layerBin=2 4. IF (WMCBin = 4) and (CaBin = 1) and (CBOBin = 3) and (NPMBin = 5) and (LCOMBin = 2) THEN layerBin=2 5. IF (WMCBin = 4) and (CBOBin = 3) and (CaBin = 1) and (NPMBin = 4) THEN layerBin=2 6. IF (WMCBin = 4) and (CBOBin = 3) and (NPMBin = 1) and (RFCBin = 5) and (CaBin = 2) THEN layerBin=2 7. IF (WMCBin = 3) and (LCOMBin = 1) and (NPMBin = 2) THEN layerBin=4 8. IF (CBOBin = 4) and (DITBin = 2) THEN layerBin=4 9. IF (WMCBin = 3) and (LCOMBin = 1) and (CBOBin = 3) and (NPMBin = 3) THEN layerBin=4 10. IF (CBOBin = 4) and (NOCBin = 1) and (LCOMBin = 1) and (NPMBin = 3) THEN layerBin=4 11. IF (NPMBin = 4) and (CBOBin = 3) and (LCOMBin = 2) and (NOCBin = 1) and (CaBin = 2) THEN layerBin=4 12. IF (RFCBin = 6) and (NPMBin = 4) and (LCOMBin = 1) THEN layerBin=4 13. IF (CBOBin = 4) and (NOCBin = 1) and (RFCBin = 6) and (WMCBin = 4) and (CaBin = 3) and (NPMBin = 4) THEN layerBin=4 14. IF (WMCBin = 3) and (CaBin = 2) and (CBOBin = 2) and (LCOMBin = 2) THEN layerBin=4 15. IF (CBOBin = 4) and (NOCBin = 1) and (RFCBin = 6) and (WMCBin = 4) and (NPMBin = 5) and (CaBin = 1) THEN layerBin=4 16. ELSE layerBin=1 Jbpm Classification Rules 1. IF (DITBin = 2) and (CBOBin = 3)THEN layerBin=2 2. IF (CBOBin = 3) and (RFCBin = 2) THEN layerBin=2 3. IF (DITBin = 2) and (CBOBin = 2) THEN layerBin=2 4. ELSE layerBin=1 RapidMiner Classification Rules 1. IF (CBOBin = 5) and (CaBin = 2) and (DITBin = 2) and (RFCBin = 4) and (LCOMBin = 1) THEN layerBin=4 2. IF (CBOBin = 1) and (RFCBin = 3) THEN layerBin=1 3. IF (CBOBin = 2) and (CaBin = 3) and (RFCBin = 3) and (DITBin = 1) THEN layerBin=1 4. IF (CBOBin = 2) and (LCOMBin = 2) and (CaBin = 1) and (DITBin = 1) THEN layerBin=1 5. IF (DITBin = 1) and (CBOBin = 1) and (CaBin = 1) THEN layerBin=1 6. IF (DITBin = 1) and (CBOBin = 1) and (CaBin = 3) THEN layerBin=1 7. IF (CBOBin = 2) and (CaBin = 4) THEN layerBin=1 8. IF (CaBin = 1) and (LCOMBin = 2) THEN layerBin=3 9. IF (LCOMBin = 3) and (CaBin = 1) THEN layerBin=3 10. IF (DITBin = 2) and (LCOMBin = 1) and (CBOBin = 5) THEN layerBin=3 11. IF (DITBin = 2) and (CaBin = 2) and (CBOBin = 3) and (LCOMBin=1) THEN layerBin=3 12. IF (CaBin = 2) and (RFCBin = 4) and (CBOBin = 5) THEN layerBin=3 13. ELSE layerBin=2 SweetHome3D Classification Rules 1. IF (CBOBin = 1) and (CaBin = 2) and (RFCBin = 1) THEN layerBin=1 2. IF (CaBin = 2) and (CBOBin = 1) and (NPMBin = 2) and (WMCBin = 2) THEN layerBin=1 3. ELSE layerBin=3

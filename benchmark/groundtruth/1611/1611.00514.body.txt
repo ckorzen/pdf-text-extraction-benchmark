@@ -1,0 +1,121 @@
+The Intelligent Voice 2016 Speaker Recognition System
+
+Introduction
+
+Compared to previous years, the 2016 NIST speaker recognition evaluation (SRE) marked a major shift from English towards Austronesian and Chinese languages. The task like previous years is to perform speaker detection with the focus on telephone speech data recorded over a variety of handset types. The main challenges introduced in this evaluation are duration and language variability. The potential variation of languages addressed in this evaluation, recording environment, and variability of test segments duration influenced the design of our system. Our goal was to utilize recent advances in language normalization, domain adaptation, speech activity detection and session compensation techniques to mitigate the adverse bias introduced in this year's evaluation.
+
+Over recent years, the i-vector representation of speech segments has been widely used by state-of-the-art speaker recognition systems [\cite=dehak2011front]. The speaker recognition technology based on i-vectors currently dominates the research field due to its performance, low computational cost and the compatibility of i-vectors with machine learning techniques. This dominance is reflected by the recent NIST i-vector machine learning challenge [\cite=greenberg2014nist] which was designed to find the most promising algorithmic approaches to speaker recognition specifically on the basis of i-vectors [\cite=khosravani2014linearly] [\cite=novoselov2014stc] [\cite=vesnicer2014incorporating] [\cite=khoury2014hierarchical]. The outstanding ability of DNN for frame alignment which has achieved remarkable performance in text-independent speaker recognition for English data [\cite=lei2014novel] [\cite=kenny2014deep], failed to provide even comparable recognition performance to the traditional GMM. Therefore, we concentrated on the cepstral based GMM/i-vector system.
+
+We outline in this paper the Intelligent Voice system, techniques and results obtained on the SRE 2016 development set that will mirror the evaluation condition as well as the timing report. Section [\ref=sec:data] describes the data used for the system training. The front-end and back-end processing of the system are presented in Sections [\ref=sec:frontend] and [\ref=sec:backend] respectively. In Section [\ref=sec:results], we describe experimental evaluation of the system on the SRE 2016 development set. Finally, we present a timing analysis of the system in Section [\ref=sec:timing].
+
+Training Condition
+
+The fixed training condition is used to build our speaker recognition system. Only conversational telephone speech data from datasets released through the linguistic data consortium (LDC) have been used, including NIST SRE 2004-2010 and the Switchboard corpora (Switchboard Cellular Parts I and II, Switchboard2 Phase I,II and III) for different steps of system training. A more detailed description of the data used in the system training is presented in Table [\ref=tab:data-nist]. We have also included the unlabelled set of 2472 telephone calls from both minor (Cebuano and Mandarin) and major (Tagalog and Cantonese) languages provided by NIST in the system training. We will indicate when and how we used this set in the training in the following sections.
+
+Front-End Processing
+
+In this section we will provide a description of the main steps in front-end processing of our speaker recognition system including speech activity detection, acoustic and i-vector feature extraction.
+
+Speech Activity Detection
+
+The first stage of any speaker recognition system is to detect the speech content in an audio signal. An accurate speech activity detector (SAD) can improve the speaker recognition performance. Several techniques have been proposed for SAD, including unsupervised methods based on a thresholding signal energy, and supervised methods that train a speech/non-speech classifier such as support vector machines (SVM) [\cite=mesgarani2006discrimination] and Gaussian mixture models (GMMs) [\cite=ng2012developing]. Hidden markov models (HMMs) [\cite=pfau2001multispeaker] have also been successful. Recently, it has been shown that DNN systems achieve impressive improvement in performance especially in low signal to noise ratios (SNRs) [\cite=ryant2013speech]. In our work we have utilized a two-class DNN-HMM classifier to perform this task. The DNN-HMM hybrid configuration with cross-entropy as the objective function has been trained with the back-propagation algorithm. The softmax layer produces posterior probabilities for speech and non-speech which were then converted into log-likelihoods. Using 2-state HMMs corresponding to speech and non-speech, frame-wise decisions are made by Viterbi decoding. As input to the network, we fed 40-dimensional filter-bank features along with 7 frames from each side. The network has 6 hidden layers with 512 units each. The architecture of our DNN-HMM SAD is shown in Figure [\ref=fig:DNN-SAD]. Approximately 100 hours of speech data from the Switchboard telephony data with word alignments as ground-truth were used to train our SAD. The DNN training in performed on an NVIDIA TITAN X GPU, using Kaldi software [\cite=povey2011kaldi]. Evaluated on 50 hours of telephone speech data from the same database, our DNN-HMM SAD indicated a frame-level miss-classification (speech/non-speech) rate of 5.9% whereas an energy-based SAD did not perform better than 20%.
+
+Acoustic Features
+
+For acoustic features we have experimented with different configurations of cepstral features. We have used 39-dimensional PLP features and 60-dimensional MFCC features (including their first and second order derivatives) as acoustic features. Moreover, our experiments indicated that the combination of these two feature sets performs particularly well in score fusion. Both PLP and MFCC are extracted at 8kHz sample frequency using Kaldi [\cite=povey2011kaldi] with 25 and 20 ms frame lengths, respectively, and a 10 ms overlap (other configurations are the same as Kaldi defaults). For each utterance, the features are centered using a short-term (3s window) cepstral mean and variance normalization (ST-CMVN). Finally, we employed our DNN-HMM speech activity detector (SAD) to drop non-speech frames.
+
+i-Vector Features
+
+Since the introduction of i-vectors in [\cite=dehak2011front], the speaker recognition community has seen a significant increase in recognition performance. i-Vectors are low-dimensional representations of Baum-Welch statistics obtained with respect to a GMM, referred to as universal background model (UBM), in a single subspace which includes all characteristics of speaker and inter-session variability, named total variability matrix [\cite=dehak2011front]. We trained on each acoustic feature a full covariance, gender-independent UBM model with 2048 Gaussians followed by a 600-dimensional i-vector extractor to establish our MFCC- and PLP-based i-vector systems. The unlabeled set of development data was used in the training of both the UBM and the i-vector extractor. The open-source Kaldi software has been used for all these processing steps [\cite=povey2011kaldi].
+
+It has been shown that successive acoustic observation vectors tend to be highly correlated. This may be problematic for maximum a posteriori (MAP) estimation of i-vectors. To investigating this issue, scaling the zero and first order Baum-Welch statistics before presenting them to the i-vector extractor has been proposed. It turns out that a scale factor of 0.33 gives a slight edge, resulting in a better decision cost function [\cite=kenny2013plda]. This scaling factor has been performed in training the i-vector extractor as well as in the testing.
+
+Back-End Processing
+
+This section provides the steps performed in back-end processing of our speaker recognition system.
+
+Nearest-neighbor Discriminant Analysis (NDA)
+
+The nearest-neighbor discriminant analysis is a nonparametric discriminant analysis technique which was proposed in [\cite=fukunaga1983nonparametric], and recently used in speaker recognition [\cite=Sadjadi2016]. The nonparametric within- and between-class scatter matrices w and b, respectively, are computed based on k nearest neighbor sample information. The NDA transform is then formed using eigenvectors of - 1wb. It has been shown that as the number of nearest neighbors k approaches the number of samples in each class, the NDA essentially becomes the LDA projection. Based on the finding in [\cite=Sadjadi2016], NDA outperformed LDA due to the ability in capturing the local structure and boundary information within and across different speakers. We applied a [formula] NDA projection matrix computed using the 10 nearest sample information on centered i-vectors. The resulting dimensionality reduced i-vectors are then whitened using both the training data and the unlabelled development set.
+
+Short-Duration Variability Compensation
+
+The enrolment condition of the development set is supposed to provide at least 60 seconds of speech data for each target speaker. Nevertheless, our SAD indicates that the speech content is as low as 26 seconds in some cases. The test segments duration which ranges from 9 to 60 seconds of speech material can result in poor performance for lower duration segments. As indicated in Figure [\ref=fig:Duration], more than one third of the test segments have speech duration of less than 20 seconds. We have addressed this issue by proposing a short duration variability compensation method. The proposed method works by first extracting from each audio segment in the unlabelled development set, a partial excerpt of 10 seconds of speech material with random selection of the starting point (Figure [\ref=fig:short]). Each audio file in the unlabelled development set, with the extracted audio segment will result in two 400-dimensional i-vectors, one with at most 10 seconds of speech material. Considering each pair as one class, we computed a [formula] LDA projection matrix to remove directions attributed to duration variability. Moreover, the projected i-vectors are also subjected to a within-class covariance normalization (WCCN) using the same class labels.
+
+Language Normalization
+
+Language-source normalization is an effective technique for reducing language dependency in the state-of-the-art i-vector/PLDA speaker recognition system [\cite=mclaren2012language]. It can be implemented by extending SN-LDA [\cite=mclaren2012source] in order to mitigate variations that separate languages. This can be accomplished by using the language label to identify different sources during training. Language Normalized-LDA (LN-LDA) utilizes a language-normalized within-speaker scatter matrix [formula] which is estimated as the variability not captured by the between-speaker scatter matrix,
+
+[formula]
+
+where [formula] and B are the total scatter and normalized between-speaker scatter matrices respectively, and are formulated as follows:
+
+[formula]
+
+where N is the total number of i-vectors and
+
+[formula]
+
+where L is the number of languages in the training set, Sl is the number of speakers in language l, l(s) is the mean of nls i-vectors from speaker s and language l and finally l is the mean of all i-vectors in language l. We applied a [formula] SN-LDA projection matrix to reduce the i-vector dimensions down to 300.
+
+PLDA
+
+Probabilistic Linear Discriminant Analysis (PLDA) provides a powerful mechanism to distinguish between-speaker variability, separating sources which characterizes speaker information, from all other sources of undesired variability that characterize distortions. Since i-vectors are assumed to be generated by some generative model, we can break it down into statistically independent speaker- and session-components with Gaussian distributions [\cite=garcia2011analysis] [\cite=kenny2010bayesian]. Although it has been shown that their distribution follow Student’s t rather than Gaussian [\cite=kenny2010bayesian] distributions, length normalizing the entire set of i-vectors as a pre-processing step can approximately Gaussianize their distributions [\cite=garcia2011analysis] and as a result improve the performance of Gaussian PLDA to that of heavy-tailed PLDA [\cite=kenny2010bayesian]. A standard Gaussian PLDA assumes that an i-vector [formula], is modelled according to
+
+[formula]
+
+where, [formula] is the mean of i-vectors, the columns of matrix [formula] contains the basis for the between-speaker subspace, the latent identity variable [formula] denotes the speaker factor that represents the identity of the speaker and the residual [formula] which is normally distributed with zero mean and full covariance matrix [formula], represents within-speaker variability.
+
+For each acoustic feature we have trained two PLDA models. The first out-domain PLDA ([formula],[formula]) is trained using the training set presented in Table [\ref=tab:data-nist], and the second in-domain PLDA ([formula],[formula]) was trained using the unlabelled development set. Our efforts to cluster the development set (e.g using the out-domain PLDA) was not very successful as it sounds that almost all of them are uttered by different speakers. Therefore, each i-vector was considered to be uttered by one speaker. We also set the number of speaker factors to 200.
+
+Domain Adaptation
+
+Domain adaptation has gained considerable attention with the aim of compensating for cross-speech-source variability of in-domain and out-of-domain data. The framework presented in [\cite=garcia2014unsupervised] for unsupervised adaptation of out-domain PLDA parameters resulted in better performance for in-domain data. Using in-domain and out-domain PLDA trained in Section [\ref=sec:PLDA], we interpolated their parameters as follow:
+
+[formula]
+
+We chose α = 0.10 for making our submission.
+
+Score Computation and Normalization
+
+For the one-segment enrolment condition, the speaker model is the length normalized i-vector of that segment, however, for the three-segment enrolment condition, we simply used a length-normalized mean vector of the length-normalizated i-vectors as the speaker model. Each speaker model is tested against each test segment as in the trial list. For each two trial i-vectors [formula] and [formula], the PLDA score is computed as
+
+[formula]
+
+in which
+
+[formula]
+
+[formula]
+
+and [formula] and [formula]. It has been shown and proved in our experiments that score normalization can have a great impact on the performance of the recognition system. We used the symmetric s-norm proposed in [\cite=kenny2010bayesian] which normalizes the score s of the pair (w1,w2) using the formula
+
+[formula]
+
+where the means μ1,μ2 and standard deviations σ1,σ2 are computed by matching w1 and w2 against the unlabelled set as the impostor speakers, respectively.
+
+Quality Measure Function
+
+It has been shown that there is a dependency between the value of the Cmindet threshold and the duration of both enrolment and test segments. Applying the quality measure function (QMF) [\cite=novoselov2014stc] enabled us to compensate for the shift in the Cmindet threshold due to the differences in speech duration. We conducted some experiments to estimate the dependency between the Cmindet threshold shift on the duration of test segment and used the following QMF for PLDA verfication scores:
+
+[formula]
+
+where t is the duration of the test segment in seconds.
+
+Calibration
+
+In the literature, the performance of speaker recognition is usually reported in terms of calibrated-insensitive equal error rate (EER) or the minimum decision cost function (Cmindet). However, in real applications of speaker recognition there is a need to present recognition results in terms of calibrated log-likelihood-ratios. We have utilized the BOSARIS Toolkit [\cite=brummer2011bosaris] for calibration of scores. Cmindet provides an ideal reference value for judging calibration. If Cdet - Cmindet is minimized, then the system can be said to be well calibrated.
+
+The choice of target probability (Ptar) had a great impact on the performance of the calibration. However, we set Ptar = 0.0001 for our primary submission which performed the best on the development set. For our secondary submission Ptar = 0.001 was used.
+
+Results and Discussion
+
+In this section we present the results obtained on the protocol provided by NIST on the development set which is supposed to mirror that of evaluation set. The results are shown in Table [\ref=tab:primary]. The first part of the table indicates the result obtained by the primary system. As can be seen, the fusion of MFCC and PLP (a simple sum of both MFCC and PLP scores) resulted in a relative improvement of almost 10%, as compared to MFCC alone, in terms of both Cdet and Cmindet. In order to quantify the contribution of the different system components we have defined different scenarios. In scenario A, we have analysed the effect of using LDA instead of NDA. As can be seen from the results, LDA outperforms NDA in the case of PLP, however, in fusion we can see that NDA resulted in better performance in terms of the primary metric. In scenario B, we analysed the effect of using the short-duration compensation technique proposed in Section [\ref=sec:short]. Results indicate superior performance using this technique. In scenario C, we investigated the effects of language normalization on the performance of the system. If we replace LN-LDA with simple LDA, we can see performance degradation in MFCC as well as fusion, however, PLP seems not to be adversely affected. The effect of using QMF is also investigated in scenario D. Finally in scenario E, we can see the major improvement obtained through the use of the domain adaptation technique explained in Section [\ref=sec:domain]. For our secondary submission, we incorporated a disjoint portion of the labelled development set (10 out of 20 speakers) in either LN-LDA and in-domain PLDA training. We evaluated the system on almost 6k out of 24k trials from the other portion to avoid any over-fitting, particularly important for the domain adaptation technique. This resulted in a relative improvement of 11% compared to the primary system in terms of the primary metric. However, the results can be misleading, since the recording condition may be the same for all speakers in the development set.
+
+Time Analysis
+
+This section reports on the CPU execution time (single threaded), and the amount of memory used to process a single trial, which includes the time for creating models from the enrolment data and the time needed for processing the test segments. The analysis was performed on an Intel(R) Xeon(R) CPU E5-2670 2.60GHz. The results are shown in Table [\ref=tab:time]. We used the time command in Unix to report these results. The user time is the actual CPU time used in executing the process (single thread). The real time is the wall clock time (the elapsed time including time slices used by other processes and the time the process spends blocked). The system time is also the amount of CPU time spent in the kernel within the process. We have also reported the memory allocated for each stage of execution. The most computationally intensive stage is the extraction of i-vectors (both MFCC- and PLP-based i-vectors), which also depends on the duration of the segments. For enrolment, we have reported the time required to extract a model from a segment with a duration of 140 seconds and speech duration of 60 seconds. The time and memory required for front-end processing are negligible compared to the i-vector extraction stage, since they only include matrix operations. The time required for our SAD is also reported which increases linearly with the duration of segment.
+
+Conclusions and Perspectives
+
+We have presented the Intelligent Voice speaker recognition system used for the NIST 2016 speaker recognition evaluation. Our system is based on a score fusion of MFCC- and PLP-based i-vector/PLDA systems. We have described the main components of the system including, acoustic feature extraction, speech activity detection, i-vector extraction as front-end processing, and language normalization, short-duration compensation, channel compensation and domain adaptation as back-end processing. For our future work, we intend to use the ALISP segmentation technique [\cite=chollet1999toward] in order to extract meaningful acoustic units so as to train supervised GMM or DNN models.

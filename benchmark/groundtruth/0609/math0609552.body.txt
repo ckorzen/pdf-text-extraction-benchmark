@@ -1,0 +1,339 @@
+Fact
+
+On an algorithm to decide whether a free group is a free factor of another
+
+The combinatorial aspects of group theory have attracted the attention of theoretical computer scientists for a long time, and for a variety of reasons. There is no need to recall the importance of the concept of monoid (e.g. free, finite) in the theory of automata since the foundational results of Schützenberger and Eilenberg (see the books [\cite=PinBook] [\cite=Almeida]), and groups form a special case of monoids that sometimes play an important role in purely language- and monoid-theoretic questions (e.g. the type II conjecture, see [\cite=HMPR] for a survey). Algorithmic questions (the word problem, the conjugacy problem, .) have been very influential in group theory throughout the 20th century, starting from the work of Dehn, and specialists of combinatorics on words find a particular interest in the challenges posed by the analogous combinatorics of the free group. Recent work on important non-commutative groups like the Thompson group and the so-called automata groups strongly relies on the formalism of finite state automata (see [\cite=cleary] [\cite=KambitesSS] [\cite=SilvaSteinberg] for recent examples). It is already a classical result that these automata-theoretic and combinatorial points of view converge in the (admittedly simpler) study of the subgroups of free groups, this is central in the algorithmic problem tackled here and is discussed in detail in the first part of this paper.
+
+Let us also mention another reason for the recent multiplication of research projects on the boundary between computer science and combinatorial group theory. Public-key cryptography relies heavily on group theory: sometimes finite groups such as the groups of units in modular arithmetic, or the groups of rational points on elliptic curves over finite fields, sometimes infinite non-commutative groups like the braid groups (see for instance [\cite=sidelnikov] [\cite=anshel] [\cite=dehornoy] and many others). At any rate, the design of more robust cryptographic schemes and the attack of such schemes rely on a deeper understanding of the combinatorial and algorithmic properties of non-commutative groups.
+
+As mentioned above, the combinatorial and algorithmic problems concerning free groups are of special interest. Free groups are archetypal groups, whose structure is far from being totally elucidated, and the efficient solution of standard problems in their context can shed some light on the possible solution of the same problems in more complex groups. Moreover, the solution of algorithmic problems in free groups may be more attainable since we can use the resources of combinatorics on words and automata theory.
+
+We now present the specific algorithmic problem addressed in this paper. For the classical facts about free groups recorded below without a reference, we refer the reader to the book by Lyndon and Schupp [\cite=LS]. It is well-known that the minimal sets of generators, or bases, of a free group F all have the same cardinality, called the rank of F. Moreover, if F has finite rank r, every r-element generating set of F is a basis, see [\cite=LS]. In this paper, we consider only finite rank free groups.
+
+Let H be a subgroup of a free group F, written H  ≤  F. Then H itself is a free group whose rank may be greater than the rank of F. We say that H is a free factor of F, written [formula], if there exist bases B of H and A of F such that B  ⊆  A (free factors can be defined in all groups by a universal property, but the operational definition given here is sufficient for the purpose of this study). It is well known that one can decide whether a given finite rank subgroup H  ≤  F is a free factor of F, but the known algorithms have a rather high time complexity. More precisely, the best of these algorithms require time that is polynomial in the size of H and exponential in the rank of F, see Section [\ref=whitehead] below for the details. Here, the size of H is taken to be the sum of the lengths of a finite set of generators of H in F.
+
+We propose a new algorithm to decide whether a given finitely generated subgroup H is a free factor of the free group F, which is polynomial in the size of H and exponential in the rank difference between F and H. In many instances, this represents a substantial advantage over exponential dependency in the rank of F.
+
+Our algorithm relies essentially on a careful analysis of the construction of the graph representation of H. More precisely, once a basis A of the ambient free group F is fixed, there is a natural and elegant representation of the finitely generated subgroups of F by A-labeled graphs (or inverse automata). This construction -- a graphical representation of ideas that go back to the early part of the twentieth century [\cite=Rotman] -- was made explicit by Serre [\cite=Serre] and Stallings [\cite=Stallings]. It has been used to great profit by many authors since the late 1970s, see [\cite=MargolisMeakin] [\cite=Ventura] [\cite=MargolisSapirWeil] [\cite=KapovichMiasnikov] for recent examples. Given a finite set of generators of H (as reduced words over the alphabet [formula]), the graph representation of H can be effectively constructed (see [\cite=Stallings], [\cite=MargolisSapirWeil], ). The number of vertices and edges of this graph is bounded above by [formula], the sum of the lengths of a set of generators of H, and the whole representation can be computed in time at most [formula] (in fact, in time [formula] according to a recent announcement by Touikan [\cite=Touikan]). We discuss this representation in more detail in Section [\ref=representation] below, and we show in Sections [\ref=careful] and [\ref=sec_deciding] how to use it to decide more efficiently the free factor relation.
+
+It is interesting to note that our algorithm is the first to be expressed entirely in terms of the graph representation of H. Let us also emphasize that we do not claim that our algorithm is optimal. It is an open question whether one can decide the free factor relation [formula] in time polynomial both in the size of H and in the size, or the rank of K.
+
+Background
+
+If A is a basis of a free group F, we often write F  =  F(A) and we represent the elements of F as reduced words over the alphabet A. More precisely, we consider the set of all words on the symmetrized alphabet [formula], where A- 1  =  {a- 1|a∈A} is a set that is disjoint from A, equipped with an explicit bijection with A, namely a  ↦  a- 1. It is customary to extend the mapping u  ↦  u- 1 to all words u∈Ã* by letting (a- 1)- 1  =  a for each a∈A, 1- 1  =  1 (where 1 denotes the empty word) and [formula] for all [formula]. A word in Ã* is reduced if it contains no factor of the form aa- 1 or a- 1a with a∈A, and it is well known that F can be identified with the set of reduced words over A. We denote by ρ the map that assigns to each word u the corresponding reduced word uρ∈F(A), obtained by iteratively deleting all factors of the form aa- 1 or a- 1a (a∈A).
+
+On inverse automata
+
+We describe the main tool for the representation of subgroups of free groups in terms of automata (see [\cite=PerrinHB]). Readers less familiar with this terminology may think of automata as edge-labeled directed graphs.
+
+An automaton on alphabet A is a triple of the form A  =  (Q,q0,E) where Q is a finite set called the state set, q0∈Q is the initial state, and E  ⊆  Q  ×  A  ×  Q is the set of edges, or transitions. A transition (p,a,q) is said to be from state p, to state q, with label a. The label of a path in A (a finite sequence of consecutive transitions) is the sequence of the labels of its transitions, a word on alphabet A, that is, an element of the free monoid A*. We write [formula] if there is a path from state p to state q with label u. The language accepted by A is the set L(A) of all words in A* which label a path in A from q0 to q0.
+
+This definition of automata leads naturally to the definition of a homomorphism φ from an automaton A  =  (Q,q0,E) to an automaton A'  =  (Q',q'0,E') (over the same alphabet A): φ is a mapping from Q to Q' such that φ(q0)  =  q'0, and such that whenever (p,a,q)∈E, we also have (φ(p),a,φ(q))∈E'. The homomorphism φ is an isomorphism if it is a bijection and if φ- 1 is also a homomorphism.
+
+The automaton A is called deterministic if no two distinct edges with the same initial state bear the same label, that is,
+
+[formula]
+
+The automaton is called trim if every state q∈Q lies in some path from q0 to q0.
+
+In the sequel, we consider automata where the alphabet is symmetrized, that is, the alphabet is of the form [formula]. We say that A is dual if for each a∈A, there is an a-labeled edge from state p to state q if and only if there is an a- 1-labeled edge from q to p,
+
+[formula]
+
+Let us immediately record the following fact.
+
+Let A be a deterministic dual automaton. If a word u labels a path in A from state p to state q, then so does the corresponding reduced word uρ. Moreover L(A) is a submonoid of Ã* and L(A)ρ is a subgroup of F(A).
+
+Now let A  =  (Q,q0,E) be a trim dual automaton and let p,q∈Q be states of A. If [formula] is a non-empty word, the expansion of A by (p,w,q) is the automaton obtained from A by adding n  -  1 vertices [formula] and 2n edges
+
+[formula]
+
+and
+
+[formula]
+
+Note that this automaton is still trim and dual. Moreover, if p  =  q  =  q0, then we observe the following.
+
+Let C be the dual automaton consisting of the state q0 and the states and edges added to A in the expansion. It is immediate that L(C)ρ is the subgroup of F(A) generated by wρ.
+
+If u∈L(B), we can factor a path [formula] according to the successive visits of state q0. The resulting factorization of u makes it clear that u is a product of elements of L(A) and L(C). Thus, L(B) is the submonoid generated by [formula], and L(B)ρ is the subgroup generated by L(A)ρ and wρ. This concludes the proof.
+
+Reduced inverse automata
+
+The automaton A is called inverse if it is deterministic, trim and dual. It is reduced if every state q∈Q lies in some path from q0 to q0, labeled by a (possibly empty) reduced word. We note the following result, a cousin of [\cite=Stephen].
+
+Let A  =  (Q,q0,E) and B  =  (P,p0,D) be reduced inverse automata such that L(A)ρ  =  L(B)ρ. We construct an isomorphism φ between A and B as follows. We first let φ(q0)  =  p0.
+
+Let q∈Q. Since A is reduced, there exist reduced words u and v such that the word uv is reduced, [formula] and [formula]. Then uv∈L(A)ρ, so uv∈L(B)ρ, and hence uv∈L(B) by Fact [\ref=fact_11]. Thus uv labels a path in B from p0 to p0, and we let φ(q) be the unique state in P such that [formula].
+
+We first verify that φ is well defined. Suppose that uv and u'v' are reduced words such that [formula] and [formula] in A. We want to show that if [formula] and [formula] in B, then p  =  p'. We note that u'v labels a path from q0 to q0 in A. If u'v is a reduced word, then by the same reasoning as above, u'v labels a path in B from p0 to p0, say, [formula] and the deterministic property of B implies that p'  =  p''  =  p.
+
+If u'v is not reduced, and a is the first letter of v, then the last letter of u' is a- 1 while the last letter of u is not a- 1. Therefore u'u- 1 is reduced, u'u- 1∈L(A) and again, there is a path in B of the form [formula]. By determinism, it follows that p'  =  p''  =  p.
+
+This shows that φ is well defined. A dual construction yields a well-defined mapping ψ from P to Q such that, whenever [formula] in B and uv is a reduced word, then [formula] in A. Using the determinism of A and B, it is now immediate that [formula] is the identity on Q and [formula] is the identity on P.
+
+There remains to verify that φ and φ- 1 are homomorphisms. The case of φ- 1 is dual of that of φ and we treat only the latter. That is, we want to show that if (q,a,q') is a transition in A, then (φ(q),a,φ(q')) is a transition in B. Let uv and u'v' be reduced words such that [formula] and [formula]. In particular, we have [formula] and [formula] in B.
+
+If uav' is reduced, then in B, there is a path from p0 to p0 labeled uav', and by determinism, there is a transition (φ(q),a,φ(q')). If uav' is not reduced, then either ua is not reduced or av' is not reduced. If ua is not reduced, then u  =  u1a- 1 and by determinism, [formula]. As in the first part of the proof, it follows that at least one of u1v' and u1u'- 1 is reduced, so [formula] in B and hence there is a transition (φ(q),a,φ(q')). The case where av' is not reduced is handled symmetrically, and this concludes the proof.
+
+Let H be a subgroup of F(A). Say that an automaton A on alphabet A represents H if A is reduced and inverse and if L(A)ρ  =  H. Proposition [\ref=prop_unique] shows that there exists at most one such automaton, and we denote it by ΓA(H) if it exists. We now discuss the existence and the construction of ΓA(H) when H is finitely generated. (As it turns out, ΓA(H) always exists, but our interest in this paper is restricted to the finite rank case.)
+
+Let A be an automaton and let p,q be distinct states of A. The automaton obtained from A by identifying states p and q is constructed as follows: its state set is [formula], where n is a new state; its initial state is q0 (or n if p or q is equal to q0); and its set of transitions is obtained from E by replacing everywhere p and q by n. If A is trim or dual, then so is the automaton obtained from A by identifying a pair of states.
+
+Now let A be a dual automaton. If A is not deterministic, there exist transitions (r,a,p) and (r,a,q) with p  ≠  q and a∈Ã. Identifying p and q yields a new dual automaton B, and we say that B is obtained from A by an elementary reduction of type 1.
+
+Let A be a dual automaton and let B be obtained from A by an elementary reduction of type 1. Then L(A)ρ  =  L(B)ρ.
+
+It is easily seen that L(A)  ⊆  L(B). For the converse, we use the notation given above: in B, the states p and q of A are replaced with a new state n. Let u∈L(B). Then there exists a path labeled u from the initial state of B (say, q0) to itself. If that path does not visit state n, then u also labels a path from q0 to itself in A and hence u∈L(A).
+
+If that path does visit state n, we consider the factorization of u given by the passage of that path through n: we have [formula], r  ≥  1 and
+
+[formula]
+
+It follows that in A, ui-labelled paths exist, with end states p or q (or q0). Then one of u0 and u0a- 1a labels a path in A from q0 to q. Similarly, one of ur and a- 1aur labels a path from q to q0 (making due allowance if p or q is equal to q0). And for each 1  ≤  i  ≤  r, one of ui, a- 1aui, uia- 1a and a- 1auia- 1a labels a path in A from q to q. Therefore, there exists a path in A of the form [formula] such that uρ  =  vρ, which concludes the proof.
+
+Now assume that A is a deterministic dual automaton.
+
+Let A be an inverse automaton. Then A is non-reduced if and only if there exist states q  ≠  q0 and p, and a letter a∈Ã such that the only transitions of A involving q are (p,a,q) and (q,a- 1,p).
+
+In graph-theoretic terms, this means that A is reduced if and only if no vertex of A has degree one (more precisely: no vertex is adjacent to a single A-labeled edge), except possibly q0.
+
+By definition, A is not reduced if and only if there exists a state q that does not lie on any path from q0 to itself, labeled by a reduced word. We first observe that the state q cannot be equal to q0 since the empty word is reduced, and labels a path from q0 to itself. Suppose now that there exist reduced words u,v with distinct last letters, labeling paths from q0 to q: then uv- 1 is a reduced word, labeling a path from q0 to itself and visiting q. On the other hand, if every reduced word labeling a path from q0 to q ends with, say, letter a∈Ã, then every path from q0 to itself visiting q has a non-reduced label. Thus A is not reduced if and only if there exists a state q  ≠  q0 and every reduced word labeling a path from q0 to q ends with the same letter. By determinism, this is equivalent to the existence of another state p such that the transitions involving q are (p,a,q) and (q,a- 1,p).
+
+Let A be inverse and not reduced, and let a,p,q be as in Fact [\ref=reduction11]. If B is obtained from A by omitting state q and the transitions involving it, we observe that B is again an inverse automaton, and we say that B is obtained from A by an elementary reduction of type 2.
+
+Let A be an inverse automaton and let B be obtained from A by an elementary reduction of type 2. Then L(A)ρ  =  L(B)ρ.
+
+Let a be a letter and let p,q be states of A as in Fact [\ref=reduction11], and let us assume that B is obtained from A by omitting state q and the transitions involving it. It is easily seen that L(B)  ⊆  L(A). Conversely, let u∈L(A). By Fact [\ref=fact_11], uρ∈L(A). Now Fact [\ref=reduction11] shows that the path [formula] in A cannot visit state q, since uρ is a reduced word. It follows that this path is also a path in B, uρ∈L(B) and hence uρ∈L(B)ρ.
+
+Let A be a trim, dual automaton, and let B be an automaton obtained by iteratively performing elementary reductions, first of type 1 until the automaton is inverse, and then of type 2 until none is possible. Then B is a reduced inverse automaton, we write B  =  Aρ and we say that B is obtained from A by reduction. Moreover, Facts [\ref=reduction1] and [\ref=reduction2] show that L(A)ρ  =  L(B)ρ.
+
+This leads directly to the well-known algorithm to construct a reduced inverse automaton representing a given finitely generated subgroup H. Let [formula] be generators of H, and let us consider the automaton obtained from the trivial automaton (one vertex q0, no transitions) by performing successively expansions by (q0,hi,q0) (1  ≤  i  ≤  n) and then reducing the automaton. It follows from Propositions [\ref=H(A)] and [\ref=prop_unique] that the resulting automaton is ΓA(H). Note that it does not matter which set of generators of H was used, nor in which order the elementary reductions were performed.
+
+There is a well-known converse to the above construction: if A is a reduced inverse automaton and H  =  L(A)ρ, then H has finite rank and a basis for H can be computed as follows (see Stallings [\cite=Stallings]). Given a spanning tree T of the (graph underlying the) automaton A, for each state p, let up be the reduced word labeling a path from q0 to p inside the tree T. For each transition e  =  (p,a,q), let be  =  upau- 1q: then a basis of H consists of the elements be, where e runs over the transitions e  =  (p,a,q) not in T and such that a∈A.
+
+We note that, given a finite set [formula] of elements of F(A) with total length [formula], one can construct ΓA(H) in time at most [formula] and ΓA(H) has [formula] states. Moreover, finding a basis of H can be done in time at most O(v2) (O(v log *v) according to Touikan's announcement [\cite=Touikan]), and the rank of H is equal to e - v + 1, where e is the number of edges in ΓA(H).
+
+On the complexity of Whitehead and other algorithms
+
+It is well known that one can decide, given a subgroup H of a finite rank free group F, whether H is a free factor of F. We briefly describe here the main known algorithms and discuss their complexity.
+
+Let H be a finitely generated subgroup of a free group F of rank r, with basis A. Let [formula] be a generating set of H. By the results summarized in Fact [\ref=end_of_sec_12], up to a quadratic time computation, we may assume that [formula] is a basis of H. Let [formula] be the total length of the tuple (hi)i, and let d  =  r  -  n be the rank difference between F and H - which we assume to be positive, since H can be a proper free factor of F only if n  <  r.
+
+Federer and Jónsson (see [\cite=LS]) gave the following observation and decision procedure: H is a free factor of F if and only if there exist d words [formula], each of length at most max {|hi||1  ≤  i  ≤  n}, such that [formula] generate the whole of F. The resulting algorithm requires testing every suitable d-tuple of reduced words on alphabet A. Each of these tests (does a certain r-tuple of words generate F?) takes time polynomial in the total length of the r-tuple, and hence in [formula]. However, the number of tests is [formula], which is exponential in [formula] and d.
+
+This approach leads to the following.
+
+Deciding whether [formula] is in NP, with respect to [formula].
+
+To verify that [formula], we need to guess d words of length at most [formula], and verify that together with H, they generate F, which can be done in [formula].
+
+Another approach is based on the use of Whitehead automorphisms. We refer the readers to [\cite=LS] for the definition of these automorphisms, it suffices to note here that the set W of Whitehead automorphisms of F which do not preserve length, has exponential cardinality (in terms of r). A result of Whitehead [\cite=LS] shows the following: if there exists an automorphism φ of F such that the total length of (φ(hi))i is strictly less than [formula], then there exists such an automorphism in W. In particular, an algorithm to compute the minimum total length of an automorphic image of the tuple (hi)i consists in repeatedly applying the following step: try every automorphism ψ∈W until the total length of (ψ(hi))i is strictly less than the total length of (hi)i; if such a ψ exists, replace (hi)i by (ψ(hi))i; otherwise, stop and output the total length of (hi)i.
+
+This applies to the decision of the free factor relation since [formula] if and only if there exists an automorphism φ mapping a basis of H to a subset of A. Thus an algorithm consists in first computing a basis of H, and assuming that [formula] is a basis, verifying whether the minimum total length of (φ(hi))i when φ runs over the automorphisms of F, is exactly n. This algorithm may require [formula] steps, each of which consists in computing the image of a tuple of length at most [formula] under an automorphism, and hence has complexity [formula]. Thus the time complexity of this algorithm is [formula], which is quadratic in [formula] and exponential in r.
+
+A variant of this algorithm was established by Gersten [\cite=Gersten], who showed that a similar method applies to find the minimum size (number of vertices) of ΓA(φ(H)), when φ runs over the automorphisms of F(A). It is clear that H is a free factor of F(A) if and only if there exists an automorphism φ such that ΓA(φ(H)) has a single vertex. The time complexity is computed as above, where the number of vertices of ΓA(H) is substituted for the total length of a basis for H. As noted earlier, this number of vertices is usually substantially smaller than the total length of a basis, but the two values are linearly dependent, so the order of magnitude of the time complexity is not modified, notably the exponential dependence in r.
+
+A careful look at the expansions and reductions of inverse automata
+
+Let A be a reduced inverse automaton.
+
+Let B be obtained from A by performing an expansion, say by (p,w,q), and then reducing the resulting automaton. In this situation, we write [formula], or simply [formula]. We distinguish two special cases.
+
+[formula] If the reduction following the expansion does not involve identifying or omitting states of A, or equivalently if A embeds in B, we say that B is obtained from A by a reduced expansion and we write [formula] or [formula].
+
+[formula] If the states p and q are equal to the distinguished state q0 of A, we say that B is obtained from A by an e-step and we write [formula], or simply [formula].
+
+Finally, let B be obtained from A by identifying two distinct vertices p and q, and then reducing the resulting automaton. Then we say that B is obtained from A by an i-step and we write [formula], or simply [formula].
+
+Note that if [formula], [formula], [formula] or [formula], then B is a reduced inverse automaton.
+
+We first record a few facts.
+
+Let u be a reduced word labeling a path in A from a state p to a state p', and from a state q to a state q',
+
+[formula]
+
+By definition of the reduction of dual automata, the identification of p and q implies that of p' and q', and the converse holds as well. Thus [formula] if and only if [formula].
+
+Let us now examine in detail the effect of an operation of the form [formula].
+
+Let p,q be states of A and let w be a non-empty reduced word. Let u be the longest prefix of w that can be read in A from state p, and let v be the longest suffix of w that can be read in A to state q (that is, v- 1 is the longest prefix of w- 1 that can be read in A from state q). We distinguish two cases:
+
+If |u|  +  |v|  <  |w|, then w  =  uw'v for some non-empty reduced word w'. If we let p' (resp. q') be the end (resp. start) state of the path labeled u (resp. v) and starting in p (resp. ending in q),
+
+[formula]
+
+then the reduction process on the result of the expansion of A by (p,w,q) identifies the |u| first edges and the |v| last edges of the added path with existing edges of A, so that [formula] if and only if [formula] and the latter is a reduced expansion.
+
+If |u|  +  |v|  ≥  |w|, then there exist words x,y,z, possibly empty, such that u  =  xy, v  =  yz and w  =  xyz. Let p',p'',q',q'' be the states of A defined by the following paths
+
+[formula]
+
+Then [formula] if and only if [formula], if and only if [formula].
+
+We derive from Fact [\ref=fact2] the following statement.
+
+The following converse statements are derived from Facts [\ref=fact1] and [\ref=fact2].
+
+Let A' be the expansion of A by (q0,uv,q0). The analysis in Fact [\ref=fact2] (2) shows that a step in the reduction of A' is provided by the automaton obtained in identifying p and q. By Proposition [\ref=H(A)] we have L(B)ρ  =  〈H,uv〉 (hence the rank inequality), and the uniqueness statement in Proposition [\ref=prop_unique] then shows that [formula].
+
+Let us now assume that [formula], and that C is a basis of H. Then [formula] is a generating set of L(B)ρ with cardinality equal to the rank of L(B)ρ, so [formula] is a basis of that subgroup by [\cite=LS].
+
+Since the expansion of A by (p,w,q) is a reduced expansion, the word uwv is reduced and the expansion by (q0,uwv,q0) falls in the situation described in Fact [\ref=fact2] (1). Together with Proposition [\ref=H(A)], it follows that [formula], which concludes the verification that of the first part of the proposition.
+
+The free factor and the rank statements follow from the statement on a basis for L(B)ρ, which is a direct consequence of the definition of a reduced expansion and of the discussion on bases and spanning trees in Fact [\ref=end_of_sec_12].
+
+We now introduce a measure of the cost of a reduced expansion or an i-step σ, written λ(σ): if σ is an i-step, then λ(σ)  =  0; if σ is a reduced expansion, [formula], its cost is the length of w, λ(σ)  =  |w|. We extend this notion of cost to finite sequences of i-steps and reduced expansions: if [formula] is such a sequence, we let
+
+[formula]
+
+Finally, we introduce an order relation on the set of finite sequences of non-negative integers. Let [formula] and [formula] be such sequences. We say that [formula] if
+
+n  <  m,
+
+n  =  m and [formula],
+
+n  =  m, [formula] and k̄ precedes [formula] in the lexicographic order.
+
+It is routine to check that [formula] is a well-order on the set of finite sequences of non-negative integers, which is stable under the concatenation of sequences. We write [formula] if [formula] and k̄  ≠  .
+
+Suppose that [formula] with r  ≠  s. The cost of this sequence of transformations is (|w|,0).
+
+Let Q be the state set of A and let u and v be reduced paths,
+
+[formula]
+
+Then uwv is a reduced word and L(A')ρ  =  〈L(A)ρ,uwv〉 by Proposition [\ref=H_restep]. We distinguish three cases, depending whether or not r and s lie in Q.
+
+Case 1: Both r and s are in Q.
+
+Let x and y be reduced words labeling paths in A [formula]. Then the same words label similar paths in A' and it follows from Proposition [\ref=H_istep] that
+
+[formula]
+
+Let also A'' and B' be determined by [formula]. Then L(B')ρ is also equal to 〈L(A)ρ,xy,uwv〉, so that B  =  B' by Proposition [\ref=prop_unique].
+
+Note that the words u and v label paths from and into state q0 in A'' as well. It follows from Proposition [\ref=L04] that, if [formula], then B can be obtained from A'' by an i-step or by a reduced expansion of the form [formula] with |z|  ≤  |w|.
+
+Thus B is obtained from A either by a sequence of 1 or 2 transformations, of cost 0 or (0,k) with 0  ≤  k  ≤  |w|. This is [formula]-less than (|w|,0), as expected.
+
+Case 2: Exactly one of r and s is in Q.
+
+Without loss of generality, we may assume that r∈Q and [formula]. Let z be a reduced word labeling a path from q0 to r in A, and hence also in A'. Let g be the unique reduced word labeling a path from p to s in A', using only edges that were not in A. By assumption, g is a proper, non-empty prefix of w. Moreover, by Propositions [\ref=H(A)] and [\ref=H_istep],
+
+[formula]
+
+Let h be the longest common suffix of g and z, so that g  =  g'h, z  =  z'h, g'z'- 1 is reduced and we have the following paths in A',
+
+[formula]
+
+Fact [\ref=fact1] shows that [formula], so we may assume that h  =  1, g  =  g' and z  =  z'. There is a possibility that the word g is now empty (if h was in fact equal to g), but in that case, we are returned to the situation of Case 1, with s'  =  p. Thus we may still assume that g  ≠  1. In particular, the word ugz- 1 is reduced.
+
+Then let A'' and B' be defined by [formula]. Again L(B')ρ  =  〈L(A)ρ,uwv,ugz- 1〉, so B  =  B' by Proposition [\ref=prop_unique].
+
+Proposition [\ref=L04] states that each e-step can be replaced by an i-step or by a reduced expansion of cost bounded above by the cost of the e-step. Going back to Fact [\ref=fact2], we see that the e-step [formula] can be replaced by a transformation of cost k  ≤  |g| since both u and z can be read from state q0 in A (in fact, of cost exactly |g| by definition of g). As for the e-step [formula], it can be replaced by a transformation of cost [formula] since ug (a prefix of uw) and v can be read to state q0 in A''.
+
+Now, it suffices to verify that [formula], which is easily done if we observe that [formula] and k  <  |w|.
+
+Case 3: Neither r nor s is in Q.
+
+Without loss of generality, we may assume that r occurs before s along the w-labeled path from p to q. Thus, the word w factors as w  =  w1w2w3 and the path in A' made of edges added to A factors as
+
+[formula]
+
+Since r  ≠  s and these vertices are not in Q, each of the three factors w1,w2,w3 is non-empty. Moreover,
+
+[formula]
+
+Let h be the longest common suffix of w1 and w- 13, so that w1  =  w'1h, w3  =  h- 1w'3, w'1w'3 is reduced and we have the following paths in A',
+
+[formula]
+
+Proposition [\ref=fact1] shows that [formula], so we may assume that h  =  1, w1  =  w'1 and w3  =  w'3. There is a possibility that the words w1 or w3 be now empty (if h was in fact equal to w1 or w3), but in that case, we are returned to the situation of Cases 1 or 2, with r'  =  p or s'  =  q. Thus we may still assume that w1  ≠  1 and w3  ≠  1. In particular, the word uw1w3v is reduced.
+
+Then let A'' and B' be defined by [formula]. Then L(B')ρ  =  〈L(A)ρ,uwv,uw1w3v〉, so B  =  B' by Proposition [\ref=prop_unique].
+
+As in Case 2, we use Fact [\ref=fact2] to verify that the e-step [formula] can be replaced by a reduced expansion of cost k  =  |w1w3| since u and v are the maximal prefix and suffix of uw1w3v that can be read from and to state q0 in A. As for the e-step [formula], it can be replaced by a reduced expansion of cost [formula] since uw1 and w3v are the maximal prefix and suffix of uwv that can be read from and to state q0 in A''.
+
+Now, it suffices to verify that [formula], which is easily done if we observe that [formula] and k  <  |w|.
+
+Deciding the free factor relation
+
+A geometric characterization of free factors
+
+We put together the technical results from Section [\ref=careful] to prove the following characterization of free factors.
+
+We first observe that H is a free factor of K if and only if there exist d elements [formula] of F(A) such that [formula]. This follows from the fact that an r-element generating set in a rank r free group, is a basis [\cite=LS].
+
+By definition of e-steps, this means that [formula] if and only if ΓA(H) yields ΓA(K) by a sequence of d e-steps.
+
+Now Propositions [\ref=L04], [\ref=H_istep] and [\ref=H_restep] show that this is equivalent to the fact that ΓA(H) yields ΓA(K) by a sequence of d i-steps or reduced expansions.
+
+Since [formula] is a well-order on the set of finite sequences of non-negative integers, we may consider a sequence [formula] of d i-steps and reduced expansions leading from ΓA(H) to ΓA(K), which is [formula]-minimal. Proposition [\ref=L06], together with the stability of [formula] under concatenation, then shows that the i-steps in [formula] come before the reduced expansions. Thus, [formula] if and only if ΓA(H) yields ΓA(K) by a sequence of d' i-steps followed by d  -  d' reduced expansions.
+
+It follows from the discussion on bases and spanning trees in Fact [\ref=end_of_sec_12] that if ΓA(H) embeds in ΓA(K), then H is a free factor of K. Not every free factor of K occurs that way, and those that do are called the graphical free factors of K (with respect to A). It is easily verified that H is a graphical free factor of K if and only if ΓA(H) yields ΓA(K) by a sequence of reduced expansions.
+
+Let us first assume that [formula]. By Theorem [\ref=charact_ff], for some d'  ≤  d, ΓA(H) can be taken to some ΓA(L) by a sequence of d' i-steps, and ΓA(L) can be taken to ΓA(K) by a sequence of d  -  d' re-steps. Since [formula] and an i-step or an re-step can increment the rank by at most one (Propositions [\ref=H_istep] and [\ref=H_restep]), L must have rank exactly [formula].
+
+Conversely, suppose that a sequence of d'  ≤  d i-steps takes ΓA(H) to ΓA(L) in such a way that [formula] and ΓA(L) embeds in ΓA(K). By Propositions [\ref=H_istep] and [\ref=H_restep] again, we have [formula], and hence [formula].
+
+In the special case where K  =  F, we have the following statement.
+
+By Corollary [\ref=coroll_HffK], H is a free factor of F(A) if and only if ΓA(H) yields a one-vertex automaton B by a sequence of [formula] i-steps, in such a way that L(B)ρ has rank [formula]. Now the set of letters occurring in such an automaton B must be exactly A0, so L(B)ρ  =  F(A0) and d'  =  d.
+
+Deciding whether [formula]
+
+We first consider the problem of deciding whether a given finitely generated subgroup H of F  =  F(A) is a free factor of F. With the notation of Corollary [\ref=coroll_HffF] and Remark [\ref=rank_incrementing], the algorithm to decide whether [formula] consists of the following. We need to explore the sequences of rank-incrementing i-steps, starting from ΓA(H) and of length [formula]. Then [formula] if and only if one of the automata occurring at the end of one of these sequences has a single vertex. Note that no automaton obtained after less than d i-steps could be a single-vertex automaton.
+
+These automata can be viewed as nodes of a tree, rooted at ΓA(H), in which the children of a node are the automata produced by a rank-incrementing i-step. Let n be the number of states of ΓA(H). Then every automaton occurring along this tree has at most n states.
+
+If A is such an automaton, then A has at most [formula] pairs of distinct vertices, and hence at most [formula] children, each of which has at most n  -  1 states. The computation of the children of A is done by computing all the (at most [formula]) possible i-steps, computing the ranks of the corresponding subgroups and retaining only those of rank [formula]. It follows from Fact [\ref=end_of_sec_12] that the cost of the computation of the children of A is O(n4).
+
+Moreover, there are at most O(n2d - 2) nodes of the tree at depth at most d - 1, and the computation of these nodes and their children requires time O(n2d + 2). For each of the O(n2d) automata at depth d, the verification whether the automaton has a single node takes constant time, so the total cost of the algorithm is O(n2d + 2).
+
+Finally, if H is given by a finite set of generators, of total length [formula], we recall that computing ΓA(H) takes time [formula] and that ΓA(H) has at most [formula] states and [formula] edges. This discussion justifies the following statement.
+
+The above discussion of complexity depends on a uniform cost assumption, by which we assume that the elementary operations on A (reading or writing a letter, comparing two letters) require unit time. In other words, we have been assuming that A is fixed, and not part of the input. We will shortly consider the problem of deciding whether [formula] where both H and K are part of the input, and for the purpose of that discussion, we reconsider the algorithm and the complexity established above under the bit cost assumption: we let r be the cardinality of A, and we consider that each letter is identified by a bit string of length at most log r, so that the elementary operations on A require O( log r) units of time.
+
+Let [formula] be the complexity of reducing a dual automaton on Ã with at most [formula] vertices and [formula] edges. The computation of the automaton obtained by an i-step from an [formula]-vertex automaton takes time at most [formula]. To compute the tree of rank-incrementing i-steps rooted at ΓA(H), we need to compute the at most [formula] children of at most [formula] nodes, which requires time [formula]. Finally, deciding whether an automaton has a single vertex takes constant time, so the total complexity of the algorithm is [formula].
+
+We now give an upper bound of [formula]. Let A be an A-automaton with at most [formula] states and [formula] edges. The identifiers of states require space [formula] and the identifiers of letters require space O( log r). Moreover, we assume that the set of states and the set Ã are linearly ordered, and equipped with a constant time next function.
+
+The automaton can be viewed as the lexicographically ordered list of all triples (u,a,v) such that either a∈A and there is an a-labeled edge from state u to state v, or ā∈A and there is a ā-labeled edge from state v to state u. Each entry of this list requires space [formula], and the list contains at most [formula] entries. In particular, a complete scan of the list takes time [formula].
+
+The reduction of A consists in performing elementary reductions of type 1 as long as it is possible, and then elementary reductions of type 2. To find out whether a type 1 reduction is possible, one needs to scan the list to find two (consecutive) cells of the form (u,a,v) and (u,a,v'), requiring [formula]. Performing the identification consists in reading through the list, replacing every occurrence of v' by v, and reordering the list: this takes time [formula]. To find out whether an elementary reduction of type 2 is possible, one scans the list to find a vertex u such that there is a unique triple of the form (u,a,v) in the list: again, this takes time [formula]. Finally, performing the reduction consists simply in deleting the entries (u,a,v) and (v,ā,u) in the list.
+
+Summarizing, since we will perform at most [formula] reductions, we can take the function [formula] to be equal to [formula]. This yields the following statement.
+
+Deciding whether [formula]
+
+We now suppose that H and K are subgroups of F(A), given by sets of generators with total length [formula], and we consider the problem of deciding whether [formula]. The algorithm is the following: we first compute ΓA(K) and we verify whether each generator of H can be read as a loop at q0, the designated vertex of ΓA(K). If not, then H is not contained in K, and cannot be a free factor.
+
+We now assume that H  ≤  K and we compute a spanning tree T of the graph ΓA(K). This spanning tree determines a basis B of K, indexed by the edges of ΓA(K) that are not in T (see Fact [\ref=end_of_sec_12]), and we express the given generators of H in terms of this basis: it suffices to read the generators of H as loops at the designated vertex in ΓA(K), and to record the sequence of edges traversed and not in T. In particular, each generator of H is expressed as a reduced word in *, that is no longer than its expression as a reduced word in Ã*. We then use this expression of the generators of H to construct ΓB(H), and the algorithm in Section [\ref=sec_algorithm] to decide whether H is a free factor of the ambient free group, namely K.
+
+Let us now discuss the complexity of this algorithm, assuming that H and K are given by tuples of generators of total length [formula] and that F has rank r. As discussed in the previous section, computing ΓA(K) takes time [formula]. Running a word w∈F(A) in the automaton ΓA(K) requires reading sequentially each letter of w (time O( log r)) and looking for the corresponding transition in the table representing the automaton (time [formula]). If w has length [formula], this takes time [formula]. In order to decide whether H is contained in K, this must be done for every generator of H, and since the total length of these generators is at most [formula], this requires time [formula].
+
+Assuming that H is indeed contained in K, the next step is to construct a spanning tree T of ΓA(H), for instance by marking certain edges in the list representing ΓA(K). Again, this can be done in time [formula]. The positively labeled edges of ΓA(K) not in T are in bijection with a basis B of K. In particular, the rank of K is at most [formula], an upper bound of the number of edges in ΓA(K). The elements of B, seen as words in F(A), consist of the label of a path in T, followed by the label of an edge not in T, followed by the label of a path in T. In particular, their length is at most twice the number of vertices of ΓA(K) plus one, that is [formula]. But we do not need to compute these words: it suffices to number (from 1 to [formula]) the positively labeled edges not in T. Then, for each generator h of H, reading h in ΓA(K) from state q0 and keeping track of the (identifier of the) edges traversed that are not in T, provides an expression of h in B. Moreover, the total length of the expression of the generators of H in this basis of K is at most [formula].
+
+We now simply apply Theorem [\ref=thm-generalized35] to a length [formula] set of generators of a subgroup of a free group of rank at most [formula], to justify the following corollary.
+
+Complement of a free factor
+
+By definition of a free factor (see the introduction), [formula] if there exists a basis C of H and a disjoint set D  ⊆  K such that [formula] is a basis of K. In that case, the subgroup generated by D is called a complement of H in K. It is easy to see that this complement is not uniquely defined.
+
+If H is indeed a free factor of the free group F, the algorithm described in Section [\ref=sec_algorithm] also provides a sequence of rank-incrementing i-steps taking ΓA(H) to ΓA(F(A0)), where A0 is the set of letters of A that occur in the generators of H. Repeated applications of Proposition [\ref=H_istep] then yield a basis of F(A0) containing a basis of H, and hence a complement of H in F(A0).
+
+We can be a little more precise. If A is a reduced inverse automaton, let [formula], the q0-diameter of A, be the longest shortest path in A from q0 to a state, that is
+
+[formula]
+
+Then Proposition [\ref=H_istep] shows that if [formula] and [formula], then a complement of L(A)ρ is generated by a word of length at most [formula].
+
+This justifies the following statement.
+
+It is interesting to observe that this is a graphical analogue - and a minor improvement - of Federer and Jónsson's result (see [\cite=LS]) mentioned in Section [\ref=whitehead]. Indeed, if [formula] are a set of generators of H, then every edge of ΓA(H) is on a loop at q0 labeled by some hi, and hence [formula].
+
+Let us now consider the problem of constructing a basis of a complement of H in K, where H and K are given finitely generated subgroups of F(A) and [formula]. The algorithm described in Remark [\ref=alternative_algo_H_leff_K] (based on Corollary [\ref=coroll_HffK]) shows that one can construct effectively a graphical free factor L of K such that [formula]. As above, in view of Proposition [\ref=H_istep], the same algorithm can produce a basis of a complement of H in L consisting of words of length at most [formula]. There remains to construct a basis for a complement of L in K.
+
+In view of Fact [\ref=end_of_sec_12] (and using the notation therein), one can find a (basis of a) complement of L in K by considering a spanning tree of ΓA(L), extending it to a spanning tree T of ΓA(K), and considering the elements be associated with edges of ΓA(K) that are neither in ΓA(L) nor in T. In particular, the words be have length at most [formula]. Thus we have the following statement.

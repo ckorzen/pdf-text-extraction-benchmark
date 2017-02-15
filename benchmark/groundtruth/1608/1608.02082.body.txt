@@ -1,0 +1,303 @@
+CoreALMlib: An [formula]  Library Translated from the Component Library
+
+Introduction
+
+In the field of knowledge representation about dynamic domains, an important advancement in the last decade was the design of so-called modular action languages, which focus on the reuse of knowledge and creation of libraries in general, and the representation of actions in terms of other actions in particular. [formula] (Action Language with Modules) [\cite=ig16] was introduced to address these issues. The capabilities of the language were tested in the context of Project Halo [\cite=projecthalo10]: specialized knowledge about a biological process was encoded in [formula] and then used to answer non-trivial questions [\cite=ig11].
+
+After defining our language, our next goal was to develop an [formula]  library of commonsense knowledge that would facilitate the description of large dynamic systems through the reuse of its components. We started by creating a small library of motion. We were satisfied with the result, and were able to use our representation in solving reasoning tasks by combining system descriptions of [formula]  with reasoning algorithms written in Answer Set Prolog (ASP) [\cite=gl88] [\cite=gl91]. However, we were not sure what criteria to use for the selection of further concepts, general enough to deserve inclusion in our library.
+
+An answer to this question was provided by our collaboration on project AURA (Automated User-centered Reasoning and Acquisition System) [\cite=cjmpps07] [\cite=ccbchjpsty07] [\cite=ccmpst09]. AURA is a knowledge acquisition system that allows domain experts to enter knowledge and questions related to different disciplines, with minimal support from knowledge engineers. Our task within the project was to revise a section of AURA's core knowledge base, called Component Library (CLib), from the point of view of its soundness and completeness with respect to the goals of AURA [\cite=cdi14]. CLib  [\cite=bpc01] is a vast library of general, reusable knowledge components with goals similar to ours. It was extensively tested in AURA along the years and, more importantly for us, its concepts were selected using a well-founded methodology, based on lexical and ontological resources. We benefited from these key features of CLib  by porting part of the library, in its revised form resulting from our analysis, into [formula]. The resulting [formula] library combines the advantages of CLib  with established knowledge representation methodologies developed in the action language community: concise and elaboration tolerant representations of action effects and preconditions, and an easy coupling with reasoning algorithms encoded in ASP [\cite=gl98]. In the future, the experience of creating a CLib-inspired library will allow us to further explore how [formula] libraries should be structured, queried, used, and made available to the public.
+
+Related Work.
+
+A previous version of this work was presented in an earlier paper [\cite=di15] whose goal was to introduce [formula] and explain how enforcing the thought pattern of our language on a translation from CLib results in much more concise representations. Instead, in the current paper we describe in more detail a translation that is closer to CLib and can potentially be automated. We also make the library available online and discuss how it can be used.
+
+In addition to CLib, several linguistic resources, including VerbNet [\cite=KipperPhd05], WordNet [\cite=mil90] and FrameNet [\cite=framenet], contain information about verbs, sometimes organized into an inheritance hierarchy or into sets of synonyms. Verbs may sometimes be accompanied by axioms, but these are expressed in informal terms, and therefore cannot be readily used to create an [formula] library of commonsense knowledge. A modular action language with similar goals to [formula]'s is MAD [\cite=lr06] [\cite=el06]. There is a collection of MAD libraries [\cite=thesiser08], but its fifteen library modules only describe eight action classes (compared to 146 in CLib), and are less expressive as a result.
+
+Modular Action Language [formula]
+
+A dynamic system is represented in [formula]  by a system description that consists of two parts: a general theory (i.e., a collection of modules organized into a hierarchy) and a structure (i.e., an interpretation of some of the symbols in the theory). A module is a collection of declarations of sorts (i.e., classes) and functions together with a set of axioms. The purpose of a module is to allow the organization of knowledge into smaller reusable pieces of code. Modules serve a similar role to that of procedures in procedural languages and can be organized into a hierarchy (a DAG). If a module M1 contains the statement "depends on M", then the declarations and axioms of module M are implicitly part of M1.
+
+We briefly illustrate the syntax of [formula] via some examples. For a formal description of the language, we direct the reader to the paper that introduces [formula] [\cite=ig16]. Boldface symbols denote keywords of the language; identifiers starting with a lowercase letter denote constant symbols; and identifiers starting with an uppercase letter denote variables.
+
+Sorts are organized into a hierarchy with root [formula] and pre-defined sorts [formula] and [formula]. The sort hierarchy is specified via the specialization construct "::". For instance, we say that points and things are subsorts of [formula] and agents is a subsort of things by:
+
+[formula]
+
+We use the same construct to define action classes, if needed as special cases of other action classes. Declarations of action classes include the specification of attributes, which are intrinsic properties. For instance, the statements:
+
+[formula]
+
+define move as having three attributes, actor, origin, and dest - (possibly partial) functions mapping elements of move into elements of agents, points, and points respectively.
+
+Properties of objects of a dynamic system are represented using functions. Functions are partitioned in [formula] into fluents (those that can be changed by actions) and statics (those that cannot); each of these are further divided into basic and defined, where defined functions can be viewed just as means to facilitate knowledge encoding. Basic fluents are subject to the law of inertia. In our example, the location of things is encoded by the
+
+[formula]
+
+Axioms that can appear in a module are of four types - dynamic causal laws, state constraints, definitions for defined functions, and executability conditions. The axiom:
+
+[formula]
+
+is a dynamic causal law saying that the actor of a move action will be located at the destination after the execution of the action.
+
+The second part of a system description is its structure, which represents information about a specific domain: instances of sorts (including actions) and values of statics. For example, a domain that is about John and Bob, and their movements between two points, a and b, may be described as follows:
+
+[formula]
+
+[formula]
+
+Action go(X,Y) is an instance schema that stands for all actions of this form obtained by replacing X and Y with instances of agents and points, respectively. One such action is go(john,a) for which attributes have the values actor(go(john,a))  =  john and dest(go(john,a))  =  a.
+
+The semantics of [formula] is given by defining the states and transitions of the transition diagram defined by a system description. For that purpose, we encode statements of the system description into a logic program of ASP{f} [\cite=bal13], an extension of ASP by non-Herbrand functions. The states and transitions of the corresponding transition diagram are determined by parts of the answer sets of this logic program. As an example, the dynamic causal law about actions of the type move shown above is encoded as:
+
+[formula]
+
+followed by replacing variables (other than I) by constants of the appropriate sorts. The structure is encoded using statements like:
+
+[formula]
+
+[formula]
+
+CLib  and KM
+
+CLib  [\cite=bpc01] is a library of general, reusable, composable, and interrelated components of knowledge. Notions included in CLib  were selected using a solid methodology relying on linguistic and ontological resources such as WordNet (wordnet.princeton.edu), FrameNet (framenet.icsi.berkeley.edu), VerbNet (verbs.colorado.edu/verb-index), a thesaurus and an English dictionary, as well as various ontologies from the semantic web community. CLib  was built with three main design criteria in mind: (1) coverage: CLib  should contain enough components to allow representing a variety of knowledge; (2) access: components should meet users' intuition and be easy to find; and (3) semantics: components should be enriched with non-trivial axioms. These are criteria that we want for a core [formula] library as well.
+
+The CLib library is written in the knowledge representation language of Knowledge Machine (KM) [\cite=cp04]. KM is a frame-based language with first-order logic (FOL) semantics. The language uses its own syntax, which is mainly syntactic sugar for FOL [\cite=cp04]. KM distinguishes between two basic concepts: class and instance.
+
+In CLib, there are three main classes - Entity, Event, and Role - and the additional built-in class Slot. All are subclasses of the root class Thing. Events are divided into Actions, Activities, and States (which should not be confused with states of the transition diagram). An example of a CLib action is Obstruct, whose declaration can be seen in Figure [\ref=fig1](a). It starts with the specification of properties of the class itself: it is a subclass of the action class Make-Inaccessible and it has an associated set of WordNet 2.0 synonyms that includes the verbs "obstruct" and "jam." In the second part of the declaration, properties of instances of the action class are specified. It is asserted that each instance of Obstruct has an object that must be an instance of Tangible-Entity. In practice, this results in the automatic creation of a Skolem constant named _Tangible-EntityN to denote the object of an Obstruct instance, where N is a number. Next, resulting-state and add-list together specify the effect of the execution of an Obstruct action: the object will be obstructed (by the agent, if it was defined). The default preparatory-event says that, if the Obstruct action has an agent, then the agent should be where the object is, in order for the action execution to be possible. Note that failure to meet default axioms only generates warnings and does not prevent actions from actually being executed. The declaration of Obstruct also contains the description of a test case, information for generating English text, and a WordNet 1.6 synset, which were not included in the figure.
+
+Expressions like superclasses and object in the declaration of Obstruct are slots (i.e. instances of the class Slot): they denote binary relations that hold between the class or instances of the class and the value denoted by the expressions that follow. Two of the slots, superclasses and add-list, are built-ins of KM, while the other ones are specific to CLib. The definitions of slots is-at and object can be seen in Figure [\ref=fig1](c) and (d) respectively.
+
+States of CLib correspond to fluents in action language terminology, but they are represented by classes, which means that they can be organized into an inheritance hierarchy. An example of a CLib state is Be-Obstructed from Figure [\ref=fig1](b) that is a subclass of the state Be-Inaccessible and corresponds to the first sense of the adjective "obstructed" in WordNet 2.0. Every instance of Be-Obstructed is asserted to have an object that must be an Entity.
+
+The CLib  library was integrated in two systems developed at SRI International, SHAKEN and its successor AURA [\cite=cjmpps07] [\cite=ccbchjpsty07], and was extensively tested as a result. In AURA, domain experts were able to encode new knowledge by building upon the general concepts of CLib in a speedy manner and with no or minimal involvement from knowledge engineers. Their encodings were used to answer questions from an Advanced Placement test suite. At least 70% of these questions were accurately answered by the AURA system in all three domains of interest [\cite=projecthalo10]. These results seem to demonstrate that CLib is a valuable library of general concepts.
+
+A (Partial) Translation from KM into [formula]
+
+In this work, we only intend to translate part of CLib into [formula] and refer to this portion as aCLib. Specifically, aCLib focuses on actions and states, but ignores roles, activities, actions with subevents or duration, and text generation information associated with CLib components, which either deserve more study (roles, actions with duration) or exceed the scope of this project. Thus, aCLib contains all but 23 of the 146 actions of CLib and all but four of its 33 states. The aCLib concepts were manually translated into [formula]. The translation presented here covers the fragment of KM used in aCLib. To give a simple example, in KM, one may assert that a slot of a specific instance maps into a given number of other instances by using the expression " exactly n"; however in all occurrences of this expression in aCLib, n only ranges over {0, 1, 2}.
+
+Two main differences between KM and [formula] posed problems to the translation: (1) the unique name assumption is part of the semantics of [formula], but not of KM and (2) FOL quantifiers do not exist in [formula], but they do in KM. The existential quantifier in KM, " (a <c>)", is constructive and introduces a Skolem constant, as explained in Section [\ref=clib]. KM implements a complex unification algorithm for automatically introduced Skolem constants. In [formula], the user of the library introduces and names instances when specifying the structure of a system description. We translated the existential quantifier using constraints to produce a similar effect to KM.
+
+An additional difficulty stems from the fact that CLib states (i.e., fluents) are represented as classes and thus can be organized into a hierarchy and have an arbitrary number of parameters. Instead, fluents of [formula] are represented as functions and have a fixed arity. To address these problems, we generally translated one CLib state using two [formula] fluents with different arities and added state constraints to encode the inheritance relation between CLib states.
+
+In what follows, we briefly describe the translation from KM into [formula]. We start with definitions of slots, then move on to declarations of states and actions. We ignore the difference between the capitalization conventions of KM versus [formula]  for conciseness and clarity. In KM code, we put placeholders for constants inside chevrons ( <>); in [formula] code, we omit the chevrons.
+
+Slots
+
+Consider a slot s defined as follows: If card is N-to-N, then it is translated as the [formula] function
+
+s : c1 ×   c2 [formula]
+
+and if card is N-to-1 as
+
+s : c1 →   c2.
+
+There are no slots with cardinality 1-to-N in aCLib. If status is *Non-Fluent, then s is a basic static in [formula]. Otherwise, it is a basic (i.e., inertial) fluent, unless:
+
+(1) c is Participant-Relation or
+
+(2) c is Spatial-Relation and c1 is Event.
+
+As an example, the slot is-at from Figure [\ref=fig1](c) is encoded as the basic fluent
+
+[formula].
+
+If conditions (1) or (2) above are satisfied, then s describes an intrinsic property of an event (and thus of an action too) and is translated as an attribute of the pre-defined [formula] class [formula].
+
+States
+
+CLib states encode fluents as classes. They do not have a fixed arity, rather their parameters are represented via slots that are instances of the subclass Participant-Relation of Slot (e.g., object, instrument). Certain participant relations are required for a state: if the declaration of a state c says that
+
+(every <c> has (<r> ((a <c1>))))
+
+then r is required for c. We analyzed participant relations w.r.t. states and determined that (i) object was required in all states; (ii) a few states had a secondary required participant relation (e.g., base in Be-Confined referring to the place where the object is confined); and (iii) a few other participant relations were only sometimes associated with some of the states (e.g., instrument in Be-Blocked denoting the thing with which the object is blocked). As a result, if a state class Be-<f> only had one required participant relation, object, we translated it by creating a basic fluent
+
+is_ f : c1 [formula]
+
+where c1 is the most specific class membership information for the participant relation object with respect to the state Be-<f>. For instance, for Be-Obstructed, we created the basic fluent
+
+[formula]
+
+If the state had a second (required/ associated) participant relation r with range c2, we created (instead/ in addition, respectively) the basic fluent
+
+f_ prep : c1 ×   c2 [formula]
+
+where prep is the preposition that is normally associated in English with the participant relation r (e.g., for instrument, it would be the preposition "with"). As an example, the Be-Blocked state would be translated by two fluents:
+
+[formula]
+
+[formula]
+
+Whenever we translated a CLib state by introducing two [formula] fluents with different arities, we connected the two via axioms of the style:
+
+[formula]
+
+We expressed the subclass relationship between CLib states by introducing state constraints. For example, we said that Be-Obstructed is a subclass of Be-Inaccessible via the axiom:
+
+[formula]
+
+Actions
+
+We replaced the CLib class Action with the predefined [formula] class actions. We translated the information about the superclasses of an action class of aCLib
+
+using the specialization construct (i.e., "::") of [formula]:
+
+[formula].
+
+The information about WordNet 2.0 synsets was integrated in the online tool (see Section [\ref=lib]).
+
+The description of properties of every instance of the class can be divided into two parts that we address in separate subsections below: (1) attribute declarations - the description of the values of participant or spatial relations like object, agent, origin, destination, etc. that describe intrinsic properties of the action; and (2) axioms - the specification of the values of slots resulting-state, defeats, add-list, del-list, pcs-list, etc. that describe the effects and preconditions for the execution of the action.
+
+Attribute Declarations
+
+In what follows, by <attr> we denote a slot that stands for a participant or spatial relation describing an inherent property of instances of the action class and refer to it as an attribute. Consider the following part of the declaration of action class c: In KM, this generates a Skolem constant for each instance of c, which cannot be done in [formula]. We encode the statement via an attribute declaration (when needed) and several axioms, one of them requiring the introduction of a defined fluent, as explained below. If [formula] is not an attribute of any superclass of [formula], we add to the declaration of [formula] the attribute:
+
+[formula]
+
+If [formula] is an attribute of a superclass [formula] of [formula], translated in [formula] as [formula] such that [formula] is different from [formula] (possibly a superclass of [formula]), we add the constraint
+
+[formula]
+
+In both cases, we add a defined static
+
+[formula]
+
+that is true when there is a value for the attribute and require it to be true for all instances of c:
+
+[formula]
+
+[formula]
+
+Constraints on the values of attributes in aCLib are encoded using state constraints of [formula], sometimes preceded by the declaration of new defined statics that are needed to deal with the lack of quantifiers in [formula]. The constraint that attr must range over instances of c1 is translated as
+
+[formula]
+
+Similarly if the keyword mustnt-be-a is used instead. The constraint that attr must map into at most one instance of c1 for instances of c (after unification): is captured by the state constraint
+
+[formula]
+
+Similarly for at-most 2, just with a more complex axiom. If at-most is substituted by at-least, we have axioms similar to the ones for (a <c1>) in [formula]. For at-least 2, we would first introduce a defined fluent [formula] that is true whenever there are at least two distinct values of class [formula] for attr; then we would add the state constraint
+
+[formula]
+
+The keyword exactly n in a constraint would be translated by putting together the translations of at-least n and at-most n if n is 1 or 2. If n is 0, we would add the state constraint
+
+[formula]
+
+Other constraints require the value of an attribute to be the same, different, or unifiable (" &") with that of some other attribute or expression. For the constraints
+
+(a) (every <c> has (<attr1> ((the <attr2> of Self))))
+
+(b) (every <c> has (<attr1> ((excluded-values (the <attr2> of Self))))
+
+(c) (every <c> has (<attr1> ((constraint (TheValue & (the <attr2> of Self))))))
+
+the corresponding state constraints in the [formula] translation are
+
+(a) [formula]
+
+(b) [formula]
+
+(c) In [formula], we must say that the values are the same (via a defined static and several axioms).
+
+Axioms
+
+We present the translation of the most common types of axioms encountered in aCLib. More complex axioms were translated in a similar way.
+
+Action Preconditions were specified using lists of properties that must be true ( pcs-list) or false ( ncs-list) for the action to be executable. Consider the axiom: where object-of is the inverse of object. It says that, in order for an action of class c to be executable, its attribute attr must be in a Be-<f> state. Thus we translate it as:
+
+[formula]
+
+Another common type of axiom was the one below: This says that the action's attribute <attr1> must be in a Be-<f> state that has attribute attr2 mapped into the action's same attribute. If we denote by prep the preposition associated with the attribute attr2 in the context of state Be-<f>, then the [formula] translation would look as follows:
+
+[formula] ),  (X,A1),  (X,A2),  [formula] _ prep(A1,A2).
+
+Negative preconditions ( ncs-lists) are translated in a similar way.
+
+Action Effects were normally encoded by a resulting-state referenced in an add-list (properties that will hold after the action execution), or a defeats state referenced in a del-list (properties that will not hold). The simplest form of an add-list of aCLib can be seen below: saying that as a result of the execution of an action of class c, its attribute attr will now be the object of a Be-<f> state. Its translation into [formula] is:
+
+[formula]
+
+A more complex form, containing an if - then expression is: In addition to what was mentioned for the previous axiom, this says that, if there is value for the action's attribute attr2, then it will also be the attr2 of the Be-<f> state. This requires using the binary version of the corresponding fluent in [formula]. Assuming that prep is the preposition associated with attribute attr2 in the binary version of f, then the [formula] translation would be:
+
+[formula]
+
+[formula]
+
+Finally let us consider an example of a del-list: This says that the action's attributes attr that are in a Be-<f> state should no longer be in this state after the execution of the action. We translate it in [formula] as:
+
+[formula]
+
+Defeasible Axioms. Some action classes of aCLib also contained a set of axioms that were defaults (they did not prevent the action from being executed, just produced warnings). They were specified as soft-pcs-list or preparatory-events. We translated both in a similar way to pcs-list, but marked them as optional when including their translation in the library, as further discussed in Section [\ref=lib]. This allows the user to decide whether they apply to a particular domain to be represented and should be included in the system description or not.
+
+Remarks
+
+In addition to the direct translation described above, we sometimes added extra axioms to the [formula] translation for consistency or in order to account for specifications that we felt were missing. An example of the first is when one action class contained an executability condition but the action class with an opposite effect did not contain the counterpart (e.g., Unblock and Block). For Move we added the restrictions that the origin and destination should have at most one value, to distinguish it form action classes that would otherwise be more suitable (e.g., Move-Together or Move-Apart). Additionally, since we focused on discrete actions that occur instantaneously, we changed the names of a couple of actions to make them sound less as processes and more like discrete actions (e.g., Hold was renamed as take_hold).
+
+Axioms in the [formula] translation are more succinct and elaboration tolerant that the STRIPS-like add and delete lists used in CLib. On the other hand, constraints on attributes are expressed more concisely in KM using FOL quantifiers; in [formula] axioms and extra statics are needed. This can be easily addressed in [formula] by adding extra keywords and expanding the language with aggregates in the spirit of Gelfond and Zhang [\citeyear=gz14], which we plan to do in the near future.
+
+Formulating and proving a formal result on the soundness of our translation is non-trivial because KM is not exactly FOL and thus its semantics are not completely clear. This task deserves further investigation that will be the subject of another paper. We can say however that the translation is faithful to the intended meaning of aCLib concepts.
+
+The Translated Library CoreALMlib
+
+Organizing the Library into Modules
+
+The translation from KM (as used in aCLib) into [formula] was the first step in producing an [formula] library of core commonsense knowledge. One additional step was needed however, because the basic concept of [formula], that of a module, is a higher-level one than the main concepts of KM ( class and instance). An [formula] module is a reusable piece of knowledge on a specific theme that groups together declarations of classes (including action classes) and functions, as well as axioms about these. CLib has no concept similar to a module. Determining what modules to create, what functions and action classes of the translation to include in each module, and how to organize modules into a dependency hierarchy was not a trivial task.
+
+We started by applying the guidelines for creating modular [formula] representations provided by Inclezan and Gelfond [\citeyear=ig16]. Specifically, we started from the top of the aCLib class hierarchy, and gradually built and tested modules capturing knowledge about actions, while reusing previously written modules as much as possible. This required us to create a root module that contained the translations of classes Event and Action from aCLib and the general part of the Entity hierarchy. All possible participant and spatial relations of an action (i.e., attributes in [formula] terminology) were also included in this module called entity_event_and_action. We identified fifteen major themes that allowed us to group the specific action classes into modules. For this purpose, we analyzed: (i) the hierarchies of state and action classes; (ii) the fluents relevant to each action class; and (iii) the list of neighboring concepts listed in the CLib user interface, which sometimes included an opposite action (e.g., Unobstruct for Obstruct). We placed in the same module opposite actions, actions that affected or had preconditions described in terms of the same CLib state, and sometimes subclasses of an action class. We strove to balance the size of a module with the depth of the (part of the) action class hierarchy that it captured and also considered the resulting depth of the module dependency hierarchy. Because of this, we sometimes placed subclasses of an action class in a separate module. Optional axioms (i.e., axioms resulting from the translation of default statements of aCLib) and any needed declarations were placed in a separate leaf module that depended on the module containing the declaration of the action class. The resulting library, CoreALMlib, consists of 43 modules. It encodes information about 123 action classes. Each module contains the description of one to six action classes. The depth of the module hierarchy is three (four if counting modules containing optional axioms), which we believe to be manageable.
+
+Online Tool
+
+The CoreALMlib library is available online at the web page http://tinyurl.com/z6n9fmx. Users can download the entire library and a prototype translator from [formula] into ASP from the main page. An additional page allows users to see the module dependency hierarchy and download individual modules (or their translation into ASP). When the user moves the mouse over the title of a module, a description of the module is displayed, containing the general purpose of the module, together with the list of action classes and functions declared in it (those that are new compared to ancestor modules in the hierarchy). An example can be seen in Figure [\ref=module_hierarchy].
+
+A third page contains a lookup table for which the keys are English verbs or adjectives accompanied by WordNet sense numbers - see Figure [\ref=search]. These words were extracted from the information about WordNet 2.0 synonym sets of aCLib action and state classes. Additionally, the table contains the definition of the word sense from WordNet, the name of the corresponding CoreALMlib action class or fluent and the module in which it can be found with links to the [formula] and ASP code, and links to an extended module with optional axioms, if it exists. The table is searchable by verb/ adjective and WordNet definition (i.e., the two leftmost columns), as it can be seen in the example in Figure [\ref=search].
+
+Testing and Using CoreALMlib
+
+We tested the library using test cases provided in CLib. Additionally, we encoded some scenarios that required the use of multiple modules for representation.
+
+In order to create an [formula] encoding of a particular domain, the user would first determine which CoreALMlib modules are relevant. For that, the "Search by Verb or Adjective" capability of the online tool should be used. Afterward, the user can either use [formula] or ASP to expand the general knowledge from the library modules with knowledge particular to the domain. We explain here the first option and take as an example the following text:
+
+" The wrestler restrained his opponent."
+
+By searching for the verb "restrain" in the online tool, the user would determine that the relevant CoreALMlib action class is restrain and that it can be found in the module unrestraining_and_ restraining. She would create a system description titled wrestler_and_opponent and import into its theory this library module:
+
+[formula]
+
+The import statement is equivalent to copying the contents of the imported module and of all its ancestors into the theory (e.g., unobstructing_and_obstructing). Next, the user would create a structure defining the entities mentioned in the sentence as instances of classes in the theory
+
+[formula]
+
+and the event in the sentence as an instance of restrain in which the agent (the "doer") is the wrestler and the object (the one affected by the action) is the opponent.
+
+[formula]
+
+(Note that even this simple domain cannot be encoded using the MAD libraries in Erdoan's thesis [\citeyear=thesiser08] in a comparably simple way.) The system description would be translated using the prototype translator from [formula] into ASP. The user would have to add to the resulting logic program a predefined module for temporal projection and a history [\cite=gk14]. For our scenario, the history would specify that action r was observed to have happened at time step 0:
+
+[formula]
+
+and that neither the wrestler nor the opponent were initially restrained:
+
+[formula]
+
+Answer sets of the program will indicate that, as a result of action r happening at time step 0, the opponent will be restrained at the end of the story.
+
+If we added the question " What would need to happen in order for the opponent to be able to move freely?" then the user would need to expand the theory of the initial system description by at least importing the CoreALMlib module motion that contains the description of action move mentioned in the question. Note that this module specifies that the action cannot be executed if the object is restrained. This is in fact a planning problem, and the solution will depend on the action instances added to the structure. The user would expand the initial structure by at least:
+
+[formula]
+
+and
+
+[formula]
+
+After adding a planning module [\cite=gk14] to the ASP translation of this extended system description, two possible solutions would be found: either that the wrestler unrestrains his opponent (i.e., execute u(wrestler,opponent)) or that the opponent unrestrains himself (i.e., execute u(opponent,opponent)). Note that the KM inference engine cannot perform planning.
+
+Conclusions and Future Work
+
+In this paper we have described a library of core commonsense knowledge about dynamic domains in modular action language [formula]. The library, called CoreALMlib, is obtained by translating a big part of an established upper ontology, CLib, into [formula]. We have provided a translation from the language of CLib into [formula], thus narrowing the gap between different KR languages. We have discussed the methodology used to group resulting declarations and axioms into [formula] modules. We have created an online tool that allows users to view the module dependency hierarchy and search for relevant modules based on English verbs or adjectives. Finally, we have discussed how the library can be used in practice to reason about dynamic domains.
+
+We believe that CoreALMlib is, at least in part, more elaboration tolerant than its CLib counterpart, specifically with respect to the description of action effects and preconditions. On the other hand, restrictions on the values of attributes of a class are more elegantly expressed in CLib. This indicates possible syntactic additions to [formula]. CoreALMlib can be seamlessly coupled with reasoning algorithms in ASP to solve complex tasks such as diagnosis [\cite=bg03] and planning, that cannot be answered in the inference engine of CLib.
+
+CoreALMlib can also further motivate the research on libraries in [formula], including the structuring of knowledge; further means for finding relevant modules; and providing to the user information about the contents of a module. It can also drive the investigation on how to allow users to select only those pieces of a module (declarations or axioms) that are relevant to a specific dynamic domain, which we believe to be an interesting research question.
+
+Acknowledgments. This research was funded in part by SRI International and Vulcan Inc. The author is also grateful to Michael Gelfond for his feedback.

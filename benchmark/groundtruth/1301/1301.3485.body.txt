@@ -1,0 +1,59 @@
+A Semantic Matching Energy Function for Learning with Multi-relational Data
+
+Introduction
+
+Multi-relational data, which refers to graphs whose nodes represent entities and edges correspond to relations that link these entities, plays a pivotal role in many areas such as recommender systems, the Semantic Web, or computational biology. Relations are modeled as triplets of the form (subject, relation, object), where a relation either models the relationship between two entities or between an entity and an attribute value; relations are thus of several types. In spite of their appealing ability for representing complex data, multi-relational graphs remain complicated to manipulate for several reasons (noise, heterogeneity, large-scale dimensions, etc.), and conveniently represent, summarize or de-noise this kind of data is now a central challenge in statistical relational learning [\cite=Getoor:2007].
+
+In this work, we propose a new model to learn multi-relational semantics, that is, to encode multi-relational graphs into representations that capture the inherent complexity in the data, while seamlessly defining similarities among entities and relations and providing predictive power. Our work is based on an original energy function, which is trained to assign low energies to plausible triplets of a multi-relational graph. This energy function, termed semantic matching energy, relies on a compact distributed representation: all elements (entity and relation type) are represented into the same relatively low (e.g. 50) dimensional embedding vector space. The embeddings are learnt by a neural network whose particular architecture and training process force them to capture the structure implicit in the training data and generalize the graph formed from training triplets. Unlike in previous work [\cite=Kemp:2006] [\cite=Sutskever:2009] [\cite=Nickel:2011] [\cite=Jenatton:2012], in this model, relation types are modeled similarly as entities. In this way, entities can also play the role of relation type, as in natural language for instance, and this requires less parameters when the number of relation types grows. We show empirically that this model achieves competitive results on benchmark tasks of link prediction, i.e., generalizing outside of the set of given valid triplets.
+
+Semantic Matching Energy Function
+
+This work considers multi-relational databases as graph models. To each individual node of the graph corresponds an element of the database, which we term an entity, and each link defines a relation between entities. Relations are directed and there are typically several different kinds of relations. Let C denote the dictionary which includes all entities and relation types, and let R  ⊂  C be the subset of entities which are relation types. A relation is denoted by a triplet (lhs, rel, rhs), where lhs is the left entity, rhs the right one and rel the type of relation between them.
+
+Main ideas
+
+The main ideas behind our semantic matching energy function are the following.
+
+Named symbolic entities (entities and relation types) are associated with a d-dimensional vector space, termed the "embedding space". The ith entity is assigned a vector [formula]. Note that more general mappings from an entity to its embedding are possible.
+
+The semantic matching energy value associated with a particular triplet (lhs, rel, rhs) is computed by a parametrized function E that starts by mapping all symbols to their embeddings and then combines them in a structured fashion. Our model is termed "semantic matching" because E relies on a matching criterion computed between both sides of the triplet.
+
+The energy function E is optimized to be lower for training examples than for other possible configurations of symbols.
+
+Neural network parametrization
+
+The energy function E (denoted SME) is encoded using a neural network, whose architecture first processes each entity in parallel, like in siamese networks [\cite=Bromley-bentz-93]. The intuition is that the relation type should first be used to extract relevant components from each argument's embedding, and put them in a space where they can then be compared.
+
+Each symbol of the input triplet (lhs, rel, rhs) is mapped to its embedding Elhs, Erel, Erhs [formula].
+
+The embeddings Elhs and Erel respectively associated with the lhs and rel arguments are used to construct a new relation-dependent embedding Elhs(rel) for the lhs in the context of the relation type represented by Erel, and similarly for the rhs: Elhs(rel)  =  gleft(Elhs,Erel) and Erhs(rel)  =  gright(Erhs,Erel), where gleft and gright are parametrized functions whose parameters are tuned during training. The dimension of Elhs(rel) and Erhs(rel), which we denote p, is low-dimensional but not necessarily equal to d, the dimension of the entity embedding space.
+
+The energy is computed by "matching" the transformed embeddings of the left-hand and right-hand sides: E((lhs,rel,rhs))  =  h(Elhs(rel),Erhs(rel)), h is a dot product in our experiments.
+
+We studied two options for the g functions, which lead to two versions of SME:
+
+Linear form (denoted SME(linear)), in this case g functions are simply linear layers:
+
+[formula]
+
+with Wl1, Wl2, Wr1, Wr2 [formula], bl, br [formula] and [formula] denotes the transpose of E. This leads to the energy: [formula].
+
+Bilinear form (denoted SME(bilinear)), g functions are using 3-modes tensors as core weights:
+
+[formula]
+
+with Wl, Wr [formula] (weights) and bl, br [formula] (biases). 3 denotes the n-mode vector-tensor product along the 3rd mode. This leads to the following form for the energy: [formula].
+
+To train the parameters of the energy function E we loop over all of the training data resources and use stochastic gradient descent with a ranking objective inspired by [\cite=wsabie].
+
+Empirical Evaluation
+
+To evaluate against existing methods, we performed link prediction experiments on benchmarks from the literature, whose statistics are in Table [\ref=tab:data_bench].
+
+The link prediction task consists in predicting whether two entities should be connected by a given relation type. This is useful for completing missing values of a graph, forecasting the behavior of a network, etc. but also to assess the quality of a representation. We evaluate our model on UMLS, Nations and Kinships, following the setting introduced in [\cite=Kemp:2006]. The standard evaluation metric is area under the precision-recall curve (AUC). Table [\ref=fig:lpred] presents results of SME along with those of RESCAL, MRC, IRM, CP (CANDECOMP-PARAFAC) and LFM, which have been extracted from [\cite=Nickel:2011] [\cite=Jenatton:2012]. The linear formulation of SME is outperformed by SME(bilinear) on all three tasks. The largest differences for Nations and Kinships indicate that, for these problems, a joint interaction between both lhs, rel and rhs is crucial to represent the data well: relations cannot be simply decomposed as a sum of bigrams. This is particularly true for the complex kinship systems of the Alyawarra. On the contrary, interactions within the UMLS network can be represented by simply considering the various (entity,entity) and (entity,relation type) bigrams. Compared to other methods, SME(bilinear) performs similarly to LFM on UMLS but is slightly outperfomed on Nations. On Kinships, it is outperformed by CP, RESCAL and LFM: on this dataset with complex ternary interactions, either the training process of the tensor factorization methods, based on reconstruction, or the combination of bigram and trigram interactions seems to be beneficial compared to our predictive approach. Compared to MRC, which is not using a matrix-based encoding, SME(bilinear) is highly competitive.
+
+Even if experimental results on these benchmarks are mixed, it is worth noting that, contrary to all previous methods, SME models relation types as vectors, lying in the same space as entities. From a conceptual viewpoint, this is powerful, since it models any relation types as a standard entity (and vice-versa). Hence, SME is the only method that could be directly applied on data for which any entity can also create relationships between other entities.
+
+Acknowledgements
+
+This work was supported by the French ANR (EVEREST-12-JS02-005-01), the Pascal2 European NoE, the DARPA DL Program, NSERC, CIFAR, the Canada Research Chairs, and Compute Canada.

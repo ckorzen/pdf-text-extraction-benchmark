@@ -1,0 +1,261 @@
+Lemma Corollary
+
+Efficient Low-Redundancy Codes for Correcting Multiple Deletions
+
+Venkatesan Guruswami
+
+Samuel Zbarsky
+
+Introduction
+
+A k-bit binary deletion code of length N is some set of strings C  ⊆  {0,1}N so that for any c1,c2∈C, the longest common subsequence of c1 and c2 has length less than N - k. For such a code, a codeword of C can be uniquely identified from any of its subsequences of length N - k, and therefore such a code enables recovery from k adversarial/worst-case deletions.
+
+In this work, we are interested in the regime when k is a fixed constant, and the block length N grows. Denoting by [formula] the size of the largest k-bit binary deletion code of length N, it is known that
+
+[formula]
+
+for some constants ak  >  0 and Ak  <    ∞   depending only k [\cite=Levenshtein66].
+
+For the special case of k = 1, it is known that [formula]. The Varshamov-Tenengolts code [\cite={VarshamovTenengolts65}] defined by
+
+[formula]
+
+is known to have size at least 2N / (N + 1), and Levenshtein [\cite=Levenshtein66] shows that this code is capable of correcting a single deletion. An easy to read exposition of the deletion correcting property of the VT code can be found in the detailed survey on single-deletion-correcting codes [\cite=Sloane02].
+
+The bound [\eqref=eq:del-combin] shows that the asymptotic number of redundant bits needed for correcting k-bit deletions in an N-bit codeword is Θ(k log N) (i.e., one can encode n  =  N  -  Θ(k log N) message bits into length N codewords in a manner resilient to k deletions). Note that the codes underlying this result are obtained by an exponential time greedy search -- an efficient construction of k-bit binary deletion codes with redundancy approaching O(k log N) was not known, except in the single-deletion case where the VT code gives a solution with optimal log N  +  O(1) redundancy.
+
+The simplest code to correct k worst-case deletions is the (k + 1)-fold repetition code, which maps n message bits to N  =  (k + 1)n codewords bits, and thus has [formula] redundant bits. A generalization of the VT code for the case of multiple deletions was proposed in [\cite=HF02] and later proved to work in [\cite=Ghaffaretal12]. These codes replace the weight i given to the i'th codeword bit in the check constraint of the VT code [\eqref=eq:VT-code] by a much larger weight, which even for the k = 2 case is related to the Fibonacci sequence and thus grows exponentially in i. Therefore, the redundancy of these codes is Ω(N) even for two deletions, and equals ckN where the constant ck  →  1 as k increases. Some improvements were made for small k in [\cite=Paluncicetal12], which studied run-length limited codes for correcting insertions/deletions, but the redundancy remained Ω(N) even for two deletions.
+
+Allowing for Θ(N) redundancy, one can in fact efficiently correct a constant fraction of deletions, as was shown by Schulman and Zuckerman  [\cite=SchulmanZuckerman99]. This construction was improved and optimized recently in [\cite=GW-random15], where it was shown that one could correct a fraction ζ  >  0 of deletions with [formula] redundant bits in the encoding. One can deduce codes to correct a constant k number of deletions with redundancy [formula] using the methods of [\cite=GW-random15] (we will hint at this in Section [\ref=sec:overview]).
+
+In summary, despite being such a natural and basic problem, there were no known explicit codes with redundancy better than [formula] even to correct from two deletions. Our main result, stated formally as Theorem [\ref=thm:main] below, gives an explicit construction with redundancy Ok( log N) for any fixed number k of deletions, along with a near-linear time decoding algorithm.
+
+For simplicity, the above discussion focused on the problem of recovering from deletions alone. One might want codes to recover from a combination of deletions and insertions (i.e., errors under the edit distance metric). Levenshtein [\cite=Levenshtein66] showed that any code capable of correcting k deletions is in fact also capable of correcting from any combination of a total of k insertions and deletions. But this only concerns the combinatorial property underlying correction from insertions/deletions, and does not automatically yield an algorithm to recover from insertions/deletions based on a deletion-correcting algorithm. For our main result, we are able to extend our construction to efficiently recover from an arbitrary combination of worst-case insertions/deletions as long as their total number is at most k.
+
+Our result
+
+In this work, we construct, for each fixed k, a binary code of block length N for correcting k insertions/deletions on which all relevant operations can be done in polynomial (in fact, near-linear) time and that has O(k2 log k log N) redundancy. We stress that this is the first efficient construction with redundancy smaller than NΘ(1) even for the 2-bit deletion case. For simplicity of exposition, we go through the details on how to construct an efficient deletion code, and then indicate how to modify it to turn it into an efficient deletion/insertion code.
+
+Fix an integer [formula], For all sufficiently large n, there exists a code length [formula], an injective encoding map [formula] and a decoding map [formula] both computable in Ok(n( log n)4) time, such that for all s∈{0,1}n and every subsequence s'∈{0,1}N - k obtained from [formula] by deleting k bits, [formula].
+
+Note that the decoding complexity in the above result has a FPT (fixed-parameter tractable) type dependence on k, and a near-linear dependence on n.
+
+Our encoding function in Theorem [\ref=thm:main] is non-linear. This is inherent; in Appendix [\ref=app:linear-limits] we give a simple proof that among linear codes capable of correcting k deletions, the (k + 1)-fold repetition code is essentially the best possible.
+
+Our approach
+
+We describe at a high level the ideas behind our construction of k-bit binary deletion codes with logarithmic redundancy. The difficulty with the deletion channel is that we don't know the location of deletions, and thus we lose knowledge of which position a bit corresponds to. Towards identifying positions of some bits in spite of the deletions, we can break a codeword into blocks [formula] of length b bits each, and separate them by introducing dummy buffers (consisting of a long enough run of 0's, say). If only k bits are deleted, by looking for these buffers in the received subsequence, we can identify all but O(k) of the blocks correctly (there are some details one must get right to achieve this, but these are not difficult). If the blocks are protected against O(k) errors, then we can recover the codeword. In terms of redundancy, one needs at least m bits for the buffers, and at least [formula] bits to correct the errors in the blocks. As mb = n, such a scheme needs at least [formula] redundant bits. Using this approach, one can in fact achieve [formula] redundancy; this is implicit in [\cite=GW-random15].
+
+To get lower redundancy, our approach departs from the introduction of explicit buffers, as they use up too many redundant bits. Our key idea is to use patterns that occur frequently in the string themselves as "implicit" buffers, so we have no redundancy wasted for introducing buffers. Since an adversary could delete a portion of an implicit buffer thereby foiling our approach, we use multiple implicit patterns and form a separate "hash" for each pattern (which will protect the intervening blocks against k errors). Since many strings have very few short patterns (such as as the all 0's string), we first use a pattern enriching encoding procedure to ensure that there are sufficiently many patterns. The number of implicit patterns is enough so that less than half of them can be corrupted by an adversary in any choice of k deletions. Then, we can decode the string using each pattern and take the majority vote of the resulting decodings. The final transmitted string bundles the pattern rich string, a hash describing the pattern enriching procedure, and the hash for each pattern. The two hashes are protected with a less efficient k-bit deletion code (with o(n) redundancy) so that we can immediately decode them.
+
+Deletion codes and synchronization protocols
+
+A related problem to correcting under edit distance is the problem of synchronizing two strings that are nearby in edit distance or document exchange [\cite=CPSV00]. The model here is that Alice holds a string x∈{0,1}n and Bob holds an arbitrary string y at edit distance at most k from x -- for simplicity let us consider the deletions only case so that y∈{0,1}n - k is a subsequence of x. The existential result for deletion codes implies that there is a short message g(x)∈{0,1}O(k log n) that Alice can send to Bob, which together with y enables him to recover x (this is also a special case of a more general communication problem considered in [\cite=Orlitsky93]). However, the function g takes exponential time to compute. We note that if we had an efficient to compute g with output length O(k log n), then one can also get deletion codes with small redundancy by protecting g(x) with a deletion code (that is shorter and therefore easier to construct). Indeed, this is in effect what our approach outline above does, but only when x is a pattern rich string. Our methods don't yield a deterministic protocol for this problem when x is arbitrary, and constructing such a protocol with no(1) communication remains open.
+
+If we allow randomization, sending a random hash value h(x) of O(k log n) bits will allow Bob to correctly identify x among all possible supersequences of y; however, this will take nO(k) time. Randomized protocols that enable Bob to efficiently recover x in near-linear time are known, but these require larger hashes of size [formula] [\cite=Jowhari12] or O(k log (n / k) log n) [\cite=IMS]. Very recently, a randomized protocol with a O(k2 log n) bound on the number of bits transmitted was given in [\cite=CGK]. But the use of randomness makes these synchronization protocols unsuitable for the application to deletion codes in the adversarial model.
+
+Organization
+
+In Section [\ref=sec:prelim], we define the notation and describe some simple or well-known codes which will be used throughout the paper. Section [\ref=sec:hash-for-mixed] demonstrates how to efficiently encode and decode pattern rich strings against k-bit deletions using a hashing procedure. Section [\ref=sec:enc-to-mixed] describes how to efficiently encode any string as a pattern rich string. Section [\ref=sec:proof-of-thm] combines the results of the previous sections to prove Theorem [\ref=thm:main]. Section [\ref=sec:insertions] describes how to modify the code so that it works efficiently on the k-bit insertion and deletion channel. Section [\ref=sec:conclusion] suggests what would need to be done to improve redundancy past O(k2 log k log n) using our methods. Appendix [\ref=app:linear-limits] proves that essentially the best linear k-bit deletion code is the (k + 1)-repetition code.
+
+Preliminaries
+
+A subsequence in a string x is any string obtained from x by deleting one or more symbols. In contrast, a substring is a subsequence made of several consecutive symbols of x.
+
+We now state and develop some basic ingredients that our construction builds upon. Specifically, we will see some simple constructions of hash functions such that the knowledge [formula] and an arbitrary string y∈σk(x) allows one to reconstruct x. Our final deletion codes will use these basic hash functions, which are either inefficient in terms of size or complexity, to build hashes that are efficient both in terms of size and computation time. These will then be used to build deletion codes, after protecting those hashes themselves with some redundancy to guard against k deletions, and then including them also as part of the codeword.
+
+We start with an asymptotically optimal hash size which is inefficient to compute. For runtimes, we adopt the notation Ok(f(n)) to denote that the runtime may depend on a hidden function of k.
+
+Fix an integer [formula]. There is a hash function [formula] for [formula], computable in Ok(n2k2n) time, such that for all x∈{0,1}n, given [formula] and an arbitrary y∈σk(x), the string x can be recovered in Ok(n2k2n) time.
+
+This result follows from an algorithmic modification of the methods of [\cite=Levenshtein66]. It is easy to see that for any n-bit string x, [formula]. Additionally, for any (n - k)-bit string y, the number of n-bit strings s for which y∈σk(s) is at most [formula]. Thus, any n-bit string x is confusable with at most 2n2k others strings. Thus, there exists a deterministic procedure in Ok(n2k2n) time which (2n2k + 1)-colors these strings. We can define [formula] to be the color of x.
+
+Given such a hash and a (n - k) bit received subsequence y∈σk(x), the receiver can in Ok(n2k2n) determine the color of all strings s for which y∈σk(s). By design, exactly one of these stings has the color of the hash, so the receiver will be able to successfully decode x, as desired.
+
+We now modify the above result to obtain a larger hash that is however faster to compute (and also allows recovery from deletions in similar time).
+
+Fix an integer [formula]. There is a hash function [formula] for m  ≈  2kn log  log n /  log n computable in Ok(n2( log n)2k) time, such that for all s∈{0,1}n, given [formula] and an arbitrary y∈σk(s), the string s can be recovered in Ok(n2( log n)2k) time.
+
+We describe how to compute [formula] for an input s∈{0,1}n. Break up the string into consecutive substrings [formula] of length ⌈ log n⌉ except possibly for sn' which is of length at most ⌈ log n⌉. For each of these strings, by Lemma [\ref=lem:brute-force] we can compute in Ok(n( log n)2k) time the string [formula] of length ~  2k log  log n. Concatenating each of these hashes, we obtain a hash of length ~  2kn log  log n /  log n which takes Ok(n2( log n)2k) time to compute. The decoder can recover the string s' in Ok(n2( log n)2k) time by using the following procedure. For each of [formula] if ji and j'i are the starting and ending positions of si in s, then the substring between positions ji and j'i  -  k in s' must be a subsequence of si. Thus, applying the decoder described in [formula], we can in Ok(n( log n)2k) time recover si. Thus, we can recover s in Ok(n2( log n)2k) time, as desired.
+
+We will also be using Reed-Solomon codes to correct k symbol errors. For our purposes, it will be convenient to use a systematic version of Reed-Solomon codes, stated below. The claimed runtime follows from near-linear time implementations of unique decoding algorithms for Reed-Solomon codes, see for example [\cite=Gao02].
+
+Let k  <  n be positive integers, and q be a power of two satisfying [formula]. Then there exists a map [formula], computable in Ok(n( log n)4) time, such that the set [formula] is an error-correcting code that can correct k errors in Ok(n( log n)4) time. In particular, given [formula] and an arbitrary z at Hamming distance at most k from x, one can compute x in Ok(n( log n)4) time.
+
+Deletion-correcting hash for mixed strings
+
+In this section, we will construction a short, efficiently computable hash that enables recovery of a string x from k-deletions, when x is typical in the sense that each short pattern occurs frequently in x (we call such strings mixed).
+
+Pattern-rich strings
+
+We will use n for the length of the (mixed) string to be hashed, and as always k will be the number of deletions we target to correct. The following parameters will be used throughout:
+
+[formula]
+
+It is easy to see that the choice of m satisfies
+
+[formula]
+
+(Indeed, we have
+
+[formula]
+
+We now give the precise definition of mixed strings.
+
+Hashing of Mixed Strings
+
+The following is our formal result on a short hash for recovering mixed strings from k deletions.
+
+Fix an integer [formula]. Then for all large enough n, there exists b  =  O(k2 log k log n) and a hash function [formula] and a deletion correction function [formula], both computable in Ok(n( log n)4) time, such that for any k-mixed s∈{0,1}n, and any s'∈σk(s), we have [formula].
+
+Intuitively, s' is p-preserving with respect to s if we can obtain s' from s by deleting k bits without destroying or creating any instances of the pattern p.
+
+We first prove the following lemma.
+
+Fix an integer [formula]. Then for sufficiently large n, there exists a hash function
+
+[formula] and deletion correction function
+
+[formula],
+
+both computable in Ok(n( log n)4) time, such that for every pattern p∈{0,1}m, every k-mixed s∈{0,1}n, and an arbitrary s'∈σk(s) that is p-preserving with respect to s, one has
+
+[formula]
+
+We first define the hash function [formula] as follows.
+
+Assume we are given a mixed string r∈Mn and a pattern p∈{0,1}m. Let [formula] be the p-split points of r. Then we let strings [formula] be defined by [formula], [formula], and for [formula], [formula]. Thus {wj} are the strings that r is broken into by splitting it at the split points. By the definition of a mixed string, each wj has length at most d (as defined in [\eqref=eq:d-and-m]).
+
+We let [formula] be the length of wj, let vj be wj padded to length d by leading 0's, and let [formula] as defined in Lemma [\ref=lem:small-string], with the binary representation of the length of [formula] appended. We can compute yj in time Ok(( log n)2( log  log n)2k) and yj has length v satisfying
+
+[formula]
+
+for large enough n.
+
+Let xj be the number whose binary representation is yj. Then based on the length of yj, we have that xj < n. Let q be the smallest power of 2 that is at least n + 2k. We then apply lemma [\ref=lem:RS] to [formula] (with all those that are not defined being assigned value 0) to obtain [formula]. For [formula], let Sj be the binary representation of yk, padded with leading 0's so that its length is ⌈ log n⌉ + 1.
+
+Finally, we define the hash value
+
+[formula]
+
+Clearly, the length of [formula] equals 2k(⌈ log n⌉  +  1).
+
+To compute [formula], where s' is a subsequence of s that is p-pattern preserving with respect to s, we split h̃ into 2k equal-length blocks, calling them [formula]. We compute [formula] from s' in the same way that we computed [formula] from s when defining [formula]. Now, assuming [formula], there are at most k values of j such that x'j  ≠  xj, since there are at most k deletions. We can use Lemma [\ref=lem:RS] and [formula] to correct these k errors. From a corrected value of xj, we can obtain the value of w'j and [formula]. Since [formula] is the length of wj, we can use it to remove the proper number of leading zeroes from w'j and obtain wj. Thus we can restore the original s in Ok(n( log n)4  +  n( log n)2( log  log n)2k) time. Since [formula], the overall decoding time is Ok(n( log n)4).
+
+With the above lemma in place, we are now ready to prove the main theorem of this section.
+
+Given a mixed string s∈Mn, the hash [formula] is computed by computing [formula] from Lemma [\ref=thm:hashforonep] for each pattern p∈{0,1}m and concatenating those hashes in order of increasing p. For the decoding, to compute [formula] for a s'∈σk(s), we run [formula] from Lemma [\ref=thm:hashforonep] on each of the 2m subhashes corresponding to each p∈{0,1}m, and then take the majority (we can perform the majority bitwise so that it runs in Ok(n) time). When deleting a bit from s, at most (2m - 1) patterns p are affected (since at most m are deleted and at most m - 1 are created). Thus k deletions will affect at most k(2m - 1) patterns of length m. Since m was chosen such that 2m  >  2k(2m - 1), we have that s' is p-preserving with respect to s for a majority of patterns p. Therefore, we will have [formula] for a majority of patterns p, and thus [formula] reconstructs the string s correctly.
+
+Encoding into Mixed Strings
+
+The previous section describes how to protect mixed strings against deletions. We now turn to the question of encoding an arbitrary input string s∈{0,1}n into a mixed string in Mn.
+
+We will apply the above function with the parameter choice
+
+[formula]
+
+Equation [\ref=eq:def-of-L] follows since for [formula]
+
+[formula]
+
+Notice that for all s∈{0,1}n and t∈{0,1}L, μ(μ(s,t),t)  =  s. Notice also that μ is computable in O(n) time. It is not hard to see that for any s∈{0,1}n, the string μ(s,t) for a random template t∈{0,1}L will be k-mixed with high probability. We now show how to find one such template t that is suitable for s, deterministically in near-linear time.
+
+There exists a function T:{0,1}n  →  {0,1}L such that for all s∈{0,1}n, μ(s,T(s))∈Mn. Also, T is computable in O(k3( log k)3 n log n)  =  Ok(n log n) time.
+
+For a given string s and template t, we say that a pair [formula] is an obstruction to r  =  μ(s,t) being mixed if the substring of [formula] does not include the pattern p as a substring.
+
+We will choose T(s) algorithmically. For [formula], at the beginning of step j we have we will have bj potential obstructions. Clearly, [formula]. At step j, we will specify the values of [formula]. If we chose these bits randomly, then [formula]. Thus we can check all of the 2m possibilities and find some way to specify the bits so that [formula]. This will then give us that
+
+[formula]
+
+by our choice of L in [\eqref=eq:def-of-L].
+
+Thus we can find a template T(s) with no obstructions in [formula] steps. The definition of an obstruction tells us that then every substring of r  =  μ(s,T(s)) of length [formula] contains every pattern of length m, so the string r∈Mn.
+
+Let us estimate the time complexity of finding T(s). Fix a step j, [formula]. Going over all possibilities of [formula] takes 2m time, and for each estimating the reduction in number of potential obstructions takes O(n2m) time. The total runtime is thus O(n4mL / m)  =  O(n8m log (n2m))  =  O(k3( log k)3n log n).
+
+The Encoding/Decoding Scheme: Proof of Theorem [\ref=thm:main]
+
+Combining the results from Sections [\ref=sec:hash-for-mixed] and [\ref=sec:enc-to-mixed], we can now construct the encoding/decoding functions [formula] and [formula] which satisfy Theorem [\ref=thm:main]. But first, as a warm-up, we consider a simple way to obtain such maps for codewords of slightly larger length [formula] (i.e., the redundancy has a cubic rather than quadratic dependence on k). Let s be the message string we seek to encode. First compute t  =  T(s) and r  =  μ(s,t) as per Lemma [\ref=lem:mixed-string]. Then, define the encoding of s as
+
+[formula]
+
+where [formula] is the deletion-correcting hash function for mixed strings from Theorem [\ref=thm:hash], and [formula] is the (k + 1)-repetition code which repeats each bit (k + 1) times. Since [formula] is the most intensive computation, [formula] can be computed in Ok(n( log n)4) time and its length is
+
+[formula]
+
+We now describe the efficient decoding function [formula]. Suppose we receive a subsequence [formula], First, we can easily decode t and [formula], since we know the lengths of t and [formula] beforehand. Also the first n - k symbols of s' yield a subsequence r' of r of length n - k. Then, as shown in Theorem [\ref=thm:hash], [formula] and this can be computed in Ok(n( log n)4) time. Finally, we can compute s  =  μ(r,t), so we have successfully decoded the message s from s', as desired.
+
+Now, we demonstrate how to obtain the improved encoding length of n  +  O(k2 log k log n). The idea is to use Lemma [\ref=lem:small-string] to protect t and [formula] with less redundancy than the naive (k + 1)-fold repetition code.
+
+Consider the slightly modified encoding
+
+[formula]
+
+The resulting codeword can be verified to have length O(k2( log k)( log n)) for large enough n; the point is that [formula] applied to t and [formula], which are Ok( log n) long strings, will result in strings of length ok( log n), so we can afford to encode them by the redundancy (k + 1) repetition code, without affecting the dominant Ok( log n) term in the overall redundancy.
+
+Since we know beforehand, the starting and ending positions of each of the five segments in the codeword [\eqref=eq:final-encoding], we can in O(n) time recover subsequences of r, t, [formula], [formula], and [formula] with at most k deletions in each. By decoding the repetition codes, we can recover [formula] and [formula] in O(n) time. Then, using the algorithm described in Lemma [\ref=lem:small-string], we can recover t and [formula] in Ok(n'2( log n')2k) time where [formula]. Once t and [formula] are recovered, we can proceed as in the previous argument and decode s in Ok(n( log n)4) time, as desired.
+
+Efficient Algorithm for Correcting Insertions and Deletions
+
+By a theorem of Levenshtein [\cite=Levenshtein66], we have that our code works not only on the k-bit deletion channel but also on the k-bit insertion and deletion channel. The caveat though with this theorem is that the decoding algorithm may not be as efficient. In this section, we demonstrate a high-level overview of a proof that, with some slight modifications, the code we constructed for k deletions can be efficiently decoded on the k-bit insertion and deletion channel. Although the redundancy will be slightly worse, its asymptotic behavior will remain the same.
+
+To show that our code works, we argue that suitable modifications of each of our lemmas allow the result to go through.
+
+Lemma [\ref=lem:brute-force] works for the k-bit insertion and deletion channel by Levenshtein's result [\cite=Levenshtein66]. Since encoding/decoding were done by brute force the efficiency will not change by much.
+
+To modify Lemma [\ref=lem:small-string] we show that the code which corrects 3k deletions can also correct k insertions and k deletions nearly as efficiently. If the codeword transmitted is [formula] where each si is of length at most ⌈ log n⌉ then in the received word, if si was supposed to be in positions ia to ib, then positions ia  +  k to ib  -  k must contain bits from si except possibly for k spurious insertions. Using Lemma [\ref=lem:brute-force] modified for insertions, we can restore si using brute force, and thus we can restore the original string with about the same runtime as before.
+
+Lemma [\ref=lem:RS] and Lemma [\ref=thm:hashforonep] do not change because the underlying error-correcting code does not depend on deletions or insertions.
+
+Theorem [\ref=thm:hash] does not change because the hash works in an error-correcting way and the number of affected "foiled" patterns is roughly the same.
+
+Lemma [\ref=lem:mixed-string] does not change.
+
+Theorem [\ref=thm:main] needs some modifications. The encoding has the same general structure except we use the hash functions of the modified lemmas and we use a (3k + 1)-fold repetition code instead of a (k + 1)-fold repetition code. That is, our encoding is
+
+[formula]
+
+In the received codeword we can identity each section with up to k bits missing on each side and k spurious insertions inside. In linear time we can correct the (3k + 1)-repetition code by taking the majority vote on each block of length 3k + 1. Thus, we will have [formula] and [formula] from which we can obtain t, [formula], and finally r and s in polynomial (in fact, near-linear) time as in the deletions-only case.
+
+Thus, we have exhibited an efficient code encoding n bits with O(k2 log k log n) redundancy and which can be corrected in near-linear time against any combination of insertions and deletions totaling k in number.
+
+Concluding remarks
+
+In this paper, we exhibit a first-order asymptotically optimal efficient code for the k-bit deletion channel. Note that to improve the code length past n  +  O(k2 log k log n), we would need to modify our hash function [formula] so that either it would use shorter hashes for each particular pattern p or it would require using fewer patterns p. The former would require distributing the hash information between different patterns, which may not be possible since the patterns do not synchronize with each other. An approach through the latter route seems unlikely to improve past n  +  O(k2 log n) since an adversary is able to "ruin" k essentially independent patterns because the string being transmitted is k-mixed.
+
+Another interesting challenge is to give a deterministic one-way protocol with [formula] communication for synchronizing a string x∈{0,1}n with a subsequence y∈σk(x) (the model discussed in Section [\ref=sec:sync]). The crux of our approach is such a protocol when the string x is mixed, but the problem remains open when x can be an arbitrary n-bit string.
+
+Another intriguing question is whether there is an extension of the Varshamov-Tenengolts (VT) code for the multiple deletion case, possibly by using higher degree coefficients in the check condition(s) (for example, perhaps one can pick the code based on [formula] for [formula] for some small constant d). Note that this would also resolve the above question about a short and efficient deterministic hash for the synchronization problem. However, for the case of two deletions there are counterexamples for [formula], and it might be the case that no such bounded-degree polynomial hash works even for two deletions.
+
+Acknowledgment
+
+The second author thanks Michael Saks for valuable discussions about the problem of recovering from multiple deletions and in particular about the possibility of finding a VT-like code for correcting two deletions.
+
+Linear deletion codes cannot have rate better than [formula]
+
+In this section, we generalize the work of [\cite=Ghaffaretal07] (who did the k = 1 case) to demonstrate that the best asymptotic rate achievable by a linear k-bit binary deletion code is 1  /  (k + 1). Note that this is achieved by the k + 1-repetition code.
+
+Let C be a n-bit linear code for the k-bit deletion channel. Then, [formula].
+
+Define [formula] to be subspaces of [formula] of dimension [formula] such that
+
+[formula]
+
+For all [formula],
+
+[formula]
+
+If [formula], then there exists x,y∈C such that
+
+[formula]
+
+Since j  >  i, we have that [formula]. Thus, when x and y are passed through the k-deletion channel, they could output the same result since [formula]. Thus, x  =  y. Hence, [formula] (indices modulo n) for all [formula]. Thus, there are at most 2gcd (j  -  i,n) choices for x, so [formula].
+
+From the lemma, we can see that
+
+[formula]
+
+Thus, [formula] as desired.
+
+If we let n be a prime, then [formula]. Furthermore, the only possible non-trivial intersection is [formula]. Thus, the sum of these k + 1 vector spaces would have to have dimension at least (k + 1)( dim (C)  -  1)  +  1, from which we can get that [formula].

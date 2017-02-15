@@ -1,0 +1,271 @@
+Riemannian geometry applied to detection of respiratory states from EEG signals: the basis for a brain-ventilator interface
+
+Navarro et al.: Towards a brain-ventilator interface
+
+Introduction
+
+ventilation is the most frequently used life-sustaining intervention in the intensive care unit (ICU), where approximately 50% of patients receive ventilatory support [\cite=carlucci2001]. At some point in their management, many patients on mechanical ventilation (MV) are described as "fighting their ventilator". This jargonistic expression is used to indicate a mismatch between patient respiratory efforts and ventilator "breaths". This form of disharmony between patient and ventilator results in an increased work of breathing and is a major source of discomfort for the patient with some deleterious effects such as dyspnea and anxiety. Dyspnea and anxiety are major drivers of post-traumatic stress disorders frequently observed in patients who survive the ICU [\cite=leung1997]. Therefore, it is crucial to detect patient-ventilator disharmony as early as possible. Currently, this relies on monitoring of physiological signals generated indirectly (pressure, air flow) or directly (electromyography) by the respiratory muscles in response to the descending neural drive to breathe. It is generally assumed that ventilatory support should be adapted to the neural drive to breathe [\cite=Sinderby1999]. Some approaches address this issue by using the diaphragmatic EMG (e.g. the neurally adjusted ventilatory assist or NAVA [\cite=Spahija2010]). Nevertheless, these techniques fail to take into account the fact that, under certain circumstances, the automatic respiratory activity of the brain stem is supplemented by respiratory-related cortical circuits. Indeed, inspiratory loading in awake humans elicits a cortical response that can be observed in EEG signals [\cite=raux2007]. Such responses have been found to correlate with respiratory discomfort in healthy subjects fighting a ventilator [\cite=raux2007b]. These observations give rise to the prospect of an effective brain-ventilator interface (BVI) that would target the neural correlates of respiratory discomfort rather than the automatic drive to breathe [\cite=Grave2013].
+
+Current neuroscience research attempts to understand how brain functions result from dynamic interactions in large-scale cortical networks, and to further identify how cognitive tasks or brain diseases contribute to reshape this organization [\cite=Varela2001]. Covariance analyses of brain data are widely used to elucidate the functional interactions between brain regions during different brain states. The relevance of covariance matrices as a feature for BCI has been already assessed [\cite=barachant2012] and they constitute a very appropriate choice given their ability to reflect spatio-temporal dynamics in EEG. In this paper, we use elements of differential geometry to evaluate the ability of EEG covariance matrices to characterize changes in respiratory states in healthy subjects.
+
+A brain-ventilator interface
+
+The use of brain computer interfaces (BCI) is increasingly common in clinical environments as a technology to improve patient communication and rehabilitation using brain signals [\cite=mak2009]. However, the application of BCI in the respiratory context has not yet been explored.
+
+In this work, we propose a framework which provides the basis of a brain-ventilator interface (see Fig. [\ref=fig:plan_bvi]). A first possible implementation consists of an open loop configuration that generates an output signal to trigger an alarm in the case of breathing disharmony. The second implementation is a more advanced version that could generate a continuous output signal in a closed loop to directly adapt ventilator parameters to the patient's needs.
+
+The different blocks in the proposed BVI are as follows:
+
+Acquisition: Set of electrodes, amplifiers and A/D converter providing digitized EEG signals.
+
+Pre-processing: Improves signal-to-noise ratios in EEG signals by applying artifact correction/rejection and/or filters.
+
+Feature extraction: Sample covariance matrices (CMs) are obtained from segmented, pre-processed signals.
+
+Classification: CMs are labelled according to two possible classes: normal and altered breathing. Detection of anomalous respiratory states is achieved by semi-supervised learning, measurement of the distance between a number of reference matrices learned during reference condition and the CM corresponding to a particular signal epoch. Since CMs do not lie in vector space, appropriate distance metrics must consider their natural geometry.
+
+Translation: External application that converts the binary signal from the classifier to an alarm or ventilator command.
+
+The present paper focuses on the signal processing aspects of the BVI -pre-processing, feature extraction and classification blocks- as a detector of respiratory-related activities compatible with breathing discomfort. The framework is validated with EEG from healthy subjects under two breathing constraints to emulate patient-ventilator disharmony.
+
+The experimental protocol and data are detailed in Section [\ref=database]. Section [\ref=meth] describes the different signal processing blocks, and Section [\ref=setup] studies BVI settings for optimal detection of breathing discomfort. Section [\ref=res] provides the experimental results and evaluation of the proposed BVI. Finally, we conclude the paper with a discussion in Section [\ref=concl].
+
+Database
+
+The database is composed of nine healthy subjects (21 - 29 years; 5 women) with no prior experience with respiratory or neurophysiology experiments (for more details see [\cite=hudson2015]). According to the declaration of Helsinki, written informed consent was obtained from each subject after explanation of the study, which was approved by the local institutional ethics committee (Comité de Protection des Personnes Ile-de-France VI, Groupe Hospitalière Pitié-Salpêtrière, Paris, France).
+
+Subjects were sitting in a comfortable chair and breathed continuously through a mouthpiece. They were asked to avoid body and head movements. They were distracted from the experimental context by watching a movie during the entire experiment, on a screen placed in front of them. To minimize emotional interference, the movie was a neutral animal documentary.
+
+Electroencephalographic activity was recorded via surface electrodes (Acticap, BrainProducts GmbH, Germany) using 32 electrodes according to the standard 10-20 montage and sampled at 2500 Hz. Impedance between electrodes and skin were set below 5 kΩ. The mouthpiece was connected to a pneumotachograph (Hans Ruldoph Inc., MO, USA) and a two-way valve to measure airflow and attached, when required, an inspiratory load (range 18-25 cmH20).
+
+The experiment was designed to activate cortical regions by altered breathing and consisted of three parts:
+
+Normal, spontaneous ventilation (SV condition). Breathing is controlled automatically by the autonomous nervous system without cortical contribution.
+
+Voluntary brisk inhalations or sniffs (SN condition). Breathing movements are planned before execution, thus motor and pre-motor cortical regions are solicited.
+
+Inspiratory loaded breathing (LD condition). Ventilatory muscles perform a supplementary effort to overcome an inspiratory threshold load to maintain adequate air flow, a condition known to engage cortical networks.
+
+In contrast to the SV condition, where breathing is comfortable, LD is associated with respiratory discomfort. In a clinical context, SV would correspond to patient-ventilator harmony, whereas LD condition would correspond to patient-ventilator disharmony. SN can be considered as a positive control condition where cortical control is expected. For all subjects, 10 minutes of EEG was recorded for each condition.
+
+Methods
+
+Pre-processing
+
+The purpose of this block is to enhance motor cortical activity, whose main rhythms are between 8 and 24 Hz [\cite=pfurtscheller1999]. To this end, a linear phase FIR filter (to avoid group delay) with these cut-off frequencies was applied. Data segments with artifacts due to repetitive eye blinks and ocular movements were visually detected and removed from the original EEG dataset. Then, signals were down-sampled to 250 Hz and segmented in 5 second sliding, 50% overlapped windows to reduce computational cost in subsequent blocks. This time interval is in concordance with the slow breathing dynamics (a breath every 2.5 to 5 seconds).
+
+Feature extraction
+
+As mentioned above, the basis to classify the breathing state in the BVI are sample covariance matrices. The feature extraction block processed EEG data in epochs of Nt samples and Nc channels, as a matrix [formula], and then transformed to a sample covariance matrix [formula]. The latter was computed by the unbiased estimator:
+
+[formula]
+
+where the superscript T denotes the matrix transpose.
+
+By construction, [formula] are symmetric and positive-definite matrices (SPD) that do not lie in a vector space but on a Riemannian manifold [\cite=moakher2005]. Therefore, previous methods defined on a Euclidean structure are not longer adequate. The correct manipulation of these SPD matrices requires the application of Riemannian geometry concepts, described in Section [\ref=riemann].
+
+Classification
+
+Classification of covariance matrices
+
+Thanks to the ability of covariance matrices to capture EEG spatial dynamics, a semi-supervised approach can be chosen to solve the classification problem in a BVI.
+
+In semi-supervised algorithms, the availability of the labels from only one class is enough to classify instances from a second class, as the latter can be mapped in a different (distant) region of the space representation. In our framework, motor cortex activation provoked during uncomfortable breathing should be different to that underlying normal, comfortable breathing (absence of motor cortical activity).
+
+The objective of the classifier is to learn from L data samples of the reference class SV ([formula]) in order to label new trials [formula] in two classes, [formula], which correspond to breathing comfort (SV condition) and discomfort (SN or LD conditions), respectively.
+
+During the learning process, the algorithm first finds K matrices, subsequently called prototypes, serving as reference to perform classification. Those prototypes constitute K centers from the ensemble of covariance matrices [formula] and they are estimated by means of a general K-means clustering algorithm:
+
+Initialize the prototypes [formula], [formula] by random selection of K matrices from [formula],
+
+For each sample covariance matrix, compute its distance d to all the prototypes and assign it to the closest one in order to form the cluster [formula]:
+
+Update each prototype by averaging points in [formula] as For points lying in a vector space, [formula] corresponds to the arithmetic mean of points in [formula]
+
+Go to step (2) until convergence (e.g. the assignments no longer change) is achieved.
+
+The resulting prototypes [formula] represent the Class 0, and are then used to classify the new unlabelled data [formula] (sub-index i denotes the number of the Nt-sample window) according to:
+
+[formula]
+
+where δi is the distance to the closest reference prototype, [formula]; and κ > 0 is a scalar that can be adjusted to a performance criterion, like a statistical significance or a desired specificity/sensitivity value, for instance.
+
+Air flow based classification
+
+Air flow is a commonly used measure to study breathing function in ventilated patients. Thus, for comparison, this signal was used as a feature to classify the different ventilatory conditions as done with EEG. The air flow-based feature is computed in Nt-sample windows as follows:
+
+[formula]
+
+where AF(t) is the instantaneous amplitude of the air flow in l / s. During the training process, a set of L scalars α(0)l ([formula]) is used as a reference to perform classifications. Since [formula], the prototypes qk ([formula]), are simply given by splitting the values α(0)l in K intervals (i.e the K-quantiles).
+
+Then, the classifier associates αi (i corresponding to the i-th sample window) to a label [formula] as done in ([\ref=eq:class]) using the Euclidean distance δi for the one-dimensional case.
+
+Computation with symmetric positive definite matrices
+
+Within an Euclidean framework, the K-means algorithm divides the dataset into groups and attempts to minimize the Euclidean distance between samples labeled to be in a cluster and a point designated as the arithmetic mean of that cluster. Nevertheless, the SPD manifold is not a linear space with the conventional matrix addition operation. A natural way to measure closeness on a manifold is by considering the geodesic distance between two points on the manifold [\cite=bergerBOOK]. Such distance is defined as the length of the shortest curve connecting the two points. As an example, consider the Earth�'s surface as a manifold: the Riemannian distance between the two poles is given by a meridian, while the Euclidean distance corresponds to the straight line going through the Earth�'s core from pole to pole.
+
+In the space of SDP matrices, the clustering algorithm must minimize the geodesic distances between each point of the manifold (the covariance matrices [formula]) and the reference matrix [formula]. Each cluster center can be then obtained by an averaging process that employs the intrinsic geometrical structure of the underlying set.
+
+Derived from different geometrical, statistical or information-theoretic considerations, various distance measures have been proposed for the analysis of SPD matrices [\cite=pennec2006] [\cite=arsigny2006] [\cite=dryden2009] [\cite=vemuri2011] [\cite=cherian2012]. Although many of these distances try to capture the non-linearity of SPD matrices, not all of them are geodesic distances.
+
+The space of SPD matrices, PNc, constitutes a differentiable Riemannian manifold M of dimension Nc(Nc + 1) / 2. At any point [formula] there is a tangent Euclidean space, TPNc. Let two points [formula] and [formula] be two points on the tangent space (e.g. the projection of two SPD matrices), the scalar product in the tangent space at [formula] is defined by
+
+[formula]
+
+that depends on point [formula].
+
+The logarithmic map that locally projects a covariance matrix [formula] onto the tangent plane is given by:
+
+[formula]
+
+where [formula] is the matrix logarithm operator. Projecting SDP matrices onto TPNc is advantageous because this tangent space is Euclidean and distance computations in the manifold can be well approximated by Euclidean distances in TPNc.
+
+The inverse operation that projects a point [formula] of the tangent space back to the manifold M is given by the exponential mapping:
+
+[formula]
+
+In this paper, we have employed the two most widely used distance measures in the context of Riemannian manifolds: the affine-invariant distance [\cite=pennec2006] and the log-Frobenius distance, also referred to as log-Euclidean distance  [\cite=arsigny2006]. For comparative purposes, we have also used an Euclidean metric.
+
+The Euclidean metric
+
+On the space of real square matrices, we have the Frobenius inner product [formula] and the associated metric:
+
+[formula]
+
+Given a set of m real square matrices [formula], their arithmetic mean is given by:
+
+[formula]
+
+The affine invariant Riemannian metric
+
+Using ([\ref=e1]), the Riemannian distance between two SPD matrices can be computed as:
+
+[formula]
+
+This metric has several useful theoretical properties: it is symmetric and satisfies the triangle inequality. Furthermore, it is scale, rotation and inversion invariant [\cite=arsigny2006] [\cite=pennec2006].
+
+To find the mean of a set of m covariance matrices [formula], the distance dR needs to be applied in the following expression [\cite=moakher2005] [\cite=arsigny2007]:
+
+[formula]
+
+Although no closed-form expression exists, this (geometric) mean can be computed efficiently using an iterative algorithm. The geometric mean in PNc converges into a unique solution [\cite=karcher1977] and can be computed efficiently by the algorithm described in [\cite=fletcher2004].
+
+The log-Euclidean Riemannian metric
+
+The log-Euclidean distance between two SPD matrices is given by [\cite=arsigny2006]:
+
+[formula]
+
+This metric maps SPD matrices to a flat Riemannian space (of zero curvature) so that classical Euclidean computations can be applied [\cite=arsigny2006]. Under this metric, the geodesic distance on the manifold corresponds to a Euclidean distance in the tangent space at the identity matrix. This metric is easy to compute and preserves some important theoretical properties, such as scale, rotation and inversion invariance [\cite=arsigny2006] [\cite=cherian2012].
+
+Given a set of m covariance matrices [formula], their log-Euclidean mean exists and is uniquely determined by [\cite=arsigny2006]:
+
+[formula]
+
+To guarantee the existence of a decision boundary we have used here a Gaussian kernel [\cite=scholkopfBook]: [formula], where xi denotes the vector form of the upper triangular part of covariance matrix [formula], and the parameter σ set to be the median pairwise distances among training points [\cite=quang2013].
+
+BVI setup
+
+Channel selection
+
+In brain computer interface design, the choice of the adequate number of sensors and their location is fundamental. Reducing the number of irrelevant electrodes avoids over-fitting and optimizes computational costs, but also improves patient comfort and reduces installation time.
+
+Several channel selection methods can be found in the literature to simplify the implementation of BCI. Common Spatial Pattern (CSP) is a popular technique that ranks channels based on their corresponding coefficients of the spatial filter [\cite=ramoser2000] [\cite=farquhar2006]. Support vector machines have been also proposed to disregard task irrelevant channels by using a recursive feature elimination [\cite=lal2004]. In [\cite=lan2006] a channel selection technique based on mutual information maximization ranks the channels based on their correlation with class labels.
+
+In this paper, we introduce an iterative channel selection procedure, the Common Highest Order Ranking (CHOrRa), for ranking the electrodes' contribution to classification performance. Combining ranking lists from all subjects, a general configuration for a ready-to-use BVI device can be chosen.
+
+CHOrRa is performed in two steps. Firstly, an electrode ranking for each subject (intra-subject rankings) is found, a general ranking of the most significant electrodes is then computed over all subjects (inter-subject rankings). To estimate the intra-subject rank of electrodes, an iterative procedure was applied. From the set of NI central channels (labelled as [formula]), the electrodes that contribute to the classification with the highest significance were found as follows:
+
+Compute [formula] from the original ensemble of NI electrodes.
+
+For each [formula], data associated to channel si is removed and classification performances [formula] are found.
+
+Discard sk leading to the lowest [formula] from the list of labels.
+
+Update [formula] and go to step 1 until the number of remaining electrodes is 2 (the minimal dimension to compute a covariance matrix).
+
+At the end of this procedure, a list of the best NI electrodes in terms of classification performances is provided for a particular subject.
+
+Although the above method is computationally efficient and statistically robust, we have also used a classical positional method (an average ranking), where the total score of an electrode is given by the arithmetic mean of the positions in which the channel appears in each ranking list.
+
+To increase rank robustness, several learning periods were used. Hence, after obtaining a set of V lists (V-fold cross validation) per subject, the intra-subject ranking was computed according to a rank aggregation criterion applied to the V lists of electrode rankings.
+
+Finally, a channel ranking aggregation procedure is applied to all intra-subject ranking lists to obtain a common and unique inter-subject electrode ranking.
+
+Choice of prototypes and learning time
+
+As mentioned above, the prototypes are local centers that represent the space defined by [formula]. To this end, we adopted the K prototypes provided by the general K-means algorithm as the centers [formula] introduced in Section [\ref=classif]. The structure of the manifold defined by [formula] is unknown. Covariance matrices may be organized in a compact, uniform manner so a few centers are enough to correctly represent the Class 0. On the contrary, [formula] may have a complex distribution and need more centers to be correctly represented. Therefore, in order to achieve good classification, there may be an optimal number of prototypes.
+
+To satisfactorily exploit the BVI, previous knowledge about the learning time needed to train the classifier is necessary. Limited learning time may result in a small number of covariance matrices L and hence, in a poor representation of the space defined by normal breathing. Moreover, the clustering algorithm would provide a less accurate center when few CMs are available. On the other hand, the learning time should meet clinical requirements, as long set-up times in these environments are impractical.
+
+Since the number of covariance matrices needed to represent Class 0 may impact on the optimal number of prototypes, the classification performance has to be computed by modifying L and K. In next section, these parameters are tested experimentally to find the optimal values.
+
+Results
+
+We assessed the most relevant electrodes in the proposed BVI, starting from a set of 14 central electrodes from the original 32-electrode montage. Retained cortical activities include electrodes from primary sensorimotor cortices (C3, C4), higher-level secondary and association cortices (Fz and Cz), pre-parietal (CP1 and CP2) and pre-frontal cortices (F3, F4), pre-motor and supplementary motor areas (FC1, FC2), central (FC5 and FC6) and parieto-occipital areas (CP5 and CP6). The choice of these areas follows results of earlier experiments describing the cortical networks elicited during respiratory load compensation [\cite=macefield1991] [\cite=raux2007] [\cite=leupoldt2010] [\cite=raux2013] [\cite=morawiec2015].
+
+This section shows and discusses the results of applying the BVI to detect altered respiratory condition (LD or SN) after learning a reference period of normal breathing (SV). To find the best settings in the classification block, several tests assessed the discrimination power of the classifier calculating the distances (δi) to the reference prototypes from EEG and the air flow . Distances were then employed to estimate the areas under ROC curves (AUC) as a measure of the classifier's performance.
+
+Firstly, Euclidean, Riemannian and Log-euclidean distances were compared to select the best metric in term of classification performances. This metric was then used for evaluating the optimal electrode configuration, the impact of learning time, and the number of prototypes.
+
+Choice of the distance metric
+
+The first test used the 14 most central electrodes, thus covariance matrices were obtained from EEG signals [formula]. The classifier settings were L = 25 and K = 3.
+
+Fig. [\ref=fig:AUC_ini] clearly shows that the best performing metric is the Log-Euclidean, which provided slightly better AUC values than Riemannian distances in LD condition ([formula] versus [formula]) and almost equal AUC values ([formula]) for the SN condition. The classification performances for SN had the largest variability probably due to the discontinuous occurrence of sniffs (one every two breaths). Although the performances of Log-Euclidean are similar to those obtained by the affine invariant Riemannian metric, the former is advantageous from the computational point of view due to its reduced algorithmic complexity (CPU times were, on average, 3 time faster).
+
+The analysis of [formula] values also proves that Riemannian geometry is a better framework to classify EEG covariance matrices, than the outlier detector based on SVMs. We notice, however, that the one-class SVMs detector provided better results than the classifier with Euclidean structure (mean values are [formula] versus [formula]). Compared to detectors based on the air-flow signal, AUC values of SVM detector where also higher in LD condition (mean [formula] versus [formula]), but not in SN (mean [formula] versus [formula]).
+
+Classification performances obtained from EEG signals was superior than those obtained from air flow. The classifier based on air flow provided better classification in SN than LD (mean AUC values are [formula] versus [formula]) because of the characteristic large pattern of air flow during sniffs. Nevertheless such a perturbation (SN) in airflow is unlikely in mechanically ventilated patients.
+
+Euclidean distances provided the lowest average classification rates and the most unstable AUC values, demonstrating the limitation of linear matrix operators (i.e. the arithmetic mean) for EEG covariance matrix classification.
+
+Choice of electrodes
+
+According to the CHOrRA procedure to find the best channels from the initial set-up (c.f Section [\ref=ch_selelct]), we first found intra-subject rankings and then applied a global rank aggregation. As described above, we employed AUC as the measure of classification performance and performed the rankings from V=10 lists (i.e. 10 different learning periods) of each subject.
+
+Intra-subject optimal selection
+
+The classification results are shown in Fig. [\ref=fig:AUC_elect]-(a), where AUC values are expressed as a function of the number of removed electrodes. For the Log-Euclidean metric, the evolution of the curves during the optimization process display a slight increasing tendency of AUC when electrodes contributing negatively to classifications are removed. Classification performances decrease with configurations smaller than six electrodes.
+
+Results show that a customized individual selection of electrodes can provide an optimal AUC within a single subject. Using an intra-subject optimization, AUC rates can be improved up to 0.95 using the six most significant electrodes.
+
+As shown in different plots of Fig. [\ref=fig:AUC_elect], for a configuration with more than three electrodes, the Log-Euclidean metric performs better than the Euclidean distance at every optimization step. These results support the idea that large spatio-temporal information of the EEG (as reflected by the sample covariance matrices) is optimally captured when the intrinsic geometry structure of the underlying data is taken into account.
+
+Inter-subject optimal selection
+
+As the electrode positions leading to the maximal AUC in a particular subject isn't necessarily the same for another, we studied a common electrodes configuration that could be shared by any user. This general electrode set-up is more pertinent in a clinical context as an EEG headset could be interfaced promptly.
+
+To find a general ranking of electrodes we applied the rank aggregation procedure to the lists of sorted electrodes of all subjects (See Table [\ref=tab:rankings]). Following the rank of the final general list, we computed the AUC values by reducing the initial 14-electrode set to two sensors (see Fig. [\ref=fig:AUC_elect]-(b-c)).
+
+Results from the two ranking aggregation procedures indicate that a good compromise between a reduced number of electrodes and reasonable classifications can be reached by selecting the best 6 electrodes obtained by the CHOrRa procedure ([formula] for both LD and SN conditions). Interestingly, for general configurations with more than three electrodes, Log-Euclidean metric still performs better than the Euclidean distance.
+
+The aggregated CHOrRa scores displayed in Fig. [\ref=fig:heads] indicate scalp zones with more influence for the classification of both SN and LD conditions. Although both optimization procedures (robust rank aggregation and rank averaging) provide similar classification performance, the spatial concentration of discriminating scalp regions obtained by the robust aggregation method is larger than those obtained by a classical averaging rank procedure.
+
+The spatial distribution of scores and the rankings in Table [\ref=tab:rankings] suggest that discrimination of the LD condition is better if the electrode configuration contains the pre-motor and supplementary motor area (FC1), the fronto-central region (FC6) and the supramarginal gyrus (the part covered by CP6 electrode). On the other hand, SN condition is better discriminated if electrodes include the supplementary motor area (FC1), the central motor area Cz and part of the somatosensory association cortex (covered by the electrode CP1).
+
+Training time vs. number of prototypes
+
+Once the effect of different metrics and channels configurations were assessed, we tested the influence of the learning parameters, i.e. the number of covariance matrices used as a reference (L) and the number of prototypes (K) used to characterize the reference class.
+
+For this, we assessed classification performance for different values of K, ranging from 1 to 7 and and for different number of learning matrices, L, from 20 to 40 in steps of 5. This procedure was also repeated with 10-fold cross validation for LD and SN conditions. Three different electrode configurations were tested: 1) the initial 14-electrode configuration, 2) a selection of 6 electrodes optimized for every subject and 3) a general configuration with the best 6 electrodes after applying the global channel selection procedure.
+
+Results are depicted in the color maps of Fig. [\ref=fig:AUC_KL], where average AUC values are expressed as a function of K and L. Importantly, this figure shows a small effect of both parameters on overall classification rates, regardless of the electrode configuration. In view of these findings, the choice of a small number of prototypes (K  ≤  3) and a short learning time (L = 20 CMs) is an advantageous trade-off between computational complexity and classification performances, even for a common electrode configuration setting.
+
+Conclusion
+
+This paper focuses on an important class of applications for BCI: monitoring of respiratory states from EEG signals. This work provides the first extensive evaluation of what could be a brain-ventilator interface (BVI) designed to detect altered respiratory conditions in patients on mechanical ventilation. The novelty of our proposal relies on an EEG-based approach to identify a cortical signature of breathing discomfort. The proposed framework also involves concepts of Riemannian geometry in the manifold of covariance matrices, which are used as EEG signal descriptors. From a clinical perspective, the present work also introduces a completely non-invasive tool compared to techniques that use invasive measures (an esophageal catheter) of diaphragm EMG activity to optimise patient-ventilator interaction [\cite=Sinderby1999].
+
+The proposed system aims at detecting abnormal spatio-temporal patterns of EEG activities during the altered respiratory behaviors. Due to its technical simplicity (portable, non-invasive, with few electrodes and real-time) the proposed BVI can be highly operable in clinical settings of intensive care units as well as in custom-designed systems.
+
+Compared to classification based on air-flow, our findings demonstrate a better discriminatory power of the covariance patterns of EEG signals to detect a patient-ventilator disharmony ([formula] versus [formula], in average, for the loaded breathing condition). The analysis of AUC values suggests that Riemannian geometry is a better framework to manipulate covariance matrices, even with a few number of channels, than classical matrix operators with an Euclidean structure. We notice that one-class SVMs detector also provides better results than a classifier with an Euclidean metrics.
+
+The proposed recursive channel selection procedure may provide a subject-customized BVI setting with a reduced number of six channels and maintained performance ([formula]). If the channel configuration includes the most significant electrodes across subjects, classification rates are reduced compared to customized optimization. Nevertheless, this general setting provides a good compromise between a reduced number of electrodes (6 channels) and reasonable classification performances ([formula]), which is advantageous in general clinical practice where ready-to-use devices are necessary. Interestingly, overall classification performance do not significantly depend on the other parameters of the classifier (learning time and number of prototypes). An optimization of control parameters for other SVMs models might increase classification performances but this subject is beyond the scope of our paper.
+
+In general, characterization of brain networks provides meaningful insights into the functional organization of cortical activities underlying breathing control and respiratory diseases. Our study supports the hypothesis of a strong correlation between voluntary and compensatory respiratory efforts and the activation of cortical circuits [\cite=macefield1991] [\cite=raux2007] [\cite=leupoldt2010]. Indeed, our findings suggest that functional interactions between central regions overlying pre-motor and primary motor areas, in particular the supplementary motor area, and the somatosensory association cortex (the part covered by the electrode CP1) may play a role on mechanisms of inspiratory load compensation.
+
+The introduction of a BVI is a first step toward a critical class of interfaces for respiratory control applications in other clinical conditions (e.g. acute respiratory failure, coma, chronic obstructive pulmonary disease or neuromuscular disorders) where the use of mechanical ventilation is required to decrease the work of breathing in the patients [\cite=covemPatent]. Future work should also integrate the detector of respiratory-related cortical activities in a feedback scheme to automatically set ventilator parameters almost without physician intervention.
+
+Acknowledgments
+
+This work was supported by the program Investissement d'Avenir ANR-11-EMMA-0030 and ANR-10-AIHU 06 of the French Government and by the grant Legs Poix from the Chancellerie de l'Université de Paris, France. X. Navarro is financially supported by Air Liquide Medical Systems S.A., France. A.L. Hudson was supported by an NHMRC (Australia) Early Career Fellowship.

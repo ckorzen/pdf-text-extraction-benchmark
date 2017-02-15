@@ -1,0 +1,143 @@
+Deterministic Consensus Algorithm with Linear Per-Bit Complexity
+
+Introduction
+
+In this report, building on the deterministic multi-valued one-to-many Byzantine agreement (broadcast) algorithm in our recent technical report [\cite=techreport_BA_complexity], we introduce a deterministic multi-valued all-to-all Byzantine agreement algorithm (consensus), with linear complexity per bit agreed upon. The discussion in this note is not self-contained, and relies heavily on the material in [\cite=techreport_BA_complexity] - please refer to [\cite=techreport_BA_complexity] for the necessary background.
+
+Consider a synchronous fully connected network with n nodes, namely [formula]. At most t < n / 3 nodes can be faulty. Every node i is given an initial value of L bits. The goal of a consensus algorithm is to allow each node to decide (or agree) on a value consisting of L bits, while satisfying the following three requirements:
+
+Every fault-free node eventually decides on a value (termination);
+
+The decided values of all fault-free nodes are equal (consistency);
+
+If every fault-free node holds the same initial value v, the decided value equals to v (validity).
+
+Our algorithm achieves consensus on a long value of L bits deterministically. Similar to the one-to-many algorithm in [\cite=techreport_BA_complexity], the proposed all-to-all Byzantine agreement (or consensus) algorithm progresses in generations. In each generation, D bits are being agreed upon, with the total number of generations being L / D. For convenience, we assume L to be an integral multiple of D.
+
+Consensus Algorithm
+
+In the proposed consensus  algorithm, we use the same technique of "diagnosis graph" to narrow down the locations of faulty nodes as in [\cite=techreport_BA_complexity]. If a node y is accused by at least t + 1 other nodes, y must be faulty. Then it is isolated, and does not perform the algorithm below. When a new node is isolated, essentially n decreases by 1, and t also decreases by 1. For the reduced network, the condition that n > 3t will continue to hold, if it held previously. In the following, we consider the reduced network with the reduced values of n,t, and assume that no node in the reduced network is accused by > t nodes. When we say "network", we mean the reduced network below.
+
+The following steps are performed for the D bits of information of the current generation. Let the D bits at node i be denoted as vi.
+
+This step is performed by each node i: We use a (n,n - 2t) distance-(2t + 1) code, wherein each codeword consists of n symbols, each symbol of size D / (n - 2t) bits. Such a code exists, provided that the symbol size is large enough. Let us denote this code as C2t. With a symbol size of D / (n - 2t) bits, the D-bit value at node i can be viewed as (n - 2t) symbols. Encode vi into a codeword si from the code C2t. The j-th symbol in the codeword is denoted as sij. Send sii to all other nodes that it trusts. Thus, node i sends i-th symbol of its codeword to all nodes that it trusts.
+
+Note for future reference: Since code C2t has distance 2t + 1, any punctured (n - z,n - 2t) code obtained from C2t has distance 2t + 1 - z, where z  ≤  2t. Let Ct denote the punctured (n - t,n - 2t) code of distance t + 1 obtained by removing the last t symbols of the original (n,n - 2t) code above. By "last" t symbols, we refer to symbols with index n - t - 1 through n - 1.
+
+This step is performed by each node i: Denote by rij the symbol received from node j in step 1. If i trusts j and rij = sij, then set Mij = TRUE; else Mij = FALSE. Mi is a "match" vector, and records whether i's information matches with the symbols sent by the other nodes.
+
+Each node i uses traditional Byzantine agreement (one-to-many) algorithm to broadcast Mi to all the nodes.
+
+Now each node i has received Mj from each node j. Due to the use of BA in the previous step, all fault-free nodes receive identical M vectors. Each node i attempts to find a set X containing exactly (n - t) nodes that are "collectively consistent". That is, for every pair of nodes j,k∈X, Mjk = Mkj = TRUE.
+
+There are two cases:
+
+No such subset X exists: Note that if all fault-free nodes (at least n - t of them exist) have identical initial value, then a set X must exist. (Fault-free nodes always trust each other.) Thus, if no such X exists, that implies that the fault-free nodes do not have identical value. Thus, the fault-free nodes can agree on a default value, and terminate the algorithm.
+
+At least one such subset X exists: In this case, all fault-free nodes identify one such set X using a deterministic algorithm (thus, all nodes should identify the same X). Since all fault-free nodes can compute X identically, without loss of generality, suppose that X contains nodes 0 through (n - t - 1). Thus, the nodes not  in X are n - t through n - 1. (In other words, the nodes are renumbered after X is computed.) Thus,
+
+[formula]
+
+and define
+
+[formula]
+
+Let the (n - t)-symbol received vector at node i consisting of the symbols received from the (n - t) nodes in X be called Ri.
+
+Since X contains n - t nodes and there are at most t faulty nodes, at least n - 2t  ≥  2 of these nodes must be fault-free. Consider two fault-free nodes j and k in X. By definition of Rj and Rk, nodes j and k find these vectors "consistent" with their own values vj and vk, respectively. In other words, Rj and Rk are codewords in Ct.
+
+There are at least n - 2t fault-free nodes in X, which must have sent the same symbols to nodes j and k in step 1. Thus, the (n - t)-symbol vectors Rj and Rk must be identical in at least (n - 2t) positions, and differ in at most t positions.
+
+Given that (i) Ct is a distance t + 1 code, (ii) Rj and Rk are both codewords in Ct, and (iii) Rj and Rk differ in at most t positions, it follows that Rj and Rk must be identical. This, in turn, implies that vj and vk must be identical as well. This proves the following claim:
+
+Claim 1: All fault-free nodes in X have identical D-bit values. In other words, for all fault-free nodes j,k∈X, vj = vk.
+
+Now consider a node [formula]. Identify any node zy in X such that zy and y trust each other. If no such zy exists, that implies that y is accused by all n - t > t nodes in X, and therefore, y must be already identified as faulty, and must have been isolated previously. Thus, zy exists.
+
+For each [formula], node zy transmits t symbols szy(n - t) through szy(n - 1) to node y. Each fault-free node [formula] forms a vector using the (n - t) symbols [formula] received in step 1, and the above t symbols received from node zy. Suppose that the n-symbol vector thus formed at fault-free node y is denoted Fy.
+
+Failure detection rule:
+
+If Fy is not  a valid codeword from the (n,n - 2t) code C2t, then node y detects a failure. This failure observation is distributed to other nodes in the next step. (Justification for this failure detection mechanism is presented below.)
+
+All nodes in [formula] broadcast (using a traditional BA algorithm) a single bit notification announcing whether they detected a failure in the above step.
+
+Decision rule:
+
+If no failure detection is announced by anyone, then each fault-free node i in X decides (agrees) on its own value vi, and each fault-free node [formula] decides on the value corresponding to the codeword Fj.
+
+If a failure is detected by anyone, then the failure is narrowed down using a "full broadcast" procedure described in [\cite=techreport_BA_complexity], and agreement on the D bits is also achieved as a part of this full broadcast. The diagnosis graph is updated, and we return to step 1 for next set of D bits.
+
+Justification for the failure detection and decision rules:
+
+Consider any fault-free node i∈X and any fault-free node [formula]. Now let us compare Fy with si.
+
+Consider the first n - t symbols of these vectors (elements with index 0 through n - t - 1). Observe that, for fault-free node i∈X, rij = sij, for 0  ≤  j  ≤  n - t - 1, by definition of set X. Since at least n - 2t of the symbols with index < n - t come from fault-free nodes, Fy can differ from ri (and si) in at most t positions with index < n - t.
+
+Consider the last t symbols of vectors Fy and si. Since zy may be faulty and could have sent arbitrary t symbols to to y in step [\ref=step_y], vectors Fy and si may differ in all of these t positions.
+
+Thus, ri and Fj may differ in at most 2t positions. Now let us make two observations:
+
+Observation 1: By definition of si, si is a valid codeword from the distance-(2t + 1) code C2t. Since Fy differs from valid codeword si only in 2t places, it follows that: either (i) si = Fy (and both are valid codewords), or (ii) Fy is not a valid codeword.
+
+Observation 2: To derive this observation, consider the case where all the nodes in X are fault-free. Clearly, in this case, all these nodes must have same value (from claim 1 above). Then si is identical for all i∈X, and thus the (fault-free) nodes in X send symbols consistent with the common value in step 1 to the nodes in [formula]. Fy ([formula]) consists entirely of symbols sent to it by nodes in X. Thus, clearly, Fy will be equal to si for all i∈X when all nodes in X are fault-free. It then follows that Fy is a codeword from the (n,n - 2t) code C2t when all nodes in X are fault-free.
+
+The above two observations imply that: (i) if Fy is not a codeword then all the nodes in X cannot be fault-free (that is, at least one of these nodes must have behaved incorrectly), and (ii) if Fy is a codeword, then the value corresponding to Fy matches with the values at all the fault-free nodes in X.
+
+Thus, when the failure detection rule above detects a failure, a failure must have indeed occurred. Also, while Claim 1 shows that the fault-free nodes in X will agree with each other using the above decision rule, observation 1 implies that fault-free nodes in [formula] will also agree with them.
+
+Complexity Analysis
+
+We have finished describing the proposed consensus algorithm above. Now let us study the communication complexity of this algorithm.
+
+In step 1, every node sends at most n - 1 symbols of D / (n - 2t) bits. So at most
+
+[formula]
+
+are transmitted. Notice that this value decreases when both n and t are reduces by the same amount. As a result, no more than [formula] bits will be transmitted in step 1 when some nodes are isolated.
+
+In step 3, every node broadcasts a "match" vector of n - 1 bits, using a traditional Byzantine agreement (one-to-many) algorithm. Let us denote B as the bit-complexity to broadcast 1 bit. So in step 3, at most
+
+[formula]
+
+are transmitted.
+
+If no X is found in step 4, the algorithm terminates and nothing is transmitted any more. So we only consider the case when X exists. As we have seen before, in step [\ref=step_y], every node in [formula] receives t symbols of D / (n - 2t) bits, which results in [formula] bits being transmitted. Additionally, in step 6, every node in [formula] broadcasts a 1-bit notification, which requires tB bits being transmitted. So if no failure is detected, at most
+
+[formula]
+
+are transmitted in steps 5 and 6. Again, this value decreases when both n and t are reduced by the same amount. So if some nodes are isolated, fewer bits will be transmitted.
+
+If a failure is detected in step 6, every node broadcasts all symbols it has sent and has received through steps 1 to [\ref=step_y]. In step 1, n(n - 1) symbols are transmitted. In step [\ref=step_y], t2 symbols are transmitted. So 2(n(n - 1) + t2) symbols are being broadcast after a failure is detected, which results in
+
+[formula]
+
+being transmitted. Again, this value decreases when both n and t are reduced by the same amount. So if some nodes are isolated, fewer bits will be transmitted.
+
+Now we can compute an upper bound of the complexity of the proposed algorithm. Notice that D bits are being agreed on in every generation, so there are L / D generations in total. Thus, excluding the broadcast after failures are detected, no more than
+
+[formula]
+
+are transmitted. In addition, similar to our one-to-many algorithm, all faulty nodes will be identified after failures are detected in at most (t + 1)t generations. So the "full broadcast" will be performed at most (t + 1)t times throughout the whole execution of the algorithm. So the total number of bits transmitted in the "full broadcast" in all generations is at most
+
+[formula]
+
+An upper bound on the communication complexity of the proposed algorithm, denoted as C(L) is then computed as
+
+[formula]
+
+For a large enough value of L, with a suitable choice of
+
+[formula]
+
+we have
+
+[formula]
+
+Notice that deterministic broadcast algorithms of complexity Θ(n2) are known [\cite=bit_optimal_89], so we assume B = Θ(n2). Then the complexity of our algorithm for all t < n / 3 is upper bounded by
+
+[formula]
+
+For a given network with size n, the per-bit communication complexity of our algorithm is upper bounded by
+
+[formula]

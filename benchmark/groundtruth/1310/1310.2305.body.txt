@@ -1,0 +1,225 @@
+=1
+
+=2500
+
+Gain Scaling for Multirate Filter Banks
+
+Introduction
+
+The starting point for studying lifting factorizations is the polyphase-with-advance representation for two-channel FIR multirate filter banks depicted in Fig. [\ref=DS_poly] [\cite=DaubSwel98] [\cite=BrisWohl06]. A lifting factorization [\cite=Sweldens96] [\cite=DaubSwel98] is a cascade decomposition of the analysis and synthesis polyphase matrices, [formula] and [formula], into alternating upper and lower triangular matrices with 1's on the diagonal and an FIR lifting filter in the off-diagonal position.
+
+For instance, Fig. [\ref=irr_lift] depicts an analysis filter bank represented as a cascade of two ladder steps that alternately lift, or update, the demultiplexed input channels. The filters S0(z) and S1(z) are the lifting filters, and the scaling factor, K, specifies a relative gain normalization of the channels. Algebraically, this cascade corresponds to a factorization of the analysis polyphase matrix into lifting matrices:
+
+[formula]
+
+where
+
+[formula]
+
+and
+
+[formula]
+
+Daubechies and Sweldens [\cite=DaubSwel98] showed that any two-channel FIR perfect reconstruction filter bank can be factored into such a form,
+
+[formula]
+
+where the matrices [formula] are alternating lower and upper triangular lifting matrices.
+
+The update characteristic, m0, of the first lifting step in Fig. [\ref=irr_lift] is "lowpass" (m0 = 0), while the update characteristic, m1, of the next lifting step is "highpass" (m1 = 1). Since the update characteristic of successive steps alternates, it suffices to transmit the update characteristic, [formula], of the initial synthesis lifting step, which is the same as the update characteristic of the last analysis lifting step.
+
+If the impulse response taps in the lifting filters are dyadic rationals, the lifting updates can be applied to an integer-valued input in integer arithmetic by rounding the updates with a rounding function, R, immediately before applying them, as shown in Fig. [\ref=rev_lift]. Such implementations are called reversible and yield bit-perfect inversion in fixed precision arithmetic. Filter banks that are not reversible are called irreversible. The gain scalings K and 1 / K shown in Fig. [\ref=irr_lift] are not allowed in reversible implementations because they cannot be inverted losslessly in fixed precision arithmetic.
+
+Filter Banks in JPEG 2000
+
+Filter banks are specified in the ISO/IEC JPEG 2000 image coding standard (International Standard 15444-x) as a sequence of FIR lifting filters, signaled via their impulse responses si(n), and a scaling factor K. JPEG 2000 Part 1 [\cite=ISO_15444_1] [\cite=TaubMarc02] provides just two predefined filter banks, one reversible and one irreversible, but users may specify arbitrary two-channel FIR filter banks in JPEG 2000 Part 2 [\cite=ISO_15444_2] (henceforth just "Part 2") via user-defined lifting filters. To simplify quantization and entropy coding, however, the standard specifies normalization requirements that user-defined JPEG 2000 filter banks must satisfy. We now outline the mathematical basis of these normalization requirements, as detailed in [\cite=BrisWohl07].
+
+JPEG 2000 Filter Bank Normalization Requirements
+
+The normalization requirements in JPEG 2000 Part 2 Annexes G and H are given in the following form. Let
+
+[formula]
+
+be the DC response of the ith lifting filter, Si(z). Define a two-step recursion,
+
+[formula]
+
+with initial conditions
+
+[formula]
+
+Then an irreversible user-defined filter bank must satisfy
+
+[formula]
+
+The requirement for reversible filter banks is
+
+[formula]
+
+These requirements, which total less than one page of content in Part 2 [\cite=ISO_15444_2], are not derived or explained in the standard and are extremely cryptic as written.
+
+A natural normalization to impose on filter banks would have been to fix the lowpass DC response and the highpass Nyquist response of the filters H0(z) and H1(z). Since filter banks are defined via lifting ([\ref=lifting_factorization]), the DC and Nyquist responses are determined by the lifting filters and the scaling factor, K. In the case of filter banks satisfying the perfect reconstruction condition,
+
+[formula]
+
+one degree of freedom is consumed by normalizing the polyphase determinant. The JPEG 2000 standard can therefore only normalize one more trivial degree of freedom, and the unstated goal of the JPEG 2000 normalization requirements given above is to achieve a lowpass DC response of unity:
+
+[formula]
+
+The highpass Nyquist response will then be determined by ([\ref=DS_FIR_PR]) and ([\ref=lowpassDCconstraint]), as explained in [\cite=BrisWohl07].
+
+Calculating the Lowpass DC Response
+
+The relationship between the analysis filters, H0(z) and H1(z), and the polyphase analysis matrix, (z), can be stated in matrix-vector arithmetic. Using an underscore for vectors, the relationship [\cite=BrisWohl06] can be written
+
+[formula]
+
+We will use this formula to calculate the DC responses of the filters H0(z) and H1(z) corresponding to a lifting factorization ([\ref=lifting_factorization]). Let (z) denote the unnormalized cascade of lifting steps (without [formula]),
+
+[formula]
+
+so that
+
+[formula]
+
+By ([\ref=unnormalized]) the lowpass filter is
+
+[formula]
+
+so the lowpass DC condition ([\ref=lowpassDCconstraint]) becomes
+
+[formula]
+
+Since K is transmitted in the JPEG 2000 Part 2 codestream along with the user-defined lifting filters, this condition is actually a functional relationship between K and the lifting filters that must be satisfied in order to produce a compliant Part 2 codestream. To ensure that ([\ref=lowpassDCconstraint2]) is satisfied, we thus need to compute E0(1) in terms of the lifting filters.
+
+Let (n)(z) denote the nth partial product:
+
+[formula]
+
+The vector of corresponding lowpass and highpass scalar filters is given by ([\ref=Hi_poly_matrix]):
+
+[formula]
+
+Using ([\ref=En_poly_vector]), the DC response vector can be constructed via the recursion
+
+[formula]
+
+where
+
+[formula]
+
+JPEG 2000 does not employ matrix-vector arithmetic, however, so we now need to put the vector recursion ([\ref=DC_gain_vector_recursion]) into the form of a scalar recursion. The matrix i(1) contains the value Di = Si(1), and it is shown in [\cite=BrisWohl07] that if one defines Bn to be the most recently modified entry in the DC response vector, (n)(1), then ([\ref=DC_gain_vector_recursion]) can be reduced to the scalar recursion ([\ref=recursion]) appearing in the Part 2 normalization requirements.
+
+How do we translate the lowpass DC gain condition ([\ref=lowpassDCconstraint2]) into the Part 2 requirement ([\ref=irr_normalization])? As shown in [\cite=BrisWohl07], the requirement ([\ref=irr_normalization]) is determined by the parameter Bn that gives the value of the final lowpass DC response, E0(1). This in turn can be stated in terms of the update characteristic, [formula], of the last analysis lifting step, as is done in ([\ref=irr_normalization]). Finally, for reversible filter banks we have K = 1, in which case ([\ref=irr_normalization]) reduces to the requirement ([\ref=rev_normalization]).
+
+Note that, for reversible filter banks, the normalization ([\ref=lowpassDCconstraint]) represents the lowpass DC response of the unrounded, linear filter bank. Moreover, this normalization must be implicit in the lifting filters themselves; it cannot simply be imposed by choosing the scaling factor K = E0(1). Thus, there exist dyadic filter banks that do not satisfy the JPEG 2000 reversible normalization requirement ([\ref=rev_normalization]), e.g.,
+
+[formula]
+
+Uniqueness of Lifting Factorizations
+
+We now consider the relationship between lifting-domain gain normalizations and the apparently unrelated issue of uniqueness of filter banks. Offhand, one doesn't expect any sort of uniqueness to hold for lifting factorizations since it is well-known that a single filter bank can be factored into many different lifting representations, e.g.
+
+[formula]
+
+Linear Phase Group Lifting Factorizations
+
+For image coding, it is customary to use linear phase FIR filter banks. Examples of the two principal classes of linear phase perfect reconstruction FIR filter banks, the whole-sample symmetric (WS) and half-sample symmetric (HS) classes, are indicated in Fig. [\ref=WSHS]. It was shown in [\cite=BrisWohl06] that both classes always factor using linear phase lifting steps. This analysis was based on the fact that linear phase lifting matrices form (multiplicative) matrix groups, and we refer to the resulting factorizations as group lifting factorizations. We summarize the results of [\cite=BrisWohl06] as follows.
+
+Group Lifting Factorization of WS Filter Banks: (z) is WS if and only if it can be factored into a product of half-sample symmetric (FIR type 2) lifting steps,
+
+[formula]
+
+where Si(z) is symmetric about 1 / 2 if i(z) is upper-triangular, or else Si(z) is symmetric about - 1 / 2 if i(z) is lower-triangular.
+
+Note that ([\ref=identitylifting]) is not a "WS group lifting factorization" of the WS filter bank [formula] since it does not use HS lifting filters. (Indeed, [formula] is already factored, trivially.)
+
+The situation is more complicated for HS filter banks.
+
+Group Lifting Factorization of HS Filter Banks: (z) is HS if and only if it can be lifted from a concentric equal-length HS "base" filter bank, (z), by lifting filters that are whole-sample antisymmetric about zero (FIR type 3, or WA),
+
+[formula]
+
+The JPEG 2000 Part 2 standard specifies WS group lifting factorizations for WS filter banks in [\cite=ISO_15444_2] and contains alternative specifications for non-WS filter banks in [\cite=ISO_15444_2]. (HS filter banks are not addressed specifically in Part 2, although they are allowed under the specifications of [\cite=ISO_15444_2], which contains examples of lifted HS filter banks that are effective for image coding applications.)
+
+While working on [\cite=ISO_15444_2] the author observed, empirically, that there seemed to be one and only one way to factor a given WS filter bank into a compliant WS group lifting factorization, which raised the question of whether the combination of the specialized group lifting framework and the Part 2 normalization requirements mathematically implies uniqueness of compliant WS group lifting factorizations. The situation is far from simple, however, and we now outline the theory presented in [\cite=Bris09] [\cite=Bris09b].
+
+Matrix Inner Automorphisms
+
+We begin with a simple computational formula arising from the group-theoretic perspective on lifting. It is elementary to show that scaling matrices, K, "intertwine" lifting matrices, by which we mean
+
+[formula]
+
+The matrix inner automorphism
+
+[formula]
+
+has the action
+
+[formula]
+
+Start with the simplest possible example of a non-constant linear phase filter bank, the Haar filter bank, normalized according to ([\ref=lowpassDCconstraint]):
+
+[formula]
+
+The Haar matrix has another factorization,
+
+[formula]
+
+which we write as
+
+[formula]
+
+where 'haar(z) is a rescaled Haar filter bank with B'0(1) = 2 and B'1( - 1) =  - 1.
+
+Let us show that this nonuniqueness propagates to any irreversible HS group lifting factorization lifted from the Haar "base" filter bank. If
+
+[formula]
+
+is lifted from the Haar using WA lifting filters, then
+
+[formula]
+
+by ([\ref=DC_gain_vector_recursion]) since Si(1) = 0 for all i, so (z) is already normalized, regardless of whether the factorization is reversible or not.
+
+Replace haar(z) by 2  'haar(z):
+
+[formula]
+
+where
+
+[formula]
+
+and haar(z) = 2  'haar(z). Thus, at least in the irreversible case, we obtain two distinct lifting factorizations of [formula]. We can readily generalize this example by defining
+
+[formula]
+
+to obtain a continuum of such factorizations, each trivially different from the others.
+
+This merits a definition.
+
+Equivalence Modulo Rescaling:
+
+Two lifting factorizations that differ only in this manner (i.e., via a matrix inner automorphism) are said to be equivalent modulo rescaling.
+
+Linear phase filter banks can still have linear phase lifting factorizations that are not equivalent modulo rescaling, however, such as the following example from [\cite=Bris09].
+
+[formula]
+
+New Unique Factorization Results
+
+Given such examples, it is rather surprising that one can nonetheless prove unique lifting factorization results for both WS and HS group lifting factorizations. Note that ([\ref=identity_lift2]) is not a WS group lifting factorization in the sense defined above since it involves both half-sample symmetric and half-sample antisymmetric lifting filters. This breaks the group-theoretic underpinnings of the following uniqueness results, which can be found in [\cite=Bris09b]. The proofs are somewhat nontrivial and involve the unfortunately complicated notion of group lifting structures so we will not attempt to describe them here. Instead we summarize the main results of [\cite=Bris09b] using the terminology already defined.
+
+Uniqueness Theorems for Linear Phase Group Lifting Factorizations:
+
+(1) Any two irreversible HS group lifting factorizations of the same HS filter bank are equivalent modulo rescaling.
+
+(2) Any two reversible HS group lifting factorizations are identical.
+
+(3) Any two WS group lifting factorizations of the same WS filter bank (reversible or irreversible) are identical.
+
+Remarks
+
+The third result implies that any two lifting factorizations of WS filter banks that comply with JPEG 2000 Part 2 Annex G syntax are necessarily the same, confirming the author's observations mentioned above. No such results hold for Annex H syntax, which does not restrict the structure of lifting factorizations in any way. Thus, although HS filter banks can be specified using Annex H syntax, there are no group-theoretic constraints to preclude the use of other liftings besides HS group lifting factorizations.
+
+The failure of the group lifting factorization approach to yield uniqueness results for paraunitary filter banks, in spite of their natural group-theoretic structure, is discussed in [\cite=Bris09]. The basic problem is that the algebraic structure of lifting factorizations for paraunitary filter banks does not structurally enforce the paraunitary property of the filter banks.

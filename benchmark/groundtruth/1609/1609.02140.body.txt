@@ -1,0 +1,187 @@
+Topology optimization of microwave waveguide filters
+
+Introduction
+
+Microwave filters are crucial to modern day telecommunication, sensing and other high technology applications. Ever since Marconi's (wideband) spark-gap transmitters were replaced by continuous wave transmitters and the radio frequency spectrum started to crowd, microwave filters have been key in improving receiver performance and avoiding signal leaking at unwanted frequencies.
+
+One class of microwave filters are made to fit metallic waveguides. Metallic waveguides are tube-like structures - most often of rectangular cross-section - inside which waves can propagate. They are low-loss and therefore suitable for a palette of applications ranging from extremely sensitive systems (like space communication) or high energy systems where losses would lead to heating or significant energy waste (radars, RF based particle accelerators, microwave ovens).
+
+Waveguide filter design normally consists of designing a prototype filter network and then cascading inductive, capacitive or resonating elements to implement the prototype filter [\citep=Pozar2005]. Some elements extend the geometry of the waveguide by coupling the waveguide to external resonators or stubs. Other elements are placed inside the existing waveguide geometry, like so-called post filters, iris coupled filters, dielectric resonators and insert filters. These filter design elements are usually based on structures to which an approximate analytical model exists, such that the behavior can be shaped to fit the prototype filter elements. This enables realization of almost any desired filter, but often at the practical cost of vast space/weight consumption due to cascading of elements.
+
+To enable more compact, high-performance filters, this work proposes a topology optimization approach to filter design. Such approach has the clear advantage of being able to design one integrated structure to obtain a given set of filter properties instead of a cascaded series of elements. Former work on synthesis of waveguide filters using topology optimization has mainly focused on dielectric materials [\citep=Byun2007] [\citep=Khalil2008a] [\citep=Khalil2008b] [\citep=Khalil2009] [\citep=Choi2012] which can be fabricated using e.g. additive manufacturing techniques [\citep=Delhote2011]. Sharper filter responses can in general be obtained using metallic structures, but topology optimization of metallic structures is a much more difficult problem, mainly due to the non-monotonic material interpolation between metal and air [\citep=Aage2010].
+
+The only successful attempt on topology optimization of metallic waveguide filters known by the authors is by [\citet=Quedraogo2012], but here a genetic algorithm was used which strongly limits its application to larger problems. Other attempts on metallic micro strip resonator design also exists [\citep=Assadihaghi2006] but no usable designs were obtained. Interest in research on metallic microwave optimization is increasing [\citep=Aage2010] [\citep=Erentok2011] [\citep=Hassan2014] [\citep=Nomura2013] [\citep=Hassan2015] and the methods has been applied several times to antenna design problems. Using experience and knowledge gained through these works, we are at a state where attempting to design usable metallic waveguide filters is a feasible task.
+
+Physical model
+
+The model problem to be investigated in this is illustrated in Fig. [\ref=fig:problemsketch]. The figure shows a section of a rectangular waveguide in which we need to solve Maxwell's equations along with appropriate boundary conditions [\citep=balanis2012] [\citep=jin2002]. In this work, it is sufficient to assume linear, isotropic materials with no free charges and solve the problem in the frequency domain. Maxwell's equations are therefore conveniently cast as a single second order Partial Differential Equation (PDE) in the electric field as follows
+
+[formula]
+
+where [formula] is the unknown complex electric field, ω is the frequency, μr is the relative permeability, εr the relative permittivity, σ is the conductivity and [formula] is the free space wave number. The two remaining constants are the free space permittivity ε0  ≈  8.8542  ·  10- 12   and the free space permeability μ0  =  4π10- 7  . The real, physical solution can then be obtained from [formula].
+
+The vector wave equation from Eq. [\eqref=eq:maxeqs_E] is solved for the following boundary conditions in the case of a metallic waveguide. The four sides that encloses the waveguide are modeled as Perfect Electric Conductors (PEC) which means that the tangential component of the electric field is zero, i.e.
+
+[formula]
+
+where [formula] is an outward normal to the respective surfaces. The input and output ports, denoted with Γ1 and Γ2 in Fig. [\ref=fig:problemsketch], are modeled using a waveguide port boundary condition [\cite=jin2002]. This boundary condition utilizes that only certain modes can propagate in a given waveguide geometry and as a consequence these modes can be used to excite and absorb the electric field passing through the boundary. The modes can be solved analytically for simple geometries, or numerically for complicated port geometries. For the rectangular waveguide the first transverse electric mode, [formula], is
+
+[formula]
+
+when the port is situated in the xy-plane (i.e. the wave is propagating along the z-axis). Note that it is common practice to operate waveguides using only one mode. Now the boundary condition for the input and output port can be stated as
+
+[formula]
+
+where the propagation constant [formula] and kz  =  π  /  a is the port cutoff wave number. The constants c10,i can be determined from orthogonality. The latter yields the following
+
+[formula]
+
+These expressions are now re-inserted into Eqs. [\eqref=eq:ports_1] and [\eqref=eq:ports_2] after which the natural (Neumann) operator for the Maxwell problem, i.e. [formula], is applied. Furthermore, the incident wave is chosen as the first order mode for the waveguide. Combining all of the above we obtain the following port boundary conditions for the waveguide problem
+
+[formula]
+
+which can naturally be incorporated into a variational form for the Maxwell PDE.
+
+Finite element formulation and implementation
+
+The PDE problem described in Eqs. [\eqref=eq:maxeqs_E], [\eqref=eq:PEC], [\eqref=eq:ports_1_BC] and [\eqref=eq:ports_2_BC] leads to the following linear finite element formulation when using the standard Galerkin discretization approach [\citep=jin2002]:
+
+[formula]
+
+where the global system matrices and vectors are assembled from
+
+[formula]
+
+where [formula] represent vector (Nedelec) element shape functions belonging to the Sobolev space [formula]. In this work we use tetrahedral elements with zero/first order shape functions.
+
+The finite element problem in Eqs. [\eqref=eq:FEM] - [\eqref=eq:element_f] is implemented in an in-house MPI based C++ code [\citep=Aage2013b]. The meshing is performed in Cubit (Sandia National Laboratories) and the partitioning is done by METIS [\citep=Karypis1999]. It is important to note that the outer product in Eq. [\eqref=eq:element_B] can result in a high degree of communication in the parallel implementation in case the port boundary is distributed which is due to the fact that the [formula] matrices are dense. Therefore we require that each port is confined to a single partition as is illustrated in Fig. [\ref=fig:parts]. The figure also indirectly shows the design domain as a thin plate which is partitioned heavily due to the fine mesh desired for a fine design representation. The Maxwell problem is finally solved using the direct solve MUMPS [\citep=Amestoy2000].
+
+Design interpolation
+
+The topology optimization methodology presented next falls into the category of so-called density based approaches [\citep=bendsoe2003]. That is, for each element in the design domain we assign a continuous variable, i.e. ρe∈[0;1] which we use to interpolate between two candidate materials. In the case of metallic waveguide filters, the relevant physical quantity is the conductivity. It is desired that the final design does not contain intermediate valued design variable such that the design is physically realizable. To obtain an interpolation scheme with such properties we adopt the scheme presented in [\citet=Aage2010]. For completeness the interpolation scheme is stated below.
+
+The design interpolation consists of two parts. The first interpolates directly in the material conductivity in the original Maxwell problem, i.e. Eq. [\eqref=eq:maxeqs_E] or [\eqref=eq:FEM] and can be written as
+
+[formula]
+
+where subscripts m and d refers to the metal and the background dielectric respectively, and where σ0 is a scaling included to make the interpolation physically sound. In the work presented here we use σ0  =  σm = 106   and σd = 10- 4  . The given values are chosen for the following reasons. Due to numerical precision it can be shown that using a conductivity larger than 106   for the metal does not change the response of the system significantly. Using a larger value (e.g. copper has σm = 5.998  ×  106  ) will lead to intermediate design variables in the final design since the system performance does not benefit from an increase in the conductivity above the proposed upper bound. The same argument holds for the background material, i.e. choosing σd too low leads to numerical instabilities, while a too large value results in an over damped response and hence a non-monotonic behaving design interpolation.
+
+The second part of the interpolation scheme takes the skin depth issue into account. That is, the distance an electromagnetic wave propagates into a good conductor before being reduced by a factor of e- 1. Since the skin depth of a good conductor is several orders of magnitude smaller than the actual device dimensions, the finite element model cannot capture the rapid decay unless additional measures are taken. If this is not treated the skin depth effect will again result in a non-monotonically behaving design interpolation on meshes that resolve the geometry but not the skin depth. To circumvent this limitation we apply an impedance boundary condition on all faces of a design element. This leads to the following condition
+
+[formula]
+
+where Γe refer to all faces of the e'th design element. From the two Eqs. [\eqref=eq:sigma] and [\eqref=eq:skindepth] it is clear that ρe = 1 yields a good conductor and that ρe = 0 results in a background dielectric with very little artificial damping. For further details on the interpolation scheme and its parameters the reader is referred to [\cite=Aage2010].
+
+Objective function
+
+The performance of a waveguide is often measure by its scattering, or S-parameters which provide information on the reflection and transmission of a wave in a waveguide. The S-parameters for a two port system can be computed as follows when only port 1 includes excitation:
+
+[formula]
+
+where [formula] refers to complex conjugate and S11 corresponds to the reflection at surface Γ1 while S21 corresponds to the transmission at Γ2. A possible objective - or fitness - function for a given filter can be therefore be specified as a function of the S-parameters over some frequency range. To illustrate how this is to be done we use the pass band filter shown in Fig. [\ref=fig:ref_design]. From the frequency sweep in Fig. [\ref=fig:ref_design2] it is clear that for frequencies lower than 9.5GHz and above 10.5GHz, the transmission should be zero (or very small), while the transmission should be full, i.e. S21 = 1, for the range between 9.5GHz and 10.5GHz. We can state this formally in terms of a discrete frequency list and two index sets
+
+[formula]
+
+where ffi, [formula] and fzi, [formula] refers to full and zero transmission respectively. The discrete frequency list can of course be refined or coarsened to fit a specific design task. The objective function can now be stated in terms of the transmission parameter as the following non-smooth maximization problem
+
+[formula]
+
+It is clear that Φ takes values between 0 and 1 and that Φ = 1 corresponds to the optimum. The non-smoothness can be remedied by introducing a bound formulation [\citep=bendsoe2003]. The bound formulation can in turn be stated in several different ways, which will be discussed in the following section.
+
+Two phase optimization methodology
+
+Even if a microwave filter is not based on cascading filter elements, it is unlikely to obtain good filter characteristics without a multipole design. From experience we have not been able to generate multipole design starting from a non-resonating starting guess since the optimization tends to get stuck in a local minimum containing only one pole. In recognition of this issue and the fact that we require our design methodology to be able to start from a uniform initial design, we have divided the optimization procedure in two phases: Phase 1 consists of designing a set of smaller resonators which can be used as initial guess for the full filter optimization, thus (over)populating the initial guess with several resonances. Phase 2 then consists of designing one integrated multipole structure that make up the overall filter response we are seeking.
+
+The Phase 1 design problem(s), i.e. the resonator design, can be done in several ways using topology optimization. One way would be to do an eigenvalue target optimization where the difference between the resonance frequency and a target frequency is optimized (see e.g. [\citet=Jensen2006]). This approach requires the solution of a quadratic eigenvalue problem due to the system damping, i.e. conductivity, which is currently not available within the used numerical framework. We therefore choose another design methodology capable of obtaining resonator designs which is based on the S-parameters and the non-smooth objective in Eq. [\eqref=eq:objective_ref]. Restating this as a bound formulation we obtain the following smooth optimization problem
+
+[formula]
+
+Note that the extra variable β is required to transform the objective function from Eq. [\eqref=eq:objective_ref] into a smooth optimization problem that is tractable by standard gradient methods. Dependent on the specific filter design task, the number of needed Phase 1 problems will change and note that all Phase 1 problems are completely decoupled and can thus be solved completely independent of each other, i.e. they are embarrassingly parallel. It is an important observation that the formulation in Eq. [\eqref=eq:opt_prob_p1] puts equal weight on transmission and reflection. That is, the optimizer will first try to reach a point in which all S21 parameters equals 0.5 and then subsequently expand the difference from the center point.
+
+The Phase 2 design problem is to obtain the full filter functionality. The starting point for Phase 2 are the results of Phase 1, however, the full filter design problem requires a different objective function. That is, since Ψ1 puts an equal weight on transmission and reflection it is therefore likely to lead to designs with S21 less than one and S11 larger than zero. For the Phase 2 objective function the idea is to decouple transmission and the reflection. This is accomplished by introducing yet a bound variable κ that only affects the reflection whereas β only affects the transmission. Finally, it is desired that the Phase 2 objective function favors full transmission to that of full reflections. This means that a simple difference between κ and β does not suffice. However, from band gap optimization [\citep=Sigmund2003a] it is known that a relative gap measure works very well in practice which leads to the following problem statement for Phase 2:
+
+[formula]
+
+The addition of one to the denominator in Ψ2 is needed to avoid zero sensitivities in the cases where either β or κ is zero. This is similar to the argument used for deriving the RAMP interpolation scheme as presented in [\citet=Stolpe2001]. The 1 / 2 is added to the Phase 2 objective for consistency such that both Ψ1 and Ψ2 take values between 0 and 1, where 1 refers to optimal performance of the system.
+
+Both the Phase 1 and 2 optimization problems are solved using a gradient based optimization method with sensitivities obtained from the standard adjoint method, see e.g. [\citet=Christensen2009]. The optimization algorithm used is the Method of Moving Asymptotes (MMA) [\citep=Svanberg1987] [\citep=Aage2013b].
+
+Design filtering and continuation approach
+
+Solving metallic optimization problems involving wave propagation poses a difficult task in terms of high contrast i.e conductor to air/dielectric [\citep=Aage2010] [\citep=Hassan2013], and many local minima [\citep=Diaz2010]. The used design interpolation and the two phase optimization setup alleviates these issues partially but to make the procedure robust we also include image processing filtering in conjunction with a continuation approach. We apply a standard convolution type filter to the design problem in terms of a Poisson type equation, i.e
+
+[formula]
+
+where [formula] is the filtered design field and r corresponds to the radius of influence for the filter. The filter problem is solved with pure Neumann conditions by a linear finite element model and included in the sensitivity calculation by the chain rule cf. [\citep=Lazarov2010f].
+
+Image filtering naturally introduces gray-scale, i.e. blurred interfaces, in the physical design field. This is undesirable for several reasons. Firstly, graded materials are expensive to manufacture (if possible) and secondly, resonant structures, such as metallic filters, obtain much of their performance from sharp material interphases. Therefore we suggest the following continuation approach for the length scale parameter r. The layout of the scheme is constructed based on our numerical experiments similar to the works of e.g [\citet=Alexandersen2015a] and [\citet=Wang2011a]. For the dimensions used in the reference design of Fig. [\ref=fig:reference_design_optimization] we have settled on the following filter values and update intervals
+
+[formula]
+
+The filter radius is updated at every 30th design cycles unless the optimization process converges due to other reasons, i.e. reaching a stationary point. We remark that the optimization process is restarted when the filter radius is updated to acknowledge the non-smooth nature of a sharp parameter change.
+
+Results
+
+In this section we first verify the method and validity of the chosen reference example. Subsequently it is showed how sharper filter characteristics can be obtained on the same design space with more design freedom given.
+
+Model validation and reference design
+
+For model validation and later benchmarking, a classical 2-pole insert filter design is chosen with geometry and characteristics as depicted in Fig. [\ref=fig:ref_design]. The filter design method is still in use today, and we therefore consider it a realistic application example. Formulating the filter characteristics in terms of the optimization problem in Eq. [\eqref=eq:opt_prob_p2] with transmission from 9.8   to 10.4  , we have
+
+[formula]
+
+To verify that the reference filter indeed is a locally optimal solution this design is used as a start guess for the optimization with the only modification that in order to ensure good design gradients, the void regions were replaced with intermediate material (ρ = 0.3). The results of the optimization is seen in Fig. [\ref=fig:reference_design_optimization], where it is seen that no substantial design changes appeared. This is further confirmed by comparing Fig. [\ref=fig:ref_design2] to the filter characteristics in Fig. [\ref=fig:s_param](b-c) for the reference design from Fig. [\ref=fig:reference_design_optimization].
+
+The optimization also validates the code. First of all, the implementation is verified by the fact that the results in Fig. [\ref=fig:ref_design](b) are reproduced. Furthermore, it confirms that the optimization procedure is correctly implemented due to the monotonous behavior of the objective function with respect to iteration number (except for when filter radius is changed due to the continuation approach). The optimization result also confirms that the design we want to use as a benchmark is a local minimum with respect to the desired objective function.
+
+Finally note that the reference filter insert design is not designed for a Printed Circuit Board (PCB), i.e. where a metal structure is fabricated on a dielectric background using photo lithographic etching. Using PCBs provides full 2D topological freedom and is included in our numerical model and design methodology. In the following we therefore assume that the structures can be attached to a dielectric with the same permittivity and permeability as air such that direct comparison with the reference design is possible.
+
+Topology optimized filter design
+
+Using the validated code and the reference example as a benchmark, we now show how steeper filter characteristics can be obtained through topology optimization by allowing complete 2D design freedom. The procedure takes outset in a uniform start guess, and is as such not seeded towards any specific structures to begin with.
+
+Phase 1 - single resonator optimization
+
+As described, the first task is to design a number of independent resonators using smaller design volumes. For the pass band filter studied here we choose to start out with three initial resonators. The total design domain has a length of 32.6   equivalent to that of the reference design. We include an air gap of 1   between the each of the three resonators to ensure they do not short-circuit when cascaded, which means that each resonator has a design space of 10.2  . As target frequencies for each of the Phase 1 resonators we choose three separate resonances inside the passband given by the center frequencies below
+
+[formula]
+
+The set of frequencies to maximize and minimize in Eq. [\eqref=eq:opt_prob_p1] for the three different problems are given as:
+
+[formula]
+
+where fc  =  f1c,  f2c,  f3c corresponds to each of the three resonator design respectively, and b = 0.08 is a parameter that defines the trade off between transmission and reflection. We find that giving the reflection frequencies in terms of a fractional bandwidth in general gives better designs than when specifying equidistant frequencies. This is simply explained by the fact that a 100   difference at two different frequencies does not translate to the same sharpness of a resonator.
+
+The results of the design process and the intermediate steps are seen in Fig. [\ref=fig:P1result]. Several trends can be noticed for all three optimizations (the trends are also observed in other design trials we have performed): 1) The optimization procedure spend many iterations trying to overcome the state where transmission equals reflection (Ψ1 = 0.5), which we interpret as a difficulty of trying to create a structure which gaps reflection and transmission at the desired frequencies. Until then, the algorithm potentially decreases both transmission and reflection at desired frequencies. This is not necessarily a desired route to take for the algorithm, and we hope a future formulation can get rid of this in order to speed up the process and to obtain better resonators at this part of the design stage. 2) The optimizations at different filter radii does not necessarily converge within the given 30 iterations, but we find that better designs are generally obtained by stopping the process prematurely. This is explained by the fact that wave propagation design problems are proned to many (strong) local minima [\citep=Aage2011], and hence that we wish to terminate the optimization process prematurely before the continuation strategy has reached its end. 3) Topological changes happen several times during the optimization which is a sign of a good degree of design freedom, especially considering how easily metallic microwave problems may get stuck in local minima.
+
+In the end, three soft resonators are found of more or less similar quality based on the objective value. Their filter response is seen in Fig. [\ref=fig:s_param](a).
+
+Phase 2 - complete filter optimization
+
+The three single resonators are now placed next to each other - with a spacing of 1   - and used as starting guess for the actual filter characteristics optimization process, i.e. the Phase 2 problem in [\eqref=eq:opt_prob_p2]. Just as for the reference design, the frequencies for the optimization are
+
+[formula]
+
+The objective value at first iteration is Ψ2  =  0.502, which means that an ever so slight gap between transmission and rejection is present, which is crucial for the optimization since we find that the formulation tends to get stuck at Ψ2  =  0.5 as mentioned earlier. However, the Phase 2 objective in Eq. [\eqref=eq:opt_prob_p2] tends to perform significantly better when past this critical point. The outcome of the design procedure is seen in Fig. [\ref=fig:P2result].
+
+During the first filter radius in the continuation process we observe that small features disappear and that larger features significantly change their shape. Furthermore, several changes in topology takes place during the second step in the continuation process. This clearly indicates how the previously obtained resonators in themselves do not provide a good filter response but serve well as a template for creating a larger filter. After this, the topology seems locked and the remaining optimization process constitutes a a shape optimization procedure. The objective of the final design is Ψ2  =  0.964 as compared to the reference design which has an objective of Ψ2  =  0.800. The microwave filter, as it would be situated in an actual waveguide, is depicted in Fig. [\ref=fig:finalDesignLarge]. Electrical field amplitudes at one passband and two stop band frequencies are also shown and clearly demonstrates the filter functionality.
+
+A comparison of the final filter characteristics to the reference filter is seen in Fig. [\ref=fig:s_param](b-c). An insertion loss of 0.5   is seen for both filters. The filters are simulated using PEC in Fig. [\ref=fig:s_param](d) to show the limited influence of our upper bound for material interpolation.
+
+In comparing the filters, the roll off for the optimized filter is much sharper than for the reference design. This seems to be due to the placement of two anti-resonances/transmission dips at roughly [formula] and [formula]. Such two resonances are not seen in the reference design, and they cannot easily be squeezed in using the current design approach without enlarging the design domain. In the transmission band, two poles are still present. One may have hoped for three poles in the transmission band, but in general we find that poles often merge during the optimization process. This is also why it is so important to start with a multipole design, since resonant structures contain strong local minima that are hard to get into as well as hard to get out of. For higher frequencies we see an improvement in the rejection band of 6     or more. For lower frequencies, we see a steeper transition for the optimized design than for the reference (due to the "anti-pole"), but for frequencies around 8    , the optimized design actually has a smaller rejection than the reference. This is attributed to the anti-resonance, but since our cost function looked at overall rejection and this increase occurs where the rejection is already quite high, we do not see this as an issue.
+
+Outlook
+
+For future work, we believe that several steps can be taken in order to obtain better results and a wider usability of the method. First of all, as seen from the iteration history for the Phase 1 design, it is difficult for the algorithm to move past Ψ1  =  0.5, and there is no reason in the first place for the algorithm to go through a design with equal transmission and rejection. It is probably hard to find better objective functions and a possible solution to overcome this challenge is to optimize the resonators based on an eigenfrequency problem instead.
+
+It is also worth testing whether or not the reciprocity (S21 = S12,S11 = S22) of the problem can be exploited. By having an objective that is the average of two test cases with waves launched from either end of the waveguide, better sensitivities may be obtained over the whole design domain. The idea behind this approach is similar to how the problems in topology optimized antenna design are inverted by first considering radiation and then illumination [\citep=Aage2011].
+
+For filter design with more strict control of the response, asymptotic wave expansion (AWE) would help increasing solution performance and computational effort by providing a way to obtain a continuous filter response curve instead of the relatively low set of discrete data points we are using at the moment [\citep=Jensen2007]. AWE would furthermore allow more detailed control of the filter characteristics, but at the cost of more constraints and hence a harder optimization problem.
+
+Conclusions
+
+A metallic waveguide filter with improved performance as compared to a benchmark example has been designed using a topology optimization approach. The approach is implemented using the finite element method (FEM) and is divided into two design phases in order to obtain the strong resonances required for obtaining a filter with high transmission and rejection characteristics. The obtained design does not bear resemblance with any earlier design and thus indicates the potential for rethinking traditional filter design approaches for microwave engineering. We believe that this proof-of-concept is the first step towards having topology optimized microwave filters in engineering applications.
+
+Acknowledgements
+
+This work was funded by the Villum Foundation through the NextTop project and the Danish National Advanced Technology Foundation through the grant Wireless Coupling in Small Autonomous Apparatus (www.hoejteknologifonden.dk). The authors would like thank to Vitaliy Zhurbenko and the DTU TopOpt group for valuable insight and many fruitful discussion.

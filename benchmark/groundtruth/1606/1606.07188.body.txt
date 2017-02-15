@@ -1,0 +1,113 @@
+=Permission to make digital or hard copies of part or all of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for third-party components of this work must be honored. For all other uses, contact the authors.
+
+Selective Term Proximity Scoring Via BP-ANN
+
+Information Search and Retrieval-Search process
+
+Introduction
+
+Search engine users want relevant documents returned quickly when searching. Searching is often performed using an inverted index [\cite=yan2009inverted], which stores a list of occurring terms, and for each term, documents in which that term occurs are recorded, along with term frequency within each document and all the corresponding position information.
+
+The search process for conjunctive queries goes through two main phases: list intersection and ranking [\cite=constantinos2013a]. We first find the documents that contain all the query terms, then rank them according to their relevance to the query; ideally, the most relevant documents are returned. Traditional methods for assessing if a document is relevant to a query use two kinds of features: (a) term-independent features, e.g., PageRank; and (b) term-dependent features. Term-dependent features focus on term frequency and inverted document frequency. BM25 [\cite=robertson1976relevance] is one of the most widely used; given query q, the document d is assigned the score:
+
+[formula]
+
+where k1 and b are predefined constants, |d| is the length of document d, [formula] is the average document length in the collection, fd,t is the frequency of t in document d, and wt is the inverse document frequency (idf) of term t.
+
+The order in which terms appear in the document and the distance between their locations are both important ranking criteria. Consider the two-term query "search engine" for ranking the following toy example documents:
+
+[formula] word search engine word word word word search engine word word word word word word [formula]
+
+[formula] search word word search word word engine search word engine search word engine word [formula]
+
+In this example, document d1 can be regarded as more relevant, despite fd2,t > fd1,t for both terms [formula]. Consequently, there is active research on methods of integrating term proximity (TP) into the usual "bag of words" ranking [\cite=yan2010efficient].
+
+TP score has been demonstrated to have an overall positive effect on search quality [\cite=tao2007exploration]. However, there are two caveats: (a) some queries return inferior rankings when utilizing TP score, and (b) incorporating TP score increases computational time. This motivates us to propose a model which selects which queries would likely benefit from incorporating TP score into their ranking.
+
+The remainder of the paper is organized as follows: Section [\ref=se:related] summarizes related work on proximity ranking models. Section [\ref=se:TP_model] introduces our proposed method. Section [\ref=se:exp] details the experiment setup and presents the results. In Section [\ref=se:conc], we present our conclusions and future research directions are suggested.
+
+Related Work
+
+There are two types of models using proximity in ranking: (a) complex ranking functions that combine hundreds of features (TP being one of them) using sophisticated machine learning techniques [\cite=liu2007letor], and (b) variations of the classic ranking models. While the former achieves more effective results than the latter, it is sometimes too computationally expensive to use. Recent work has explored approaches to achieve a better balance between retrieval effectiveness and efficiency [\cite=wang2011cascade]. However, in this paper, we aim to treat each query flexibly, so we focus on the latter.
+
+Rasolofo and Savoy [\cite=rasolofo2003term] proposed a TP-based ranking scheme BM25TP, a modified version of BM25 [\eqref=eq:BM25_score], which incorporates term proximity (a similar scheme was presented by Büttcher et al. [\cite=buttcher2006term]). In BM25TP, the rank of document d is given by:
+
+[formula]
+
+[formula]
+
+where [formula] denotes the proximity accumulator for term t: and for each given term pair (t,s), where t  ≠  s, and [formula] is the number of terms between the position of o(t) and the position of the preceding occurrence of the term s.
+
+An assortment of other methods of utilizing TP in ranking have been studied. Akritidis et al. [\cite=akritidis2012improved] not only takes into account term proximity, but also the order of terms in the query. Zhu et al. [\cite=zhu2009effective] put forward some new ideas based on web page structure and set estimation rules for early termination to speed up top-k computation. Svore et al. [\cite=svore2010good] and Song et al. [\cite=song2008viewing] utilized TP in the form of "spans" to improve the accuracy of ranking functions. Tao and Zhai [\cite=tao2007exploration] introduced five measures and combined them with an existing retrieval model with two newly designed heuristic constraints; their experiments showed significant performance improvement on the KL-divergence language model and the BM25 model. Lv and Zhai [\cite=lv2009positional] presented four proximity-based density functions to estimate different positional language models (PLMs), namely the Gaussian, triangular, cosine, and circle. Metzler et al. [\cite=bendersky2010learning] [\cite=metzler2005markov] developed a general Markov random field (MRF) retrieval model that captures various kinds of term dependencies: full independence, sequential dependence, and full dependence. Cummins and O'Riordan [\cite=cummins2009learning] outlined an extensive list of possible term proximity measures, and incorporated them to the original framework by machine learning methods.
+
+Different queries benefit from different proximity features and methods [\cite=cummins2009learning] [\cite=lu2014effective] [\cite=svore2010good]. Moreover, a too-complicated ranking formula may be a burden to use, both for the operator and by requiring too much overhead. This motivates us to propose a method where TP statistics are utilized only when they are most useful.
+
+Selective TP model
+
+Features considered
+
+Table [\ref=ta:features] lists the features considered in this work. These features can be roughly divided into two categories: (a) query dependent, and (b) term dependent. Term dependent features are divided into two subcategories: frequency-based and position-based.
+
+The query dependent features we include is the number of documents related to the query. The inverted document frequency (idf) indicates the overall importance of a term, and we utilize its statistics: mean, min, max, and sum; the sum of squared idfs, and the sum of squared differences between ascendant or descendant idf values between consecutive terms in a query. The position-based features include the average position of a term in a document, averaged over all documents, which we call the general position (abbreviated pos). Most pos statistics used are analogous to the idf statistics. These features vary in their ability to distinguish queries from each other; we specify the features actually used in Section [\ref=se:exp].
+
+Term proximity score
+
+Three of the most popular TP ranking functions, which we test our selective model based on, are introduced here. Two are BM25TP, given by [\eqref=eq:BM25TP_score], and MRF by Metzler et al. [\cite=metzler2005markov]. MRF is defined by the following ranking function (full details are omitted for space reasons):
+
+[formula]
+
+where T is the set of 2-cliques involving a query term and a document, O is the set of cliques containing the document node and two or more query terms that appear contiguously within the query, and U is the set for query terms appearing non-contiguously within the query. In this paper, we use an extension model proposed by [\cite=bendersky2010learning].
+
+The third one we use is from Tao and Zhai [\cite=tao2007exploration] who instead calculate a term-proximity-based rank by:
+
+[formula]
+
+where [formula] is the minimum distance between any occurrence of any two query terms in document d, and α is a parameter. Tao and Zhai state that [\eqref=eq:TaoZhai_rank] provides stable performance when α is set to 0.3, which we use for our experiments.
+
+Some studies have identified a decaying function between two words to calculate the strength of their association [\cite=gao2002resolving] [\cite=vechtomova2006study] [\cite=yuret1998discovery].
+
+Our approach
+
+As our ranking functions, we use [\eqref=eq:MRF_rank] and a generalized combination of [\eqref=eq:BM25TP_score] and [\eqref=eq:TaoZhai_rank]:
+
+[formula]
+
+Parameters ε and β are used to adjust the weighting of BM25 and the TP score. We test [formula] for the two query sets in our experiments, and choose the parameters leading to the best mean average precision (MAP).
+
+The MAP of each query is used to evaluate the performance of the two ranking models. If a query gets better results using [\eqref=eq:our_rank] than [\eqref=eq:BM25_score] or [\eqref=eq:MRF_rank] than [\eqref=eq:TERM_rank], its features will be labeled as 1, otherwise 0. These results are used to train a (supervised) classifier, determining whether or not using TP score is likely to benefit the document rankings for arbitrary queries.
+
+We use a Back Propagation Artificial Neural Network (BP-ANN) to build our selective TP model, because of its powerful learning ability and rapid forecasting speed. BP-ANN [\cite=rumelhart1988learning] uses a back-propagation algorithm to modify the internal network weights during the training process. In our experiment, we establish a one-node (denoting the query type) output layer BP-ANN, which contains one hidden layer and whose input nodes are query features.
+
+Experiments
+
+All experiments are performed on the GOV2 data set using Porter stemming. We use the query set MQ2007 and MQ2008 for evaluation. The BM25 scores used in this paper are extracted from LETOR4.0.
+
+Figure [\ref=fig:figuremap] shows the MAP values of the rankings for queries, as the proportion of queries using TP (EXP-score) varies. The queries are sorted by how beneficial it would be to use TP scores in their ranking, with the most benefited coming first. Figure [\ref=fig:figuremap] shows that using TP scores does not always improve retrieval quality (assigning more than around 40% has no benefit). We also test methods assigning a label 0 or 1 to a query randomly, which again shows that naively increasing of proportion of queries utilizing TP will not necessarily result in a performance improvement.
+
+Only relevant features are necessary in the BP-ANN model construction, so we remove unnecessary features. To determine feature importance, we combine statistical methods (ranksum, z-score, and χ-squared), a searching algorithm (decision tree), and a feature weight algorithm (relief).
+
+We find that max idf, sum idf, and sum of squared idfs have relatively more importance among the term frequency features, and max pos, min pos, sum pos, and mean pos have relatively more importance among the term position features. As such, we primarily use max pos, min pos, sum pos, and mean pos for EXP; sum idf, max idf, and min pos for MRF; and min idf, sum of squared idfs, sum of squared differences between descendant idfs, and sum pos for BM25TP.
+
+As other researchers have observed [\cite=cummins2009learning] [\cite=huston2014comparison] [\cite=lu2014effective] [\cite=svore2010good], we also find that query length is an important factor in distinguishing whether or not using TP score will be beneficial, so we train independent models for different query length. Because of their effective performance in a more systematic study [\cite=azzopardi2009query], we consider queries with 3 to 5 terms.
+
+After each query is labeled, we train a neural network on 70% of all the data and test the effectiveness and efficiency of the model on the remaining data. In our BP networks, the input layer has 3 to 5 features and the output layer has 1 node. The maximum number of iterations is set to 1000 and the learning rate of the network is 0.01. We choose the sigmoid function
+
+[formula]
+
+as the activation function and test the performance of different hidden layer nodes. All the networks aim to correctly predict queries labeled 1 as much as possible, motivated by Figure [\ref=fig:figuremapdeg] which indicates that mispredicting queries labeled 1 is consistently worse than other mispredictions. The bias on mispredictions is used as a reference for process parameter adjustment in the network. The number of hidden layer nodes used and its momentum coefficient α are listed in Table [\ref=ta:netParameter], along with the precision and recall values on the training and test data.
+
+We compare three TP-based rankings for each TP score: _tpAll (where TP is always used for ranking), _tpS which calculates TP score depending on BP-ANN predictions (the proposed ranking method), and _oracle, a theoretically perfect situation where we know a priori whether or not a query would benefit from TP score. For comparison, we also include a non-TP-based ranking _tpNo given by [\eqref=eq:BM25_score] and [\eqref=eq:TERM_rank].
+
+We use three methods for measuring the quality of the rankings: MAP, precision for top-k results, and Mean Normalized Discounted Cumulative Gain (Mean NDCG), given in Table [\ref=ta:GOV_res]. We also list the number of queries benefiting from calculation of TP score and the throughput.
+
+Table [\ref=ta:GOV_res] shows that the TP rankings (_tpAll and _tpS) consistently exhibit significantly better rankings than without TP (_tpNo). We also see that the selective model (_tpS) returns slightly better rankings than _tpAll while having better throughput. In terms of MAP, we see that MRF is consistently superior to the other ranking formulas. However, _tpS used with EXP is the nearest to the corresponding _oracle (the best possible MAP). Further, we can also find that _tpS shows a better performance (vs. _tpAll) in terms of k = 1 precision, which is a critical measure for exact queries, such as queries restricted to web sites.
+
+Concluding remarks
+
+Recent studies have achieved promising retrieval performance by taking term proximity into consideration in relevance scoring. In this work, we propose a modified TP score ranking scheme which predicts which queries will benefit from using TP score in their rankings. In this way, we can: (a) achieve a better ranking from utilizing TP scores, and (b) achieve rankings with slightly better quality than the rankings given when always incorporating the TP score, but with better throughput. In essence, we utilize TP score only when it's helpful.
+
+Our work could be extended in several directions, e.g.: (a) The use of more features, particularly those that capture a notion of term proximity, could be explored. (b) We could use a more complicated weighting of the queries' benefit from using TP score (here we use a simple 1 vs. 0 weighting). This would enable us to use a linear regression model, which may achieve more effective results. (c) Since different features benefit different types of queries, we could train a collection of models, individually designed for a single query type.
+
+ACKNOWLEDGMENTS
+
+This work is partially supported by NSF of China (grant numbers: 61373018, 11301288, 11550110491), Program for New Century Excellent Talents in University (grant number: NCET130301) and the Fundamental Research Funds for the Central Universities (grant number: 65141021).

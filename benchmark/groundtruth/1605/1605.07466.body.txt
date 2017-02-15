@@ -1,0 +1,131 @@
+Complex NMF under phase constraints based on signal modeling: application to audio source separation
+
+Introduction
+
+A variety of audio signal processing techniques acts in the TF domain, exploiting the particular structure of music signals. For instance, the family of techniques based on Nonnegative Matrix Factorization (NMF) [\cite=Lee1999] is often applied to spectrogram-like representations, and has proved to provide a successful and promising framework for audio source separation [\cite=Smaragdis2003].
+
+However, when it comes to resynthesizing time signals, obtaining the phase of the corresponding Short-Time Fourier Transform (STFT) is necessary, and is still an open issue [\cite=Gerkmann2015]. In order to produce perceptually satisfactory sounding signals, it is important to enforce consistency, i.e. to obtain a complex-valued component that is close to the STFT of a time signal. In the source separation framework, a common practice consists in applying Wiener-like filtering [\cite=Fevotte2009]. However, this method does generally not lead to consistent components. Alternatively, a consistency-based approach is often used for phase recovery [\cite=Griffin1984]. That is, a complex-valued matrix is iteratively computed in order to maximize its consistency. A benchmark has been conducted to assess the potential of source separation methods with phase recovery in NMF [\cite=Magron2015]. It points out that consistency-based approaches provide poor results in terms of audio quality. Besides, Wiener filtering fails to provide good results when sources overlap in the TF domain. The High Resolution NMF (HRNMF) model [\cite=Badeau2014] has shown a great potential because it relies on a signal model, contrary to consistency-based approaches that exploit a property of the TF transform. The Complex NMF (CNMF) model [\cite=Kameoka2009], which consists in factorizing a magnitude spectrogram while reconstructing a phase field for each source, has also shown promising results, but requires that the phase be constrained to produce satisfactory results.
+
+Alternatively, phase reconstruction from spectrograms can be performed using phase models based on signal analysis. For instance, the widely used model of mixtures of sinusoids [\cite=McAuley1986] can lead to explicit constraints for phase reconstruction that exploit the relationships between adjacent TF bins. This approach has been used in the phase vocoder algorithm [\cite=Flanagan1966], integrated into a CNMF framework [\cite=Bronson2014] and applied to speech signal reconstruction [\cite=Krawczyk2014]. In [\cite=Magron2015a], we proposed to generalize this approach and have provided a phase unwrapping algorithm that has been applied to an audio signal restoration task. Thus, modeling the phase of the components in the TF domain by means of a signal model appears to be a promising approach. In addition to this model, one can also exploit the repetition of audio events to obtain a phase constraint in the TF domain. A phase reconstruction technique exploiting this property has been proposed in [\cite=Magron2015c] for estimating the phases of the components from the mixture within onset frames. This method has been applied to audio source separation and has shown some potential, but the spectrograms of the isolated components were assumed to be known.
+
+In this paper, we propose to define a mixture model that incorporates the aforementioned phase constraints for jointly estimating both the magnitude and the phase of the components. The mixture is decomposed into several sources, whose STFTs are structured according to the CNMF model. In addition, we include the following constraints: a phase unwrapping model that enforces the continuity of the partials over time frames, and a model based on the repetition of audio events for estimating the phases of the components within onset frames. We incorporate these constraints into the CNMF model by means of penalty functions in the complete cost function, and we minimize it in order to derive an estimation algorithm. This method is tested experimentally on various data and applied to an audio source separation task.
+
+This paper is organized as follows. Section [\ref=sec:background] presents the necessary background on NMF, CNMF and phase-constrained CNMF. Section [\ref=sec:model] introduces our model and the derived estimation algorithm. Section [\ref=sec:exp] describes several experiments that highlight the potential of this technique. Finally, section [\ref=sec:conclu] draws some concluding remarks and prospects future directions.
+
+Background
+
+Nonnegative Matrix Factorization
+
+The NMF problem is expressed as follows: given a matrix V of dimensions F  ×  T with nonnegative entries, find a factorization V  ≈  V̂  =  WH where W and H are nonnegative matrices of dimensions F  ×  K and K  ×  T. In order to reduce the dimension of the data, K is chosen such that K(F + T)  ≪  FT. In audio source separation, V is generally the magnitude or the power spectrogram of a TF representation X of a mixture signal (most of the time an STFT). One can interpret W as a dictionary of spectral templates and H as a matrix of temporal activations.
+
+This factorization is generally obtained by minimizing a cost function D(V,V̂). Popular choices for D are the Euclidean distance and the Kullback-Leibler [\cite=Lee1999] or the Itakura-Saito [\cite=Fevotte2009] divergence.
+
+Finally, the phase of the complex components must be recovered in order to resynthesize time-domain signals. A common practice consists in applying Wiener filtering [\cite=Fevotte2009], which corresponds to a soft-masking of the complex-valued STFT of the original mixture. Thus, the phase of each source is equal to the phase of the mixture. However, this property is no longer valid when sources overlap in the TF domain, which motivates alternative methods for reconstructing the phases of the components [\cite=Griffin1984].
+
+Complex NMF
+
+CNMF [\cite=Kameoka2009] consists in factorizing a magnitude spectrogram while reconstructing a phase field for each source from the STFT X of the mixture. The model is, [formula]:
+
+[formula]
+
+The model parameters are estimated by minimizing the squared Euclidean distance between the model X̂ and the data X:
+
+[formula]
+
+A penalty term is generally added to this cost function in order to promote sparse activations [\cite=Hoyer2004]. The CNMF model [\cite=Kameoka2009] uses the following sparsity penalty term:
+
+[formula]
+
+where p is a sparsity parameter chosen between 0 and 2. More details on the estimation procedure can be found in [\cite=Sawada2011].
+
+Phase-constrained Complex NMF
+
+Although promising, the Complex NMF model has been shown to provide poor results in terms of audio source separation quality because the phase is left unconstrained [\cite=Magron2015]. In [\cite=LeRoux2009a], the authors proposed to enforce the consistency of the estimated components, but this property was shown to be uncorrelated to the sounding quality.
+
+An alternative approach consists in using phase constraints based on signal modeling. In [\cite=Bronson2014], the authors proposed a temporal phase evolution constraint in the TF domain, based on the explicit calculation of the phase of mixtures of sinusoids. Although promising, this approach is limited to harmonic and stationary signals, and requires prior knowledge on fundamental frequencies and numbers of partials. Thus, it is not suitable for blind source separation.
+
+Finally, time invariant parameters can be exploited to constrain the phase within a complex NMF framework. In [\cite=Kirchhoff2014], the authors proposed to use the phase offset between partials in order to reduce the dimensionality of the data. However, the corresponding estimation algorithm is not able do deal with a mixture of different instrumental sources.
+
+Proposed model
+
+Drawing on previous work [\cite=Magron2015a] [\cite=Magron2015c], we propose to incorporate the following constraints into a CNMF framework:
+
+A phase unwrapping constraint, that enforces the continuity of the partials composing the spectra of the sources over time frames;
+
+A phase model based on the repetition of audio events in order to estimate the phases of the sources within onset frames.
+
+In this paper, we assume that the onset frame indexes are known. However, we could implement, for instance, the method described in [\cite=Paulus2005] for estimating onset frames from the activation matrix H.
+
+Phase unwrapping
+
+Let us consider a source indexed by [formula] which is modeled as a sum of sinusoids. νk(f) denotes the normalized frequency in channel [formula]. We define the onset domain for each source:
+
+[formula]
+
+It can be shown [\cite=Magron2015a] that the phase φk of the component Xk follows the unwrapping equation: [formula] and [formula],
+
+[formula]
+
+where S is the hop size of the STFT. From [\eqref=eq:phase_unwrapping] we define the unwrapping cost function:
+
+[formula]
+
+with uk(f,t) = |eiφk(f,t)e- iφk(f,t - 1)  -  e2iπSνk(f)|2. The relative importance of the constraint is weighted by the terms |X(f,t)|2.
+
+In [\cite=Bronson2014] the frequencies νk(f) were assumed to be known. We propose here to estimate them with a Quadratic Interpolated FFT (QIFFT) performed on the spectra Wk. The frequency range is then decomposed into regions of influence [\cite=Magron2015a] to ensure that the phase in a given channel is unwrapped with the appropriate frequency.
+
+Phase constraint based on a model of repeated audio events
+
+Another constraint can be added in order to reconstruct the phase of the sources within onset frames. Indeed, reconstructing a good quality onset signal is crucial since it has a significant impact on the sound quality and because it initializes the recursive equation [\eqref=eq:phase_unwrapping].
+
+We propose to use a phase model based on the repetition of audio events [\cite=Magron2015c]. The phase of a source within an onset frame is modeled as the sum of a reference phase and an offset which is linearly dependent on the frequency: [formula], [formula] and t∈Ωk,
+
+[formula]
+
+This model leads to the following cost function:
+
+[formula]
+
+with rk(f,t)  =  |eiφk(f,t)  -  eiψk(f)eiλk(t)f|2.
+
+CNMF under phase constraints
+
+The aforementioned constraints are incorporated into the CNMF framework by adding the penalty terms [\eqref=eq:cost_sparse], [\eqref=eq:cost_unwrapping] and [\eqref=eq:cost_rep] to the cost function [\eqref=eq:cost_euclidean], which leads to the following objective function:
+
+[formula]
+
+where θ  =  {W,H,φ,ψ,λ} and the parameters σu, σr and σs are prior weights which promote the constraints.
+
+The cost function is minimized by means of a coordinate descent method. We calculate the partial derivative of C with respect to the parameters {W,H,φ,ψ} and we seek them such that this derivative is zero. The parameters λ are estimated by means of an adaptation of the ESPRIT algorithm [\cite=Hua2004]. Besides, we enforce the nonnegativity of W and H by a projection onto nonnegative orthants, and we add some normalization. Thus, the convergence of the algorithm is not theoretically guaranteed, however it was observed in our experiments. Algorithm [\ref=al:cnmf_ph] describes the estimation procedure. We use the following notations: [formula],
+
+[formula]
+
+and let [formula]. The indicator function of Ωk is:
+
+and the indicator function of the complementary set is [formula]. [formula] denotes the real part, [formula] (resp. [formula]) denotes the Vandermonde matrix (resp. the diagonal matrix) made up with the entries of vector v and [formula] denotes the column vector made up with the diagonal entries of matrix M. [formula] (resp. [formula]) denotes the vector or matrix obtained by removing the last (resp. the first) entry from vector or matrix z. M0  → denotes the concatenation of a column vector whose entries are zeros and the matrix obtained by removing the last column from M. Finally, .T (resp. [formula] and .H) denotes the transpose (resp. the conjugate and the Hermitian transpose), and [formula] (resp. [formula] and [formula]) denotes the element-wise matrix multiplication (resp. division and power).
+
+Experimental evaluation
+
+Protocol and datasets
+
+We perform audio source separation on several datasets. First, we synthesize 30 mixtures of two harmonic signals (K = 2) which consist of damped sinusoids whose amplitude, origin phase, frequency and damping coefficients are randomly-defined. For the tests on realistic data, we consider 30 mixtures of two piano notes (K = 2) selected randomly from the MAPS database [\cite=Emiya2010a]. In both datasets, sources overlap in the TF domain. Each source is activated alone successively, and then both are played simultaneously.
+
+The data is sampled at Fs  =  11025 Hz. The STFT is calculated with a 512 sample-long modified Hann window (as defined in [\cite=Griffin1984]) with 75% overlap. In order to measure the quality of the source separation, we use the BSS Eval toolbox [\cite=Vincent2006] which computes various energy ratios: the Signal to Distortion, Interference and Artifact Ratios (SDR, SIR and SAR).
+
+We test various methods: NMF-W consists of 30 iterations of NMF with Kullback-Leibler divergence (KLNMF) multiplicative update rules combined with Wiener filtering [\cite=Fevotte2009]; CNMF consists of 10 iterations of the sparse CNMF algorithm without phase constraint [\cite=Kameoka2009]; Finally, CNMF-φ consists of 10 iterations of Algorithm [\ref=al:cnmf_ph]. For both CNMF methods, W, H and φ are initialized with 30 iterations of NMF-W and the other parameters are initialized randomly.
+
+Influence of the weight parameters
+
+The first experiment analyzes the influence of the unwrapping and repetition parameters σu and σr on the performance of the source separation based on the CNMF under phase constraints method. The sparsity parameters are set at p = 1 and σs  =  ||X||2K- (1 - p / 2)10- 5, which are commonly used values in the literature [\cite=Kameoka2009]. We run the CNMF-φ procedure with various values of σr and σu. We then compute the SDR, SIR and SAR and average the results over each dataset. Results are presented in figure [\ref=fig:inf_sigma]. We remark that σr does not have a great influence on the quality of the separation. However, the quality significantly drops for values of σr and σu higher than 1. We thus set σr  =  0.2 and investigate more precisely the influence of σu, as presented in figure [\ref=fig:inf_sigma_u]. We remark that small values of σu (≈  0.05) lead to the best results for synthetic data. However, values in the neighborhood of 0.2 seem to lead to the most stable results for real piano notes. Thus, we will use the values (σu,σr)  =  (0.2,0.2) in the next tests in order to guarantee as much robustness as possible in our experimental results.
+
+Source separation
+
+As a first example, we consider a mixture of two piano notes that overlap in the TF domain (E2 and B2). Each note is played alone successively, and then both are played simultaneously. We perform source separation with the methods described in the protocol. We then look at the reconstructed component corresponding to the note B2 in the 58-th frequency channel between 2 s and 2.3 s, i.e. when overlap between partials of the two piano notes occurs. Results presented in figure [\ref=fig:cnmf_E2B2] show that our method accurately reconstructs the piano partial in this frequency channel. Both the real part and the magnitude of the components are well reconstructed with our technique, while the other methods lead to unsatisfactory results.
+
+Finally, we perform source separation on the two datasets and average the source separation scores over the mixtures. We present the results in Table [\ref=tab:cnmf_ph_perf]. Our method outperforms the Wiener filtering technique in terms of interference rejection. A slight increase in SDR is also observed on both datasets, while the CNMF technique leads to the best performance in terms of artifact rejection. An informal perceptive evaluation of the source separation quality suggests that the performance measurement employed in these tests may not be able to capture some properties of the separated signals. In particular, the beating phenomenon cannot be suppressed when the phase is retrieved with Wiener filtering, which significantly impacts the sounding quality of the reconstructed signal, while our technique dramatically attenuates this phenomenon. In order to assess the potential of this method, we provide on our webpage [\cite=Magron] some audio examples, as well as the MATLAB code related to this work.
+
+Conclusion
+
+The model introduced in this paper is a promising tool for separating overlapping components in complex mixtures of audio signals in the TF domain. Incorporating phase constraints within a complex NMF framework leads to satisfactory sounding results. Those constraints are based on signal modeling, which appears to be a suitable approach for exploiting the phase coherence properties that intrinsically lie within audio signals because of their physical nature. Promising results have been obtained for the source separation task, and significantly better results than with the traditional unconstrained complex NMF have been reached.
+
+Further experiments should though be conducted on realistic music pieces, in order to assess the potential of the method for practical applications. In addition, further research could focus on the formulation of the problem itself. Indeed, incorporating the phase constraints as penalty terms in the cost function leads to an increase of the amount of local minima, and requires the tuning of the hyper parameters σr and σu. Finally, such constraints could be refined, and completed with other properties, such as the modeling of onset phases or the use of time-invariant parameters [\cite=Kirchhoff2014].

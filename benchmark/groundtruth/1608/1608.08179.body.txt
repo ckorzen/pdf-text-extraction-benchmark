@@ -1,0 +1,311 @@
+Proposition
+
+A second-order accurate ensemble transform particle filter
+
+Walter Acevedo
+
+Sebastian Reich
+
+Keywords. Bayesian inference, data assimilation, particle filter, ensemble Kalman filter, Sinkhorn approximation AMS(MOS) subject classifications. 65C05, 62M20, 93E11, 62F15, 86A22
+
+Introduction
+
+Data assimilation (DA) denotes the broad topic of combining evolution models with partial observations of the underlying dynamical process [\cite=sr:evensen] [\cite=sr:stuart15] [\cite=sr:reichcotter15]. DA algorithms come in the form of variational and/or ensemble-based methods [\cite=sr:stuart15]. In this paper, we focus on ensemble-based DA methods and their robust and efficient implementation. The ensemble Kalman filter (EnKF) [\cite=sr:evensen] is by far the most popular ensemble-based DA method and has found widespread application in the geosciences. However, EnKFs lead to inconsistent approximations for partially observed nonlinear processes. On the contrary, particle filters (PF) (also called sequential Monte Carlo methods) [\cite=sr:Doucet] lead to consistent approximations but typically require ensemble sizes much larger than those required for EnKFs in order to track the underlying reference process [\cite=sr:bengtsson08].
+
+In order to overcome these shortcomings, we are currently witnessing a strong trend towards hybrid filters which combine EnKFs with PFs and which are applicable to strongly nonlinear systems under small or moderate ensemble sizes. We mention here the Gaussian mixture filters (such as, for example, [\cite=sr:stordal11]), the rank histogram filter [\cite=sr:anderson10] [\cite=sr:snyder13], moment matching ensemble filters [\cite=sr:xiong06] [\cite=sr:lei11] [\cite=sr:toedter15], the ensemble Kalman particle filter [\cite=sr:frei13], and the hybrid ensemble transform particle filter [\cite=sr:CRR15].
+
+In this paper, we focus on improved implementations of the ensemble transform particle filter (ETPF) [\cite=sr:reich13] [\cite=sr:reichcotter15] and its hybridrization with the EnKF [\cite=sr:CRR15]. The ETPF requires the solution of a linear transport problem in each assimilation step, which renders the methods substantially more expensive than an EnKF. Computationally attractive alternative, such as the Sinkhorn approximation [\cite=sr:cuturi13], lead to unstable implementations since the ensemble becomes underdispersive. We address this problem by introducing a variant of the ETPF, which is second-order accurate independent of the actual solution procedure for the underlying optimal transport problem. An ensemble filter is called second-order accurate if the posterior mean and covariance matrix of the ensemble are in agreement with their importance sampling estimates from a Bayesian inference step. Second-order accurate variants of EnKFs have been considered in [\cite=sr:lei11] [\cite=sr:toedter15] before. Here we instead consider second-order corrections to the ETPF. Such corrections require the solution of a continuous-time algebraic Riccati equation [\cite=sr:Wonham68] [\cite=sr:laub79]. The correction term vanishes as the ensemble size approaches infinity in agreement with the consistency of the ETPF [\cite=sr:reich13].
+
+The paper is organized as follows. The general framework of ensemble transform filters is summarized in Section [\ref=sec:FORDA]. Section [\ref=sec:2ndETPF] summarizes the ETPF, introduces the second-order correction step, and discusses the numerical solution procedure for the associated continuous-time algebraic Riccati equation. The Sinkhorn approximation to the optimal transport problem of the ETPF is discussed in Section [\ref=sec:sinkhorn] and the overall second-order accurate implementation of the ETPF is summarized in Section [\ref=sec:AS]. Numerical results are provided in Section [\ref=sec:NE], where the behavior of the new method is demonstrated first for a single Bayesian inference step and then for the highly nonlinear and chaotic Lorenz-63 model [\cite=sr:lorenz63]. Here we repeat the experiments from [\cite=sr:CRR15] with the hybrid ensemble transform particle filter being replaced by a second-order accurate variant based on the Sinkhorn approximation to the underlying optimal transport problem.
+
+Ensemble-based forecasting-data assimilation systems
+
+Let us assume that observations [formula] become available at time instances tk, [formula], and are related to the state variables [formula] of an evolution model
+
+[formula]
+
+via the likelihood function
+
+[formula]
+
+where [formula] denotes the measurement error covariance matrix.
+
+An ensemble-based forecasting-data assimilation (FOR-DA) systems will produce two sets of ensembles of size M at any tk. First we have the forecast ensemble [formula] which approximates the conditional distribution [formula] and, second, we have the analysis ensemble [formula], which approximates the conditional distribution [formula]. Here
+
+[formula]
+
+denotes the complete set of observations from t = t1 to t = tl. Also note that
+
+[formula]
+
+and that FOR-DA systems primarily differ in the employed data assimilation algorithms.
+
+The data assimilation algorithms considered in this paper are all of the form of an linear ensemble transform filter (LETF) [\cite=sr:reichcotter15]:
+
+[formula]
+
+with the M  ×  M transformation matrix [formula] defined appropriately. For example, it is well known, that EnKFs can be formulated in the form of ([\ref=transform]) [\cite=sr:evensen] [\cite=sr:reichcotter15].
+
+The main focus of this paper is, however, on an extension of the ETPF [\cite=sr:reich13] [\cite=sr:reichcotter15] to a second-order accurate PF. The transformation matrix of such a filter depends on the forecast ensemble and the normalized importance weights
+
+[formula]
+
+with [formula]. The specific form of the transformation matrix [formula] will be discussed in Section [\ref=sec:2ndETPF]. Since we only rely on importance weights, our filter is also applicable to non-Gaussian likelihood functions. The ETPF can also be applied to spatially extended systems using the idea of localization [\cite=sr:reich15] and has been combined with EnKFs in an hybridization approach [\cite=sr:CRR15].
+
+The nonlinear ensemble transform filter (NETF) of [\cite=sr:toedter15] provides another example of a LETF, which is based on the importance weights ([\ref=nweights]). The NETF matches the empirical mean and covariance matrix of a Bayesian inference step and it is therefore called second-order accurate. The details of the NETF are described in Section [\ref=sec:2ndETPF].
+
+While the ETPF convergence to the true posterior distribution in the limit of M  →    ∞   [\cite=sr:reich13], this is not the case for the NETF. However, the ETPF is computationally expensive and underestimates the ensemble spread (covariance matrix) for finite ensemble sizes. Both of these shortcomings will be addressed by the PFs proposed in Sections [\ref=sec:2ndETPF] and [\ref=sec:sinkhorn].
+
+Second-order accurate ETPF
+
+We now introduce a second-order accurate ETPF. Here second-order accuracy refers to reproducing the first and second-order moments exactly according to the importance sampling approach.
+
+An LETF ([\ref=transform]) is called second-order accurate if the analysis mean satisfies
+
+[formula]
+
+and the analysis covariance matrix
+
+[formula]
+
+is equal to the covariance matrix defined by the importance weights, i.e.
+
+[formula]
+
+Since we only consider the analysis step we drop the explicit time-dependence in the following discussion. We introduce the Nz  ×  M matrix of the forecast ensemble
+
+[formula]
+
+and an analog expression
+
+[formula]
+
+for the analysis ensemble. Then an LETF ([\ref=transform]) can be represented in the form
+
+[formula]
+
+We also introduce the vector [formula] and the vector
+
+[formula]
+
+of normalized importance weights ([\ref=nweights]) and the diagonal M  ×  M matrix [formula]. The importance sampling estimate of the posterior covariance matrix ([\ref=cme]) can now be expressed compactly as
+
+[formula]
+
+while ([\ref=cma]) can be written in the form
+
+[formula]
+
+Since the analysis mean is provided by ([\ref=mean]), an LETF is first-order accurate if
+
+[formula]
+
+which is equivalent to
+
+[formula]
+
+Note also that any transformation matrix has to satisfy [formula] [\cite=sr:reichcotter15].
+
+Hence, let [formula] be an M  ×  M transformation matrix with non-negative entries and
+
+[formula]
+
+These conditions are, for example, satisfied by the transformation matrix
+
+[formula]
+
+which leads to the analysis ensemble
+
+[formula]
+
+However, the implied analysis covariance matrix ([\ref=cma2]) becomes identical zero, which is clearly undesirable.
+
+The ETPF circumvents this collapse of ensemble spread by requiring that [formula] minimizes the cost functional
+
+[formula]
+
+under the constraints dij  ≥  0 and ([\ref=constraint]) [\cite=sr:reich13]. However the analysis covariance matrix of the ETPF still underestimates the posterior covariance matrix ([\ref=cme2]). We therefore seek an adjusted transformation
+
+[formula]
+
+with M  ×  M matrix Δ such that [formula] and [formula] with
+
+[formula]
+
+The condition
+
+[formula]
+
+together with ([\ref=modupdate]) lead to the following quadratic equation in the correction Δ:
+
+[formula]
+
+The special case ([\ref=simple]) leads to
+
+[formula]
+
+and a solution of ([\ref=riccati]) is simply given by
+
+[formula]
+
+which recovers the nonlinear ensemble transform filter (NETF) [\cite=sr:toedter15] [\cite=sr:xiong06]. Note that [formula] with [formula] an M  ×  M orthogonal matrix also provide a solution to ([\ref=riccati]) if [formula].
+
+Let Δ be any M  ×  M matrix such that (i) [formula] and (ii)
+
+[formula]
+
+Define the M  ×  M orthogonal matrix
+
+[formula]
+
+with the two M  ×  M orthogonal matrices [formula] and [formula] given by the the singular value decomposition of the M  ×  M matrix
+
+[formula]
+
+i.e. [formula], and [formula] is a projection onto the space spanned by the nonzero entries of Λopt. Then the transformation matrix
+
+[formula]
+
+results in a second-order accurate LETF, which minimizes
+
+[formula]
+
+over all second-order accurate transformation matrices [formula].
+
+Since [formula], the matrix [formula] also satisfies [formula], which implies that [formula] and ([\ref=optimalD1]) is second-order accurate. Also note that
+
+[formula]
+
+which has been shown by [\cite=sr:olkin82] to minimize ([\ref=cost2]) for given forecast and analysis means and covariance matrices. Note that the entries of [formula] can be negative. See also [\cite=sr:reichcotter15].
+
+We now return to the general case of a first-order accurate transformation matrix [formula]. Then ([\ref=riccati]) leads to a continuous-time algebraic Riccati equation in the correction Δ with the right hand side of the equation being symmetric positive semi-definite. We can now either use the [formula] from the ETPF and derive a second-order accurate version of the ETPF or we compute an approximate solution to the optimal transport problem ([\ref=cost]) subject to ([\ref=constraint]) and are still able to turn it into a second-order accurate PF. This aspect will be discussed in more detail in Section [\ref=sec:sinkhorn]. We continue here with describing a solution procedure for the continuous-time algebraic Riccati equation.
+
+Upon introducing
+
+[formula]
+
+the continuous-time algebraic Riccati equation ([\ref=riccati]) can be expressed as
+
+[formula]
+
+Such an equation can be solved efficiently by applying the Schur vector approach of [\cite=sr:laub79]. The Schur vector approach is based on the extended Hamiltonian matrix
+
+[formula]
+
+and its upper triangular Schur decomposition
+
+[formula]
+
+with the real part of the spectrum of [formula] being negative and the real parts of the spectrum of [formula] being positive. With the orthogonal matrix [formula] partitioned accordingly, the solution of ([\ref=riccati]) is given by
+
+[formula]
+
+We can also seek an optimized Δ by computing the singular value decomposition of the matrix Δ(f)Tf and the associated orthogonal matrix [formula] as in ([\ref=optimal]). We then perform another Schur decomposition of ([\ref=schur]) with [formula] replaced by [formula] and finally set
+
+[formula]
+
+and
+
+[formula]
+
+Sinkhorn approximation to the optimal transport problem
+
+The Sinkhorn approximation to the optimal transport problem defined by the cost functional ([\ref=cost]) and the constraints ([\ref=constraint]) is provided by the regularised cost functional
+
+[formula]
+
+where λ  >  0 is a regularization parameter. Note that λ  →    ∞   leads back to the original cost function ([\ref=cost]). The choice λ  →  0, on the other hand, leads to ([\ref=simple]) as the unique minimizer. Hence the parameter λ allows one to naturally bridge between the NETF (λ  =  0) and the second-order corrected ETPF (λ  =    ∞  ). Furthermore, there exists an efficient iterative method for finding the minimizer of ([\ref=costSH]). First one notes that the minimizer is of the form
+
+[formula]
+
+where [formula] and [formula] are two non-negative vectors ensuring that [formula] satisfies the constraints ([\ref=constraint]) and [formula] has entries
+
+[formula]
+
+The unknown vectors [formula] and [formula] can be computed by Sinkhorn's fixed point iteration
+
+[formula]
+
+See [\cite=sr:cuturi13] for an efficient implementation and additional details.
+
+Let us denote the iterates of [formula] and [formula] by [formula] and [formula], respectively, where we always update [formula] first according to the formula to the left in ([\ref=sinkhorn]). Then the associated
+
+[formula]
+
+satisfied
+
+[formula]
+
+and the weights
+
+[formula]
+
+converge to [formula] as l  →    ∞  . If we stop the iteration at an index [formula], then we define the associated transformation matrix by
+
+[formula]
+
+This is followed by the computation of the associated correction matrix Δopt in order to define a second-order accurate LETF. The index [formula] can be determined by the condition
+
+[formula]
+
+for sufficiently small ε > 0, e.g. ε  =  10- 9.
+
+Algorithmic summary
+
+We summarise the key steps of the second-order accurate ETPF implementation. We assume that a given set of forecast ensemble members [formula] and a vector of importance weights [formula] are given. Then the following steps are performed:
+
+Select a regularization parameter λ  >  0 for the Sinkhorn approximation to the optimal transport algorithm. Compute the matrix [formula] according to ([\ref=entriesK]). Normalize the entries of [formula] such that all entries satisfy -  λ- 1 ln kij  ≤  1. Iteratively compute vectors [formula] and [formula] according to the update formula ([\ref=sinkhorn]). Start with [formula]. Iterate till the transformation matrix ([\ref=sinkhornD]) and its associated weight vector ([\ref=sinkhornw]) satisfy ([\ref=sinkhornstop]). Note that ([\ref=sinkhornD]) should satisfy [formula] in each iteration. We used ε  =  10- 8 in our experiments. Set [formula].
+
+Solve the Riccati equation for the correction Δ using the upper triangular Schur decomposition of ([\ref=schur]) with [formula] and [formula] as defined in ([\ref=AB]). The correction is then given by ([\ref=correction1]).
+
+Compute the optimized update Δopt. This requires the singular value decomposition [formula] of Δ(f)Tf, which yields [formula]. See ([\ref=perturbations]) for the definition of the matrix f of forecast ensemble perturbations. Next solve the Riccati equation with [formula] replaced by [formula]. Denote the solution again by Δ. Finally, set [formula] and define the corrected transformation matrix, [formula], by ([\ref=optimalD]).
+
+The analysis ensemble is given by
+
+[formula]
+
+The second-order accurate ETPF requires the computation of singular value and Schur decompositions of M  ×  M matrices. Those can be performed in O(M3) operations. The Sinkhorn approximation requires O(M2) operations [\cite=sr:cuturi13]. Hence the computationally complexity of the second-order accurate ETPF is of the same order in M as for EnKFs.
+
+We mention that the proposed second-order accurate ETPF can be used instead of the standard ETPF in a hybrid filter, as described in [\cite=sr:CRR15], and, when applied to spatially extended system, can also be used with localization. See [\cite=sr:reichcotter15] [\cite=sr:reich15] for details.
+
+Numerical examples
+
+We now demonstrate the numerical behavior of the proposed second-order accurate ETPF as summarized in Section [\ref=sec:AS]. We first analyze a single Bayesian inference step. The second experiment is based on the Lorenz-63 model and its data assimilation setting of [\cite=sr:CRR15]. We compare the hybrid ensemble transform particle filter of [\cite=sr:CRR15] with a hybrid filter based on the second-order accurate ETPF.
+
+A univariate Bayesian inference problem
+
+We consider a univariate Bayesian inference problem with Gaussian prior with mean   =  0.8 and variance equal to one, likelihood function
+
+[formula]
+
+and observed value yobs  =  1. The non-Gaussian posterior distribution can be found in Figure [\ref=figure1.1].
+
+We implement the second-order accurate ETPF for ensemble sizes [formula] and compare it to the standard ETPF implementation. We compute the errors in the resulting first four moments and repeat each experiment ten thousand times. The resulting averaged errors can be found in Figure [\ref=figure1.2].
+
+We also implemented the second-order ETPF using the Sinkhorn approximation, as described in Section [\ref=sec:AS]), with regularization parameter λ  =  10 and λ  =  100. The results can be found in Figure [\ref=figure1.3]. Not shown are the results for λ  =  0 (which corresponds to the NETF), which yield an error of about 0.11 in the third moment and an error of about -0.2 in the fourth moment for all ensemble sizes.
+
+We conclude that the second-order accurate ETPF provides a significant improvement over the standard ETPF. It is also found that the regularization parameter, λ, needs to be chosen sufficiently large in order to provide a satisfactory performance of the transformation step.
+
+Lorenz-63
+
+We now test the second-order accurate ETPF within the hybrid filter framework proposed in [\cite=sr:CRR15]. We use the chaotic Lorenz-63 system [\cite=sr:lorenz63] with the standard parameter setting σ  =  10, ρ  =  28, and β  =  8 / 3, and observe the first component of the three dimensional system in observation intervals of Δtobs = 0.12 with observation error variance R = 8. A total of K = 100,000 assimilation steps are performed. This data assimilation setting has already been used in [\cite=sr:CRR15] since it leads to non-Gaussian forecast and analysis distributions and a particle filter is able to outperform EnKFs in the limit of large ensemble sizes. Here we are, however, interested in the performance of a hybrid filter for small ensemble sizes. More specifically, the hybrid filter of [\cite=sr:CRR15] with the second-order accurate ETPF applied first is implemented for ensemble sizes varying between M = 15 and M = 35. The bridging parameter, α, of the hybrid filter approach is chosen such that α  =  0 corresponds to a standard ensemble square root filter (ESRF) [\cite=sr:evensen] while α  =  1 leads to a purely second-order accurate ETPF, as summarized in Section [\ref=sec:AS]. Since the model dynamics is deterministic, particle rejuvenation
+
+[formula]
+
+is applied with β  =  0.2 and ξij indenpendent and identially distributed Gaussian random variables with mean zero and variance one. Simulations with β  =  0.15 and β  =  0.25 gave similar results to those reported here. We perform experiments for fixed bridging parameter [formula] and regularization parameter λ∈{10,40} in the Sinkhorn approximation to the optimal transport problem of the second-order accurate ETPF.
+
+The time-averaged RMSEs for fixed bridging parameter [formula], can be found in Figure [\ref=figure2.1] for λ  =  10 and λ  =  40. We also display the RMSEs from the hybrid filter with a standard ETPF implementation in Figure [\ref=figure2.2]. While λ  =  10 leads to time-averages RMSEs which are slightly worse than those from the hybrid filter with a standard ETPF implementation, a regularization parameter value of λ  =  40 leads to improvements especially for larger values of the bridging parameter, α. Overall we find the behavior of the filter less sensitive to the choice of the regularization parameter, λ, than in the previous univariate example.
+
+We finally implemented the hybrid filter of [\cite=sr:CRR15] with the ETPF being replaced by the second-order accurate NETF with an optimally chosen transformation matrix [formula] as in ([\ref=optimal]). We denote this hybrid filter by NETF-ESRF. The resulting RMSEs can be found in Figure [\ref=figure2.2]. The optimal RMSEs for the hybrid NETF-ESRF for given ensemble size, M, are quite similar to those displayed in Figure [\ref=figure2.1] and to those of the hybrid ETPF-ESRF method of [\cite=sr:CRR15]. However, it is found that the optimal values of the bridging parameter, α, are shifted towards larger values for all the second-order accurate methods. We also display the RMSEs for implementations of the NETF with (i) randomly chosen orthogonal matrices, [formula], as suggested by [\cite=sr:toedter15], and with (ii) [formula] in Figure [\ref=figure2.3]. It can be seen that the optimal choice of [formula] not only minimizes ([\ref=cost2]) but also leads to substantially reduced RMSEs.
+
+Conclusions
+
+We have proposed and tested a second-order variant of the ETPF. The modification is computationally attractive since it allows one to replace the computationally expensive solution of an optimal transport problem by its Sinkhorn approximation. Furthermore, if the regularization parameter, λ, in the Sinkhorn approximation is set to zero, then we recover the NETF [\cite=sr:toedter15] with an optimally chosen orthogonal matrix [formula] in ([\ref=optimal], while λ  →    ∞   leads formally back to the optimal transport implementation of the ETPF. As a byproduct, we also found that the NETF with an optimally chosen orthogonal matrix, [formula], leads to substantially smaller RMSEs compared to a random choice, as suggested in [\cite=sr:toedter15].
+
+The second-order accurate ETPF can be put into the hybrid ensemble transform particle framework of [\cite=sr:CRR15] and can be combined with localization as necessary for spatially extended evolution equation [\cite=sr:evensen] [\cite=sr:reichcotter15] [\cite=sr:reich15]. Overall, the methodology proposed in this paper together with the hybrid approach of [\cite=sr:CRR15] provides a powerful framework for performing sequential data assimilation. We finally mention that all methods considered in this paper can be combined with alternative proposal densities, which lead to more balanced importance weights ([\ref=nweights]) [\cite=sr:leeuwen15].
+
+It should be noted though, that second-order accuracy comes at a price, i.e., the entries of the transformation matrix [formula] are not necessarily non-negative, as it is the case for the ETPF transformation matrix [formula]. Hence the analysis ensemble is not necessarily contained in the convex hull spanned by the forecast ensemble. This can cause non-physical states if, for example, the states should only take values in a bounded interval or semi-interval.
+
+Acknowledgments
+
+We like to thank Hans-Rudolf Künsch and Sylvain Robert for discussions on second-order corrections to linear ensemble transform filters.

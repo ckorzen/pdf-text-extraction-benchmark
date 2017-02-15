@@ -1,0 +1,227 @@
+=1
+
+Exploratory Analysis of Functional Data via Clustering and Optimal Segmentation
+
+Introduction
+
+Functional Data Analysis [\cite=RamsaySilverman97] addresses problems in which the observations are described by functions rather than finite dimensional vectors. A well known real world example of such data is given by spectrometry in which each object is analysed via one spectrum, that is a function which maps wavelengths to absorbance values. Online monitoring of hardware is also a good example of such data: each object is described by several time series associated to physical quantities monitored at specified sampling rates.
+
+Another application domain is related to electric power consumption curves, also called (electric) load curves. Such data describes the electric power consumption over time of one household or one small or large industry. Load curves can be very voluminous since there are many consumers (over 35 millions in France) which can be observed during a long period (often several years) and at a rate up to one point every minute. Consequently, there is a strong need for applying unsupervised learning methods to summarize such datasets of load curves. A typical way to do so is to split each curve into daily (or weekly) periods and perform a clustering of such daily curves. The motivation of such analyses is related to several practical problems: understanding the consumption behaviour of consumers in relation to their equipment or weather conditions, defining new prices, optimizing the production of electric power, and in the next years monitoring the household consumption to face high peaks.
+
+We focus in this paper on the exploratory analysis of a set of curves (or time series). The main idea is to provide the analyst with a summary of the set with a manageable complexity. A classical solution for multivariate data consists in using a prototype based clustering approach: each cluster is summarized by its prototype. Standard clustering methods such as K means and Self Organizing Map have been adapted to functional data and could be used to implement this solution [\cite=Abraham2000] [\cite=CottrellGirardRousset1998] [\cite=DebregeasHebrail1998Curves] [\cite=RossiConanGuezElGolliESANN2004SOMFunc]. Another possibility comes from the symbolization approaches in which a time series is represented by a sequence of symbols. In the SAX approach [\cite=DBLP:conf/dmkd/LinKLC03], the time series is transformed into a piecewise representation with contiguous time intervals of equal size: the value associated with each interval is the average of actual values in the interval. This approach is very fast but does not give any guarantee on the associated error. In [\cite=HugueneyPKDD2006], a piecewise constant approximation of a time series is constructed via a segmentation of the time domain into contiguous intervals on which the series is represented by its average value, which can be turned into a label in a subsequent quantization step. When we are given a set of curves, an unique segmentation can be found in order to represent all the curves on a common piecewise constant basis (see [\cite=RossiLechevallier2008SFC] for an optimal solution). This was used as a preprocessing step in e.g. [\cite=RossiEtAl06CilsBspline] [\cite=KrierEtAl2007CILSFDProj].
+
+We propose in this paper to merge the two approaches: we build a K means like clustering of a set of functions in which each prototype is given by a simple function defined in a piecewise way. The input interval of each prototype is partitioned into sub-intervals (segments) on which the prototype assumes a simple form (e.g., constant). Using dynamic programming, we obtain an optimal segmentation for each prototype while the number of segments used in each cluster is also optimally chosen with respect to a user specified total number segments. In the case of piecewise constant prototypes, a set of functions is summarized via 2P - K real values, where K is the number of prototypes and P the total number of segments used to represent the prototypes.
+
+The rest of this paper is organized as follows. Section [\ref=section:one:function] introduces the problem of finding a simple summary of a single function, links this problem with optimal segmentation and provides an overview of the dynamic programming solution to optimal segmentation. Section [\ref=section:several:function] shows how single function summarizing methods can be combined to clustering methods to give a summary of a set of functions. It also introduces the optimal resource allocation algorithm that computes an optimal number of segments for each cluster. Section [\ref=secExperiments] illustrates the method on two real world datasets.
+
+Summarizing one function via optimal segmentation: a state-of-the-art
+
+The proposed solution is built on two elements that are mostly independent: any standard clustering algorithm that can handle functional data and a functional summarizing technique that can build an appropriate low complexity representation of a set of homogeneous functions. The present section describes the summarizing technique for a single function; the extension to a set of functions is described in Section [\ref=section:several:function].
+
+Building a summary of a function is deeply connected to building an optimal segmentation of the function, a problem which belongs to the general task of function approximation. Optimal segmentation has been studied under different point of views (and different names) in a large and scattered literature (see [\cite=Stone1961] [\cite=Bellman1961Function] [\cite=LechevallierContrainte1976] [\cite=LechevallierContrainte1990] [\cite=PicardEtAl2007] [\cite=AugerLawrence1989] [\cite=JacksonEtAl2005] and references therein). The goal of the present section is not to provide new material but rather to give a detailed exposition of the relations between summary and segmentation on the one hand, and of the optimal segmentation framework itself on the other hand.
+
+Simple functions
+
+We consider a function s sampled in M distinct points (tk)Mk = 1 from the interval
+
+[formula]
+
+. The simplicity concept targeted in this article is not based on smoothness as in regularization [\cite=TikhonovArsenin1979] or on capacity as in learning theory (see e.g., [\cite=DevroyeEtAl1996Pattern]). It corresponds rather to an informal measure of the simplicity of the visual representation of g for a human analyst.
+
+The difference between those three aspects (smoothness, capacity and visual simplicity) can be illustrated by an elementary example: let us assume that g is chosen as a linear combination of N fixed functions, i.e.,
+
+[formula]
+
+It is well known that the set of indicator functions based on functions of the previous form has a VC dimension of N, as long as the functions (φi)Ni = 1 are linearly independent (see e.g., [\cite=DevroyeEtAl1996Pattern]). If we consider now the L2 norm of the second derivative of g as a roughness measure, it is quite clear that the actual smoothness will depend both on the functions (φi)Ni = 1 and on the values of the coefficients (βi)Ni = 1. As an extreme case, one can consider [formula] while the (φi)Ni = 2 are smooth functions. Then any g with β1  ≠  0 is non smooth while all other functions are.
+
+The visual complexity of g will also clearly depend on both the basis functions and the coefficients, but in a way that will be generally quite opposite to the smoothness. Let us again consider an extreme case with N = 2, the interval
+
+[formula]
+
+into a small number of segments on which the function takes a simple application dependent parametric form. If the parametric form is reduced to a single value, the simple function is piecewise constant and is easy to describe in text. Other convenient parametric forms are affine functions (to provide less jumpy transitions) and peaks. This approach is closely related to (and inspired by) symbolization techniques used for instance in time series indexing [\cite=HugueneyPKDD2006]: the idea is to build a piecewise constant approximation of a function and then to quantize the levels (the constants) into a small number of values. The obtained values are replaced by symbols (e.g., letters) and the time series is therefore translated into a sequence of symbols.
+
+Segmentation
+
+Let us analyze first an example of the general scheme described in the previous section. We consider a piecewise constant approximation given by P intervals (Ip)Pp = 1 and the corresponding P values (ap)Pp = 1 (we assume that (Ip)Pp = 1 is a partition of
+
+[formula]
+
+. This formulation emphasizes the central hypothesis of the method: the optimal approximation on a segment depends only on the values taken by s in the segment. While a more general segmentation problem, in which this constraint is removed, can be easily defined, its resolution is much more computationally intensive than the one targeted here.
+
+Optimal segmentation
+
+Bellman showed in [\cite=Bellman1961Function] that the Stone approximation problem [\cite=Stone1961] problem can be solved exactly and efficiently by dynamic programming: this is a consequence of the independence between the approximation used in each segment. This has been rediscovered and/or generalized in numerous occasions (see e.g., [\cite=PicardEtAl2007] [\cite=AugerLawrence1989] [\cite=JacksonEtAl2005]).
+
+A different point of view is given in [\cite=LechevallierContrainte1976] [\cite=LechevallierContrainte1990]. As the function s is known only through its values at (tk)Mk = 1, defining a partition of
+
+[formula]
+
+Algorithmic cost
+
+Given all the [formula], Algorithm [\ref=algo:dp:single] runs in O(PM2). This is far more efficient that a naive approach in which all possible ordered partitions would be evaluated (there are [formula] such partitions). However, an efficient implementation is linked to a fast evaluation of the [formula]. For instance, a naive implementation based on equation [\eqref=eq:Q:constant] leads to a O(M3) cost that dominates the cost of Algorithm [\ref=algo:dp:single].
+
+Fortunately, recursive formulation can be used to reduce in some cases the computation cost associated to the [formula] to O(M2). As an illustration, Algorithm [\ref=algo:recursive:constant] computes Q for equation [\eqref=eq:Q:constant] (piecewise constant approximation) in O(M2). Similar algorithms can be derived for other choices of the approximation solution used in each segment. The memory usage can also be reduced from O(M2) in Algorithms [\ref=algo:dp:single] and [\ref=algo:recursive:constant] to O(M) (see, e.g., [\cite=LechevallierContrainte1976] [\cite=LechevallierContrainte1990]).
+
+Extensions and variations
+
+As mentioned before, the general framework summarized in equation [\eqref=eq:AdditiveCriterion] is very flexible and accommodates numerous variations. Those variations include the approximation model (constant, linear, peak, etc.), the quality criterion (quadratic, absolute value, robust Huber loss [\cite=HuberLoss1964], etc.) and the aggregation operator (sum or maximum of the point wise errors).
+
+Figure [\ref=fig:Tecator:LinVSConst] gives an application example: the spectrum from Figure [\ref=fig:Tecator:One] is approximated via a piecewise linear representation (on the right hand side of the Figure): as expected, the piecewise linear approximation is more accurate than the piecewise constant one, while the former uses less numerical parameters than the latter. Indeed, the piecewise linear approximation is easier to describe than the piecewise constant approximation: one needs only to specify the 4 breakpoints between the segments together with 10 extremal values, while the piecewise constant approximation needs 10 numerical values together with 9 breakpoints.
+
+However, this example is particularly favorable for the piecewise linear approximation. Indeed, the independence hypothesis embedded in equation [\eqref=eq:AdditiveCriterion] and needed for the dynamic programming approach prevents us from introducing non local constraints in the approximating function. In particular, one cannot request for the piecewise linear approximation to be continuous. This is emphasized on Figure [\ref=fig:Tecator:LinVSConst] by the disconnected drawing of the approximation function: in fact, the function g is not defined between tk and tk + 1 if those two points belong to distinct clusters (in the case of Bellman's solution [\cite=Bellman1961Function], the function is not well defined at the boundaries of the intervals). Of course, one can use linear interpolation to connect g(tk) with g(tk + 1), but this can introduce in practice P - 1 additional very short segments, leading to an overly complex model.
+
+In the example illustrated on Figure [\ref=fig:Tecator:LinVSConst], the piecewise approximation does not suffer from large jumps between segments. Would that be the case, one could use an enriched description of the function specifying the starting and ending values on each segment. This would still be simpler than the piecewise constant description. However, if the original function is continuous, using a non continuous approximation can lead to false conclusion.
+
+To illustrate the flexibility of the proposed framework beyond the simple variations listed above, we derive a solution to this continuity problem [\cite=LechevallierContrainte1990]. Let us first define
+
+[formula]
+
+This corresponds to the total quadratic error made by the linear interpolation of s on [formula] based on the two interpolation points (tk,s(tk)) and (tl,s(tl)). Then we replace the quality criterion of equation [\eqref=eq:AdditiveCriterion] by the following one:
+
+[formula]
+
+defined for an increasing series (kl)Pl = 0 with k0 = 1 and kP = M. Obviously, E((kl)Pl = 0) is the total quadratic error made by the piecewise linear interpolation of s on
+
+[formula]
+
+Summarizing several functions
+
+Let us now consider N functions (si)Ni = 1 sampled in M distinct points (tk)Mk = 1 from the interval
+
+[formula]
+
+Single summary
+
+Homogeneity is assumed with respect to the chosen functional metric, i.e., to the error criterion used for segmentation in Section [\ref=section:one:function], for instance the L2 . Then a set of functions is homogeneous if its diameter is small compared to the typical variations of a function from the set. In the quadratic case, we request for instance to the maximal quadratic distance between two functions of the set to be small compared to the variances of functions of the set around their mean values.
+
+Then, if the functions (si)Ni = 1 are assumed to be homogeneous, finding a single summary function seems natural. In practice, this corresponds to finding a simple function g that is close to each of the si as measured by a functional norm: one should choose a summary type (e.g., piecewise constant), a norm (e.g., L2) and a way to aggregate the individual comparison of each function to the summary (e.g., the sum of the norms).
+
+Let us first consider the case of a piecewise constant function g defined by P intervals (Ip)Pp = 1 (a partition of
+
+[formula]
+
+Clustering
+
+Assuming that a set of functions is homogeneous is too strong in practice, as shown on Figure [\ref=fig:Tecator:group:linear]: some of the curves have a small bump around 940 nm but the bump is very small in the mean curve. As a consequence, the summary misses this feature while the single curve summary used in Figure [\ref=fig:Tecator:LinVSInterp] was clearly picking up the bump.
+
+It is therefore natural to rely on a clustering strategy to produce homogeneous clusters of curves and then to apply the method described in the previous section to summarize each cluster. However, the direct application of this strategy might lead to suboptimal solutions: at better solution should be obtained by optimizing at once the clusters and the associated summaries. We derive such an algorithm in the present section.
+
+In a similar way to the previous section, we assume given an error measure [formula] (where G is a subset of [formula]): it measures the error made by the local model on the [formula] as an approximation of the functions si for i∈G. For instance
+
+[formula]
+
+for a constant local model evaluated with respect to the sum of L2 distances. Let us assume for now that each cluster is summarized via a segmentation scheme that uses a cluster independent number of segments, P / K (this value is assumed to be an integer). Then, given a partition of [formula] into K clusters (Gk)Kk = 1 and given for each cluster an ordered partition of [formula], (Ckp)P / Kp = 1, the global error made by the summarizing scheme is
+
+[formula]
+
+Building an optimal summary of the set of curves amounts to minimizing this global error with respect to the function partition and, inside each cluster, with respect to the segmentation.
+
+A natural way to tackle the problem is to apply an alternating minimization scheme (as used for instance in the K-means algorithm): we optimize successively the partition given the segmentation and the segmentation given the partition. Given the function partition (Gk)Kk = 1, the error is a sum of independent terms: one can apply dynamic programming to build an optimal summary of each of the obtained clusters, as shown in the previous section. Optimizing with respect to the partition given the segmentation is a bit more complex as the feasibility of the solution depends on the actual choice of Q. In general however, Q is built by aggregating via the maximum or the sum operators distances between the functions assigned to a cluster and the corresponding summary. It is therefore safe to assume that assigning a function to the cluster with the closest summary in term of the distance used to define Q will give the optimal partition given the summaries. This leads to Algorithm [\ref=algo:kmeans:uniform]. The computational cost depends strongly on the availability of an efficient calculation scheme for Q. If this is the case, then the cost of the K dynamic programming applications grows in O(K(P / K)M2) = O(PM2). With standard Lp distances between functions, the cost of the assignment phase is in O(NKM). Computing the mean function in each cluster (or similar quantities such as the median function that might be needed to compute efficiently Q) has a negligible cost compared to the other costs (e.g., O(NM) for the mean functions).
+
+Convergence of Algorithm [\ref=algo:kmeans:uniform] is obvious as long as both the assignment phase (i.e., the minimization with respect to the partition given the segmentation) and the dynamic programming algorithm use deterministic tie breaking rules and lead to unique solutions. While the issue of ties between prototypes is generally not relevant in the K-means algorithm, for instance, it plays an important role in our context. Indeed, the summary of a cluster can be very simple and therefore, several summaries might have identical distance to a given curve. Then if ties are broken at random, the algorithm might never stabilize. Algorithm [\ref=algo:dp:single] is formulated to break ties deterministically by favoring short segments at the beginning of the segmentation (this is implied by the strict inequality test used at line 10 of the Algorithm). Then the optimal segmentation is unique given the partition, and the optimal partition is unique given the segmentation. As a consequence, the alternative minimization scheme converges.
+
+Figure [\ref=fig:Tecator:Full] gives an example of the results obtained by the algorithm in the case of a piecewise linear summary with five segments per cluster (the full Tecator dataset contains N = 240 spectra with M = 100 for each spectrum).
+
+In practice, we will frequently use a piecewise constant model whose quality is assessed via the sum of the L2 distances, as in equation [\eqref=eq:quality:constant:sum:ldeux]. Then equation [\eqref=eq:globalquality] can be instantiated as follows:
+
+[formula]
+
+with
+
+[formula]
+
+Let us denote [formula] the [formula] vector representation of the sampled functions and [formula] the vector representation of the piecewise constant functions defined by gk(ti) = μk,p when ti∈Ckp. Then equation [\eqref=eq:constrained:kmeans] can be rewritten
+
+[formula]
+
+This formulation emphasizes the link between the proposed approach and the K means algorithm. Indeed the criterion is the one optimized by the K means algorithm for the vector data [formula] with a constraint on the prototypes: rather than allowing arbitrary prototypes as in the standard K means, we use simple prototypes in the sense of Section [\ref=subsection:simple:function]. Any piecewise model whose quality is assessed via the sum of the L2 distances leads to the same formulation, but with different constraints on the shape of the functional prototypes.
+
+Equation [\eqref=eq:constrained:kmeans:vector] opens the way to many variations on the same theme: most of the prototype based clustering methods can be modified to embed constraints on the prototypes, as Algorithm [\ref=algo:kmeans:uniform] does for the K means. Interesting candidates for such a generalization includes the Self Organizing Map in its batch version [\cite=KohonenSOM1995], Neural Gas also in its batch version [\cite=CottrellEtAlBatchNeuralGas2006NN] and deterministic annealing based clustering [\cite=rosedeterministicannealing1999], among others.
+
+Optimal resources allocation
+
+A drawback of Algorithm [\ref=algo:kmeans:uniform] is that it does not allocate resources in an optimal way: we assumed that each summary will use P / K segments, regardless of the cluster. Fortunately, dynamic programming can be used again to remove this constraint. Let us consider indeed a resource assignment, that is K positive integers (Pk)Kk = 1 such that [formula]. The error made by the summarizing scheme when cluster Gk uses Pk segments for its summary is given by
+
+[formula]
+
+As for the criterion given by equation [\eqref=eq:globalquality] in the previous section, we rely on an alternating minimization scheme. Given the function partition (Gk)Kk = 1, the challenge is to optimize E with respect to both the resource assignment and the segmentation. For a fixed partition (Gk)Kk = 1, let us denote
+
+[formula]
+
+Then minimizing E from equation [\eqref=eq:globalquality:assign] for a fixed partition (Gk)Kk = 1 corresponds to minimizing:
+
+[formula]
+
+with respect to the resource assignment. This formulation emphasizes two major points.
+
+Firstly, as already mentioned in Section [\ref=secOptimalSegmentation], given a number of segments P Algorithm [\ref=algo:dp:single] and its variants provide with a negligible additional cost all the optimal segmentations in p = 1 to P segments. Therefore, the calculation of Rk(p) for [formula] can be done with a variant of Algorithm [\ref=algo:dp:single] in O(PM2) provided an efficient calculation of Q(Gk,Ckp) is possible (in fact, one needs only values of Rk(p) for p  ≤  P - K + 1 as we request at least one segment per cluster, but to ease the calculation we assume that we compute values up to P).
+
+Secondly, U as defined in equation [\eqref=eq:globalquality:optassign] is an additive measure and can therefore be optimized by dynamic programming. Indeed let us define S(l,p) as
+
+[formula]
+
+The S(1,p) are readily obtained from the optimal segmentation algorithm (S(1,p) = R1(p)). Then the additive structure of equation [\eqref=eq:globalquality:optassign] shows that
+
+[formula]
+
+Given all the Rl(p) the calculation of S(K,P) has therefore a cost of O(KP2). This calculation is plugged into Algorithm [\ref=algo:kmeans:uniform] to obtain Algorithm [\ref=algo:kmeans:optimal].
+
+Given the values of Q, the total computational cost of the optimal resource assignment and of the optimal segmentation is therefore in O(KP(M2 + P)). As we target simple descriptions, it seems reasonable to assume that P  ≪  M2 and therefore that the cost is dominated by O(KPM2). Then, using the optimal resource assignment multiplies by K the computational cost compared to a uniform use of P / K segments per cluster (which computational cost is in O(PM2)). The main source of additional computation is the fact that one has to study summaries using P segments for each cluster rather than only P / K in the uniform case. This cost can be reduced by introducing an arbitrary (user chosen) maximal number of segments in each clusters, e.g., λP / K. Then the running time of the optimal assignment is λ times the running time of the uniform solution. As we aim at summarizing the data, using a small λ such 2 seems reasonable.
+
+The computation of the values of Q remains the same regardless of the way the number of segments is chosen for each cluster. The optimisation of the error with respect to the partition (Gk)Kk = 1 follows also the same algorithm in both cases. If we use for instance piecewise constant approximation evaluated with the sum of the L2 distances, then, as already mentioned previously, the summaries are computed from the cluster means: computing the means costs O(NM), then the calculation of Q for all functional clusters is in O(KM2) and the optimization with respect to (Gk)Kk = 1 is in O(NKM). In general, the dominating cost will therefore scale in O(KPM2). However, as pointed out in Section [\ref=subsection:single:summary], complex choices for the Q error criterion may induce larger computational costs.
+
+Two phases approaches
+
+The main motivation of the introduction of Algorithm [\ref=algo:kmeans:uniform] was to avoid relying on a simpler but possibly suboptimal dual phases solution. This alternative solution simply consists applying a standard K means to the vector representation of the functions (si)Ni = 1 to get homogeneous clusters and then to summarize each cluster via a simple prototype. While this approach should intuitively give higher errors for the criterion of equation [\eqref=eq:globalquality], the actual situation is more complex.
+
+Algorithms [\ref=algo:kmeans:uniform] and [\ref=algo:kmeans:optimal] are both optimal in their segmentation phase and will generally be also optimal for the partition determination phase if Q is a standard criterion. However, the alternating optimization scheme itself is not optimal (the K means algorithm is also non optimal for the same reason). We have therefore no guarantee on the quality of the local optimum reached by those algorithms, exactly as in the case of the K means. In addition, even if the two phase approach is initialized with the same random partition as, e.g., Algorithm [\ref=algo:kmeans:uniform], the final partitions can be distinct because of the distinct prototypes used during the iterations. It is therefore difficult to predict which approach is more likely to give the best solution. In addition a third possibility should be considered: the K means algorithm is applied to the vector representation of the functions (si)Ni = 1 to get homogeneous clusters and is followed by an application of Algorithm [\ref=algo:kmeans:uniform] or [\ref=algo:kmeans:optimal] using the obtained clusters for its initial configuration.
+
+To assess the differences between these three possibilities, we conducted a simple experiment: using the full Tecator dataset, we compared the value of E from equation [\eqref=eq:globalquality] for the final summary obtained by the three solutions using the same random starting partitions with K = 6, P = 30 and piecewise constant summaries. We used 50 random initial configurations and compared the methods in the case of uniform resource allocation (5 segments per cluster) and in the case of optimal resource allocation.
+
+In the case of uniform resources assignment the picture is rather simple. For all the 50 random initialisations both two phases algorithms gave exactly the same results. In 44 cases, using Algorithm [\ref=algo:kmeans:uniform] gave exactly the same results as the two phases algorithms. In 5 cases, its results were of lower quality and in the last case, its results were slightly better. The three algorithms manage to reach the same overall optimum (for which E = 472).
+
+The case of optimal resources assignment is a bit more complex. For 15 out of 50 initial configurations, using Algorithm [\ref=algo:kmeans:optimal] after the K means improves the results over a simple optimal summary (with optimal resource assignment) applied to the results of the K means (results were identical for the 35 other cases). In 34 cases, K means followed by Algorithm [\ref=algo:kmeans:optimal] gave the same results as Algorithm [\ref=algo:kmeans:optimal] alone. In the 16 remaining cases, results are in favor of K means followed by Algorithm [\ref=algo:kmeans:optimal] which wins 13 times. Nevertheless, the three algorithms manage to reach the same overall optimum (for which E = 467).
+
+While there is no clear winner in this (limited scope) experimental analysis, considering the computational cost of the three algorithms helps choosing the most appropriate one in practice. In favorable cases, the cost of an iteration of Algorithm [\ref=algo:kmeans:optimal] is O(KMN + KPM2)) while the cost of an iteration of the K means on the same dataset is O(KMN). In functional data, M is frequently of the same order as N. For summarizing purposes, P should remain small, around 5K for instance. This means that one can perform several iterations of the standard K means for the same computational price than one iteration of Algorithm [\ref=algo:kmeans:optimal]. For instance, the Tecator dataset values, P = 30, M = 100 and N = 240, give 1 + PM / N = 13.5. In the experiments described above, the median number of iterations for the K means was 15 while it was respectively 15 and 16 for Algorithms [\ref=algo:kmeans:uniform] and [\ref=algo:kmeans:optimal]. We can safely assume therefore that Algorithm [\ref=algo:kmeans:optimal] is at least 10 times slower than the K means on the Tecator dataset. However, when initialized with the K means solution, Algorithms [\ref=algo:kmeans:uniform] and [\ref=algo:kmeans:optimal] converges very quickly, generally in two iterations (up to five for the optimal assignment algorithm in the Tecator dataset). In more complex situations, as the ones studied in Section [\ref=secExperiments] the number of iterations is larger but remains small compared to what would be needed when starting from a random configuration.
+
+Based on the previous analysis, we consider that using the K means algorithm followed by Algorithm [\ref=algo:kmeans:optimal] is the best solution. If enough computing resources are available, one can run the K means algorithm from several starting configurations, keep the best final partition and use it as an initialization point for Algorithm [\ref=algo:kmeans:optimal]. As the K means provides a good starting point to this latter algorithm, the number of iterations remains small and the overall complexity is acceptable, especially compared to using Algorithm [\ref=algo:kmeans:optimal] alone from different random initial configurations. Alternatively, the analyst can rely on more robust clustering scheme such as Neural Gas [\cite=CottrellEtAlBatchNeuralGas2006NN] and deterministic annealing based clustering [\cite=rosedeterministicannealing1999], or on the Self Organizing Map [\cite=KohonenSOM1995] to provide the starting configuration of Algorithm [\ref=algo:kmeans:optimal].
+
+Experimental results
+
+We give in this section two examples of the type of exploratory analyses that can be performed on real world datasets with the proposed method. In order to provide the most readable display for the user, we build the initial configuration of Algorithm [\ref=algo:kmeans:optimal] with a batch Self Organizing Map. We optimize the initial radius of the neighborhood influence in the SOM with the help of the Kaski and Lagus topology preservation criterion [\cite=KaskiLagusICANN1996] (the radius is chosen among 20 radii).
+
+Topex/Poseidon satellite
+
+We study first the Topex/Poseidon satellite dataset. The Topex/Poseidon radar satellite has been used over the Amazonian basin to produce N = 472 waveforms sampled at M = 70 points. The curves exhibit a quite large variability induced by differences in ground type below the satellite during data acquisition. Details on the dataset can be found in e.g. [\cite=Frappart2003] [\cite=Frappart2005]. Figure [\ref=fig:Topex:curves] displays 20 curves from the dataset chosen randomly.
+
+We conduct first a hierarchical clustering (based on Euclidean distance between the functions and the Ward criterion) to get a rough idea of the potential number of clusters in the dataset. Both the dendrogram (Figure [\ref=fig:Topex:hclust]) and the total within class variance evolution (Figure [\ref=fig:Topex:hclust:heights]) tend to indicate a rather small number of clusters, around 12. As the visual representation obtained via the SOM is more readable than a randomly arranged set of prototypes, we can use a slightly oversized SOM without impairing the analyst's work. We decided therefore to use a 4  ×  5 grid: the rectangular shape has been preferred over a square one according to results from [\cite=DBLP:conf/esann/UltschH05] that show some superiority in topology preservation for anisotropic maps compared to isotropic ones.
+
+The results of the SOM are given in Figure [\ref=fig:Topex:SOM] that displays the prototype of each cluster arranged on the SOM grid. Each cell contains also all the curves assigned to the associated clusters. As expected, the SOM prototypes are well organized on the grid: the horizontal axis seems to encode approximately the position of the maximum of the prototype while the vertical axis corresponds to the width of the peak. However, the prototypes are very noisy and inferring the general behavior of the curves of a cluster remains difficult.
+
+Figure [\ref=fig:Topex:hclust:SOM:simple] represents the results obtained after applying Algorithm [\ref=algo:kmeans:optimal] to the results of the SOM. In order to obtain a readable summary, we set P to 80, i.e., an average of 4 segments for each cluster. We use the linear interpolation approach described in Section [\ref=subsection:extensions]. Contrarily to results obtained on the Tecator dataset and reported in Section [\ref=subsection:two:phases], Algorithm [\ref=algo:kmeans:optimal] used a significant number of iterations (17). Once the new clusters and the simplified prototypes were obtained, they were displayed in the same way as for the SOM results. The resulting map is almost as well organized as the original one (with the exception of a large peak on the bottom line), but the simplified prototypes are much more informative than the original ones: they give an immediate idea of the general behavior of the curves in the corresponding cluster. For example, the differences between the two central prototypes of the second line (starting from the top) are more obvious with summaries: in the cluster on the left, one can identify a slow increase followed by a two phases slow decrease, while the other cluster corresponds to a sharp increase followed by a slow decrease. Those differences are not as obvious on the original map.
+
+Electric power consumption
+
+The second dataset consists in the electric power consumption recorded in a personal home during almost one year (349 days). Each curve consists in 144 measures which give the power consumption of one day at a 10 minutes sampling rate. Figure [\ref=fig:Conso:curves] displays 20 randomly chosen curves.
+
+We analyse the curves in a very similar way as for the Topex/Poseidon dataset The results of the hierarchical clustering displayed by Figures [\ref=fig:Conso:hclust] and [\ref=fig:Conso:hclust:heights] lead to the same conclusion as in the previous case: the number of clusters seems to be small, around 13. As before, we fit a slightly larger SOM (4  ×  5 rectangular grid) to the data and obtain the representation provided by Figure [\ref=fig:Conso:SOM]. The map is well organized: the vertical axis seems to encode the global power consumption while the horizontal axis represents the overall shape of the load curve. However, the shapes of the prototypes are again not easy to interpret, mainly because of their noisy nature.
+
+Figure [\ref=fig:Conso:hclust:SOM:simple] shows the results obtained after applying Algorithm [\ref=algo:kmeans:optimal] to the results of the SOM (Algorithm [\ref=algo:kmeans:optimal] used 9 iterations to reach a stable state). In order to obtain a readable summary, we set P to 80, i.e., an average of 4 segments for each cluster. We depart from the previous analysis by using here a piecewise constant summary: this is more adapted to load curves as they should be fairly constant on significant time periods, because many electrical appliances have stable power consumption once switched on. As for the Topex/Poseidon dataset, the summarized prototypes are much easier to analyze than their noisy counterpart. Even the global organization of the map is more obvious: the top right of the map for instance, gathers days in which the power consumption in the morning (starting at 7 am) is significant, is followed by a period of low consumption and then again by a consumption peak starting approximately at 7 pm. Those days are week days in which the home remains empty during work hours. Other typical clusters include holidays with almost no consumption (second cluster on the first line), more constant days which correspond to week ends, etc. In addition, the optimal resource assignment tends to emphasize the difference between the clusters by allocating less resources to simple ones (as expected). This is quite obvious in the case of piecewise constant summaries used in Figure [\ref=fig:Conso:hclust:SOM:simple] (and to a lesser extent on Figure [\ref=fig:Topex:hclust:SOM:simple]).
+
+In order to emphasize the importance of a drastic reduction in prototype complexity, Algorithm [\ref=algo:kmeans:optimal] was applied to the same dataset, using the same initial configuration, with P = 160, i.e., an average of 8 segments in each cluster. Results are represented on Figure [\ref=fig:Conso:hclust:SOM:simple:double]. As expected, prototypes are more complex than on Figure [\ref=fig:Conso:hclust:SOM:simple]. While they are not as rough as the original ones (see Figure [\ref=fig:Conso:SOM]), their analysis is more difficult than the one of prototypes obtained with stronger summarizing constraints. In particular, some consumption peaks are no more roughly outlined as in Figure [\ref=fig:Conso:hclust:SOM:simple] but more accurately approximated (see for instance the last cluster of the second row). This leads to series of short segments from which expert inference is not easy. It should be noted in addition, that because of the noisy nature of the data, increasing the number of segments improves only marginally the approximation quality. To show this, we first introduce a relative approximation error measure given by
+
+[formula]
+
+using notations from Section [\ref=secClustering], and where μi denotes the mean of si. This relative error compares the total squared approximation error to the total squared internal variability inside the dataset. Table [\ref=tab:Conso:errors] gives the dependencies between the number of segments and the relative approximation error. It is quite clear that the relative loss in approximation precision is acceptable even with strong summarizing constraints. This type of numerical quality assessment should be provided to the analyst either as a way to control the relevance of the summarized prototypes, or as a selection guide for choosing the value of P.
+
+Conclusion
+
+We have proposed in this paper a new exploratory analysis method for functional data. This method relies on simple approximations of functions, that is on models that are piecewise constant or piecewise linear. Given a set of homogeneous functions, a dynamic programming approach computes efficiently and optimally a simple model via a segmentation of the interval on which the functions are evaluated. Given several groups of homogeneous functions and a total number of segments, another dynamic programming algorithm allocates optimally to each cluster the number of segments used to build the summary. Finally, those two algorithms can be embedded in any classical prototype based algorithm (such as the K means) to refine the groups of functions given the optimal summaries and vice versa in an alternating optimization scheme.
+
+The general framework is extremely flexible and accommodates different types of quality measures (L2, L1), aggregation strategies (maximal error, mean error), approximation model (piecewise constant, linear interpolation) and clustering strategies (K means, Neural gas). Experiments show that it provides meaningful summaries that help greatly the analyst in getting quickly a good idea of the general behavior of a set of curves.
+
+While we have listed many variants of the method to illustrate its flexibility, numerous were not mentioned as they are more distant from the main topic of this paper. It should be noted for instance that rather than building a unique summary for a set of curves, one could look for a unique segmentation supporting curve by curve summaries. In other words, each curve will be summarized by e.g., a piecewise constant model, but all models will share the same segmentation. This strategy is very interesting for analyzing curves in which internal changes are more important than the actual values taken by the curves. It is closely related to the so called best basis problem in which a functional basis is built to represent efficiently a set of curves (see e.g., [\cite=CoifmanWickerhauser1992BestBasis] [\cite=SaitoCoifman1995LocalBases] [\cite=RossiLechevallier2008SFC]). This is also related to variable clustering methods (see e.g., [\cite=KrierEtAl2007CILSFDProj]). This final link opens an interesting perspective for the proposed method. It has been shown recently [\cite=FrancoisEtAl2008Agrostat] [\cite=KrierEtAlESANN2009] that variable clustering methods can be adapted to supervised learning: variables are grouped in a way that preserves as much as possible the explanatory power of the reduced set of variables with respect to a target variable. It would be extremely useful to provide the analyst with such a tool for exploring a set of curves: she would be able to select an explanatory variable and to obtain summaries of those curves that mask details that are not relevant for predicting the chosen variable.
+
+Acknowledgment
+
+The authors thank the anonymous referees for their valuable comments that helped improving this paper.

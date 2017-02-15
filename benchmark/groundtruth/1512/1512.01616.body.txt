@@ -1,0 +1,265 @@
+A Bayesian test to identify variance effects Bianca Dumitrascu1, Gregory Darnell1, Julien Ayroles1,2, Barbara E Engelhardt[formula] 1 Lewis-Sigler Institute, Princeton University, Princeton, NJ, USA 2 Department of Ecology and Evolutionary Biology, Princeton University, Princeton, NJ, USA 3 Department of Computer Science, Center for Statistics and Machine Learning, Princeton University, Princeton, NJ, USA [formula] E-mail: Corresponding bee@princeton.edu
+
+Introduction
+
+Identifying genotypic variation that impacts complex traits is central to the study of statistical genetics [\cite=WTCCC2007] [\cite=stranger2007relative]. Quantitative trait loci (QTLs) are genetic variants that are associated with differences in mean phenotype values within a population. Recently, variance QTLs (vQTLs), or genetic variants associated with differences in the variance of a quantitative trait, have been observed in genetic studies [\cite=Pare2010] [\cite=yang2012fto] [\cite=Brown2014] [\cite=Ayroles2015] [\cite=metzger2015selection]. These studies include diverse quantitative phenotypes, including left-right turning tendency in the fruit fly Drosophila melanogaster [\cite=Ayroles2015], coat color in the rock pocket mice Chaetodipus intermedius [\cite=nachman2003_rainbow_mice], and thermotolerance [\cite=queitsch2002_hot_hsp] and flowering time [\cite=salome2011_time_Athaliana] in the plant Arabidopsis thaliana. Robust statistical methods to identify these variance effects are essential to characterizing the role that variance effects play in the genetic regulation of complex traits including disease risk.
+
+Methodologically, detecting vQTLs is performed using statistical tests for heteroskedasticity. Heteroskedasticity refers to the circumstance in which the variance of a response variable--here, a quantitative trait--is unequal across the range of values of a covariate such as genotype (Fig. [\ref=fig:het_example]). In the case of vQTLs, the quantitative traits can be gene expression levels, methylation levels, or hip-to-waist ratio; covariates may be defined by discrete or continuous variables such as genotype, sex, age, or ancestral population. Here, we develop and validate a robust statistical test for discovering variance effects in genomic analyses.
+
+Three methods widely used in the genetics literature to identify vQTLs are the Levene and Brown-Forysthe tests [\cite=schultz1985levene] [\cite=brown1974small], and the correlation least squares (CLS) test [\cite=Brown2014]. While these tests are standard in the heteroskedastic literature, they each have drawbacks when applied to genomic data. The Levene and Brown-Forsythe tests both require categorical covariates, not allowing continuous covariates such as imputed SNPs, age, or methylation levels. These methods sacrifice statistical power by avoiding assumptions about the functional form of the heteroskedastic effects, allowing the variance across the covariate-defined groups to change in a non-monotone way. Furthermore, because they lack a parametric model, it is not possible to jointly model possibly confounding effects. The CLS addresses all of these drawbacks, allowing continuous covariates and additional possibly confounding covariates such as population structure. CLS makes the assumption that the variance of the heterozygotes is intermediate to the variance of the two homozygotes, which improves statistical power. However, because CLS is computed using two sequential point estimates of parameters--neither of which incorporate uncertainty--CLS is prone to overfitting.
+
+In this work, we develop a Bayesian test for heteroskedasticity (BTH), a statistical framework to enable the genome wide identification of vQTLs or, more generally, variance effects. The model is based on Bayesian heteroskedastic linear regression, and allows continuous or discrete covariates and mean effects, and allows the joint modeling of confounding covariates. We explicitly account for uncertainty in mean effects, variance effects, and scale. We develop a fast and robust method to approximate the test statistic using Laplace approximations. To validate our approach, we perform simulations across a wide range of hypothetical scenarios in association studies, and compare the results of variants of BTH against the state-of-the-art methods. Then we apply BTH to a number of real genomic studies to show the impact on functional genomic analyses and characterize the role of BTH in identifying variance QTLs relative to related methods.
+
+Results
+
+Bayesian Test for Heteroskedasticity (BTH)
+
+We developed a test for variance QTLs based on a Bayesian heteroskedastic linear regression model. In particular, we model a continuous trait [formula] with a Gaussian distribution, where both the mean and variance parameters are a function of the covariate [formula],
+
+[formula]
+
+Here, β0 is the regression intercept, β is the regression coefficient (or the mean effect size), σ2 is the residual variance, and α is the heteroskedastic effect. When α  =  1, the variance of the response is not a function of the covariate, whereas when α  ≠  1, the variance term is covariate-dependent. We put priors on each of these parameters in order to incorporate biologically appropriate and computationally tractable forms of uncertainty in the test; see Supplement for details.
+
+Using this model, we computed Bayes factors [\cite=kass1995bayes] (BF) to compare the likelihood of the data under the null hypothesis (H0, α  =  1) with the likelihood of the data under the alternative hypothesis (HA, α  ≠  1). In particular, for each application of the model (e.g., one covariate [formula] and one quantitative trait [formula] across n individuals), the Bayes factor has the form
+
+[formula]
+
+We compute this BF by marginalizing over the mean effect size β in closed form and then approximating the resulting multivariate integral using a multivariate Laplace approximation similar to the integrated nested Laplace approximation (INLA) method [\cite=rue2009approximate] [\cite=ruiz2012direct] (Supplementary Materials). The BFs provide a measure of the heteroskedasticity of the association between a covariate and a phenotype of interest under certain assumptions, which we examine carefully in the simulations.
+
+To quantify the global false discovery rate of the BFs, we designed and performed permutations of the covariate - trait pair such that any mean effects are maintained but variance effects are removed (Supplementary Materials). Furthermore, we generate a distribution of BFperms corresponding to an instance of the data set in which the variance of the phenotype is independent of the covariate. Thus, we are able to compute FDRs by considering, for any BF threshold t,
+
+[formula]
+
+which captures the ratio of the number false positives versus the number of false positives and true positives for threshold t across all tests. We use the FDR-calibrated BF thresholds to discover heteroskedastic associations in our data, and we compare our discoveries to the discoveries from existing tests for heteroskedasticity at an FDR of 0.05.
+
+Available tests of heteroskedasticity.
+
+We compared results from our BTH against results from three tests for heteroskedasticity used in genomics applications: i) the Brown-Forsythe test [\cite=brown1974small]; ii) the Levene test [\cite=schultz1985levene] [\cite=shen2012inheritance] [\cite=struchalin2012VariABEL]; and iii) the correlation least squares (CLS) test [\cite=Brown2014].
+
+The Levene and Brown-Forsythe tests for heteroskasticity across k groups come from a similar family of ANOVA-based statistics where the within-group variance is compared to the across-group variance. The null hypothesis for these tests is that all groups have the same variance. The two tests differ in that the Levene test uses mean statistics to compute variance whereas Brown-Forsythe uses median statistics to compute variance. The Bartlett test  [\cite=bartlett1937properties] has also been used in genomic context [\cite=yang2012fto]. The Bartlett test computes pooled variances, or a weighted average of variance within each covariate group assuming the marginal distribution within groups is Gaussian. The Bartlett test accounts for possibly imbalanced group sizes, which is relevant for low minor allele frequency (MAF) SNPs. While similar to the Levene test, the Bartlett test is more sensitive to departures from normality (Supplementary Methods) and is not discussed further here [\cite=Pare2010].
+
+The correlation least squares (CLS) test first fits a linear regression model to the trait and the covariate, then tests for a correlation between the covariate and the squared residual errors of the fitted model using Spearman rank correlation [\cite=Brown2014]. The returned test statistics is the corresponding Spearman rank correlation coefficient. A related class of tests use generalized linear models in a likelihood ratio test, and include the double generalized linear model (dglm) [\cite=dunn2012dglm] [\cite=ronnegaard2011detecting] and the family-based likelihood ratio test for variance (famLRTV) [\cite=cao2015family]. In recent work, dglm was shown to be more prone to Type 1 errors for small deviations from normality, as with the Bartlett test [\cite=cao2014versatile]. Similarly, famLRTV was found to perform similarly to the Levene test [\cite=cao2014versatile]. Thus we did not include these two tests in further analysis.
+
+The Levene test, which has been used in a number of biological studies [\cite=Ayroles2015] [\cite=Pare2010] [\cite=yang2012fto], makes assumptions about the data: i) the noise is symmetric; ii) the groups are balanced; iii) the covariate is a categorical variable; and iv) the categories are unordered, so arbitrary functions are tested. By using median statistics instead of mean statistics, the Brown-Forsythe test overcomes the assumption of symmetric noise [\cite=brown1974small]. In genomic studies, it is often the case that functional variants will occur at low minor allele frequencies [\cite=nelson2012abundance], where the balanced groups assumption will be violated. On the other hand, the CLS test assumes i) continuous or ordered covariates; ii) linear relationship (i.e., dosage effects of the covariates); iii) sufficient minor allele frequency (MAF). When MAF is low, the maximum likelihood estimates from CLS will have a large standard error.
+
+Our model for BTH makes the following assumptions: i) the noise has a Gaussian distribution; ii) the covariate is a continous or ordered value; and iii) the functional form of the heterskedasticity is dosage dependent, with monotone effects on the variance. We choose to make these assumptions to gain statistical power in identifying heteroskedastic effects in typical genomic study data. We note that, as with linear regression models to test for mean effects that make an additive assumption, it is trivial to test for dominance, recessive, or overdominance variance effects by recoding the SNP genotypes [\cite=plink]. In contrast to the above methods, our test incorporates uncertainty in the model parameters instead of relying on non-robust point estimates of those parameters, integrating over all possible mean and variance effects in both the null and the alternative hypothesis.
+
+We show the value of BTH with respect to these related approaches in extensive simulations and in three real data applications. In the simulations, for data that violate the model assumptions, we provide prescriptive tests and transformations to enable a well-powered application of BTH. We then apply BTH to methylation QTLs, gene expression QTLs, and gene expression data versus non-genetic covariates to illustrate the promise of BTH for identifying variance effects in diverse genomic data types.
+
+Simulating quantitative trait data
+
+To compare results from BTH with state-of-the-art tests for variance QTLs, we generated simulated data across a range of possible scenarios in genomic studies. We account for both discrete and continuous covariates, many different simulation parameter settings, and non-Gaussian distributions of the quantitative trait.
+
+For discrete covariates, each simulated biallelic, diploid SNP xi∈{0,1,2} from individual i = {1,...n} is sampled as two independent draws from a Bernoulli distribution with bias equal to the minor allele frequency (πmaf): xi  ~  Bin(2,πmaf). For imputed covariates, for each individual i = {1,...n}, discrete values zi∈{0,1,2} are sampled from a Bernoulli distribution: zi  ~  Bin(2,πmaf). Continuous data resembling imputed genotypes are then obtained from a modified mixture of normal distributions: xi  =  1mi  =  0  ·  |c0|  +  1mi  =  1  ·  c1  +  1mi  =  2  ·  (2  -  |c2|), where c0,c2  ~  N(0,0.5) and c1  ~  N(1,0.5), and 1· is the indicator function. This process ensures that the simulated imputed genotypes are bounded by 0 and 2, and they represent the expected value of the genotype, instead of the most likely genotype [\cite=impute2].
+
+Given intercept β0, effect size β, and variance parameters σ2,α- xi, we simulated the quantitative trait yi for individual i from a Gaussian distribution, using a linear model:
+
+[formula]
+
+This is an ideal situation, with the heteroskedastic functional form matching that of the model used in our test.
+
+Across simulations, we sampled covariates and quantitative traits across various parameter settings (defaults in bold): [formula] samples, minor allele frequencies [formula], mean effect size [formula], and the level of heteroskedasticity [formula], intercept [formula], and a fixed variance parameter [formula]. These simulations correspond well to current eQTL studies in sample size [\cite=ardlie2015genotype] [\cite=battle2014characterizing], minor allele frequencies [\cite=nelson2012abundance], and mean effect sizes [\cite=savolainen2013ecological] [\cite=ardlie2015genotype].
+
+For each parameter configuration, we generated 1,000 simulated data sets of covariate [formula] and corresponding trait [formula]. For each simulation with heteroskedasticity, we performed a single permutation that preserves the mean effects as for FDR evaluation. We included for comparison this permuted null simulation with identical MAF and trait distribution (see Online Methods). Thus, each simulation result contains 2,000 tests, half of which are from a null distribution that we have constructed using permutations, where the other half are simulated to have variance effects.
+
+Simulation results: ideal model, discrete covariates.
+
+For discrete genotypes, we compared results from BTH against results from the Brown-Forsythe test [\cite=brown1974small], the Levene test [\cite=levene1961robust], and the correlation least square test (CLS) [\cite=Brown2014]. We compared performance using precision-recall curves, which quantify the proportion of true associations discovered (x-axis: recall or statistical power) versus the proportion of discoveries that are truly associated (y-axis: precision, or 1 - FDR). When the curves are close to precision = 0.5 across most values of recall, this means that the method cannot differentiate between non-associations and true associations in this scenario with equal numbers of true and null associations. The closer the curves are to precision = 1 across values of recall, the greater the area under the curve (AUC) is (with a maximum of one), and the better the performance of that method.
+
+Across possible mean effect sizes and a constant variance effect, BTH shows consistently higher AUC compared to the other methods (Fig. [\ref=fig:sim-ideal]Ai-Aiii). Looking across increasing mean effects, we found that a Gaussian prior on the mean effect is robust as mean effects increase (Fig. [\ref=fig:sim-ideal]Ai-Aiii) [\cite=OHagan1979]. As the variance effects in the simulated data grow, it becomes easier for the tests to identify these effects (Fig. [\ref=fig:sim-ideal]Bi-Biii); moreover, the permutation appears to generate a true null (Fig. [\ref=fig:sim-ideal]Bi) under these ideal simulation assumptions. Here the benefit of the BTH is illustrated: when variance effect log (α)  =   - 0.2, we see at high levels of recall as much as a 10% improvement in precision (Fig. [\ref=fig:sim-ideal]Biii).
+
+Low minor allele frequency and small sample sizes affect the AUC of all three methods similarly (Fig. [\ref=fig:sim-ideal]Ci,Di). As MAF and sample size increase, the AUC improves and BTH has a greater AUC relative to the other methods (Fig. [\ref=fig:sim-ideal]Ci-Ciii, Di-Diii). Low minor allele frequency creates imbalanced group sizes, leading to either poor or zero estimates of variance (in the case of a few or one sample in a genotype group) for a genotype. For this reason, it is important to filter out low MAF SNPs and ensure there are sufficient numbers of genotypes in each group to allow for a variance estimate when testing for heteroskedasticity with discrete or categorical covariates.
+
+The simulations with growing sample size highlight the benefit of Levene and Brown-Forsythe versus CLS. We note that CLS, across these ideal simulations, appears to have generally worse performance than Levene, Brown-Forsythe, and BTH. In particular, the AUC of BTH is significantly greater than either Levene, Brown-Forsythe, or CLS (t-test p  ≤  1.4  ×  10- 203, 5.2  ×  10- 177, 1.6  ×  10- 287 respectively in Di) with an average precision 5% higher. Similarly, for greater magnitude mean effects (Fig. [\ref=fig:sim-ideal])Ai-Aiii) and growing sample sizes (Fig. [\ref=fig:sim-ideal]Di-Diii), the AUC of CLS is up to 0.036 smaller than the AUC of either Levene or Brown-Forsythe, and as much as 0.12 smaller than the AUC of BTH.
+
+Simulation results: ideal model, continuous covariates.
+
+When the covariate is a continuous value--such as age, BMI, or the expected number of minor alleles for imputed genotypes--the Levene and Brown-Forsythe tests are no longer appropriate, as they assume categorical covariates. In this case, we compared our method with the CLS method, which allows a general covariate in the original linear regression and subsequent correlation test. We also applied Brown-Forsythe and Levene tests to the simulated data by rounding the continuous covariates to their nearest integer value. For imputed genotypes, this rounding process corresponds to setting the value of the covariate SNP to the most likely number of copies of the minor allele. This is an idealized imputation scenario (results on imputed genotypes below are much less straightforward), and we would not recommend this approach with real data [\cite=marchini2010genotype].
+
+The results on the continuous covariate simulations echo the discrete simulation results. In particular, BTH shows a uniform improvement in AUC across all of the simulations, considering increasing mean effects (Fig. [\ref=fig:sim-continuous]A), increasing variance effects (Fig. [\ref=fig:sim-continuous]B), increasing minor allele frequency (Fig. [\ref=fig:sim-continuous]C), and increasing sample size (Fig. [\ref=fig:sim-continuous]D). We note that, despite rounding the (idealized) imputed genotypes, Levene and Brown-Forsythe continue to perform better than CLS across the simulations.
+
+Simulation results: non-ideal model, discrete covariates.
+
+Next, we explored quantitative traits simulated from four non-ideal heteroskedastic models with discrete covariates that are motivated by residual distributions often found in genomic analyses.
+
+Additive variance term: a Gaussian distribution with an additive form of heteroskedasticity:
+
+[formula]
+
+We generated data with additive variance effects to ensure that our test is able to identify different functional forms of heteroskedasticity. Note that, in this scenario, the null hypothesis corresponds to α  =  0; parameters in this category of simulation reflect this different null.
+
+Log Gaussian: the log of the trait follows a Gaussian distribution:
+
+[formula]
+
+Microarray data (within gene) are believed to have a log Gaussian distribution, which motivates log transformations to those data [\cite=Irizarry2003]. Untransformed log normal data, however, will naturally appear heteroskedastic because of the correlation of mean and variance in the log Gaussian distribution.
+
+Gamma distributed data: traits are generated from a gamma generalized linear model:
+
+[formula]
+
+While the exponential distribution is the continuous form of the Poisson distribution, the gamma distribution may be considered the continuous form of the negative binomial distribution, which is a discrete distribution with an additional variance parameter above the discrete Poisson distribution. Hence, we generate continuous data from the gamma distribution to simulate the continuous trait form of overdispersed Poisson counts, as might be found in mapped RNA-sequencing data [\cite=pickrell2010understanding] [\cite=marioni2008rna].
+
+Mixture of Gaussians: traits are generated from a mixture of two Gaussian components, one heteroskedastic and one homoskedastic, with mixture parameter λ  =  0.4:
+
+[formula]
+
+We expect bimodal Gaussian traits when, for example, there is a GxG or GxE interaction. For example, if there is a mean effect for female samples at a SNP, but no corresponding mean effect for male samples, the quantitative trait will appear bimodal within genotype.
+
+We quantified the relative performance of the tests using precision-recall curves as above; however, caution must be used here in interpreting the relative AUC. We may consider four possibilities (Table [\ref=tab:NullStrong]) for the simulated mean and variance effects with respect to the statistical test we perform here:
+
+Strong null: the simulated mean effects β  =  0 and the simulated variance effects log (α)  =  0;
+
+Weak null: the simulated mean effects β  ≠  0 and the simulated variance effects log (α)  =  0;
+
+Weak alternative: the simulated mean effects β  =  0 and the simulated variance effects log (α)  ≠  0;
+
+Strong alternative: the simulated mean effects β  ≠  0 and the simulated variance effects log (α)  ≠  0.
+
+These definitions become important when discussing the log Gaussian and gamma simulations: for both distributions, the variance is a function of the mean, inducing an explicit relationship between the two. In other words, when there are mean effects, β  ≠  0, this will present as variance effects in these tests. The BTH model integrates over the mean effect size, β, testing the union of the weak and strong alternative hypotheses against the union of the weak and strong null hypotheses. Moreover, in the permutations, we specifically remove variance effects while maintaining mean effects. These design decisions lead to different behavior of the test on these simulations from non-ideal genomic scenarios.
+
+For the non-ideal simulations, we simulated data both from the strong alternative (β  ≠  0, log (α)  ≠  0; Fig. [\ref=fig:nonideal], first column) and the weak null (β  ≠  0, log (α)  =  0; Fig. [\ref=fig:nonideal], second column). The weak null simulation ideally will look like the strong null simulations; however, for the log Gaussian and gamma simulations, all tests differentiate the weak null and the strong null as an artifact of the data distribution linking mean and variance effects. This phenomenon may be seen in the results by comparing the AUC of the strong alternative simulations with the weak alternative simulations: for the gamma simulations, the four tests have nearly identical AUCs regardless of the true value of the variance effects α. This suggests that the performance in the strong alternative simulations is due to mean effects. We verified this by considering simulations from the weak alternative (i.e., log (α)  ≠  0, β  =  0), finding that all of the tests fail to detect signs of heteroskedasticity in the gamma simulations (Fig. S19Aii, S19Bii, S19Cii). Similarly, in the untransformed log Gaussian simulations, test performance on the weak alternative scenario is close to that for the strong null (Fig. S16Aii,iv).
+
+For the additive variance effects simulations and the bimodal distributed simulations, we find that the weak null simulations are appropriately unable to differentiate the weak null from the true null simulations (Fig. [\ref=fig:nonideal]Ai-Aiv; Di-Div). Moreover, for the bimodal distributed simulations, BTH had the most substantial gains in AUC relative to the other three methods, all of which had noticeably worse performance than in the ideal unimodal simulations. We further study departures from the ideal distributions below in the real data applications.
+
+Simulation results: classifying and transforming non-ideal data distributions.
+
+To address the problem of distributional misspecification of the model, we developed a statistical classifier that takes as input the x and y vectors (covariates and traits, respectively) and returns the probability of each of seven distributions within and across groups for discrete covariates and across values for continuous covariates (see Supplemental Methods, Fig. S34, S35 and Tables 5 - 8). Given a distribution classification for a particular covariate-trait test, we then suggest a specific data transformation to encourage a 0.5 recall for the weak null simulations (i.e., mean effects but no explicit variance effects). In particular, when the data appear to have a log Gaussian distribution, we suggest a log transformation (Figure [\ref=fig:nonideal]B); when the data appear Gamma distributed, we suggest a mean-centered square root transformation (Figure [\ref=fig:nonideal]C).
+
+We compared the transformed strong alternative simulations (β  ≠  0, log (α)  ≠  0; Fig. [\ref=fig:nonideal], third column), and found that BTH uniformly had the largest AUC across the four methods. We also compared results on the transformed weak null simulations (β  ≠  0, log (α)  =  0; Fig. [\ref=fig:nonideal], fourth column). These show that the transformation eliminates the mean effect discoveries in all but the gamma simulations (Fig. [\ref=fig:nonideal]C); in the gamma simulations, variance effects are nearly removed across the four methods. We explore gamma-distributed data further in the methylation data analysis below.
+
+1000 Genomes Project Methylation Study Data
+
+We applied BTH and the alternative tests for variance effects to a genome scale differential DNA methylation study [\cite=heyn2013dna] to find variance methylation QTLs (meQTLs). These data consist of DNA methylation levels at 485,577 CpG sites across the human genome using the Infinium HumanMethylation450 BeadChip platform (Illumina) in lymphoblastoid cell lines (LCLs) from 288 individuals - 96 American with Northern and Western European ancestry, 96 Han Chinese, and 96 Yoruban. Following previous work, we removed CpG probes of poor quality or with common mutations. We used the β values from the methylation arrays at 406,021 CpG sites for analysis. Genotype information for these individuals are available from HumanHap550k and HumanHap650k SNP arrays (Illumina) at the GEO accession numbers GSE24260 [\cite=kalari2010copy] (192 individuals) and GSE24274 [\cite=niu2010radiation] (96 individuals). We removed eight individuals that did not have methylation data, and combined the genotypes from 280 individuals with 170,063 SNPs common to both genotype platforms and without missing data. For each CpG site, we tested for association with cis-SNPs, defined as SNPs within 10KB of the CpG site [\cite=heyn2013dna] [\cite=Bell2011]. We evaluated the global FDR of our association results using a single permutation of the methylation data. Significance was assessed using a global FDR and FDR stratified by MAF using permutations as above [\cite=sun2006] (Supplementary Methods Table S1).
+
+Using our distribution classifier, we found that most of the methylation level traits were gamma distributed (Supplemental Tables S6 and S7). BTH does not find any significant variant-mediated associations between SNPs and methylation levels at CpG sites at a global FDR of 0.05 and a MAF-stratified FDR of 0.05 (Fig. [\ref=fig:summaryDiscoveryMET]A; Table S1). In contrast, CLS found 391 significant associations and the Levene test found 2123 associations (Fig. [\ref=fig:summaryDiscoveryMET]A; global FDR ≤  0.05). However, in these discoveries, a large majority of the the methylation levels were bimodal or multimodal, with unimodal traits making up 8.95% of the discoveries from CLS and 0.38% of the discoveries from the Levene test (Fig. [\ref=fig:summaryDiscoveryMET]B,C). We hypothesize that the bimodal distribution of methylation values with respect to genotype is due to epistatic effects. BTH, on the other hand, is robust to bimodal deviations from the unimodal Gaussian distribution, and does not detect these candidates for epistatic effects at an FDR ≤  0.05.
+
+We tested for variance meQTLs without transforming the methylation data under the assumption that a single SNP will not have both mean and variance effects on methylation levels at a single CpG site. BTH detected no variance associations, meaning that false positives due to confounding effects were not apparent in the data. Had there been discoveries for BTH, we would have repeated the test with the appropriately transformed data using a square root transform (Figure S19). Tests of heteroskedasticity are sensitive to data distribution, such as skewed methylation level data [\cite=feinberg2010stochastic] [\cite=feinberg2010personalized] [\cite=jaffe2012significance], but we do not quantile normalize these methylation data in order to prevent removing potential variance effects.
+
+Cardiovascular and Pharmacogenetics (CAP) study.
+
+We applied BTH to test for variance effects between imputed genotypes and gene expression levels from the Cardiovascular and Pharmacogenetics (CAP) study. Gene expression values for 10,195 genes in lymphoblastoid cell lines (LCLs) from 480 Caucasian individuals were assayed on human microarray platforms [\cite=mangravite2013statin]. Genotypes were assayed using genotyping arrays and subsequently imputed using IMPUTE2 [\cite=impute2] [\cite=impute2_1] [\cite=mangravite2013statin] to yield 33,386,856 total markers across the 22 autosomal chromosomes. We removed SNPs with MAF below 0.05.
+
+The preprocessing of gene expression data for testing of variance eQTLs is somewhat different than the preprocessing for mean effect eQTLs [\cite=irizarry2003RMA]. To test for variance eQTLs, we log transform the microarray gene expression data so they do not have a log normal distribution, we control for outliers, and we control for known (directly measured) and unknown (inferred) confounders. Specifically, we 1) log 2 transform each gene expression level; 2) project each set of gene expression levels to the quantiles of the empirical gene distribution; and 3) control for known covariates (age, sex, batch), the first two principal components of the expression matrix, and the first two principal components of the genotype matrix (see Supplemental Methods). After empricial quantile normalization [\cite=Brown2014], each gene has exactly the same distribution across all samples, and a visual analysis of a QQ-Plot confirms the empirical distribution deviates little from a normal distribution (Figure S29). After preprocessing the genotype and gene expression data, we performed association mapping between each gene and the cis-SNPs local to that gene; here, cis-SNPs are defined to be ≤  200Kb from the gene transcription start or end site [\cite=pickrell2010understanding]. There were 9,862 genes with at least one cis-SNP in these data, and, on average, each gene had 847 cis-SNPs. We computed the test statistic for the putative association between each cis-SNP gene pair with these processed gene expression data [\cite=pickrell2010understanding].
+
+These gene expression analyses find three variance QTLs using CLS and six variance QTLs using BTH (FDR≤  0.05; Fig. [\ref=summaryDiscoveryCOV]I). This could be due to the fact that the distributional properties of the processed CAP data set conform to the assumptions of the statistical tests, namely normal residuals or mild departures from normality (i.e., linear variance, exponential mean, or log normal residuals; Table S4) as compared to the generally gamma-distributed residuals in the methylation data. In particular, BTH discovers variance effects for:
+
+RNA-binding protein C14orf166 at SNP rs1953879 (Figure [\ref=summaryDiscoveryCOV]I-A);
+
+the oligosaccharyltransferase complex subunit OSTC or DC2 at SNP rs145858690 (Figure [\ref=summaryDiscoveryCOV]I-B);
+
+the type B histone acetyltransferase gene [formula] at four SNPs: rs4635498, rs10445763, rs75847248, and chr2:172709927 (Figure [\ref=summaryDiscoveryCOV]I-C).
+
+The association between gene C14orf166 and SNP rs1953879 is particularly interesting. Gene C14orf166 is an RNA-binding protein involved in the modulation of mRNA transcription by Polymerase II. The role of C14orf166 in development and progression of several human cancers - cervical cancer [\cite=zhang2015c14orf166], brain tumors [\cite=wang2007hupo], and pancreatic cancer [\cite=perez2014hcle]--is well characterized. Moreover, the locus associated with the gene, rs1953879, is located within the protein coding abhydrolase domain containing the 12B gene, ABHD12B. The protein associated with ABHD12B is thought to be involved in metabolic processes related to acylglycerol lipase activity and has recently been associated with obesity related phenotypes [\cite=ABHD12Bobesity]. Its paralog, ABHD12, catalyzes the main endocannabinoid lipid transmitter and is associated with a number of physiological processes and complex phenotypes including mood, appetite, addiction behavior, and inflammation [\cite=ABHD12infla]. This is interesting in the context of prior work on variance effects due to epistasis at the BMI-regulating FTO locus [\cite=Pare2010].
+
+Similarly, CLS discovers variance effects for:
+
+the Jumonji domain-containing protein 1C JMJD1C at SNP rs113764414 (Figure [\ref=summaryDiscoveryCOV]I-D);
+
+the chromatin modifying protein 6 CHMP6 at SNP rs7217916 (Figure [\ref=summaryDiscoveryCOV]I-E);
+
+the protein coding aryl hydrocarbon receptor interacting protein-like AIPL1 gene at SNP chr17:6379486 (Figure [\ref=summaryDiscoveryCOV]I-F);
+
+Among the CLS results, the AIPL1 association with the chr17:6379486 locus ranks in the top 0.02% most significant Bayes factors generated by BTH.
+
+CAP study covariates.
+
+Next, we applied BTH to test for a heteroskedastic relationship between gene expression levels and known covariates collected on the individuals enrolled in the CAP study [\cite=cao2015family]. In particular, we considered sample age, sex, BMI, and smoking status. For non-binary covariates (age and BMI), we normalized the values -- dividing by the maximum of each so that the covariate had a maximum value of one -- for stability of parameter estimation; this does not change interpretation of our results. Both sex and smoking status are binary covariates, so the application of BTH is equivalent to testing for differential variance across the binary covariate. Overall, these data contain 46% females and 87% non-smokers.
+
+In these data, we found five significant associations using BTH and CLS (FDR≤  0.05; Fig. [\ref=summaryDiscoveryCOV]II; Supplementary Table S5). Among the five significant associations, three corresponded to sex specific variance control (identified using BTH), and two corresponded to age specific variance control (identified using CLS). In particular, BTH discovers variance effects of sex in the transmembrane protein 14B, TMEM14B, in the gene C14orf166. The association between sex and gene CYorf15A is the third most significant Bayes factor, although it is not significant at an FDR≤  0.05. CLS discovers variance effects of age in the genes FERMT2 and GALC. Among these, FERM2 or Kindlin-2 is known to interact with beta catenin and is associated with the integrin signaling pathway, cell adhesion and mutagenesis [\cite=KindlinEx].
+
+The sex-linked gene association is interesting: CYorf15A is located on the Y chromosome and is thus not expressed in females (Fig. [\ref=summaryDiscoveryCOV]II - C). This association then is expected: the variance in females is only due to measurement error, whereas the variance in males is due in part to true expression differences. Thus, this association acts as a control for our test. However, this example shows the conservative nature of our testing pipeline, in that we did not identify all Y-linked genes in these data. The other two genes, on the other hand, are located on autosomal chromosomes.
+
+Discussion
+
+We presented a Bayesian test for heteroskedasticity (BTH) that allows for continuous covariates, and incorporates uncertainty in estimates of mean and variance effects to robustly test for variance QTLs and other types of variance effects. We showed the promise of our approach on extensive simulations within and in violation of the assumptions in our model, and describe a prescriptive procedure to ensure a well powered application of our model to diverse genomic and epigenetic study data. We emphasize that, although we are mainly focused on variance effects of genotype on quantitative traits, this approach may be used broadly in testing for heteroskedastic associations between two sample measurements, and we illustrate this application by discovering meaningful associations between non-genetic covariates and gene expression data.
+
+Our results show that BTH is more conservative and less sensitive to multi-modal distributions than both CLS and the Levene test, as found in the methylation data. In scenarios where the real data is close in distributional form to the modeling assumptions, as in the gene expression data, BTH finds similar numbers of associations as CLS. Moreover, the largest ranked -   log 10(p - values) from CLS correspond to the most significant Bayes factors from BTH, meaning that the tests generally agree in the real data scenarios.
+
+The lack of substantial numbers of results from BTH in the genomic studies raise an important discussion point. In particular, the signature of gene x gene or gene x environment epistatic interactions may show up as a bimodal distribution of the trait: consider the distribution of a trait that has an eQTL with mean effect in women but not in men [\cite=Muther2011]. We note that our statistical test was robust to deviations from unimodality, but CLS and Levene were not, making the purpose of these tests somewhat orthogonal. Thus, to identify candidate epistatic associations with bimodal distributions, CLS and Levene are the appropriate methods to use and the data should not be quantile normalized; on the other hand, to avoid bimodal associations, we have shown that our method is preferable in terms of statistical power. We also hypothesize that the permutations that are used for these tests, while appropriate, lead to conservative estimates of FDR, which impacted all of the statistical tests calibrated using permutations.
+
+The lack of power in the variance QTL studies was clear: as opposed to mean effects, we found no variance effects on methylation and six significant variance effects on gene expression levels. We propose that these measurements of cellular traits are inappropriate candidates for variance QTLs because variance effects are generally not across individuals but instead across cells within an individual, as was identified in previous studies [\cite=wills2013single]. In particular, the effect of a variance eQTL will be to impact the variability of gene expression or methylation levels across the sample cells. The measurement of these cellular traits levels, however, are performed on tens of thousands of cells, and quantify the average expression or DNA methylation levels across those cells. Thus, in order to identify variance eQTLs and variance meQTLs, different types of data must be considered such as single cell RNA-sequencing data [\cite=wills2013single] or resampled RNA-sequencing data to estimate within-sample variance [\cite=auer2010statistical], but neither of these domains are currently feasible to discover variance QTLs.
+
+Methods
+
+Bayesian Test for Heteroskedasticity (BTH).
+
+The observed data are two vectors, [formula] (quantitative trait) and [formula] (covariate). For each sample [formula], we model the quantitative trait as a function of the covariate as follows:
+
+[formula]
+
+The parameters for the BTH model use appropriate priors:
+
+[formula]
+
+where x0  =  0, centering the Cauchy distribution at 0, ν  =  5, θ1  =  1, θ2  =  2, and γ  =  1.
+
+BTH computes the likelihood of the alternative hypothesis versus the likelihood of the null hypothesis [\cite=kass1995bayes]:
+
+H0, the null hypothesis where α  =  1 or, equivalently, log (α)  =  0;
+
+HA, the alternative hypothesis where α  ≠  1 or, equivalently, log (α)  ≠  0.
+
+We computed Bayes factors [formula] as follows:
+
+[formula]
+
+In particular, we integrate over uncertainty in each of the model parameters β0, σ2, and α after computing a closed-form integral over the effect size β. These BFs can be re-written using functions h1 and h2 (Supplementary Methods):
+
+[formula]
+
+where
+
+[formula]
+
+and
+
+[formula]
+
+Bayes factors are computed using multivariate Laplace approximations of integrals of the form [formula], where x̂  =  argminxh(x), and Σ is the inverse Hessian of h evaluated at x̂ (derivations in Supplementary Methods) [\cite=rue2009approximate]. As is common in Bayesian analysis of genomic studies, we report the log 10 transformed Bayes factors [\cite=stephens2009bayesian].
+
+FDR calibration.
+
+Global false discovery rate (FDR) of the log Bayes factors log 10BF(x,y) is quantified using permutations. To do this, we developed a permutation that preserved the mean effects but removed any variance effects. In particular, for trait [formula], we computed a mean-effect-preserving transformation as follows. We fit a linear regression model using generalized least squares and computed residuals ri  =  yi  -  βglsxi for each sample i. We then randomly permuted the sample indices on ri, rπ(i), checking that the mean effects of rπ(i) versus xi are not statistically different than zero. Finally, we set yπ(i)  =  βglsxi  +  rπ(i).
+
+Global FDR calibration is performed after computing the unpermuted and permuted Bayes factors, BF(0)  =  BF(x,y) and BF(π)  =  BF(x,yπ). For d being a Bayes factor threshold, true positives (TP) and false positives (FP) are estimated using these BFs as   =    #  {j:|BF(0)j| > d} and   +  (d)  =    #  {j:|BF(π)j| > d} respectively. Thus, the estimated FDR at cut-off d is computed as [formula]. For a specific FDR threshold, the calibrated threshold dFDR is computed from the data, and the pairs (x,y) with BF(x,y)  >  dFDR are reported.
+
+Comparative tests: Levene, Brown-Forsythe, and CLS.
+
+The Levene, Brown-Forsythe, and CLS tests were implemented and applied for comparison with BTH. The Brown-Forsythe and Levene tests both belong to the general Levene family of tests for equality of variance across k subgroups [\cite=levene1961robust] [\cite=brown1974small]. For n samples corresponding to categorical covariate [formula] [formula], the trait [formula] is modeled as [formula]. The null hypothesis H0 corresponds to equal variances across subgroups [formula] for all [formula]. The alternative hypothesis HA corresponds to nonequal variances across subgroups [formula] for at least one pair [formula], [formula]. Let nt be the number of samples [formula] [formula] for which xi  =  t. Consider a partition of the entries yi, [formula], into k sub-vectors ωt, [formula], with entries ωts, [formula], referring to the sth value yi which corresponds to the subgroup xi  =  t. The Levene family test statistic is then defined as:
+
+[formula]
+
+with zts  =  |ωts  -  t|. For a fixed [formula] t is the mean of all ωts with [formula]. Similarly, t is the mean over the values zts, while [formula] is the overall mean, over the entries of the vector trait y. When each t is the median of the ωts values, instead of their mean, the test is called the Brown-Forsythe test.
+
+Significance and global FDR are computed based on permutations as with BTH, replacing BFs with p-values.
+
+The CLS test was implemented by computing residuals ri  =  yi  -  β0  -  βxi where β0 and βi were fit using generalized least squares, modeling the trait yi conditional on the genotype xi for each individual i using linear regression. The Spearman rank correlation test between the squared residuals, r2i  =  (yi  -  (0  +  ixi))2, and the genotypes, xi, correspond to a test for variance QTLs. This implementation of CLS followed the description in earlier work [\cite=Brown2014].
+
+Regression distribution classifier.
+
+We trained a random forest classifier ( RandomForest in scikit-learn [\cite=scikit-learn], version 0.16.1) to distinguish between six possible departures from the ideal heteroskedastic model. For each distribution class (the BTH model, additive variance model, exponential mean model, exponential residue model, log Gaussian, gamma, and bimodal models; see Supplemental Methods for descriptions) and for four parameter configurations (scenarios α  ≠  0 and β  ≠  0, α  ≠  0 and β  =  0, α  =  0 and β  ≠  0, and α  =  0 and β  =  0), we generated 50 samples of observed data from those six models. One-sided Kolmogorov-Smirnov statistics between each of these samples and 79 probability density functions were computed. Thus, every sample is represented as a point in a 79-dimensional feature space. Performance of the RF classifier was evaluated using five-fold cross validation. The generalization of the classifier was quantified using a precision recall curve (Fig. S36).
+
+Cardiovascular and Pharmacogenetics (CAP) study data.
+
+Gene expression levels from 10,195 genes in lymphoblastoid cell lines (LCLs) created from 480 genotyped individuals were downloaded from the Gene Expression Omnibus (GSE36868). Genotypes for 387,514 SNPs and eight other covariates were available through dbGaP (Study Accession phs000481.v1.p1) [\cite=mangravite2013statin].
+
+We processed the raw gene expression data as follows.
+
+Log transform: A log 2 transformation was applied to each entry of the gene expression matrix [\cite=];
+
+Control for latent population structure: We computed the first two principal components xPC1, xPC2 of the genotype matrix via singular value decomposition (SVD).
+
+Control for known covariates; mean center: For each vector yj in matrix [formula], corresponding to single gene j across all n samples, a linear model yj  =  λ0  +  λage  ·  xage  +  λsex  ·  xsex  +  λbatch  ·  xbatch  +  λPC1  ·  xPC1  +  λPC2  ·  xPC2 was fitted to account for variation in gene expression due to sample age, sex, batch, and genotype PCs, using generalized least squares. Mean-centered residuals rj  =  yj  -  λ̂0  -  λ̂age  ·  xage  -  λ̂sex  ·  xsex  -  λ̂batch  ·  xbatch  -  λ̂PC1  ·  xPC1  -  λ̂PC2  ·  xPC2 were computed. Concatenating the rj vectors forms a normalized expression matrix.
+
+Control for unknown covariates: We computed the first two principal components of the normalized expression matrix using SVD. We used linear regression as in the previous step to control for the linear effects of these two PCs in the normalized gene expression matrix.
+
+The resulting matrix is the processed gene expression matrix.
+
+HapMap phase 2 methylation study data.
+
+Processed DNA methylation data using the Infinium HumanMethylation450 BeadChip platform were downloaded from the Gene Expression Omnibus (GEO), Accession number GSE36369 [\cite=heyn2013dna] on August 6, 2015. We extracted the methylation data corresponding to 280 individuals for whom genotypes were available. Genotypes spanning 166,947 common single nucleotide polymorphisms (SNPs) were obtained from genome-wide DNA array Human Variation Panel studies  [\cite=niu2010radiation] [\cite=kalari2010copy] through accession numbers GSE24260 and GSE24274, which used Illumina 550K and Illumina 650K array data respectively. We filter poor quality CpG probes by removing those methylation sites where 90% of the samples at that site are hypo or hyper-methylated, less than 2% or greater than 98% methylated, respectively. From a total of 54750 total CpG probes, we filter 2112 probes to end up with 52638 probes to test for association with genotypes.
+
+Acknowledgments
+
+BD and BEE were funded by NIH R00 HG006265 and NIH R01 MH101822. All data are publicly available. The CAP gene expression data were acquired through GEO GSE36868, and the genotype data were acquired through dbGaP, acquisition number phs000481, and generated from the Krauss Lab at the Children's Hospital Oakland Research Institute. This work was supported in part by U19 HL069757: Pharmacogenomics and Risk of Cardiovascular Disease. We acknowledge the PARC investigators and research team, supported by NHLBI, for collection of data from the Cholesterol and Pharmacogenetics clinical trial. All code is freely available for use at the Engelhardt Group Website: http://beehive.cs.princeton.edu/software.html. Correspondence and requests for materials should be addressed to BEE (email: bee@princeton.edu).

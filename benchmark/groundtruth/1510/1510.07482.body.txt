@@ -1,0 +1,197 @@
+Edge-Linear First-Order Dependency Parsing with Undirected Minimum Spanning Tree Inference
+
+Introduction
+
+Dependency parsers are major components of a large number of NLP applications, such as information extraction [\cite=Culotta:06], textual entailment [\cite=Kouylekov:05] and machine translation [\cite=Ding:05]. When application systems that utilize such parsers are applied at large scale, efficiency is a major consideration.
+
+In graph-based dependency parsing models [\cite=Eisner:00] [\cite=McDonald:05a] [\cite=McDonald:05b] [\cite=Carreras:07] [\cite=Koo:10], given an n word sentence, exact inference can be performed in O(nk + 1) for projective models of order k  [\cite=Eisner:96] [\cite=McDonald:06] [\cite=Koo:10]. For non-projective parsing, exact inference is O(n2) for k = 1 but NP-hard for k  ≥  2 [\cite=McDonald:07]. Consequently, a number of approximated parsers have been introduced, utilizing a variety of techniques: the Eisner algorithm [\cite=McDonald:06], belief propagation [\cite=Smith:08], dual decomposition [\cite=Koo:10] [\cite=Martins:13] and multi-commodity flows [\cite=Martins:09] [\cite=Martins:11]. The run time of all these approximations is super-linear in n.
+
+Recent pruning algorithms for graph-based dependency parsing [\cite=Rush:12] [\cite=Riedel:12] [\cite=Zhang:12] have shown to cut a very large portion of the graph edges, with minimal damage to the resulting parse trees. For example, demonstrated that a single O(n) pass of vine-pruning [\cite=Eisner:05] can preserve >  98% of the correct edges, while ruling out >  86% of all possible edges. Such results give strong motivation to solving the inference problem in a run time complexity that is determined solely by the number of edges (m).
+
+In this paper we propose to rethink the inference problem in first-order (arc-factored) dependency parsing. Particularly, we propose to formulate this problem as a minimum spanning tree (MST) problem in an undirected graph. Our formulation allows us to employ state-of-the-art algorithms for the MST problem in undirected graphs, whose run time depends solely on the number of edges in the graph (see below). Importantly, the expressive capability of this approach is as strong as that of first-order parsing with directed MST inference: a parser that employs our undirected inference algorithm (see below) can generate all possible trees, projective and non-projective.
+
+Particularly, the undirected MST problem (Section [\ref=undirected-mst]) has a randomized algorithm which is O(m) at expectation and with a very high probability ([\cite=Karger:95]), as well as an O(m  ·  α(m,n)) worst-case deterministic algorithm [\cite=Pettie:02], where α(m,n) is a certain natural inverse of Ackermann's function [\cite=Hazewinkel:01]. As the inverse of Ackermann's function grows extremely slowly  the deterministic algorithm is in practice linear in m (Section [\ref=state-of-the-art]). In the rest of the paper we therefore refer to the run time of these two algorithms as practically linear in the number of edges m.
+
+Our algorithm has four steps. First, it encodes the first-order dependency parsing inference problem as an undirected MST problem (in no more than O(m) time, Section [\ref=undirecting-representation]).  Then, it runs an undirected MST algorithm on the resulting graph. Next, it infers the directed parse tree from the undirected MST (Section [\ref=directing]).  Finally, the resulting directed tree is improved with respect to the directed parsing model through local greedy updates (Section [\ref=trick]). Importantly, the last two steps take O(n) time, which makes the total run time of our algorithm O(m) at expectation and with very high probability.
+
+We integrated our inference algorithm into the first-order dependency parser of [\cite=McDonald:05b]. We compared the resulting parser to the original parser which employs the Chu-Liu-Edmonds (CLE, [\cite=Chu:65] [\cite=Edmonds:67]) algorithm for inference. This algorithm, the most efficient exact inference algorithm for first-order directed models for non-projective parsing, finds the MST of a directed graph in O(n2) time.
+
+We experimented (Section [\ref=experiments]) with 17 languages from the CoNLL 2006 [\cite=buchholz2006conll] and CoNLL 2007 [\cite=nilsson2007conll] shared tasks on multilingual dependency parsing as well as with three English setups. Our results reveal that the two algorithms perform very similarly. While the averaged unlabeled attachment accuracy score (UAS) of the original parser is 0.97% higher than ours, in 11 out of our 20 test setups the number of sentences that are better parsed by our parser is larger than the number of sentences that are better parsed by the original parser.
+
+Minimum Spanning Trees
+
+In this section we provide a brief introduction to MST algorithms in undirected (Section [\ref=undirected-mst]) and directed (Section [\ref=directed-mst]) graphs. Our emphasis is on the Burovka algorithm [\cite=boruvka:26] [\cite=nesetril:01] which forms the basis for the randomized algorithm of [\cite=Karger:95] we employ in this paper. In the next section we will describe the algorithm in more details.
+
+Undirected Graphs
+
+Problem Definition.
+
+For a connected undirected graph G(V,E), where V is the set of n vertices and E the set of m weighted edges, the MST problem is defined as finding the sub-graph of G which is the tree (a connected acyclic graph) with the lowest sum of edge weights. The opposite problem - finding the maximum spanning tree - can be solved by the same algorithms used for the minimum variant by simply negating the graph's edge weights.
+
+The Boruvka Algorithm
+
+The earliest known solution to this problem is the Boruvka algorithm [\cite=boruvka:26] [\cite=nesetril:01]. As we noted, this algorithm forms the basis for current state-of-the-art MST algorithms that we later discuss. We therefore start with its description.
+
+Graph Contraction.
+
+First, let us define the Graph Contraction operation. For a given undirected graph G(V,E) and a subset Ẽ  ⊆  E, this operation creates a new graph, GC(VC,EC). In this new graph, VC consists of a vertex for each connected component in (V,Ẽ) (these vertices are referred to as super-vertices). EC, in turn, consists of one edge, (û,), for each edge [formula], where û,∈VC correspond to [formula]'s connected components to which u and v respectively belong. Note that this definition may result in multiple edges between two vertices in VC (denoted repetitive edges) as well as in edges from a vertex in VC to itself (denoted self edges).
+
+The Boruvka-Step.
+
+Next, we define the basic step of the Borukva algorithm (see example in Figure [\ref=Boruvka-example] and pseudocode in Algorithm [\ref=alg1]). In each such step, the algorithm creates a subset Em  ⊂  E by selecting the minimally weighted edge for each vertex in the input graph G(V,E) (Figure [\ref=Boruvka-example] (a,b) and Algorithm [\ref=alg1] (lines 1-11)). Then, it performs the contraction operation on the graph G and Em to receive a new graph GB(VB,EB) (Figure [\ref=Boruvka-example] (c) and Algorithm [\ref=alg1] (12)). Finally, it removes from EB all self-edges and repetitive edges that are not the minimal edges between the vertices VB's which they connect (Figure [\ref=Boruvka-example] (d) and Algorithm [\ref=alg1] (13)). The set Em created in each such step is guaranteed to consist only of edges that belong to G's MST and is therefore also returned by the Boruvka step.
+
+The Boruvka algorithm runs successive Boruvka-steps until it is left with a single super-vertex. The MST of the original graph G is given by the unification of the Em sets returned in each step.
+
+Computational Complexity Analysis.
+
+The overall complexity of each Boruvka-step is O(m): (a) The complexity of iterating over the set of edges and the set of vertices is O(m + n) (Algorithm [\ref=alg1] (1-11)); (b) The complexity of graph contraction is equivalent to finding connected components in a graph which is well known to be O(m + n) (Algorithm [\ref=alg1] (12)); and (c) Self-edges and non-minimal repetitive edges can be removed by a simple O(m) procedure [\cite=Fredman:87] (Algorithm [\ref=alg1] (13)).
+
+The number of disconnected components after each Boruvka step is at most |Em|, which is bounded by half the number of vertices in the input graph of that step. This is due to the fact that during the for loop in line 9 each of the edges may be selected at most twice (once through each of its vertices). Therefore, a maximum of log n steps is required for the algorithm to conclude, yielding an overall complexity of O(m log n).
+
+Other Algorithms
+
+Other algorithms, providing different trade-offs between the number of edges m and the number of vertices n in their computational complexity, were proposed for the MST problem. While these algorithms are not employed in this paper, we briefly survey two prominent ones below in order to complete the discussion in the flexibility provided by the usage of undirected MST algorithms in dependency parsing inference.
+
+Prim's algorithm (a.k.a the DJP algorithm, [\cite=jarnik:30] [\cite=Prim:57] [\cite=Dijkstra:59]) grows the MST edge-by-edge from an arbitrarily chosen vertex in the graph, choosing in each step the minimum weight edge that connects the current assembled tree to the remaining vertices in the graph. Using a Fibonacci heap based priority-queue, this algorithm runs in O(m  +  n log n) time.
+
+An alternative algorithm is Kruskal's algorithm [\cite=Kruskal:56]. Starting with a forest of n single-vertex trees, in each step this algorithm iterates over the graph edges in an ascending order, adding an edge to the forest whenever it connects two distinct trees. Using a disjoint-set data structure, this algorithm runs in O(m log n) time.
+
+Directed Graphs
+
+Problem Definition.
+
+The directed variant of the MST problem, a.k.a the Arborescence problem, is defined as finding the minimally weighted directed spanning tree. A directed tree is a graph in which there is exactly one directed path from the designated root vertex to any other vertex in the graph. This definition entails the property that each non-root vertex in the graph has exactly one incoming edge in the directed MST - a property we will later use to direct the edges of the MST generated by an undirected MST algorithm.
+
+Unfortunately, none of the algorithms that solve the undirected MST variant can be used to solve this variant. Intuitively, the success of the undirected greedy algorithms is made possible by an inherent property of undirected graphs: connecting two connected graphs with an edge always results in a connected graph, which is not always true in the directed case. Consequently, the Arborescence problem is solved by the Chu-Liu-Edmonds (CLE, [\cite=Chu:65] [\cite=Edmonds:67]) algorithm, which does not make such strong greedy assumptions.
+
+The CLE algorithm and its application to directed first-order graph-based dependency parsing are discussed in [\cite=McDonald:05b] - the details are beyond the scope of this paper. Importantly, the run time complexity of CLE is O(nm) in the general case, with an O(n2) variant existing for dense graphs [\cite=Tarjan:77].
+
+We now turn to describe how the undirected MST problem can be solved in a time practically linear in the number of graph edges.
+
+Undirected MST in Edge Linear Time
+
+There are two algorithms that solve the undirected MST problem in time practically linear in the number of edges in the input graph. These algorithms are based on substantially different approaches: one is deterministic and the other is randomized .
+
+The computational complexity of the first, deterministic, algorithm [\cite=Chazelle:00a] is O(m  ·  α(m,n)), where α(m,n) is a certain natural inverse of Ackermann's function, whose value for any practical value of n and m is lower than 5. To the best of our knowledge, this algorithm is the only algorithm that is guaranteed to run in a worst-case (practical) linear time in the number of edges in the input graph. However, the algorithm employs very complex data-structures and we therefore do not implement it in this paper. A full description of this algorithm and the analysis of its computational complexity is beyond the scope of this paper. The details are given in [\cite=Chazelle:00a] [\cite=Pettie:02].
+
+The second, randomized, algorithm [\cite=Karger:95] has an expected run time of O(m + n) (which for connected graphs is O(m)). In this paper we employ only the randomized algorithm as an inference algorithm for first-order MST parsing. This algorithm is therefore described in details in this section.
+
+The Randomized Approach
+
+Definitions and Properties.
+
+We start by quoting two well known properties of undirected weighted graphs [\cite=Tarjan:83]:
+
+(1) The cycle property: The heaviest edge in a cycle in a graph does not appear in the minimum spanning forest.
+
+(2) The cut property: For any proper nonempty subset V' of the graph vertices, the lightest edge with exactly one endpoint in V' is included in the minimum spanning forest.
+
+We continue with a number of definitions and observations. Given an undirected graph G(V,E) with weighted edges, and a forest F in that graph, F(u,v) is the path in that forest between u and v (if such a path exists), and sF(u,v) is the maximum weight of an edge in F(u,v) (if the path does not exist then sF(u,v)  =    ∞  ). An edge (u,v)∈E is called F-heavy if s(u,v)  >  sF(u,v), otherwise it is called F-light. An alternative equivalent definition is that an edge is F-heavy if adding it to F creates a cycle in which it is the heaviest edge. An important observation (derived from the cycle property) is that for any forest F, no F-heavy edge can possibly be a part of an MSF for G. It has been shown that given a forest F, all the F-heavy edges in G can be found in O(m) time [\cite=Dixon:92] [\cite=King:95].
+
+Algorithm.
+
+The randomized algorithm can be outlined as follows (see pseudocode in algorithm [\ref=alg2]): first, two successive Boruvka-steps are applied to the graph (line 4, Boruvka-step2 stands for two successive Boruvka-steps), reducing the number of vertices by (at least) a factor of 4 to receive a contracted graph GC and an edge set Em (Section [\ref=boruvka]). Then, a subgraph Gs is randomly constructed, such that each edge in GC, along with the vertices which it connects, is included in Gs with probability [formula] (lines 5-10). Next, the algorithm is recursively applied to Gs to obtain its minimum spanning forest F (line 11). Then, all F-heavy edges are removed from GC (line 12), and the algorithm is recursively applied to the resulting graph to obtain a spanning forest FC (line 13). The union of that forest with the edges Em forms the requested spanning tree (line 14).
+
+Correctness.
+
+The correctness of the algorithm is proved by induction. By the cut property, every edge returned by the Boruvka step (line 4), is part of the MSF. Therefore, the rest of the edges in the original graph's MSF form an MSF for the contracted graph. The removed F-heavy edges are, by the cycle property, not part of the MSF (line 12). By the induction assumption, the MSF of the remaining graph is then given by the second recursive call (line 13).
+
+Computational Complexity.
+
+The detailed analysis of the computational complexity of this algorithm is beyond the scope of this paper. The interested reader is referred to [\cite=Karger:95]. Most importantly, although the worst-case run time of the algorithm is O(n2  +  m log n), its expected run time is O(m) and this run time is achieved with a high probability of 1 - exp( - Ω(m)).
+
+Dependency Parsing Inference with Undirected MST Computation
+
+Employing undirected MST algorithms for first-order dependency parsing inference may come with significant advantages in terms of run time performance. However, there are several challenges that should first be dealt with, all of them stemming from the directed nature of the dependency parsing problem. In the rest of the paper we refer to an MST parser that employs an undirected MST algorithm for inference as an undirected MST parser and to an MST parser that employs a directed MST algorithm for inference as a directed MST parser.
+
+The first problem is that of undirected encoding. Unlike directed MST parsers that explicitly encode the directed nature of dependency parsing into a directed input graph to which an MST algorithm will be applied [\cite=McDonald:05a] [\cite=McDonald:05b], an undirected MST parser needs to encode directionality information into an undirected graph. In this section we consider two solutions to this problem and in Section [\ref=experiments] we demonstrate the considerable differences between their qualities.
+
+The second problem is that of scheme conversion. The output of an undirected MST algorithm is an undirected tree while the dependency parsing problem requires finding a directed parse tree. In this section we show that for rooted undirected spanning trees there is only one way to define the edge directions under the constraint that the root vertex has no incoming edges and that each non-root vertex has exactly one incoming edge in the resulting directed spanning tree. As dependency parse trees obey the first constraint and the second constraint is a definitive property of directed trees (Section [\ref=directed-mst]), the output of an undirected MST parser can be transformed into a directed tree using a simple O(n) time procedure.
+
+Unfortunately, as we will see in Section [\ref=experiments], even with our best undirected encoding method, an undirected MST parser does not produce directed trees of the same quality as its directed counterpart. At the last part of this section we therefore present a simple, O(n) time, local enhancement procedure, that improves the score of the directed tree generated from the output of the undirected MST parser with respect to the edge scores of a standard directed MST parser. That is, our procedure improves the output of the undirected MST parser with respect to a directed model without having to compute the MST of the latter, which would take O(n2) time.
+
+We conclude this section with a final remark stating that the output class of our inference algorithm is non-projective. That is, it can generate all possible parse trees, projective and non-projective.
+
+Undirected Encoding
+
+Our challenge here is to design an encoding scheme that encodes directionality information into the graph of the undirected MST problem. One approach would be to compute directed edge weights according to a feature representation scheme for directed edges (e.g. one of the schemes employed by existing directed MST parsers) and then transform these directed weights into undirected ones.
+
+Specifically, given two vertices u and v with directed edges (u,v) and (v,u), weighted with sd(u,v) and sd(v,u) respectively, the goal is to compute the weight su() of the undirected edge () connecting them in the undirected graph. We do this using a pre-determined function [formula], such that f(sd(u,v),sd(v,u))  =  su(). f can take several forms including the mean of the two weights, their product and so on. In our experiments the mean proved to be the best choice.
+
+Training with the above approach is implemented as follows. w, the parameter vector of the parser, consists of the weights of directed features. At each training iteration, w is used for the computation of sd(u,v)  =  w  ·  φ(u,v) and sd(v,u)  =  w  ·  φ(v,u) (where φ(u,v) and φ(v,u) are the feature representations of these directed edges). Then, f is applied to compute the undirected edge score su(). Next, the undirected MST algorithm is run on the resulting weighted undirected graph, and its output MST is transformed into a directed tree using the procedure described in Section [\ref=directing]. Finally, this directed tree is used for the update of w with respect to the gold standard (directed) tree.
+
+At test time, the vector w which resulted from the training process is used for sd computations. Undirected graph construction, undirected MST computation and the undirected to directed tree conversion process are conducted exactly as in training.  In evaluation setup experiments we also considered a variant of this model where the training process utilized directed MST inference. As this variant performed poorly, we exclude it from our discussion in the rest of the paper.
+
+Unfortunately, preliminary experiments in our development setup revealed that this approach yields parse trees of much lower quality compared to the trees generated by the directed MST parser that employed the original directed feature set. In section [\ref=experiments] we discuss these results in details.
+
+An alternative approach is to employ an undirected feature set. To implement this approach, we employed the feature set of the MST parser ([\cite=McDonald:05a], Table 1) with one difference: some of the features are directional, distinguishing between the properties of the source (parent) and the target (child) vertices. We stripped those features from that information, which resulted in an undirected version of the feature set.
+
+Under this feature representation, training with undirected inference is simple. w, the parameter vector of the parser, now consists of the weights of undirected features. Once the undirected MST is computed by an undirected MST algorithm, w can be updated with respect to an undirected variant of the gold parse trees.
+
+At test time, the algorithm constructs an undirected graph using the vector w resulted from the training process. This graph's undirected MST is computed and then transformed into a directed tree using the procedure described in Section [\ref=directing].
+
+Interestingly, although this approach does not explicitly encode edge directionality information into the undirected model, it performed very well in our experiments (section [\ref=experiments]), especially when combined with the local enhancement procedure (Section [\ref=trick]).
+
+Scheme Conversion
+
+Once the undirected MST is found, we need to direct its edges in order for the end result to be a directed dependency parse tree. Following [\cite=McDonald:05b], and as is now a standard practice in graph-based dependency parsing, we add a dummy root vertex to the initial input graph with edges connecting it to all of the other vertices in the graph. Consequently, the final undirected tree will have a designated root vertex. In the resulting directed tree, this vertex is constrained to have only outgoing edges.
+
+Given a root vertex that follows the above constraint, and together with the definitive property of directed trees stating that each non-root vertex in the graph has exactly one incoming edge (Section [\ref=directed-mst]), we can direct the edges of the undirected tree using a simple BFS-like algorithm (Figure [\ref=directing-fig]). Starting with the root vertex, we mark its undirected edges as outgoing, mark the vertex itself as done and its descendants as open. We then recursively repeat the same procedure for each open vertex until there are no such vertices left in the tree, at which point we have a directed tree. Note that given the constraints on the root vertex, there is no other way to direct the undirected tree edges. It is easy to see that this procedure runs in O(n) time, as it requires a constant number of operations for each of the n - 1 edges of the undirected spanning tree.
+
+In the rest of the paper we refer to the directed tree generated by the undirected and directed MST parsers as du-tree and dd-tree respectively.
+
+Local Enhancement Procedure
+
+As noted above, experiments in our development setup (Section [\ref=experiments]) revealed that the directed parser performs somewhat better than the undirected one. This raised the question of whether we could improve the tree produced by the undirected model with respect to the directed model without compromising our O(m) run time.
+
+Here we present a local enhancement procedure that does exactly that. Our enhancement procedure is motivated by development experiments, revealing the much smaller gap between the quality of the du-tree and dd-tree of the same sentence under undirected evaluation compared to directed evaluation (Section [\ref=experiments] demonstrates this for test results).
+
+Given a directed edge (u,v) (for a non-root vertex u) in the du-tree, and given that t is u's parent in that tree, we therefore consider the replacement of (u,v) with (v,u). Note, that this change would result in a graph which is no longer a directed tree, since it would cause u to have two parents, v and t, and v to have no parent. This, however, can be rectified by replacing the edge (t,u) with the edge (t,v).
+
+It is easy to infer whether this change results in a better (lower weight) spanning tree under the directed model by computing the equation: gain  =  sd(t,u)  +  sd(u,v)  -  (sd(t,v)  +  sd(v,u)), where sd(x,y) is the score of the edge (x,y) according to the directed model. This is illustrated in Figure [\ref=trick-fig].
+
+Given the du-tree, we traverse each of its edges and compute the above gain. We then choose the edge with the maximal gain (given that the gain is positive), as this forms the maximal possible decrease in the directed model score using modifications of the type we consider, and perform the corresponding modification. In our experiments we performed this procedure five times. This procedure performs a constant number of operations for each of the n - 1 edges of the du-tree, resulting in O(n) run time.
+
+Output Class.
+
+Our undirected MST parser is non-projective. This stems from the fact that the undirected MST algorithms we discuss in Section [\ref=state-of-the-art] do not enforce any structural constraint, and particularly the non-crossing constraint, on the resulting undirected MST. As the scheme conversion (edge directing) and the local enhancement procedures described in this section do not enforce any such constraint as well, the resulting tree can take any possible structure.
+
+Experiments and Results
+
+Experimental setup
+
+We employed the MSTParser [\cite=McDonald:05b] code, replacing its directed inference procedure with the randomized undirected MST algorithm of [\cite=Karger:95]. As described in Section [\ref=undirecting-representation], we experimented with two undirected representations, differing with respect to whether or not the features encode edge directionality, a decision that in turn affects the way the undirected inference procedure is integrated into the parser training. We employed the method described in Section [\ref=directing] to transform the undirected tree produced by our inference procedure into a directed one.
+
+The rest of the MSTParser code was left unchanged. Particularly, the MSTParser does not employ any pruning strategy before running inference. We do not implement a pruning strategy of our own as this may intervene with the evaluation of the accuracy of the inferred parse trees, in cases where the pruning algorithm prunes edges that belong to the original graph's MST.
+
+Our models were developed in a monolingual setup - the classical WSJ PTB [\cite=marcus:93] development setup - with sections 2-21 used for training and section 22 for evaluation. The development phase was devoted to the various decisions detailed throughout this paper and to the tuning of the single hyperparameter - the number of times the local enhancement procedure is executed.
+
+We evaluate four models: (a) Directed MST (D-MST), the original directed parser of [\cite=McDonald:05b]); (b) Our undirected MST parser with undirected features and with the local enhancement procedure (U-MST-uf-lep); (c) Our undirected MST parser with undirected features but without the local enhancement procedure (U-MST-uf); and (d) Our undirected MST parser with directed features (U-MST-df).
+
+We tested the models in three English setups as well as in multilingual setups. The English setups are: (a) PTB: training on sections 2-21 of the WSJ PTB and testing on its section 23; (b) GENIA: training with a random sample of 90% of the 4661 GENIA corpus [\cite=ohta2002genia] sentences and testing on the other 10%; and (c) QBank: a setup identical to (b) for the 3987 QuestionBank [\cite=judge2006questionbank] sentences. Multilingual parsing was performed with the multilingual datasets of the CoNLL 2006 [\cite=buchholz2006conll] and CoNLL 2007 [\cite=nilsson2007conll] shared tasks on multilingual dependency parsing, following the standard train/test split of these tasks. Following previous work, punctuation was excluded from the evaluation.
+
+For each model we report the standard directed unlabeled attachment accuracy score (directed UAS). In addition, since this paper explores the value of undirected inference for a problem that is directed in nature, we also report the undirected unlabeled attachment accuracy score (undirected UAS) for the various models, hoping that these results will shed light on the differences between the trees generated by the different models.
+
+Results
+
+Tables [\ref=results_directed] and  [\ref=results_undirected] present our main results. While the directed MST parser (D-MST) is the best performing model across almost all test sets and evaluation measures, it outperforms our best model, undirected MST parser with undirected features and with the local enhancement procedure (U-MST-uf-lep) by a very small margin.
+
+Particularly, for directed UAS, D-MST outperforms U-MST-uf-lep by up to 1% in 14 out of 20 setups (in 6 setups the difference is up to 0.5%). In 5 other setups the difference between the models is between 1% and 2%, and only in one setup it is above 2% (2.6%). Similarly, for undirected UAS, in 2 setups the models achieve the same performance, in 15 setups the difference is less than 1% and in the other setups the differences is 1.1% - 1.5%. The average differences are 0.97% and 0.67% for directed and undirected UAS respectively.
+
+Table [\ref=head-to-head] reveals the complementary nature of the two models. Our U-MST-uf-lep model outperforms the D-MST model on an average of 22.2% of the sentences across test setups, and is outperformed by it on an average of 22.2% of the sentences. An oracle model that would select the parse tree of the best model for each sentence would improve directed UAS by an average of 1.2% over D-MST across the test setups (calculated by subtracting the oracle numbers of Table [\ref=head-to-head] from the D-MST numbers of Table [\ref=results_directed] and averaging the results).
+
+These results demonstrate the power of first-order graph-based dependency parsing with undirected inference. Although it applies a substantially different inference algorithm, our U-MST-uf-lep model performs very similarly to the standard MST parser which employs directed MST inference.
+
+The tables further demonstrate the value of the local enhancement procedure. Indeed, U-MST-uf-lep outperforms U-MST in all 20 setups when directed UAS is considered and in 15 out of 20 setups when undirected UAS is considered (in one setup there is a tie). However, the improvement this procedure provides is much more noticeable for directed UAS, with an averaged improvement of 2.35% across setups, compared to undirected UAS for which the averaged improvement is only 0.26% across setups.
+
+Considering the fact that half of the changes performed by the local enhancement procedure are in edge direction, to which undirected UAS is insensitive, this pattern is not surprising. Yet, the marginal improvement of the procedure under undirected evaluation implies that most of its power comes from the edge direction changes which suggests that a more sophisticated edge replacement strategy would be beneficial.
+
+Finally, when moving to directed features (the U-MST-df model), both directed and undirected UAS substantially degrade, with more noticeable degradation in the former. We hypothesis that this poor performance is the outcome of estimating the weights of directed features from training data while performing inference with undirected edge weights.
+
+Conclusion
+
+We present a first-order graph-based dependency parsing model which runs in edge linear time at expectation and with very high probability. In extensive multilingual experiments our model performs very similarly to a standard directed first-order parser. Moreover, our results demonstrate the complementary nature of the models, with our model outperforming its directed counterpart on an average of 22.2% of the test sentences.
+
+Beyond its practical implications, our work provides a novel intellectual contribution in demonstrating the power of undirected graph based methods in solving an NLP problem that is directed in nature. We believe this contribution has the potential to affect future research on additional NLP problems.
+
+In future work we intend to explore potential extensions of the techniques presented in this paper to higher order, projective and non-projective, dependency parsing. In addition, the complementary nature of the directed and undirected parsers motivates the development of methods for their combination.

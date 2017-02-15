@@ -1,0 +1,321 @@
+Variance Reduction for Particle Filters of Systems with Time Scale Separation
+
+Introduction
+
+The field of dimensional reduction has seen a flourishing in the last decade (see e.g. the reviews in [\cite=CS05] [\cite=GKS04]), mainly due to i) the realization that many systems of physical interest are more complex than one can handle even with the largest available computers and ii) the fact that for many complex systems the quantities of interest are coarse-scale features. Once a reduced model is constructed, it can be used in conjunction with filtering algorithms, like particle filters [\cite=DFG01], to incorporate information from real-time measurements. If the system under consideration exhibits time scale separation, the construction of a reduced model and subsequently of a particle filter, is also simplified. In this work we present a particle filter which exploits this simplification to create a particle filter that is more efficient than the particle filter of the original (large dimensional) system. The particle filter we construct is proved to converge to the analytical filter of the original system.
+
+A strategy for reducing the number of unknowns in an application of a filter for nonlinear dynamical systems is proposed in [\cite=CK04]. In that work the authors assumed that the dynamics are strongly locally contractive in some directions which are found adaptively. Here we make an alternative assumption. We instead assume that the system exhibits a time scale separation. By this we mean that certain components or modes of the system tend to move very slowly in comparison with the rest of the modes. In particular we are interested in approximating conditional expectations the form
+
+[formula]
+
+where Zk are noisy observations of some multiscale Markov process Xt at discrete times [formula] For a very general definition of a multiscale Markov process see [\cite=kur73] [\cite=Pap77] and [\cite=ps08]. We will illustrate the method presented below for the particular case that Xt is the solution to a stochastic differential equations with time scale separation (see equation [\eqref=eq:system]). The basic idea, however, can be applied to filtering problems for a variety of multiscale Markov process for which fast multiscale integration methods are available (see [\cite=GK03] [\cite=Van03] [\cite=ELV05] [\cite=GKK06] [\cite=CGP05] [\cite=elv07] [\cite=givon:495] [\cite=ps08] and the references therein). In section [\ref=sec:numbers], our filtering method is applied first to the reconstruction of the trajectory of a multiscale stochastic differential equation and second to the reconstruction of a trajectory of a pure jump Markov process motivated by chemical reactions that takes place on vastly different time scales.
+
+Loosely speaking, recursive estimation of conditional expectations of the form above can be accomplished in two steps. First, in the prediction step, the system is evolved according to its evolution law. Second, in the update step, the resulting samples of the system are weighted by the likelihood of the next observation given the sample. We describe the filtering problem in more detail in the next section. The separation of time scales facilitates the construction of an efficient particle filter in two ways: i) it allows for fast evolution of the system in the prediction step and ii) it allows the integration of the observation weights over the fast modes of the system during the update step. Step ii) amounts to a Rao-Blackwellization of a standard particle filter estimator.
+
+Multiscale phenomena have been observed in wide ranging areas of research. For example, empirical evidence from a study of exchange rate dynamics in [\cite=abd02], suggests the use of stochastic volatility models with both fast and slow time scales. Other examples of systems with scale separation include chemical reaction systems where there can exist a difference of several orders of magnitude among the different reaction rates (see [\cite=CGP05] [\cite=elv07] [\cite=hr02] [\cite=ra03] [\cite=rmgk04]). Similar problems exist in material science (see [\cite=curtin]) and molecular dynamics simulations (see [\cite=mttk96]) where one is interested in large scale features of the system but this behavior depends critically on the small (and fast) scale motion. An even more challenging problem is that of weather prediction and how to assimilate (through filtering) the vast amount of measurements collected daily around the globe. The weather system exhibits an extremely large range of active scales not necessarily with clear time scale separation (see [\cite=miller] [\cite=weare08]). A projection formalism framework, for the construction of reduced models of large systems with or without time scale separation, has been presented by Chorin and co-workers (see [\cite=chorin1]).
+
+The main difficulty presented by multiscale phenomena is that they are extremely costly to integrate. The vast majority of computational time is spent evolving the fast components of the system while one may be primarily interested in slow scale characteristics. This implies that the prediction step in any filtering method which does not take directly into account the multiscale structure of the problem will become prohibitively costly as the time scale separation increases. As described in detail below, our method addresses this issue through its incorporation of the multiscale integration scheme.
+
+A second issue, common to importance sampling techniques for high dimensional problems, is controlling the variance of the resulting estimator. To address this in the context of particle filtering, many authors have suggested the use of some form of Rao-Blackwellization (see [\cite=ah77] [\cite=dga00] [\cite=dgk01] [\cite=klw94] [\cite=lc98] [\cite=Vas07] for example). The distribution of the underlying Markov process given current and past observations can always be factored into a posterior marginal distribution for some set of (in our case slow) variables and a posterior conditional distribution for the remaining (in our case fast) variables given the first set of variables. Rao-Blackwellization requires that expectations with respect to the resulting posterior conditional distribution can be carried out exactly. In the case that the posterior conditional distribution can be sampled, the Rao-Blackwellization procedure can be approximated by Monte Carlo averaging over these samples. As discussed in detail later, the separation of scales assumption made in this paper allows an approximate factorization of the posterior distribution in which samples from the posterior conditional distribution can be easily and efficiently generated. While our assumption on the system clearly restricts the class of possible applications, another advantage of our setup is that the posterior conditional distribution of the unresolved variables is allowed to be quite general (for example very non-Gaussian).
+
+A method closely related to the one presented here was recently proposed in [\cite=Pap08]. There is, however, an important difference. In [\cite=Pap08] it is assumed that the observations and the objective function (f in the conditional expectation above) depend directly only on the slow modes in the system. Here we allow for general observations and general objective functions. This fact is central to the utility of our algorithm. The method proposed here is designed to not only improve the efficiency of the prediction step of a particle filter, but also to reduce the number of particles required to achieve a given accuracy. In fact, in some problems with a moderate time scale separation, one may not observe any gain in efficiency in the prediction step, while the reduction in variance may be significant. It should also be noted that analytical results for continuous time multiscale filtering problems have been obtained by Kushner in [\cite=Kus90].
+
+The paper is organized as follows. Section [\ref=sec:filteringproblem] recalls the well known particle filter construction for a general Markov process which is observed with noise at a discrete set of instants. Section [\ref=sec:reduced] presents our particle filter construction in the particular case of a multiscale stochastic differential equation. Section [\ref=sec:scalerao] discusses how the presence of a separation of time scales can lead to a construction of a reduced model for the slow components of the system and how it allows the Rao-Blackwellization of the filtering step. It also includes a particle filter construction which is based on the assumption that the reduced model can be constructed analytically and the Rao-Blackwellization of the filtering step can be performed analytically. Section [\ref=sec:free] contains the main algorithm, which approximates the particle filter presented in Section [\ref=sec:scalerao] when the necessary calculations cannot be performed analytically. Section [\ref=sec:sde] contains numerical results for a system of stochastic differential equations. Section [\ref=sec:jump] contains numerical results for a pure jump type Markov process motivated by multiscale chemical reactions. Finally, Section [\ref=sec:conclusions] contains a discussion of the algorithm and of the results.
+
+The filtering problem and particle filters
+
+We start by formulating the filtering problem. Assume that Xt is a d-dimensional Markov process with transition probability QΔs(x,dx') where Q0(dx) is a known distribution on [formula]. We assume for notational convenience, that the process is autonomous. The process Xt is usually called the hidden signal. Assume, also, that we have noisy discrete observations at N regularly spaced times of length Δs = sk - sk - 1 for [formula] where s0 = 0 and sk the time of the i-th observation. The observations satisfy,
+
+[formula]
+
+where the χk are i.i.d random variables, independent of Xt, and for all x the variable Z = G(x,χ) admits a density z  →  g(x,z) which is known. Let 1:k denote the sequence [formula] for [formula]. The filtering problem consists of computing the conditional expectations
+
+[formula]
+
+where f belongs to some reasonable family of functions. The quantities Πkf constitute the filter (called the analytical filter).
+
+The conditional expectation Πkf can be written as
+
+[formula]
+
+where [formula] stands for integration over the variables [formula] Let Hk be the kernels,
+
+[formula]
+
+The filter ([\ref=eq:filter1]) can be written recursively as
+
+[formula]
+
+Usually, the integrals in ([\ref=eq:filter2]) cannot be computed analytically. A particle filter [\cite=GSS93] [\cite=DFG01] is an approximation to the analytical filter ([\ref=eq:filter2]). In its simplest form, a particle filter consists of the following steps:
+
+Filtering for systems with time scale separation
+
+Scale separation and Rao-Blackwellization
+
+Many problems in the natural sciences give rise to systems with time scale separation. These systems represent a challenge for numerical simulations. For example in molecular dynamics simulations femtoseconds timesteps are required to integrate the fastest atomic motions, while the object of interest is of orders of microseconds or longer. In the past four decades systems with scale separation have been the focus of extensive research within the framework of the averaging principle. The separation of scales is utilized to derive an effective model for the slow components of the system. While the averaging principle and its resulting effective dynamics provide a substantial simplification of the original system it is often impossible or impractical to obtain the reduced equations in closed form. This has motivated the development of algorithms such as multiscale integration methods described in the next section.
+
+To make the presentation more concrete we will describe the situation for a d-dimensional systems of stochastic differential equations with multiple time scales (see [\cite=FW84] Chapter 7). As mentioned in the introduction, the ideas that we will discuss can be applied to filtering problems for any multiscale Markov process for which multiscale integration methods are available.
+
+Let (Xεt,Yεt) be a solution of the system where Ut and Vt are independent Brownian motions. The hidden variable (Xεt,Yεt) is a Markov process with transition probability QεΔs((x,y),(dx',dy')) on [formula] (with dx + dy = d). The Xεt variables evolve on a O(1) time scale (the macro time scale), and the Yεt variables evolve on an O(ε) time scale (the micro time scale). As above, we have noisy discrete observations,
+
+[formula]
+
+where the χk are i.i.d variables, independent of x,y, and for all x,y the variable Z = G(x,y,χ) admits a density z  →  g(x,y,z) which is known.
+
+The standard approach to this filtering problem (see [\cite=DJP01]) is to use an easily sampled approximation [formula] of the transition probability QεΔs((x,y),(dx',dy')) where the discrete time step δt is of scale comparable to ε. If one is interested in the evolution of the system over O(1) time scales then one must evolve the system for [formula] steps, which can be very costly for systems with large scale separation. In addition to simulation issues inherent to multiscale phenomena, particle filters can suffer from all of the usual difficulties associated with importance sampling in large dimensional spaces. That is, in high dimensional systems, the variance of the particle filter estimator can be difficult to control.
+
+In this section we show how the averaging principle and Rao-Blackwellization can be used to reduce the computational effort for each particle and the number of required particles. The method we discuss assumes that the Rao-Blackwellization and the construction of the dimensionally reduced model can be performed analytically. Unfortunately, this is rarely the case. In the next section, we show how the multiscale integration framework can be used to implement our approach when we are not able to perform the Rao-Blackwellization and the construction of the reduced model analytically.
+
+Under appropriate assumptions (see [\cite=Kha68] [\cite=kur73] [\cite=Pap77] [\cite=FW84]), the averaging principle dictates that as [formula]
+
+[formula]
+
+where X̄t satisfies
+
+[formula]
+
+The averaged coefficient ā is given by
+
+[formula]
+
+where μx(dy) is the invariant measure induced by [\eqref=eq:system2] with the x variables fixed.
+
+The key consequence of the time scale separation is that, loosely speaking, for ε small enough and for Δs  ≫  ε, the transition density [formula] can be approximately factored as
+
+[formula]
+
+where Δs is the transition density for the averaged system, [\eqref=eq:effective]. The factorization [\eqref=eq:transapprox] above is the central tool in the construction of the multiscale particle filter below and is not a feature limited to multiscale stochastic differential equations. The algorithms below apply to any problem for which this approximation holds and for which some means of sampling (or approximately sampling) Δs(x,dx') and μx'(dy) are available. This is the case for both of the examples in Section [\ref=sec:numbers].
+
+The relation [\eqref=eq:transapprox] suggests that an approximate particle filter can be constructed by defining the kernel,
+
+[formula]
+
+The corresponding particle filter would proceed as follows, There is no reason to hope that this algorithm should provide any variance reduction. Indeed, in the ideal case that expression [\eqref=eq:transapprox] is an equality, the variance of the particle filter would be identical to the variance of the standard particle filter [\ref=eq:filter2].
+
+However, knowledge of μxsk(dy) allows one to integrate out y in expression [\eqref=eq:kernelaveraged] and write this same kernel in another form,
+
+[formula]
+
+This suggests a different filtering algorithm:
+
+Since the y components of the resampled particles after Step 4 are not used in Step 2, we can, in practice, resample from the marginal density
+
+[formula]
+
+In order to illustrate the variance reduction aspects of algorithm [\ref=avefilterrb] we will consider the asymptotic variance of a pair of related but much simpler estimators. Define the conditional expectations k recursively by, Let
+
+[formula]
+
+and
+
+[formula]
+
+where (Xjk,Yjk) are i.i.d. samples from the measure Πk - 1Δsμ Notice that the only difference between Inkf and Ψnkf described in Algorithm [\eqref=eq:kernelaveraged] is that the samples (Xjk,Yjk) are independently drawn from k - 1Δsμ instead of its particle approximation Ψnk - 1Δsμ. A corresponding relationship holds between Īnkf and nkf.
+
+The estimators Inkf and Īnkf satisfy Central Limit Theorems, i.e.
+
+[formula]
+
+and
+
+[formula]
+
+An application of the delta method (see [\cite=robert04]) yields that and 2 can be rewritten as
+
+[formula]
+
+Therefore, by Jensen's inequality, we have that
+
+[formula]
+
+It is important to note that the variance reduction offered by Algorithm [\ref=avefilterrb] does not require any Gaussian or degenerate measure approximations. The main assumptions are that the system have a multiscale structure and that one can sample from Δs(x,dx') and evaluate averages with respect to the ergodic measure μx (which we assume exists). In many cases, for example those in Section [\ref=sec:numbers], the first assumption can be easily verified. For most general systems, Δs(x,dx') is not available in closed form. In practice, we must replace Δs by some approximation. For example in the case of x̄t above we can use the transition probability kernel for the Euler-Maruyama scheme with step size Δt, ΔtΔs. Of course to apply the Euler approximation to [\eqref=eq:effective] we must be able to exactly evaluate averages with respect to μx. The removal of this assumption will be addressed in the next section.
+
+Implementation of the multiscale integration for the reduced particle filter
+
+In the particle filter construction of the previous section we used the fact that we can average over the invariant measure induced by the fast variables. This is usually impossible since the invariant measure is unknown or because integration cannot be performed analytically. We will demonstrate that this problem can be overcome by using multiscale integration schemes (see [\cite=GK03] [\cite=Van03] [\cite=ELV05] [\cite=GKK06] [\cite=CGP05] [\cite=elv07] [\cite=givon:495]). In the following description we will be discussing specifically the multiscale integration schemes of the form analyzed in [\cite=ELV05] and [\cite=GKK06]. The system studied in section [\ref=sec:jump] is a pure jump Markov process and therefore requires a different multiscale integration scheme (see [\cite=CGP05] [\cite=elv07]). Let Δt be a fixed time step, and Xk,l be the numerical approximation to the coarse variable, X̄ from the previous section, at time tk,l  =  sk + lΔt (recall sk is the k-th observation time). Assume for simplicity that [formula] is an integer. Inspired by the limiting equation [\eqref=eq:effective], Xk,l is evolved in time by an Euler-Maruyama step,
+
+[formula]
+
+for [formula] where ΔWtk,l are Brownian displacements over a time interval Δt. We refer to [\eqref=eq:macro] as the macro-solver, or macro integrator, and we denote its transition probability by Δt,δt,MΔs(x,dx'). Notice that with this notation Xk,0  =  Xk - 1,L.
+
+The function A(x) approximates ā(x), introduced in the previous section, which is the average of a over an ergodic measure. The ergodic property implies that instead of ensemble averaging we can use time averaging over trajectories of the rapid variables with fixed x. Since, by assumption, this average cannot be performed analytically, it is approximated by an empirical average over short runs of the fast dynamics. These "short runs" are over time intervals that are sufficiently long for empirical averages to be close to their limiting ensemble averages, yet sufficiently short for the entire procedure to be efficient compared to the direct solution of the coupled system.
+
+Thus, given the coarse variable at the k,l-th time step, Xk,l, we take some initial value for the fast component Yk,l,0, and solve [\eqref=eq:system2] numerically with step size δt and x = Xk,l fixed. We denote the discrete variables associated with the fast dynamics at the k,l-th coarse step by Yk,l,m, [formula] The numerical solver used to generate the sequence Yk,l,m is called the micro-solver, or micro-integrator. The simplest choice is again the Euler-Maruyama scheme,
+
+[formula]
+
+where ΔVk,l,m are Brownian displacements over a time interval δt. In this equation Xk,l is a parameter in Yk,l,m though this will not be explicitly written. Since we assume that the dynamics of the y variables is ergodic, we may choose Yk,l,0  =  Yk,l - 1,m for all k and l. For convenience however, we will set Yk,l,0 = 0. As for the X variables, our notation implies Yk,0,m = Yk - 1,L,m for all m.
+
+The existence, under appropriate assumptions, of an invariant measure, μδtx, of the numerical scheme [\eqref=eq:microsolver], follows from results in [\cite=higham] [\cite=roberts]. The measure μδtx is an approximation to μx. This suggests estimating the function ā by
+
+[formula]
+
+Since we will frequently encounter this form of trajectory averaging in the sequel, we define the symbol
+
+[formula]
+
+where h is some function defined on [formula] We will henceforth omit from our notation, the dependence of SMh on the variables [formula] Equations [\eqref=eq:macro], [\eqref=eq:microsolver], and [\eqref=eq:AandB] define the multiscale integration scheme. We note here that, in fact, since for our filtering application of the multiscale integration scheme we are interested in reproducing the distribution of the process [\eqref=eq:system] and not actual trajectories, we can replace the average in [\eqref=eq:AandB] by evaluation at the single point Yk,l,M. Since expression [\eqref=eq:AandB] is only marginally more expensive and corresponds more naturally to the method of averaging, we will not bother with this simplification.
+
+Suppose that the joint distribution of Yk,l,m given that Xk,l  =  x and Yk,l,0 = 0 is [formula] We can define the measure μMx by,
+
+[formula]
+
+where the subscript x on the expectation emphasizes the dependence of the random variables Yk,l,m on the parameter x.
+
+By using trajectory averages over the fast dynamics to approximate integrals over μx of the observation density as well as the coefficient ā we can define a particle filter which approximates the Rao-Blackwellization step of the previous section. The following kernel is an approximation of expression [\eqref=eq:kernelaveragedRB],
+
+[formula]
+
+The next particle filter, defined in the following algorithm, corresponds to [\eqref=eq:kernelfinal] and differs from Algorithm [\ref=avefilterrb] in that we evolve the particles according to Δt,δt,MΔs instead of Δs and, in the update Step, instead averaging over the measure μx we average over a trajectory of Yjk,l,m.
+
+Since the y components of the resampled particles after Step 4 are not used in Step 2, we can, in practice, resample from the marginal density
+
+[formula]
+
+The two procedures give equivalent estimates and differ only in that the work required for the resampling Step using [\eqref=altresample2] will scale with n instead of nM (of course calculating the averaged weights requires O(nM) work). In practice to initialize Y'j variables at each time Step of Eq. ([\ref=eq:macro]) we set, Y'jk,l,0  =  Y'jk,l - 1,m. This choice results in faster equilibration of the Y' process.
+
+While the details of the multiscale integration scheme do depend on the particular Markov process under study, algorithm [\ref=finalfilter] can be applied in the same form to a wide variety of multiscale Markov processes (for example the system in section [\ref=sec:jump]).
+
+Numerical results
+
+A stochastic differential equation
+
+We present a simple numerical example which demonstrates the variance reduction obtained through our algorithm. Consider the system given by,
+
+[formula]
+
+The parameter ε in this example is set to 10- 4. A trajectory of the system is shown in Figure [\ref=fig:sdetraj]. The ergodic measure of the fast dynamics for this system is known and has the bimodal density
+
+[formula]
+
+A plot of μx for x = 1 is shown in Figure [\ref=fig:mu].
+
+The observations are given by,
+
+[formula]
+
+where χ are independent Gaussian random variables with mean 0 and standard deviation 0.1. In the experiment below we take as the realization of the observations, zk, the trajectory shown in Figure [\ref=fig:sdetraj] sampled at every one unit of time. We will compare the standard particle filtering algorithm with Algorithm [\ref=finalfilter]. Both methods are run with 1000 particles. System [\eqref=eq:numer] is discretized by the Euler-Maruyama method with time step δt = 10- 6. The multiscale integration scheme uses a time steps of size [formula] to evolve the reduced system [\eqref=eq:macro] and of size δt in the microscopic system [\eqref=eq:microsolver]. With this choice of parameters Algorithm [\ref=finalfilter] runs in about half of the time of the standard particle filter.
+
+As in the definitions of the particle filters above, for any function f define
+
+[formula]
+
+and
+
+[formula]
+
+In Figure [\ref=fig:sdeest] we compare the pairs of estimators,
+
+[formula]
+
+and
+
+[formula]
+
+Notice that the poor quality of the reconstruction of Xεt is not due to an error. The symmetry of the observation model and of the Yεt dynamics, implies that, in the limit ε  →  0, the true condition expectation of Xεt, given any observations of Yεt alone, will be identically zero. Therefore, both estimators appear to be accurate.
+
+In order to compare the quality of the samples generated by the two methods we compute the effective sample sizes of the empirical measures produced by both methods,
+
+[formula]
+
+where and
+
+[formula]
+
+The effective sample size is a common measure of the quality of a weighted empirical measure produced by an importance sampling scheme (see [\cite=liu95]). Very roughly, the effective sample size gives the number of independent samples from the target measure that would produce an unweighted empirical measure of equal quality. When all of the weights are equal (i.e. the samples are drawn from the target measure itself) the effective sample size is the total number of samples (in our case 1000).
+
+The trajectories of ess1 and ess2 are plotted in Figure [\ref=fig:sdeess]. As can be seen in the plot, the effective sample sizes generated by Algorithm [\ref=finalfilter] are nearly 10 times as large as those generated by the standard particle filter. This indicates that there is some improvement in the quality of the empirical measure generated by Algorithm [\ref=finalfilter].
+
+It is important to note while the cost of the two methods in this experiment are comparable, in the limit ε  →  0 a discretization of the system [\eqref=eq:numer] would require smaller and smaller time steps. Thus the computational advantage for the multiscale particle filter would become extreme in this limit. The next example features a larger time scale separation and a correspondingly larger gain in efficiency due to multiscale integration.
+
+A pure jump type Markov process
+
+We now demonstrate our algorithm with a numerical example motivated by chemical reactions. The stochastic dynamical behavior of a well stirred mixture of N molecular species that chemically interact through M reaction channels is accurately described by the chemical master equation. The master equation is usually simulated using the Stochastic Simulation Algorithm of Gillespie [\cite=Gil76]. In cellular systems where the small number of molecules of a few reactant species sometimes necessitates a stochastic description of the system's temporal behavior, chemical reactions often take place on vastly different time scales. An exact stochastic simulation of such a system will necessarily spend most of its time simulating the more numerous fast reaction events.
+
+For N molecular species the state of the system [formula] is the number of molecules of each species present at time t. The molecular populations [formula] are random variables. For each reaction channel [formula] we define the propensity function [formula] and the state change vector vj. The propensity function is such that [formula] is the probability given [formula] that one Rj reaction will occur in the next infinitesimal time interval [formula]. The state change vector vj is the change in the number of Si molecules produced by one Rj reaction.
+
+The pathwise evolution law for the master equation is a jump type Markov process on the non negative N-dimensional integer lattice given by
+
+[formula]
+
+where Pj is a Poisson process with state dependent intensity parameter [formula].
+
+In our system we choose N = 6 species and M = 5 reaction channels. Variables [formula] are the fast variables and S6 is the slow variable. For the evolution of the fast variables we choose a simple fast biomolecular (reversible) reaction
+
+[formula]
+
+and a fast (reversible) dimerization
+
+[formula]
+
+The propensity functions are given by
+
+[formula]
+
+where the reaction rates [formula] are specified below. We will use the shorthand
+
+[formula]
+
+For the slow variable S6 we choose an external source (spontaneous creation)
+
+[formula]
+
+which is coupled to the fast variables through the slow reaction's propensity function
+
+[formula]
+
+The state change vectors for the system just described are given by the matrix,
+
+[formula]
+
+Finally the reaction constants vector is given by
+
+[formula]
+
+A trajectory of this system is plotted in Figure [\ref=fig:jumptraj]. One can clearly see the separation in time scale between the slow and fast variables. By examination of the propensities, ai, above one can see that the Sf variables evolve on a time scale of roughly 10- 9 while S6 evolves on a time scale of roughly 10- 2.
+
+The initial populations, [formula] are drawn according to where η is a vector of independent uniformly distributed random variables in the interval . The observations are taken every 1 unit of time from time 0 to time 10 and are modeled by
+
+[formula]
+
+where the χ(l) are independent vectors of independent, mean 0, standard deviation 5, Gaussian random variables. While this noise model is somewhat arbitrary, it can be considered to model measurement error. In our experiments we take z(l) to be equal to the particular trajectory shown in Figure [\ref=fig:jumptraj] at time l for [formula]
+
+Because the standard particle filter is too expensive to run (almost 1000 times the cost of the multiscale particle filter) it is not available for comparison. However, we can still investigate the variance reduction aspect of the method by comparing two filters that both use the multiscale integration scheme during the prediction step, but that handle the update step in different ways. These two procedures are described in the next paragraph. For the details of the implementation of the multiscale integration scheme applied here please see [\cite=CGP05] [\cite=elv07].
+
+The two particle filters applied here correspond roughly to algorithms [\ref=avefilter] and [\ref=avefilterrb]. In the first, at iteration l, we apply the multiscale integration scheme during the prediction step (thereby generating an approximate sample, S'j6(l) from Δs) then we choose one sample S'jf approximately from the measure μS'j6(l) and proceed as in the rest of algorithm [\ref=avefilter]. The latter sampling step is accomplished by sampling the end point from a long (10- 4 time units) equilibrated trajectory of the fast dynamics with the value S'j6(l) set as a parameter. The second method (corresponding to [\ref=avefilterrb]) proceeds in exactly the same way except that in the second step we sample 104 points S'jf,m, at equal time intervals, from a long (again 10- 4 time units) equilibrated trajectory of the fast dynamics with the value S'j6(l) set as a parameter. The points S'jf,m are then used to approximate the two averages appearing in Step 3 of algorithm [\ref=avefilterrb]. With the severe scale separation present in this problem, the variance of the first method just described (no likelihood weight averaging) is an accurate representation of the variance of the standard particle filter. The increased cost of the averaging in the second method is negligible.
+
+Both particle filters are tested with 1000 particles. The resulting estimators,
+
+[formula]
+
+where, for any function f,
+
+[formula]
+
+and
+
+[formula]
+
+of Si are plotted in Figure [\ref=fig:jumpest] along with the hidden trajectory of S6. Clearly both methods accurately reconstruct the path of S. Upon close inspection one can see that the estimate e2 is slightly closer to the actual trajectory (which is the same as the observations in this example). However Figure [\ref=fig:jumpest] is by no means conclusive evidence that that e2 provides a better estimate.
+
+The gain in efficiency of the empirical measure generated using the averaged weights does become clear when we compare the effective sample sizes of the empirical measures produced by both methods,
+
+[formula]
+
+where and
+
+[formula]
+
+The trajectories of ess1 and ess2 are plotted in Figure [\ref=fig:jumpess]. As can be seen in the plot, the effective sample sizes generated by the particle filter with averaging are as much as 100 times greater than those generated by the particle filter without the averaging step. This indicates that the improvement in the quality of the empirical measure generated by the particle filter with likelihood weight averaging is significant. It is also clear that, due to the large time scale separation in this system, any filtering method that does not explicitly address this in the prediction stage of the filter (by, for example, multiscale integration) will be extremely slow.
+
+Conclusions
+
+We have presented an algorithm that combines dimensional reduction and approximate Rao-Blackwellization to create an efficient reduced variance particle filter for systems that exhibit time scale separation. We tested the algorithm on two systems with large time scale separations and the results are encouraging.
+
+Our method does not require that any of the distributions involved are nearly Gaussian or degenerate. Furthermore, the cost of our method does not increase as the time scale separation is increased. We are not aware of any competitive alternative with these features.
+
+With minor modifications our particle filter can be applied in a slightly more general setting. Occasionally one is interested in multiscale systems for which it is impossible to explicitly fix the slow variable during evolution. For example, one may not know the laws governing the evolution of the system but can generate sample trajectories (by laboratory experiment). In these cases our particle filter remains valid. Roughly, the fact that the slow variable does not deviate much on the time scale of the fast variables allows one to replace evolution of the fast dynamics by evolution of the full system (see [\cite=kevrekidis03]). Note also, that the variance reduction technique discussed here applies to any importance sampling problem for a multiscale Markov process.
+
+Acknowledgments
+
+We are grateful to Professor A.J. Chorin for suggesting the use of dimensional reduction in the context of filtering. We would like to thank Dr. Y. Shvets and the anonymous referees for helpful suggestions regarding this manuscript. This work was supported in part by the National Science Foundation under Grant DMS 04-32710, and by the Director, Office of Science, Computational and Technology Research, U.S. Department of Energy under Contract No. DE-AC03-76SF000098.

@@ -1,0 +1,51 @@
+Brief note on high-multipole Kerr tails
+
+Background & Summary
+
+The asymptotic late-time, power-law decay (tn) rates of matter fields in Kerr black hole space-time has been a matter of some debate for several decades. However, significant progress has been made on this question over the past few years through the development of sophisticated techniques [\cite=Tiglio] [\cite=GPP] [\cite=AnilZ] [\cite=Revisited] [\cite=Rakesh] [\cite=ZKB] [\cite=RT] [\cite=Harms] to tackle the computational challenges inherent to this problem. Recent work [\cite=ZKB] [\cite=BK] proposes the following late-time decay rate expressions for the scalar field case:
+
+[formula]
+
+and
+
+[formula]
+
+by carefully studying the "inter-mode coupling" effects that are present in Kerr space-time due to frame-dragging. Note that these expressions above are for the axisymmetric multipoles. [formula] refers to the initial field multipole and [formula] is the multipole of interest under study.
+
+In this note, we borrow and implement the "best-practice" lessons from all previous numerical work on Kerr tails (especially [\cite=RT] [\cite=Rakesh] [\cite=Khanna]) and perform very high-accuracy computations for the axisymmetric multipoles up to [formula]. Our results are in full agreement with the expressions [\ref=eq:rates], [\ref=eq:rates2] above. It should be noted that we are not presenting any new physical results in this work or developing a deeper understanding of known expressions; we are simply demonstrating a proposed result in the literature [\cite=ZKB] [\cite=BK] to be accurate for a large range of parameters.
+
+Methodology
+
+We begin this section by briefly commenting on why numerical computations are so challenging in the context of Kerr tails: (i) These simulations are required to be rather long duration - this is because typically the observed field exhibits an exponentially decaying oscillatory behavior in the initial part of the evolution i.e. quasi-normal ringing, and only much later does this transition over to a clean power-law decay. Therefore, one needs to evolve past the point that the initial oscillations decay away. Moreover, as clearly shown in Refs. [\cite=ZKB] [\cite=BK] there is an "intermediate" tail regime, wherein one observes tails with various decay rates that are not necessarily the late-time asymptotic rates that we are after. Indeed, this intermediate regime is largely responsible for much of the confusion on this topic, in the literature. These intermediate tails decay faster than the asymptotic rate, but typically have dominant amplitudes for a period of time. We must evolve past this regime as well, in order to obtain the true asymptotic rate; (ii) Because each multipole has its own decay rate (which increases with an increase in [formula]) at late times one obtains numerical data in which different multipoles have widely different amplitudes (often 30 - 40 orders of magnitude apart!). For this reason, the numerical solution scheme is required to have high-order convergence (to reduce the discretization errors to low enough levels, to be able to track the fast decaying multipoles); (iii) Moreover, these computations also require high-precision floating-point numerics, due to the very large range of amplitudes involved, and also to reduce round-off error which can easily overwhelm the fast decaying modes.
+
+To address the challenges mentioned above, we perform the following mathematical and computational advancements to our time-domain, (2+1)D Teukolsky equation evolution code:
+
+Mathematical Enhancements
+
+The main advance we make in this context is to recast the problem using the technique of hyperboloidal compactification [\cite=hyper] for the Teukolsky equation in Kerr space-time. This allows one to include null infinity [formula] on the computational grid by mapping the entire space-time onto a compact domain. This technique also allows us to use a rather modest sized grid to sample the entire domain, thus delivering tremendous savings towards the total computational cost. In short, hyperboloidal compactification enables us to perform long duration simulations using relatively modest computational resources. In this work, we use the compactification approach similar to Ref. [\cite=RT] [\cite=Harms] [\cite=hyper2] that utilizes a single horizon-penetrating hyperboloidal foliation with conformal compactification. More specifically, we utilize the compactified radial coordinate ρ given by r  =  ρ  /  Ω, and Ω  =  1 - ρ / S, where S is the location of the outer boundary. For all our numerical simulations, we choose a Kerr hole with a / M  =  0.8 and use S / M = 38.4, with the inner boundary at the (outer) horizon.
+
+Computational Enhancements
+
+We make three additional major enhancements to our Teukolsky code in order to obtain the high-accuracy numerical results we report in the following section. First, a pseudo-spectral collocation numerical scheme is implemented in order to accurately and efficiently handle the spatial discretization. Because the tail solutions are smooth, this method converges exponentially, thus allowing us to significantly lower the discretization error as needed, even with a modest grid size. We utilize a single spectral domain in this work, with the angular and radial directions expanded in Legendre and Chebyshev polynomials, respectively, using the Gauss-Lobatto collocation points. We use 245 collocation points in the radial direction and 16 in the angular, for all the simulations in this work. We use the method-of-lines approach to evolve forward in time, using a fourth-order Runge-Kutta method. The time-step we use in all our computations is Δt / M  =  0.05. Secondly, we implement high-precision, floating-point arithmetic throughout our code. In particular, this enhancement includes full support for octal-precision numerics (256-bit or ~  60 decimal digits). This is required to keep the round-off error in our simulations at acceptable levels. Finally, we also implement algorithmic parallelism in order to speed up the computations, so they complete in a reasonable amount of time. In particular, we use a small cluster of 16 Sony PlayStation 3 gaming consoles (PS3)  to perform all the simulations in this work. Each PS3 works independently on an initial multipole [formula] case (an "embarrassing" coarse-grain parallelism). In addition, we also implement a fine-grain parallelism at the level of the high-precision computations themselves (see Ref. [\cite=Rakesh] [\cite=Khanna] for details) utilizing the parallel architecture of the PS3's Cell Broadband Engine. Overall, we obtain over two orders-of-magnitude speed-up via this parallel computing approach.
+
+In summary, pseudo-spectral collocation method enables us to drastically reduce the discretization error, high-precision numerics helps us accurately track amplitudes down to the 10- 60 scale, and the parallelism and compactification help to keep the total runtime to stay reasonable (and also obtain rates at null infinity directly).
+
+Numerical Results
+
+In this section, we present the outcome of the enhancements implemented in the previous section.
+
+Non-Extremal Kerr
+
+The initial data is a smooth Gaussian wave-packet centered at ρ / M = 3.0 and of width σ / M = 2.0 and the time evolution terminates at t / M = 2000. The results are detailed in four tables: two for the finite-distance rates (odd and even multipole cases separately) and another two tables for the null infinity rates. It is worth pointing out the tails on the horizon follow the same behavior as the ones at finite-distance. Except for a few cases (close to [formula]) where even octal-precision numerics prove to be insufficient to produce reliable tail solutions, all results agree precisely with expressions [\ref=eq:rates], [\ref=eq:rates2] above. The tables are self-explanatory. All depicted numerical results are accurate within a few percent or less. Figure 1 depicts the actual simulation data for a sample [formula] case.
+
+It took approximately two days to perform all the computations we have presented in this section, using the 16 PS3 cluster we mentioned before.
+
+Extremal Kerr
+
+For obtaining reliable results for the extremal case (a / M  =  1) we use the same settings as in the previous subsection, however with twice as many collocation points. The finite-distance and null infinity rates obtained in this case are identical to the results presented in the last subsection, so we will not repeat those here. However, the horizon rates differ completely and follow the null infinity expressions instead. Due to computational resource limitations we are only able to accurately obtain data for a small subset of the ([formula], [formula]) cases considered thus far. Those results are presented in the two tables below.
+
+The tails at the event horizon matching those at null infinity may seem surprising at first, but, it should be noted that this feature has been appreciated before in the literature, at least for extremal Reissner-Nordstrom black holes [\cite=symm]. This happens as a result of a discrete conformal symmetry between the horizon and null infinity in these space-times. Our numerical results are simply an interesting and independent verification of this symmetry in the context of extremal Kerr space-time.
+
+Acknowledgements
+
+We would like to thank Anil Zenginoglu for providing us the details of the hyperboloidal compactification we utilized in this work. We would also like to thank Manuel Tiglio for providing us the pseudo-spectral collocation code used in Ref. [\cite=Tiglio], which we enhanced and repurposed for this work. We also acknowledge feedback provided by Lior Burko on this note. G.K. acknowledges research support from NSF Grant Nos. PHY-1016906, CNS-0959382, PHY-1135664, PHY-1303724 and PHY-1414440, and from the US Air Force Grant Nos. FA9550-10-1-0354 and 10-RI-CRADA-09. G.K. is also grateful to Snowy for his constant support over a decade. T.S. acknowledges research support from NSF Grant Nos. PHY-1016906 and PHY-1414440, and also the Physics Department of the University of Massachusetts Dartmouth.

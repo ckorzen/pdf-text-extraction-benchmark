@@ -1,0 +1,513 @@
+>[formula]m<[formula]
+
+Dynamic Attack Detection in Cyber-Physical Systems with Side Initial State Information
+
+Introduction
+
+Cyber-physical systems monitor and regulate many critical large-scale infrastructures such as the power grid and water distribution systems. Events such as the Maroochy Shire Council Sewage control incident and the Stuxnet malware attack have brought increased awareness to the issue of securing large scale systems [\cite=CardenasOld] [\cite=Cardenas]. Smaller applications such as robotic platforms and the modern commercial automobile are also equipped with intercommunicating sensor, computation, and actuator components for a variety of control tasks. In [\cite=CarAttack], the authors analyze security aspects related to the modern automobile and describe a number of methods for an attacker to gain control and manipulate the behavior of the vehicle. These small scale cyber-physical systems have similar security weaknesses as large infrastructures and can fall suspect to similar forms of cyber attack.
+
+Cyber-physical systems can be organized into a hierarchical structure, and each layer of the system in this structure has its own security vulnerabilities [\cite=Zhu]. In this paper, we focus on attacks against the system's communication, control, and physical layers. A malicious attacker can hijack the communication channels between the sensor, computation, and actuator components, modify the data values sent between components, and manipulate the system's behavior [\cite=TeixeiraModels] [\cite=Pasqualetti] [\cite=Mo]. We will consider in this paper the data deception attack that can attack both the control signals and the sensor measurements.
+
+Related Work
+
+To ensure proper operation of cyber-physical systems, it is necessary to design and implement security measures against attacks. Reference [\cite=CardenasSecureControl] broadly categorizes security measures into information security and secure control theory. Information security refers to measures taken to prevent attacks to system output data and to actuator inputs. Secure control ensures that the system operates properly under attack (i.e., whenever information security measures fail to prevent an attack). One important aspect of secure control is attack detection that allows the system to take corrective actions and mitigate damaging behavior.
+
+Static attack detectors check the consistency of the system output at a single time step [\cite=Liu] [\cite=Kosut], but are unable to detect any attacks on the actuators since they do not consider system dynamics [\cite=Pasqualetti]. Reference [\cite=Pasqualetti] describes dynamic attack detectors that use the system dynamics, sensing topology, and the history of actuator inputs and sensor outputs to determine whether or not a data deception attack has occurred in a given time window. The authors study the fundamental limitations of dynamic attack detection in a noiseless, deterministic system. There are certain attacks, called stealthy or undetectable attacks, that no dynamic detector can detect. Stealthy dynamic attacks change the system output in such a way that the output of the system could arise from the system when it is not under attack [\cite=Pasqualetti].
+
+There are several methods to implement attack detection. In [\cite=Mo] and [\cite=MoWorkshop], the authors analyze dynamic attacks that go undetected by detectors of bad data (e.g., data resulting from sensor failures) for dynamical systems with process and sensor noise. References [\cite=Fawzi] and [\cite=Shoukry] provide algorithms to both detect and reconstruct the dynamic attack. The authors of [\cite=LLiu] use sparse optimization techniques to detect and identify deception attacks in electric power systems. Reference [\cite=Loh] identifies random deception attacks against system sensors using cross correlation. In addition to [\cite=Pasqualetti], references [\cite=ChenICASSP], [\cite=Kwon], and [\cite=Bopardikar] also analyze the limitations of dynamic attack detection. Our previous work [\cite=ChenICASSP] uses geometric control techniques to analyze the limitations of detecting sparse sensor attacks. Furthermore, [\cite=Bopardikar] and [\cite=TeixeiraReveal] design systems that are resilient to certain data deception attacks. A different class of attack detectors, known as active attack detectors, determine the presence of a deception attack by randomly perturbing the system's input and measuring the output [\cite=Valente] [\cite=MoReplay]. Previous work also studied attack detection in large-scale industrial processes such as the electric power grid [\cite=Kim] [\cite=Zhao] [\cite=TeixeiraElectric] and water systems [\cite=Amin] [\cite=Eliades].
+
+This paper studies the fundamental limitations of dynamic detection of data deception attacks for discrete time systems. We focus on attacks that no dynamic detector can detect. Previous work in this area [\cite=TeixeiraModels] [\cite=Pasqualetti] [\cite=Mo] [\cite=MoWorkshop] [\cite=TeixeiraReveal] does not consider the availability of initial state information on the necessary and sufficient conditions for an attack to be undetectable. In addition to the effect of side initial state information, we investigate the role of the time of first attack on detectability. Intuitively, although the time of first attack is a priori unknown to the detector, delayed attacks enable the detector to gain information about the initial state of the system by processing sensor measurements before the attack begins. This work addresses the effect of this information on the detectability of an attack.
+
+Contributions
+
+We present four main contributions. First, we derive a necessary and sufficient condition for an attack to be undetectable when the detector has side initial state information given by an uncorrupted linear measurement of the initial system state. We show that, under these conditions, the attack is undetectable if and only if the attack induces a state in the intersection of the system's weakly unobservable subspace and the null space of the side information matrix. We also show that the later the attack occurs, the more difficult it becomes for the attack to be undetectable. These results extend [\cite=Pasqualetti] by incorporating side initial state information.
+
+Second, we provide a necessary and sufficient condition for an attacker to remain undetectable. We show that an undetectable attack over a given time interval remains undetectable over subsequent time steps if and only if the sum of the change in state produced by the attack and the zero input evolution of the state induced by the attack belong to the system's weakly unobservable subspace. Third, we introduce the zero state inducing attack that is undetectable regardless of the side initial state information available to the system and detector. We show that such an attack exists if and only if the intersection of the system's output-nulling reachable subspace over one time-step and its weakly unobservable subspace is nonzero. The second and third problems are not addressed by existing literature.
+
+Finally, we design a dynamic attack detector that uses side initial state information. This detector examines a running fixed-length window of system output to determine whether or not an attacker has attacked the system. In the absence of noise, we show that, when the window is long enough, this detector has no false alarms and only misses undetectable attacks (i.e., it detects all attacks that are not stealthy). Existing literature does not provide detectors that use side initial state information.
+
+The rest of this paper is organized as follows. In Section [\ref=sect:_background], we specify the system and attack model, review attack detection, introduce side information, and formally state the problem. Section [\ref=sect:_mainResults] summarizes our main technical contributions. We provide a necessary and sufficient condition for an attack to be undetectable when the attack detector has access to side information, and we determine a necessary and sufficient condition for an attack to remain undetectable. We determine the existence conditions for a zero state inducing attack against a particular system, and we design a detector that uses side initial state information. Section [\ref=sect:_proofs] gives the proofs of our main results. We illustrate our results with numerical examples in Section [\ref=sect:_numExamples] and conclude in Section [\ref=sect:_conclusion].
+
+Background
+
+System Model
+
+The cyber-physical system is modeled by
+
+[formula]
+
+where: [formula] is the system state, [formula] is the system output, [formula] is the time index, [formula] is the known input, and [formula] is the unknown attack. For example, if [\eqref=eqn:_ssModel] models a robot, the matrix A is derived from physical laws of motion that may describe the system's position and velocity. For a system with nonlinear dynamics, the state space model [\eqref=eqn:_ssModel] corresponds to its linearized dynamics. Model [\eqref=eqn:_ssModel] also captures large scale systems, e.g., [\cite=Ilic] and [\cite=Pasqualetti2] provide state space descriptions of electric power systems. Since the input u(k) is known, its contribution to the output y(k) is also known, and therefore, u(k) can be ignored. Thus, for the remainder of the paper, unless otherwise stated, we consider the case of [formula], [formula] without loss of generality. Accordingly, we modify the system model to be
+
+[formula]
+
+The matrices B and D describe the capabilities of the attacker. We provide details on the attacker in Section [\ref=sect:_attackBackground]. We use the notation Σ  =  (A,B,C,D) to represent the system in equation [\eqref=eqn:_ssModel2]. Throughout, we make the following assumption. Equation [\eqref=eqn:_ssModel2] with Assumption [\ref=a:_observable] is a standard model used in the cyber-physical security literature, e.g., [\cite=Fawzi],  [\cite=TeixeiraReveal]. We emphasize that this model allows for simultaneous attacks on sensors and actuators.
+
+We consider the following sequences: the output sequence (or system output trajectory)
+
+[formula]
+
+and the unknown attack sequence
+
+[formula]
+
+with T  ≥  n - 1. An attack occurs when E(T)  ≠  0. The output trajectory for the deterministic system [\eqref=eqn:_ssModel] is
+
+[formula]
+
+where x(0) is the system's initial state, OT is the extended observability matrix,
+
+[formula]
+
+and MT is the input-output matrix,
+
+[formula]
+
+where ti  =  T  -  i. In our results, we will also work with the extended controllability matrix CT:
+
+[formula]
+
+The change in state produced by an attack E(T) is CTE(T).
+
+We now consider side initial state information. In addition to the system output y(k), the system also provides the information
+
+[formula]
+
+where [formula] and [formula]. We call Ω the side information matrix. The matrix Ω having full column rank corresponds to the case in which yΩ gives full information about x(0), i.e., assuming that we know Ω, we can exactly determine x(0) from yΩ when Ω is full rank. The matrix Ω being the zero matrix corresponds to the case in which yΩ gives no information about x(0).
+
+Extended System Subspaces
+
+Throughout this paper, we use properties of the system's extended observability and reachability subspaces (defined in [\cite=Trentelman] and [\cite=Molinari1]) to derive our results. We review their definitions here.
+
+The input unobservable subspace over k steps, Lk, is the subspace of all [formula] such that for a system with initial condition x(0)  =  x, there exists E(k - 1) that produces the output trajectory Y(k - 1)  =  0.
+
+The input unobservable subspace varies with the number of time steps k: Lk + 1  ⊆  Lk for all k, and for some k  ≤  n and [formula], Lk  =  Lk + j [\cite=Molinari1]. Thus, after at most n time steps, the input unobservable subspace stops varying with time.
+
+The weakly unobservable subspace of a system Σ, V(Σ), is the subspace of all [formula] such that, for a system with initial condition x(0), there exists an input sequence E(n - 1) so that the output trajectory is Y(n - 1)  =  0.
+
+Definition [\ref=def:_weakUnobs] is the discrete time version of the weakly unobservable subspace defined for continuous systems in [\cite=Trentelman]. The weakly unobservable subspace is equivalent to the input unobservable subspace over n steps, Ln. By definition of V(Σ), a state x(0) belongs to the weakly unobservable subspace of Σ if and only if there exists an input sequence E(T) such that
+
+[formula]
+
+References [\cite=Molinari1] [\cite=Trentelman] [\cite=Molinari2] present iterative approaches to calculate a basis for V(Σ).
+
+Another extended system subspace of interest is the output-nulling reachable subspace over k steps.
+
+The output-nulling reachable subspace over k steps, Wk, is the subspace of all states [formula] such that there exists an input (attack) sequence E(k - 1) that brings the system from x(0)  =  0 to x(k)  =  x while producing the output sequence Y(k - 1)  =  0.
+
+The output-nulling reachable subspace over k steps is the subspace of all states [formula] for which there exists [formula] such that Ck - 1E(k - 1)  =  x and Mk - 1E(k - 1)  =  0. Recall that s is the dimension of the attack a(k).
+
+Dynamic Attack Detection: Preliminaries
+
+The focus of this paper is to determine which attacks are undetectable. A dynamic attack detector examines the system output Y(T) and side initial state information yΩ to determine whether or not an attack has occurred. For a given system Σ, we define a dynamic detector as:
+
+[formula]
+
+where [formula] means that an attack has occurred. We make the following assumptions. The detector may process yΩ for some, not necessarily all, information about x(0). If we do not impose further restrictions on the detector, then, trivially, we can consider a detector ψ that maps any input to the [formula] output. For this particular detector, every attack is detectable, but clearly this is not interesting. We restrict our focus to [formula] attack detectors.
+
+An attack detector ψ is consistent if [formula] for all [formula].
+
+Consistency is a desired property of attack detectors: consistent attack detectors never produce false alarms. Definition [\ref=def:_consistency] extends the definition of consistency presented in [\cite=Pasqualetti] to detectors that use side initial state information.
+
+We now provide assumptions on the attacker. Recall from [\eqref=eqn:_ssModel2] that an attacker chooses an input [formula] at every time step k. The attacker's capabilities to attack the actuators and sensors are modeled by the matrices B and D respectively. The attacker is able to create attacks E(T) based on the system model [\eqref=eqn:_ssModel2]. The attacker is not able to change the detector's side initial state information.
+
+Let E(T) be an attack, let Y(T) be the output of the system Σ under attack E(T), and let yΩ be the side initial state information. Considering only consistent detectors, we define undetectable attacks as follows:
+
+An attack E(T) is undetectable if, for every consistent detector ψ,
+
+[formula]
+
+where Y(T)  =  OTx(0)  +  MTE(T).
+
+A detectable attack is any attack that is not undetectable. An attack is detectable if there exists a consistent detector ψ such that [formula]. We partition the set of all possible attacks (including E(T)  =  0), [formula] (where s is the dimension of a(k)), into a set of undetectable attacks and a set of detectable attacks.
+
+The set UΩ,T is the union of set of all attacks E(T)∈Rs(T + 1) such that E(T) is undetectable and E(T)  =  0.
+
+When the system is not under attack (i.e., E(T)  =  0), consistent detectors report [formula], so 0∈UΩ,T.
+
+We also examine the first attack time of an attack E(T).
+
+An attack [formula] has a first attack time k0, [formula] if [formula] and a(k0)  ≠  0.
+
+Let
+
+[formula]
+
+The time of first attack k0 is unknown to the detector but, as we will show, affects the necessary and sufficient conditions for an attack to be undetectable. Specifically, we will show the relationship between the first attack time k0, the side information in equation [\eqref=eqn:_sideInformationStructure], and the necessary and sufficient conditions for an attack to be undetectable.
+
+In addition to undetectable attacks E(T) over the time window [formula], we also consider the conditions under which there exists an extension of E(T) such that the resulting attack is undetectable over an arbitrarily long time window.
+
+An extension of E(T) is an attack of the form
+
+[formula]
+
+for T'  >  T.
+
+After performing an attack E(T) that is undetectable up to T, an attacker must choose subsequent inputs [formula] properly to maintain the stealth of the overall attack. Attacks that are undetectable up to T may or may not have extensions that are undetectable up to T'  >  T. If an undetectable attack does not have an undetectable extension up to T', then such an attack sequence becomes detectable by T' regardless of the attacker's actions after T. In general, an attack E(T) may be not be detectable in the time period [formula] but possibly becomes detectable later. This raises the interesting reserach question of quickest detectability of attacks, which we will address in future work. We provide a necessary and sufficient condition for which an undetectable attack E(T) has undetectable extensions Ê(T') for all T'  >  T so that the attack sequence never becomes detectable.
+
+Reference [\cite=Pasqualetti] provides a necessary and sufficient condition for an attack sequence E(T) to be undetectable when Ω  =  0.
+
+The attack E(T) is undetectable if and only if
+
+[formula]
+
+for some initial states [formula].
+
+Aside from Lemma [\ref=lem:_undetectableCondition], references [\cite=TeixeiraModels], [\cite=Mo], [\cite=MoWorkshop], and [\cite=TeixeiraReveal] also provide conditions for stealthy attacks against particular implementations of dynamic attack detectors. Specifically, the authors of [\cite=TeixeiraModels] and [\cite=TeixeiraReveal] present undetectability conditions for specific classes of integrity attacks against a residual-based anomaly detector. References [\cite=Mo] and [\cite=MoWorkshop] consider attacks against a non-deterministic system model (i.e., one that accounts for sensor and process noise) and provide necessary and sufficient conditions for attacks that are stealthy and destabilize the system.
+
+One particular form of attack that is undetectable against systems with no side initial state information is known as the zero dynamics attack.
+
+A zero dynamics attack is an attack E(T) with
+
+[formula]
+
+where g  ≠  0 and [formula] satisfy
+
+[formula]
+
+A zero dynamics attack exists if and only if there exists [formula] for which there is a nonzero solution to [\eqref=eqn:_zeroDynamicsMatrixCondition] [\cite=TeixeiraModels] [\cite=Pasqualetti]. Since, by Assumption [\ref=a:_bdInjective], the matrix [formula] is injective, and g  ≠  0, we have that θ  ≠  0. By construction, a zero dynamics attack satisfies
+
+[formula]
+
+Therefore, a zero dynamics attack satisfies the condition given in Lemma [\ref=lem:_undetectableCondition], where θ  =  x(0)  -  x'(0). We consider T  ≥  n - 1, so OT is injective since (A,C) is injective. Since θ  ≠  0, a zero dynamics attack produces a nonzero change to the output of the system. We introduce a form of attack known as the zero state inducing attack.
+
+An attack sequence E(T) is called a zero state inducing attack if it satisfies MTE(T)  =  0.
+
+Our results will show that the zero state inducing attack is undetectable regardless of the detector's side information matrix Ω. It is the only type of attack to remain undetectable even if Ω is full rank.
+
+Problem Statement
+
+We state formally the four problems we address. Consider a system Σ  =  (A,B,C,D) over a time interval [formula], T  ≥  n - 1, with initial state x(0) and side initial state information yΩ  =  Ωx(0). We consider the following four main problems:
+
+Main Results
+
+In this section, we present the main results of this paper. Proofs are found in Section [\ref=sect:_proofs].
+
+Initial State Information and Undetectable Attacks
+
+First, we find a necessary and sufficient condition for an attack to be undetectable when the attack detector has side initial state information yΩ. Let N(Ω) be the null space of Ω.
+
+An attack E(T) is undetectable (E(T)∈UΩ,T) if and only if there exists [formula] for which MTE(T)  =    -  OTθ.
+
+Theorem [\ref=thm:_undetectablePartial] states that an attack E(T) is undetectable over the time interval [formula] if and only if the output contributed by the attack (i.e., MTE(T)) equals the negative of the output of the system operating without attack from an initial state θ, where θ belongs to the intersection of the system's weakly unobservable subspace, V(Σ), and the null-space of the side information matrix, N(Ω). We call θ the state induced by the attack. One can use standard techniques from linear algebra to compute a basis for N(Ω) and [formula]. Note, if N(Ω) has dimension strictly less than n (i.e., if the side initial state information is non-trivial), then, by using the side initial state information yΩ, an attack detector may be able to detect attacks that would otherwise be undetectable (in the absence of side information).
+
+Theorem [\ref=thm:_undetectablePartial] is valid for any side information matrix Ω. By choosing Ω appropriately, we derive, as corollaries to Theorem [\ref=thm:_undetectablePartial], undetectability conditions for attacks against detectors with no initial state information and undetectability conditions for attacks against detectors with full initial state information.
+
+An attack E(T) is undetectable if and only if MTE(T) = -  OTθ for some θ∈V(Σ) when Ω  =  0.
+
+By construction, a zero dynamics attack (as defined in section [\ref=sect:_attackBackground] and in [\cite=TeixeiraModels]) E(T) satisfies MTE(T)  +  OTθ  =  0, where θ  ≠  0 and g  ≠  0 (which is used to define E(T)) is a solution to equation [\eqref=eqn:_zeroDynamicsMatrixCondition], and thus, the zero dynamics attack satisfies the condition for stealth given in Corollary [\ref=cor:_timeZeroAttacks]. There may be other undetectable attacks aside from zero dynamics attacks when Ω  =  0.
+
+When Ω is a full rank matrix, the attack detector knows the system's initial state exactly.
+
+An attack E(T) is undetectable if and only if MTE(T)  =  0 when Ω has full column rank.
+
+According to Corollary [\ref=cor:_fullInitStateAttacks], the only type of attack that is undetectable when the initial state is completely known to the detector is the zero state inducing attack (which will be defined in Section [\ref=sect:_zeroStateInducing]). Figure 1 illustrates the results of Theorem [\ref=thm:_undetectablePartial] and its corollaries.
+
+We quantify how the detectability of an attack is related to the first attack time. As will be shown, delaying the first time of attack effectively enables the detector to gain side initial state information, which, in turn, might affect the stealth of the attack. An attack E(T) belonging to a set UΩ,Tk0 is equivalent to the attack E(T) having first attack time k0 and being undetectable to an attack detector with side information matrix yΩ.
+
+Let E(T) be an attack with first attack time k0. Then E(T)∈UΩ,Tk0 if and only if MTE(T)  =    -  OTθ for some [formula].
+
+An undetectable attack E(T) with first attack time k0 must induce a state θ that belongs to the intersection of the system's weakly unobservable subspace (V(Σ)), the side information matrix's null space (N(Ω)), and the null space of the matrix Ok0 - 1. By Theorem [\ref=thm:_undetectablePartial], this condition is equivalent to the necessary and sufficient condition for an attack E(T) to be undetectable against an attack detector with side information yΩ', where [formula]. Note that [formula]. Thus when the attack is delayed and has first attack time k0, the attack detector effectively gains additional initial state information from the sensor outputs [formula] (even though the attack detector does not a priori know the value of k0).
+
+Extensions of Undetectable Attacks
+
+Second, we provide a necessary and sufficient condition for an undetectable attack E(T) (with T  ≥  n - 1) to have an undetectable extension Ê(T') for all T'  >  T, i.e., we derive a condition for an attack E(T) to remain undetectable over an arbitrarily long time interval. For any attack E(T), the change in state produced by the attack is CTE(T). Consider an attack E(T)∈UΩ,T, E(T)  ≠   ~ 0.
+
+There exists an undetectable extension Ê(T') of E(T) for all T'  >  T if and only if [formula], where θ satisfies MTE(T)  =    -  OTθ and [formula].
+
+Theorem [\ref=thm:_undetectableExtension] states that an undetectable attack E(T) has an undetectable extension Ê(T') for any T'  >  T if and only if the sum of the change in state produced by the attack (CTE(T)) and the zero-input state response of the state induced by the attack (AT + 1θ) belongs to the system's weakly unobservable subspace ([formula]). The above result shows that some attacks that are undetectable over [formula] may become detectable in a future time step, and it identifies the attacks for which an attacker can maintain undetectability.
+
+Zero State Inducing Attack
+
+Third, we provide a necessary and sufficient condition for the existence of a zero state inducing attack. Definition [\ref=def:_zeroState] states that a zero state inducing attack is an attack E(T) that satisfies MTE(T)  =  0. By Corollary [\ref=cor:_fullInitStateAttacks], the zero state inducing attack is the only type of attack to remain undetectable when Ω is a full rank matrix (i.e., when the attack detector knows the system initial state exactly). We provide a necessary and sufficient condition on a system Σ for the existence of a zero state attack that can be maintained for an arbitrarily long time.
+
+We restrict our focus to zero state inducing attacks that begin at time 0. A fixed length zero state inducing attack E(T) can be trivially lengthened to have any length T'  >  T by appending E(T) to a zero vector. By focusing on attacks with first attack time k0  =  0, we prevent this trivial lengthening.
+
+There exists an attack E(T) against the system Σ that begins at time 0 such that MTE(T)  =  0 for any [formula] if and only if [formula], where W1 is the output-nulling reachable subspace over one time step.
+
+Theorem [\ref=thm:_arbLongZero] states that there exists an arbitrarily long zero state inducing attack against a system Σ if and only if the intersection of the system's weakly unobservable subspace, V(Σ) and its output-nulling reachable subspace over one step, W1 is nonzero. To determine the existence of an arbitrarily long zero state inducing attack against the system Σ that begins at time 0, one must calculate the system's weakly unobservable subspace, V(Σ), and the system's output-nulling reachable subspace over one step. The output-nulling reachable subspace is determined by the matrix B and the output-nulling inputs over one step (zero state inducing attacks over one step). Specifically, W1 can be calculated as [formula], where [formula] span N(D), the null space of D.
+
+Attack Detection With Side Information
+
+We design a consistent dynamic attack detector that detects all attacks E(T) that do not belong to UΩ,T. By definition, any attack E(T) that belongs to UΩ,T is undetectable to a consistent dynamic detector, so we focus only on detecting attacks E(T)∉UΩ,T. We provide a dynamic detector that operates sequentially: at every time instant k (with the exception of an initialization period), the detector collects new sensor outputs y(k) and makes a decision on whether or not the system was attacked in the time period up to time k. To detect attacks in the interval [formula], we run the detector up to time k = T.
+
+First, define [formula] as the l-length window of sensor measurements ending at time k, where k  ≥  l - 1:
+
+[formula]
+
+The attack detector makes a decision at every time instant starting at l - 1. Second, define Ŷ(k), the input to the attack detector at time k, as follows:
+
+[formula]
+
+Third, define the orthogonal projection (operator) onto the range space of a matrix K (where K has full column rank) as
+
+[formula]
+
+Using equations [\eqref=eqn:_windowedY], [\eqref=eqn:_hatYk] and [\eqref=eqn:_projector], we construct the detector ψ as
+
+[formula]
+
+where
+
+[formula]
+
+The detector decides that no attack has occurred in the time interval [formula] if [formula].
+
+For l  ≥  n + 1, where n is the dimension of the system state space, [formula] if and only if Y(T)  =  OTx(0) and yΩ  =  Ωx(0) for some [formula].
+
+The detector ψ decides that no attack has occurred over the interval [formula] if and only if there exists an initial state x(0) that produces the output (i.e., is consistent with) Y(T) and the side initial state information yΩ when there is no attack. This implies that ψ is consistent and optimal when the window length l is sufficiently long.
+
+Proof of Main Results
+
+Proof of Theorem [\ref=thm:_undetectablePartial]
+
+First, we provide an intermediate result by modifying Lemma [\ref=lem:_undetectableCondition] to account for attack detectors with side information yΩ. Consider a system Σ  =  (A,B,C,D) equipped with an attack detector that has side information matrix Ω.
+
+An attack E(T) against the system Σ is undetectable if and only if MTE(T)  +  OTx(0)  =  OTx'(0) and Ωx(0) = Ωx'(0) for some initial states [formula].
+
+(If) Let MTE(T)  +  OTx(0)  =  OTx'(0) and Ωx(0)  =  Ωx'(0). Let x(0) be the true (unknown) initial state of the system. The output of the system under attack E(T) is Y(T)  =  MTE(T)  +  OTx(0). The side information available to the system is yΩ  =  Ωx(0). For E(T) to be a detectable attack, there must exist a consistent detector ψ such that
+
+[formula]
+
+Since MTE(T)  +  OTx(0)  =  OTx'(0) and yΩ  =  Ωx'(0), by substitution, we have
+
+[formula]
+
+By the detector consistency condition, we have [formula] for all dynamic detectors ψ, which means that E(T) is an undetectable attack.
+
+(Only If) We show that an attack E(T) is detectable if there do not exist initial states x(0),x'(0) such that MTE(T)  +  OTx(0)  =  OTx'(0) and Ωx(0)  =  Ωx'(0). First suppose that there do not exist initial states x(0),x'(0) such that MTE(T)  +  OTx(0)  =  OTx'(0). Then, regardless of the available side information, E(T) is a detectable attack, since it does not satisfy the necessary and sufficient condition for undetectable attacks given in Lemma [\ref=lem:_undetectableCondition].
+
+Second, suppose there exists some x(0),x'(0) such that MTE(T)  +  OTx(0)  =  OTx'(0), but these x(0),x'(0) pairs do not satisfy Ωx(0)  =  Ωx'(0). Without loss of generality, let x(0) be the true initial state of the system, let Y(T)  =  MTE(T)  +  OTx(0) be the system output under attack E(T), and let yΩ  =  Ωx(0) be the side information available to the system and detector. Since there exists no x'(0) such that Y(T)  =  OTx'(0) and yΩ  =  Ωx'(0), there does not exist an initial state x'(0) that can simultaneously produce the side information yΩ and the output Y(T) under normal operation conditions (E(T)  =  0). Thus, there exists a consistent detector ψ for which [formula], and E(T) is a detectable attack.
+
+We use the above Lemma to prove Theorem [\ref=thm:_undetectablePartial]
+
+(If) Let x(0) be the initial state of the system. Let E(T) be an attack such that MTE(T)  =    -  OTθ for [formula]. Let x'(0)  =  x(0)  -  θ. Then MTE(T)  +  OTx(0)  =  OTx'(0). In addition, since [formula], [formula]. Thus, for any x(0), there exists x'(0) such that MTE(T)  +  OTx(0)  =  OTx'(0) and Ωx(0)  =  Ωx'(0), which means, by Lemma [\ref=lem:_undetectableConditionSide], E(T) is an undetectable attack. Thus, E(T)∈UΩ,T.
+
+(Only If) Let x(0) be the initial state of the system. Let E(T)∈UΩ,T. Then, by Lemma [\ref=lem:_undetectableConditionSide], there exists [formula] such that MTE(T)  +  OTx(0)  =  OTx'(0) and Ωx(0)  =  Ωx'(0). Let θ  =  x(0)  -  x'(0). Substituting for θ we have that MTE(T)  =    -  OTθ and Ωθ  =  0. Thus, MTE(T)  =    -  OTθ for [formula].
+
+Proof of Theorem [\ref=thm:_undetectableFirstAttackTime]
+
+(If) Let E(T) be an attack with first attack time k0 that satisfies MTE(T)  =    -  OTθ for [formula]. Since, [formula], we have that [formula]. By Theorem [\ref=thm:_undetectablePartial], E(T) is an undetectable attack with first attack time k0. Thus, E(T)∈UΩ,Tk0.
+
+(Only If) Let E(T)∈UΩ,Tk0. Then, by Theorem [\ref=thm:_undetectablePartial], E(T) satisfies MTE(T)  =    -  OTθ for [formula]. What remains is to show that [formula] as well. Since E(T)∈UΩ,Tk0, we partition it as
+
+[formula]
+
+where 0 is a vector of s(k0 - 1) zeros and [formula] with a(k0)  ≠  0. Substituting equation [\eqref=eqn:_ePart] into the condition from Theorem [\ref=thm:_undetectablePartial] and expanding OT according to its definition, we have
+
+[formula]
+
+From equation [\eqref=eqn:_ePartSubstitute] and the structure of MT, we have
+
+[formula]
+
+which shows that [formula].
+
+Proof of Theorem [\ref=thm:_undetectableExtension]
+
+(Only If) We show that if there exists an undetectable extension Ê(T') for all T'  >  T, then, necessarily, [formula]. Let
+
+[formula]
+
+be an undetectable extension of E(T). Since Ê(T') is undetectable, then, by Theorem [\ref=thm:_undetectablePartial], it must satisfy MT'Ê(T')  +  OT'θ'  =  0 for some [formula].
+
+We first show that θ'  =  θ. We partition the matrix MT' as follows:
+
+[formula]
+
+where QTT' is defined as
+
+[formula]
+
+Substituting for the partitioned versions of MT' and partitioning OT', we have
+
+[formula]
+
+From the first block row of equation [\eqref=eqn:_undetectablePartition1], we have MTE(T)  +  OTθ'  =  0, and, from the definition of E(T), we have MTE(T)  +  OTθ  =  0. Thus, OTθ'  =  OTθ. Since T  ≥  n - 1 and Σ is observable, OT is injective, and θ'  =  θ.
+
+Substituting θ  =  θ', the second block row of equation [\eqref=eqn:_undetectablePartition1] gives
+
+[formula]
+
+From its definition, we factor QTT' as QTT'  =  OT' - T - 1CT. Further substituting into equation [\eqref=eqn:_undetectablePartition2] gives
+
+[formula]
+
+which means that [formula], where, recall, LT' - T is in the subspace of input unobservable states over T' - T steps. Since there exists an undetectable extension Ê(T') of E(T) for all T'  >  T, equation [\eqref=eqn:_undetectablePartition3] must be satisfied for all T'  >  T. In particular, equation [\eqref=eqn:_undetectablePartition3] is true for T'  =  T  +  n, which shows that [formula].
+
+(If) If [formula], then, for all T'  >  T, there exists an attack sequence
+
+[formula]
+
+such that equations [\eqref=eqn:_undetectablePartition2] and [\eqref=eqn:_undetectablePartition3] are satisfied. For all T'  >  T, we construct Ê(T') by appending [formula] to E(T). By definition of E(T), we have
+
+[formula]
+
+where [formula]. Combining this fact with equations [\eqref=eqn:_undetectablePartition2] and [\eqref=eqn:_undetectablePartition3], we see that [formula] satisfies equation [\eqref=eqn:_undetectablePartition1] with θ'  =  θ. Thus, we have
+
+[formula]
+
+which shows that Ê(T') is an undetectable extension of E(T).
+
+Proof of Theorem [\ref=thm:_arbLongZero]
+
+We first show that a delayed version of a zero state inducing attack is itself a zero state inducing attack.
+
+Let E(T) be a zero state inducing attack with first attack time k0  =  0 (i.e., a(0)  ≠  0). Then, for any T'  >  T, [formula] is a zero state inducing attack, where 0 is the zero vector of (T' - T)s elements.
+
+We show that [formula]. We partition the matrix MT' as follows:
+
+[formula]
+
+where QT' - T - 1T' is defined according to equation [\eqref=eqn:_qt]. Thus, we have [formula], which means that [formula] is a zero state inducing attack.
+
+As a consequence of Lemma [\ref=lem:_zeroStateTimeEquiv], we can trivially create a zero state inducing attack of arbitrary length by appending an arbitrarily long zero vector to a fixed length zero state inducing attack. To prevent this trivial lengthening, we consider, without loss of generality, the necessary and sufficient conditions for the existence of a zero state inducing attack E(T) with first attack time k0  =  0. Now we proceed to the proof of Theorem [\ref=thm:_arbLongZero].
+
+(If) We construct a zero state inducing attack E(T) that begins at time 0 against Σ of arbitrary length T under the condition that [formula]. The initial state of the system Σ, x(0), does not affect its extended observability and reachability subspaces, so, without loss of generality, let the system have initial state x(0)  =  0. If [formula], there exists an attack a(0)  ≠  0 such that x(1)  =  Ba(0), y(0)  =  Da(0)  =  0, and x(1)∈V(Σ). Since x(1)∈V(Σ) and V(Σ)  ⊆  Li for all i (where Li is the input unobservable subspace over i steps), for any T, there exists a sequence of attacks [formula] such that the output [formula] is 0. Thus, for any T, there exists an attack [formula] with a(0)  ≠  0 such that MTE(T)  =  0.
+
+(Only If) We show that if there exists E(T), a zero state inducing attack with first attack time k0  =  0 for any T against the system Σ, then [formula]. As a given condition, such an attack exists for any T, and in particular, it exists for T  =  n. Let
+
+[formula]
+
+be a zero state inducing attack with a(0)  ≠  0. Since E(n) induces the zero state, we have
+
+[formula]
+
+(where Mn is defined as in equation [\eqref=eqn:_mDef]), which implies that Da(0)  =  0. Since [formula] is injective and Da(0)  =  0, we have x(1)  =  Ba(0)  ≠  0 and x(1)∈W1. The sequence
+
+[formula]
+
+is an input sequence over n steps such that a system with state x(1)  =  Ba(0) produces zero output over the time period [formula]. Since such an input sequence exists, x(1)∈Ln, where Ln is the unknown input observable subspace over n steps. By definition Ln  =  V(Σ), so
+
+[formula]
+
+Since x(1)  ≠  0, [formula].
+
+Proof of Theorem [\ref=thm:_windowedDetectionOptimal]
+
+(If) Let Y(T)  =  OTx(0) and yΩ  =  Ωx(0) for some [formula]. Then, by construction of Ŷ(k),
+
+[formula]
+
+for all [formula], which means that
+
+[formula]
+
+for all [formula]. Thus,
+
+[formula]
+
+(Only If) We resort to induction.
+
+Base Case: In the base case, we show that if
+
+[formula]
+
+then Y(l)  =  Olx(0) and yΩ  =  Ωx(0) for some [formula]. Since [formula], we have
+
+[formula]
+
+which means that
+
+[formula]
+
+for some [formula]. Since [formula], we have
+
+[formula]
+
+for some [formula]. From equation [\eqref=eqn:_optimalProof2b], we have
+
+[formula]
+
+and from equation [\eqref=eqn:_optimalProof3], we have
+
+[formula]
+
+The pair (A,C) is observable and l  ≥  n + 1, so the matrix Ol - 2 is injective. Thus, combining equations [\eqref=eqn:_optimalProof4] and  [\eqref=eqn:_optimalProof5], we have x'(0)  =  Ax(0). By definition of Ŷ(l) and substituting x'(0)  =  Ax(0) into equation [\eqref=eqn:_optimalProof3], we have that y(l)  =  CAlx(0). Note that [formula]. Thus, Y(l)  =  Olx(0) and yΩ  =  Ωx(0) for some [formula].
+
+Induction Step: In the induction step, we assume that if
+
+[formula]
+
+then Y(T - 1)  =  OT - 1x(0) and yΩ  =  Ωx(0) for some [formula]. We show that if [formula] as well, then Y(T)  =  OTx(0) and yΩ  =  Ωx(0) for some [formula].
+
+Since [formula], we have
+
+[formula]
+
+for some [formula]. From the induction hypothesis, we have that Y(T - 1)  =  OT - 1x(0), which means that
+
+[formula]
+
+From equation [\eqref=eqn:_optimalProofInduction2], we have
+
+[formula]
+
+The pair (A,C) is observable and l  ≥  n + 1, so the matrix Ol - 2 is injective. As a result, x'(0)  =  AT - l + 1x(0). Substituting θ'  =  AT - l + 1 into equation [\eqref=eqn:_optimalProofInduction4], we have y(T)  =  CATx(0). Note that [formula]. Thus, Y(T)  =  OTx(0) and yΩ  =  Ωx(0) for some [formula].
+
+Numerical Examples
+
+We illustrate our results with an example of a remotely piloted aircraft subject to both nonzero state inducing attacks and zero state inducing attacks. Reference [\cite=Linehan] provides a numerical model of the longitudinal dynamics of a remotely piloted aircraft that accounts for the aircraft's physical parameters. We describe the longitudinal dynamics of the aircraft using four state variables: horizontal velocity (x1), vertical velocity (x2), pitch rate (x3), and pitch angle (x4). The aircraft we consider has two actuators: the elevator (u1) and the thrust (u2). The aircraft also has three sensors: the horizontal velocity sensor (y1), the vertical velocity sensor (y2), and the pitch angle sensor (y3).
+
+The evolution of the state variables [formula] is determined by physical principles governing the longitudinal flight of the aircraft and depends on physical parameters of the aircraft such as its mass and its pitch moment. The model is linearized about an equilibrium point, so the state variables [formula] represent values of the internal states relative to a fixed point (e.g., x1 in the linearized model is the horizontal velocity of the aircraft relative to an equilibrium horizontal velocity). The linearized, discretized model for the aircraft gives the following dynamics and sensing matrices [\cite=Linehan]:
+
+[formula]
+
+[formula]
+
+The pair (A,C) in this example is observable. We show a normal operating output sequence (no attack) of the system in Figure [\ref=fig:_normalOutput].
+
+We consider an attacker modeled by the following B and D matrices:
+
+[formula]
+
+[formula]
+
+The attacker can attack both actuators (elevator, u1, and thurst, u2) and the horizontal velocity (y1) and vertical velocity (y2) sensors. There exists both zero dynamics attacks and zero state attacks against the system Σ  =  (A,B,C,D) described by [\eqref=eqn:_exampleAMatrix]-[\eqref=eqn:_exampleDMatrix].
+
+We demonstrate the effect of side initial state information on the detectability of nonzero state inducing attacks and zero state inducing attacks by considering two different side information matrices. Let
+
+[formula]
+
+and let
+
+[formula]
+
+The matrix Ω1 corresponds to an attack detector that has no side initial state information, and the matrix Ω2 corresponds to an attack detector that knows x1(0).
+
+By Theorem [\ref=thm:_undetectableFirstAttackTime], when an attack begins at time k0, it effectively allows the detector to gain side initial state information yΩ  =  Ok0 - 1x(0) even when the detector does not a priori know the value of k0. In our numerical examples, we examine the detectability of two forms of an attack: in the first form, the attack begins at time k0  =  0, and in the second form, the attack begins at time k0  =  5 (i.e., in the second form of the attack a(k)  =  0 for [formula]).
+
+Nonzero State Inducing Attack
+
+For the case of the nonzero state inducing attack, we construct a zero dynamics attack (as defined in [\cite=TeixeiraModels] and [\cite=Pasqualetti]) against the remotely piloted aircraft. Following equation [\eqref=eqn:_zeroDynamicsIndividualAttack], we construct the zero dynamics attack component wise as
+
+[formula]
+
+where [formula]. We consider the following two attacks over T  =  30 time steps:
+
+[formula]
+
+[formula]
+
+where the zero vector in equation [\eqref=eqn:_exampleZeroDynamicsAttackDelay] has 5s  =  20 zeros. That is E1 is a zero dynamics attack that begins at time k0  =  0, and E2 is the delayed version of E1 that begins at k0  =  5. The attack E1 induces a state
+
+[formula]
+
+By construction (Equation [\eqref=eqn:_exampleZeroDynamicsAttack]), the attacks E1 and E2 do not attack thrust actuator (u2).
+
+First, we consider the case that the detector has side information matrix Ω1 (i.e., no side initial state information). Both attacks E1 and E2 change the internal state of the system (see Figure [\ref=fig:_hVeloZeroDynamics]) and produce a nonzero change in the system sensors (see Figure [\ref=fig:_sensorZeroDynamics] and Figure [\ref=fig:_sensorDelayed]). The system output resulting from E1 is consistent with the system operating under no attack, as there exists an initial state of the system that produces the same output. Thus, the zero dynamics attack E1 is undetectable. The system output resulting from E2 is not consistent with any output of the system operating under no attack. The attack E2, which is a delayed version of E1, is detectable.
+
+An alternative perspective, is that, with the attack E2, the system effectively gains side initial state information. By Theorem [\ref=thm:_undetectableFirstAttackTime], consider the attack E2 in two separate segments: in the time interval [formula], the system is not under attack and the detector gains side initial state information [formula], and, in the subsequent time interval [formula], the attacker uses a truncated version of E1 to attack the system. Following Theorem [\ref=thm:_undetectablePartial], an attack is undetectable if and only if it induces a state [formula]. When the system has side information yΩ  =  Ωx(0)  =  O4x(0), [formula]. Since, MTE2  ≠  0, E2 is a detectable attack.
+
+Now we consider the case that the detector has side information matrix Ω2. We only examine E1 since the attack E2 is detectable even when the system has no side initial state information. The state induced by the attack θ1 does not satisfy [formula] (since Ω2θ1  ≠  0). By Theorem [\ref=thm:_undetectablePartial], E1 is detectable when the detector has side information matrix Ω2. When the detector has side information matrix Ω2, it can determine the value of x1(0). By the sensing model (Equation [\eqref=eqn:_exampleCMatrix]) this means that the detector can calculate the true value of y1(0). The attack E1 becomes detectable because it changes the value of y1(0). There is no initial state [formula] that is simultaneously consistent with the side information and the sensor outputs.
+
+Zero State Inducing Attack
+
+We construct a zero state inducing attack E3 that begins at time zero against the aircraft. The attack E3 is an attack over T = 30 time steps and is described in Figure [\ref=fig:_zeroStateAttack]. Additionally, we construct a delayed zero state inducing attack E4 by appending the zero state inducing attack E3 to a vector of 5s  =  20 zeros (and truncating the attack components that occur after T = 30). We construct the attack E4 from the attack E3 in the same manner in which we constructed the attack E2 from the attack E1. That is, E3 is a zero state inducing attack that begins at time k0  =  0, and E4 is the delayed version of E3 that begins at time k0  =  5.
+
+Both attacks E3 and E4 change the internal state of the system (see Figure [\ref=fig:_hVeloZeroState]). Unlike the zero dynamics attack E1 and the delayed zero dynamics attack E2, neither the zero state inducing attack E3 nor the delayed zero state inducing attack E4 changes the system sensor output (see Figure [\ref=fig:_sensorZeroState]). As a result, both E3 and E4 are dynamically undetectable regardless of the detector's side initial state information (so we do not consider separate cases for Ω1 and Ω2). Figure [\ref=fig:_sensorZeroState] demonstrates that a delayed version of a zero state inducing attack is itself a zero state inducing attack.
+
+Similar to the nonzero state inducing attack example, an alternative perspective, by Theorem [\ref=thm:_undetectableFirstAttackTime], is to consider E4 in two segments: in the time interval [formula], the system is not under attack and the detector gains side initial state information yΩ  =  O4x(0), and, in the subsequent time period, the attacker uses a truncated version of E3 to attack the system. By Theorem [\ref=thm:_undetectablePartial], an attack against a detector with side information matrix Ω  =  O4 is undetectable if and only if it induces a state [formula]. By construction, E3 induces a zero state, so it is undetectable regardless of the side initial state information available to the system and detector. Because E4 is a delayed version of a zero state inducing attack, it is also itself a zero state inducing attack. Thus, E4 is also undetectable regardless of the side initial state information available to the system and detector.
+
+Conclusion
+
+In this paper, we studied the effect of side initial state information on the dynamic detection of data deception attacks against cyber-physical systems. First, an undetectable attack induces a state in the intersection of the system's weakly unobservable subspace, V(Σ), and the null space of the side information matrix, [formula]. Second, an undetectable attack E(T) has an undetectable extension to any T'  >  T if and only if the sum of the change in state produced by the attack, CTE(T), and the zero-input state response of the state induced by the attack, AT + 1θ, belongs to the system's weakly unobservable subspace, V(Σ). Third, there exists an arbitrarily long zero state inducing attack if and only if the intersection of the system's weakly unobservable subspace, V(Σ), and the system's output-nulling reachable subspace over one step, W1, is nonzero. Finally, we designed an attack detector that uses side information and detects all attacks that are not undetectable. Future work directions include quickest detection of dynamic attacks and extensions to models with sensor and process noise.

@@ -1,0 +1,611 @@
+Approximating the Permanent with Fractional Belief Propagation
+
+Introduction
+
+This work is motivated by computational challenges associated with learning stochastic flows from two consecutive snapshots/images of n identical particles immersed in a flow [\citep=08CKV] [\citep=10CKKVZ]. The task of learning consists in maximizing the permanent of an n  ×  n matrix, with elements constructed of probabilities for a particle in the first image to correspond to a particle in the second image, over the low-dimensional parametrization of the reconstructed flow. The permanents in this enabling application are nothing but a weighted number of perfect matchings relating particles in the two images.
+
+Inspired by this "learning the flow" application, we continue in this manuscript the thread of [\citet=10WC] and focus on computations of positive permanents of non-negative matrices constructed from probabilities. The exact computation of the permanent is difficult, i.e., it is a problem of likely exponential complexity, with the fastest known general algorithm for computing the permanent of a full n  ×  n matrix based on the formula from [\citet=63Rys] requiring O(n2n) operations. In fact, the task of computing the permanent of a non-negative matrix was one of the first problems established to be in the #-P complexity class, and the task is also complete in the class [\citep=79Val].
+
+Therefore, recent efforts have mainly focused on developing approximate algorithms. Three independent developments, associated with the mathematics of strict bounds, Monte-Carlo sampling, and Graphical Models, contributed to this field.
+
+On the "mathematics of permanents" side, the emphasis was on establishing rigorous lower and upper bounds for permanents. Many significant results in this line of research are related to the conjecture of [\citet=26vdW] that the minimum of the permanent over doubly stochastic matrices is n! / nn, and it is only attained when all entries of the matrix are 1 / n. The conjecture remained open for over 50 years before [\citet=81Fal] and [\citet=81Ego] proved it. Recently, [\citet=08Gur] found an alternative, surprisingly short and elegant proof that also allowed for a number of unexpected extensions. (See e.g. the discussion of [\citet=09LS].)
+
+On the "Monte-Carlo sampling" side, a very significant breakthrough was achieved with the invention of the Fully Polynomial Randomized Algorithmic schemes (FPRAS) for the permanent problem [\citep=04JSV]: the permanent is approximated in polynomial time, provably with high probability and within an arbitrarily small relative error. The complexity of the FPRAS of [\citet=04JSV] is O(n11) in the general case. Even though the scaling was improved to O(n4 log n) in the case of very dense matrices [\citep=08HL], the approach is still impractical for the majority of realistic applications.
+
+On the "Graphical Model" (GM) side, Belief Propagation (BP) heuristics showed surprisingly good performance [\citep=08CKV] [\citep=09HJ] [\citep=10CKKVZ]. The BP family of algorithms, originally introduced in the context of error-correction codes by [\citet=63Gal], artificial intelligence by [\citep=88Pea], and related to some early theoretical work in statistical physics by [\citet=35Bet], and [\citet=36Pei] on tree graphs, can generally be stated for any GM according to [\citet=05YFW]. The exactness of the BP on any tree, i.e., on a graph without loops, suggests that the algorithm can be an efficient heuristic for evaluating the partition function, or for finding a Maximum Likelihood (ML) solution of the graphical model (GM) defined on sparse graphs. However, in the general loopy cases, one would normally not expect BP to work very well, making the heuristic results of [\citet=08CKV] [\citet=09HJ] [\citet=10CKKVZ] somehow surprising, even though not completely unexpected in view of the existence of polynomially efficient algorithms for the ML version of the problem [\citep=55Kuh] [\citep=92Ber], which were shown by [\citep=08BSS] to be equivalent to an iterative algorithm of the BP type. This raises questions about understanding the performance of BP. To address this challenge [\citet=10WC] established a theoretical link between the exact permanent and its BP approximation. The permanent of the original non-negative matrix was expressed as a product of terms, including the BP-estimate and another permanent of an auxiliary matrix, β. * (1 - β) , where β is the doubly stochastic matrix of marginal probabilities of links between particles in the two images (edges in the underlying GM) calculated using the BP approach. (See Theorem [\ref=Prop:Perm+BP].) The exact relation of [\citet=10WC] followed from the general Loop Calculus technique of [\citet=06CCa] [\citet=06CCb], but it also allowed a simple direct derivation. Combining this exact relation with aforementioned results from the mathematics of permanents led to new lower and upper bounds for the original permanent. Moreover this link between the math side and the GM side gained a new level of prominence with the recent proof by [\citet=11Gur] of the fact that the variational formulation of BP in terms of the Bethe Free Energy (BFE) functional, discussed earlier by [\citet=08CKV] [\citet=10CKKVZ] [\citet=10WC], and shown to be convex by [\citet=11Von], gives a provable lower bound to the permanent. Remarkably, this proof of Gurvits was based on an inequality suggested earlier by [\citet=98Sch] for the object naturally entering the exact, loop calculus based, BP formulas, perm(β. * (1 - β)).
+
+This manuscript contributes two-fold, theoretically and experimentally, to the new synergy developing in the field. Theory-wise, we generalize the BP approach to approximately computing permanents, suggesting replacing the BFE functional by its fractional generalization in the general spirit of [\citet=Wiegerinck_Heskes_2003] differing from the BFE functional of [\citet=05YFW] in the entropy term, and then derive new exact relations between the original permanent and the results of the fractional approach (see Theorem [\ref=theorem:m-exact]). The new object, naturally appearing in the theory, is perm(β. * (1 - β).-  γ), where γ∈[ -  1;1], with γ =  - 1 corresponding to BP and γ = 1 corresponding to the so-called exclusion principle (Fermi), but ignoring perfect matching constraints, Mean Field (MF) approximation discussed earlier by [\citet=08CKV]. Utilizing recent results from the "mathematics of permanents," in particular from [\citet=11Gur], we show, that considered as an approximation, the fractional estimate of the permanent is a monotonic continuous function of the parameter γ with γ =  - 1 and γ = 0 setting, respectively, the lower bound (achievable on trees) and an upper bound. We also analyze existing and derive new lower and upper bounds. We adopt for our numerical experiments the so-called Zero-suppressed binary Decision Diagrams (ZDDs) approach of [\citet=93Minato] (see e.g. [\citet=Knuth:2009:ACP:v4f1]), which outperforms Ryser's formula for realistic (sparsified) matrices, for exactly evaluating permanents, develop numerical schemes for efficiently evaluating the fractional generalizations of BP, test the aforementioned lower and upper bounds for different ensembles of matrices and study the special, matrix dependent, γ*, which is defined to be the special γ for which the fractional estimate is equal to the permanent of the matrix .
+
+The material in the manuscript is organized as follows: the technical introduction, stating the computation of the permanent as a Graphical Model, is explained in Section [\ref=sec:intro] and Appendix [\ref=sec:ML]. The BP-based optimization formulations, approximate methods, iterative algorithms and related exact formulas are discussed in Section [\ref=sec:BP+MF] and Appendices [\ref=sec:BP], [\ref=sec:MF], [\ref=sec:fractional], [\ref=sec:BP_low]. Section [\ref=sec:what_to_test] is devoted to permanental inequalities, discussing the special values of γ and conjectures. Our numerical experiments are presented and discussed in Section [\ref=sec:Experiments] and Appendices [\ref=sec:pruning], [\ref=sec:ZDD], [\ref=sec:Ryser_vs_ZDD]. We conclude and discuss the path forward in Section [\ref=sec:conclusion].
+
+Technical Introduction
+
+The permanent of a square matrix p, [formula], is defined as
+
+[formula]
+
+where Sn is the set of all permutations of the set, [formula]. Here and below we will only discuss permanents of non-negative matrix, with [formula], also assuming that perm(p) > 0.
+
+An example of a physics problem, where computations of permanents are important, is given by particle tracking experiments and measurements techniques, of the type discussed in [\cite=08CKV] [\cite=10CKKVZ]. In this case an element of the matrix, [formula], is interpreted as an unnormalized probability that the particle labeled i in the first image moves to the position labeled j in the second image. In its most general formulation, the task of learning a low dimensional parametrization of the flow from two consecutive snapshots consists of maximizing the partition function Z = perm(p) over the "macroscopic" flow parameters affecting p. Computing the permanent for a given set of values of the parameters constitutes an important subtask, the one we are focusing on in this manuscript.
+
+Computation of the Permanent as a Graphical Model Problem
+
+The permanent of a matrix can be interpreted as the partition function Z of a Graphical Model (GM) defined over a bipartite undirected graph, G = (V = (V1,V2),E), where V1, V2 are of equal size, |V1| = |V2| = n, and V1, V2, and E stand for the set of n vertices/labels of particles in the first and second images and the set of edges (possible relations) between particles in the two images, respectively. The basic binary variables, σij = 0,1, are associated with the edges, while the perfect matchings are enforced via the constraints associated with vertexes, [formula] and [formula], as illustrated in Fig. [\ref=fig:GM]. A non-negative element of the matrix, pij, turns into the weight associated with the edge (i,j). In summary, the GM relates the following probability to any of n! perfect matchings, σ:
+
+[formula]
+
+The GM formulation ([\ref=GM]) also suggests a variational, Kullback-Leibler (KL) scheme for computing the permanent. The only minimum of the so-called exact Free Energy (FE) functional,
+
+[formula]
+
+computed over b(σ)  ≥  0 for all σ under the normalization condition, [formula], is achieved at b(σ) = ϱ(σ), and the value of the exact FE functional at the minimum over b(σ) is -   log (Z(p)). Here, the general and the optimal b(σ) are interpreted as, respectively, the proxy and the probability of the perfect matching σ.
+
+The relation between the problem of computing the permanent and the problem of finding the most probable (maximum) perfect matching is discussed in Appendix [\ref=subsec:ML].
+
+Exact Methods for Computing Permanents
+
+Computing the permanent of a matrix is a #  -P hard problem, i.e., it is a problem which most likely requires a number of operations exponential in the size of the matrix. In Appendix [\ref=sec:Ryser_vs_ZDD], we experiment and compare the performance of the following two exact deterministic ways to evaluate permanents:
+
+A general method based on Zero-supressed binary Decision Diagrams (ZDDs), explained in more detail in [\citet=Knuth:2009:ACP:v4f1]. See also detailed explanations below in Appendix [\ref=sec:ZDD]. As argued in [\citet=Knuth:2009:ACP:v4f1], the ZDDs may be a very efficient practical tool for computing partition functions in general graphical models. This thesis was illustrated by [\citet=09YedA] on the example of counting independent sets and kernels of graphs.
+
+A permanent-specific method based on Ryser's formula:
+
+[formula]
+
+We use code from [\citet=Ryser_code] implementing the Ryser's formula.
+
+Note that in most practical cases many entries of p are very small and they do not affect the permanent of p significantly. These entries do, however, take computational resources if accounted for in the algorithm. To make computations efficient we sparsify the resulting matrix p, implementing the heuristic pruning technique explained in Appendix [\ref=sec:pruning].
+
+We also verify some of our results against randomized computations of the permanent using the FPRAS from [\citet=04JSV], with a specific implementation from [\citet=08CKV].
+
+Approximate Methods and Exact Relations
+
+We perform an approximate computation of the permanent by following the general BFE approach of [\citet=05YFW] and the associated Belief Propagation/Bethe-Peierls (BP) algorithm, discussed in detail for the case of permanents of positive matrices in [\citet=08CKV] [\citet=09HJ] [\citet=10CKKVZ]. (See also Appendix [\ref=sec:BP] reproducing the description of [\citet=08CKV] [\citet=10CKKVZ] and presented in this manuscript for convenience.) In our BP experiments we implement the algorithm discussed by [\citet=08CKV] with a special type of initialization corresponding to the best perfect matching of p. We also generalize the BP scheme by modifying the entropy term in the BFE.
+
+In the following subsections we re-introduce the BFE approach, the related but different Mean Field FE approach, and also consider a fractional FE approach generalizing and interpolating between Bethe/BP and MF approaches. Even though these optimization approaches and respective algorithms can be thought of as approximating the permanent we will show that they also generate some exact relations for the permanent.
+
+Belief Propagation/Bethe-Peierls Approach
+
+Let us start by defining some useful notation.
+
+Call the β-polytope of the non-negative matrix p (or just β-polytope for short) the set of doubly stochastic non-negative matrices with elements corresponding to zero elements of p equal to zero, [formula]. We say that β lies in the interior of the β-polytope, β∈B(int)p, if [formula].
+
+In English, the interior solution means that all elements of the doubly stochastic β are non-integer, under exception of the case when pij = 0 and, respectively, βij = 0.
+
+The following functional of β∈Bp
+
+[formula]
+
+conditioned to a given p, is called the Bethe Free Energy (BFE) or the Belief-Propagation/Bethe-Peierls (BP) functional (for the permanent)
+
+To motivate the definition above let us briefly discuss the concept of the Bethe FE which was introduced in [\citet=05YFW] for the case of a general pair-wise interaction GM (with variables associated with vertices of the graph). Schematically, the logic extended to the case with variables associated with edges of the graph and leading to Eq. ([\ref=F_BP]) for the permanent is as follows. (See [\citet=10WC] for a detailed discussion.) Consider a GM with binary variables associated with edges of the graph. If the graph is a tree, then the following exact relation holds, [formula], where σi = (σij = 0,1|(i,j)∈E). Here, ρi(σi) and ρij(σij) are marginal probabilities associated with vertex i and edge (i,j) of the graph. Replacing the probabilities by their proxies/beliefs, ρ(σ)  →  b(σ), ρi(σi)  →  bi(σi) and ρij(σij)  →  bij(σij), substituting the ratio of probabilities expression for b(σ) in the exact FE functional ([\ref=KL]), and accounting for relations between the marginal beliefs, one arrives at the general expression for the Bethe FE functional. This expression for the Bethe FE functional is exact on a tree only, and it is similar in spirit to the one introduced in [\citet=05YFW] as an approximation for GM on a graph with loops. When the graph is bi-partite with the equal number of nodes in the two parts the BP replacement for b(σ) becomes
+
+[formula]
+
+where βij = bij(1) is the marginal belief correspondent to finding the edge (i,j) in the matching. Then, substituting b(σ) by bBP(σ) in Eq. ([\ref=KL]) results in the Bethe FE expression ([\ref=F_BP]) for the perfect matchings (permanents). Note, that while the exact FE ([\ref=KL]) is the sum of O(n!) terms, there are only O(n2) terms in the Bethe FE ([\ref=F_BP]).
+
+According to the Loop Calculus approach of [\citet=06CCa] [\citet=06CCb], extended to the case of the permanent in [\citet=08CKV] [\citet=10CKKVZ] [\citet=10WC], the BP expression and the permanent are related to each other as follows:
+
+If the BP equations following from minimization of the the BFE ([\ref=F_BP]) over the doubly stochastic β,
+
+[formula]
+
+where ui and uj are positive-valued Lagrangian multipliers correspondent to the [formula] and [formula] constraints respectively, have a solution in the interior of the β-polytope, β∈B(int)p, then
+
+[formula]
+
+where ZBP(p) =  -  log (FBP(β|p)).
+
+The proof of the Theorem [\ref=Prop:Perm+BP] also appears in Appendix [\ref=subsec:BP-exact]. An iterative heuristic algorithm solving BP Eqs. ([\ref=BP2]) for the doubly stochastic β efficiently is discussed in Appendix [\ref=sec:BP-iterat].
+
+Let us recall that the (i,j) element of the doubly stochastic β, βij, is interpreted as the proxy (approximation) to the marginal probability for the (i,j) edge of the bipartite graph G to be in a perfect matching, i.e., βij, should be thought of as an approximation for [formula].
+
+Note also that log (ui) and log (uj) in Eqs. ([\ref=BP2]) are the Lagrange multipliers related to the 2n double stochasticity (equality) constraints on β.
+
+BP as the Minimum of the Bethe Free Energy
+
+We define optimal BFE, Fo - BP(p), and resepctive counting factor, Zo - BP(p), according to
+
+[formula]
+
+where FBP(β|p) is defined in Eq. ([\ref=F_BP]).
+
+Considered in the general spirit of [\citet=05YFW], Fo - BP(p), just defined, should be understood as an approximation to -   log (perm(p)). To derive Eq. ([\ref=o-BP]) one needs to replace b(σ) by its lower parametric proxy ([\ref=b-bp]). (See [\citet=10WC] for more details.)
+
+The relation between the optimization formulation ([\ref=o-BP]) and the BP Eqs. ([\ref=BP2]) requires some clarifications stated below in terms of the following two propositions.
+
+Any doubly stochastic β solving Eqs. ([\ref=BP2]) and lying on the boundary of the β polytope, i.e., β∈Bp but β∉B(int)p, can be reduced by permutations of rows and columns of β (and p, respectively) to a block diagonal matrix, with one block consisting of 0,1 elements only and corresponding to a partial perfect matching, and the other block having all elements strictly smaller than unity, and nonzero if the respective pij  ≠  0. We call such a solution of the BP Eqs. ([\ref=BP2]) partially resolved solutions, emphasizing that a part of the solution forms a partial perfect matching, and any other perfect matching over this subset is excluded by the solution (in view of the probabilistic interpretation of β). A doubly stochastic β corresponding to a full perfect matching is called a fully resolved solution of the BP Eqs. ([\ref=BP2]).
+
+This statement follows directly from the double stochasticity of β and from the form of the BP Eqs. ([\ref=BP2]), and it was already discussed in [\citet=08CKV] [\citet=10WC] for the fully resolved case.
+
+The optimal Bethe FE, Fo - BP(β) over β∈Bp, can only be achieved at a solution of the BP Eqs. ([\ref=BP2]), possibly with the Lagrange multipliers ui, uj taking the value +    ∞  .
+
+This statement is an immediate consequence of the fact that Proposition [\ref=prop:part-BP] is valid for any p, and so a continuous change in p (capable of covering all possible achievable p) can only result in an interior solution for the doubly stochastic β merging into a vertex of the β-polytope, or emerging from the vertex (than respective Lagrangian multipliers take the the value +    ∞  ), but never reaching an edge of the polytope at any other location but a vertex. Therefore, we can exclude the possibility of achieving the minimum of the Bethe FE anywhere but at an interior solution, partially resolved solution or a fully resolved solution (corresponding to a perfect matching) of the BP equations.
+
+Note, that an example where the minimum in Eq. ([\ref=o-BP]) is achieved at the boundary of the β - polytope (in fact, at the most probable perfect matching corner of the polytope) was discussed in [\citet=10WC].
+
+Another useful and related statement, made recently in [\citet=11Von], is
+
+The Bethe FE ([\ref=F_BP]) is a convex functional of β∈Bp.
+
+A few remarks are in order. First, the statement above is nontrivial as, considered naively, individual edge contributions in Eq. ([\ref=F_BP]) associated with the entropy term, βij log βij - (1 - βij) log (1 - βij), are not convex for βij > 1 / 2, and the convexity is restored only due to the global (double stochasticity) condition. Second, the convexity means that if the optimal solution is not achieved at the boundary of Bp, then either the solution is unique (general case) or the situation is degenerate and one finds a continuous family of solutions all giving the same value of the Bethe FE. The degeneracy means that p should be fine tuned to get into the situation, and addition of an almost any small (random) perturbation to p would remove the degeneracy. To illustrate how the degeneracy may occur, consider an example of a (2  ×  2) matrix p with all elements equal to each other. We first observe that regardless of p for n = 2, the entropy contributions to the Bethe FE are identical to zero for any doubly stochastic (2  ×  2) matrix, [formula]. Moreover, the remaining, linear in β, contribution to the Bethe FE (which is also called the self-energy in physics) turns into a constant for the special choice of p. Thus one finds that in this degenerate n = 2 case,
+
+[formula]
+
+with any α∈[0;1], is a solution of Eqs. ([\ref=BP2]) also achieving the minimum of the Bethe FE. Creating any asymmetry between the four components of the (2  ×  2) p will remove the degeneracy, moving the solution of Eqs. ([\ref=BP2]) achieving the minimum of the Bethe FE to one of the two perfect matchings, correspondent to α = 0 and α = 1, respectively. It is clear that this special "double" degeneracy (first, cancellation of the entropy contribution, and then constancy of the self-energy term) will not appear at all if the doubly stochastic β, solving Eqs. ([\ref=BP2]) in the n > 2 case has more than two nonzero components in every row and column. Combined with Proposition [\ref=prop:BP-convexity], this observation translates into the following statement.
+
+If n > 2 and an interior, β∈B(int)p, solution of Eqs. ([\ref=BP2]) has more than two nonzero elements in every row and column, then the solution is unique .
+
+Mean-Field Approach
+
+For β∈Bp, the MF FE is defined as
+
+[formula]
+
+Let us precede discussion of usefulness of the MF notion/approach by a historical and also motivational remark. MF is normally thought of as an approximation ignoring correlations between variables. Then, the joint distribution function of σ is expressed in terms of the product of marginal distributions of its components. In our case of the perfect matching GM over the bi-partite graph, the MF approximation constitutes the following substitution for the exact beliefs,
+
+[formula]
+
+into Eq. ([\ref=KL]). Making the substitution and relating the marginal edge beliefs to β according to, [formula], one arrives at Eq. ([\ref=MF1]). Because of how the perfect matching problem is defined, the two states of an individual variable, σij = 0 and σij = 1, are in the exclusion relation, and so one can also associate the special form of Eq. ([\ref=MF1]) with the exclusion or Fermi- (for Fermi-statistics of physics) principle.
+
+Direct examination of Eq. ([\ref=MF1]) reveals that
+
+FMF(β|p) is strictly convex and its minimum is achieved at β∈B(int)p.
+
+Looking for the interior minimum of Eq. ([\ref=MF1]) one arrives at the following MF equations for the (only) stationary point of the MF FE functional
+
+[formula]
+
+where vi and vj are Lagrangian multipliers enforcing the conditions, [formula] and [formula], respectively. The equations can also be rewritten as
+
+[formula]
+
+making comparison with the respective BP Eqs. ([\ref=BP2]) transparent. An efficient iterative algorithm for solving the MF equations ([\ref=MF3]) is discussed in Appendix [\ref=subsec:MF-iterat].
+
+Direct examination shows that (unlike in the BP case) β with a single element equal to unity or zero (when the respective p element is nonzero) cannot be a solution of the MF Eqs. ([\ref=MF3]) over doubly stochastic β - fully consistently with the Proposition [\ref=prop:MF] above. Moreover, Zo - MF(p), defined as -   log  of the minimum of the MF FE ([\ref=MF1]), is simply equal to ZMF(p), defined as -   log FMF(β) evaluated at the (only) doubly stochastic solution of Eq. ([\ref=MF3]).
+
+Note also that the MF functional ([\ref=MF1]) cannot be considered as a variational proxy for the permanent, bounding its value from below. This is because the substitution on the right-hand side of Eq. ([\ref=MF-subs]) does not respect the perfect matching constraints, assumed reinforced on the left-hand side of Eq. ([\ref=MF-subs]). In particular, the probability distribution function on the right-hand side of Eq. ([\ref=MF-subs]) allows two edges of the graph adjacent to the same vertex to be in the active, σij = 1, state simultaneously. However, this state is obviously prohibited by the original probability distribution, on the left-hand side of Eq. ([\ref=MF-subs]) defined only over n! of states corresponding to the perfect matchings. As shown below in Section [\ref=subsec:fractional-opt], the fact that the MF ignores the perfect matching constraints results in the estimation ZMF(p) upper bounding perm(p), contrary to what a standard MF (not violating any original constraints) would do.
+
+Finally and most importantly (for the MF discussion of this manuscript), the MF approximation for the permanent, ZMF, can be related to the permanent itself as follows:
+
+[formula]
+
+where β is the only interior minimum of ([\ref=MF1]).
+
+The proof of this statement is given in Appendix [\ref=subsec:MF-exact].
+
+Fractional Approach
+
+Similarity between the exact BP expression ([\ref=LC]) and the exact MF expression ([\ref=MF-exact]) suggests that the two formulas are the limiting instances of a more general relation. Indeed, one finds that
+
+For any non-negative p and doubly stochastic β which solves
+
+[formula]
+
+for γ∈[ -  1;1], and if the solution found is in the interior of the domain, i.e., β∈B(int)p, the following relation holds
+
+[formula]
+
+where
+
+[formula]
+
+and wi and wj in Eq. ([\ref=m3]) are the Lagrangian multipliers enforcing the conditions, [formula] and [formula], respectively.
+
+The proof of Eq. ([\ref=m1]) is given in Appendix [\ref=subsec:fractional-exact]. An iterative heuristic algorithm solving Eqs. ([\ref=m3]) efficiently is described in Appendix [\ref=subsec:fractional-iterat].
+
+Following the general GM logic and terminology introduced in [\citet=Wiegerinck_Heskes_2003] [\citet=05YFW], we call F(γ)f(β|p) the fractional FE. Obviously the two extremes of γ =  - 1 and γ = 1 correspond to BP and MF limits, respectively. Many features of the BP and MF approaches extend naturally to the fractional case. In particular, one arrives at the following statement.
+
+The fractional functional defined in Eq. ([\ref=m1]), F(γ)f(β|p), is a convex functional, convex over β∈Bp for any γ∈[ -  1;1] and any non-negative p.
+
+Obviously, this statement generalizes Proposition [\ref=prop:BP-convexity]. Also, the following statement becomes a direct consequence of Proposition [\ref=prop:fract-cov]:
+
+If the minimum of F(γ)f(β|p) is realized at β∈B(int)p, it is unique.
+
+Minimal Fractional Solution
+
+It is clear that at γ > 0 the fractional Eqs. ([\ref=m3]) cannot have a perfect matching solution, thus suggesting that at least in this case the solution, if exists, is in the interior, β∈B(int)p. On the other hand general existence (for any p) of such a solution follows immediately from the existence in a special case, for example of p with all elements equal, and then from the continuity of the Eqs. ([\ref=m3]) solution with respect to p.
+
+The case of γ∈] - 1;0] is a bit trickier. In this case, Eqs. ([\ref=m3]) formally do allow a perfect matching solution. However, for all but degenerate p, i.e. one reducible by permutations to a diagonal matrix, the perfect matching solution is an isolated point. Indeed, let us consider a vicinity of a degenerate p. If one picks (without loss of generality) a diagonal, p(0) = (aiδij|(i,j)∈E), and consider p = p(0)  +  δ, where δ is a small positive matrix, then one observes that Eqs. ([\ref=m3]) do allow a solution, β = 1 + εb, where ε is a small positive scalar and [formula] is a matrix with O(1) elements, if the following scaling relation holds, |δ|  ~  ε1 + γ. Moreover, one also finds that a solution β is ε-close to a perfect matching only if p is ε1 + γ-close to a diagonal matrix. Now we apply the same continuity and existence arguments, as used above in the γ > 0 case arguments, to find out that the following statement holds.
+
+The minimal fractional solution, defined by
+
+[formula]
+
+can only be achieved for γ >  - 1 and general (non-degenerate) p at β∈B(int)p.
+
+Then the following statement follows.
+
+For any non-negative p, Zγo - f(p) is a monotonically increasing and continuous function of γ in
+
+[formula]
+
+Observe that for any non-negative p and doubly stochastic β, [formula], so for any γ1,2∈[ -  1;1] such that γ1  >  γ2, F(γ1)f(β|p)  ≤  F(γ2)f(β|p). Then according to the definition of F(γ)o - f(p), F(γ1)o - f(p)  ≤  F(γ1)f(β|p)  ≤  F(γ2)f(β|p), for any doubly stochastic β, in particular for β which is optimal for γ2. Finally, F(γ1)o - f(p)  ≤  F(γ2)o - f(p), proving monotonicity. The continuity of Z(γ)o - f(p) with respect to γ in ] - 1;1] follows from the Proposition [\ref=prop:frac_min] combined with F(γ)f(β|p) continuity with respect to both γ∈[ -  1;1] and β∈B(int)p. (The intuition with respect to the continuity is as follows: an increase in γ pushes the optimal β away from the boundary of the Bp polytope.)
+
+Permanent Inequalities, Special Value of γ, and Conjectures
+
+We start this section discussing in Subsection [\ref=subsec:ineq] the recently derived permanent inequalities related to BP and MF analysis. Then, we switch to describing new results of this manuscript in Subsection [\ref=subsec:fractional-opt], which are mainly related to the fractional generalizations of the inequalities discussed in Subsection [\ref=subsec:ineq]. We also discuss in Subsection [\ref=subsec:fractional-opt] the special (and p-dependent) value of the fractional coefficient γ for which perm(p) is equal to Zγo - f(p). Finally, Subsection [\ref=subsec:conject] is devoted to discussing conjectures whose resolutions should help to tighten bounds for the permanent.
+
+Recently Derived Inequalities
+
+In this subsection we discuss a number of upper and lower bounds on permanents of positive matrices introduced recently. Our task is two-fold. First, we wish to relate the bounds/inequalities to the BP and MF approaches introduced and discussed in the preceding section. Some of these relations and interpretations are new. However, we also aim to test these bounds, and specifically to characterize the tightness of the bounds by testing the gap as a function of advection and diffusion parameters in the 2d diffusion+advection model in Section [\ref=sec:Experiments].
+
+The first bound of interest is
+
+For any non-negative p
+
+[formula]
+
+This statement, as an experimental but unproven observation, was made in [\citet=08CKV]. It was stated as a theorem (Theorem # 14) in [\citet=10Von], but the proof was not provided. (See also discussion in [\citet=11Von] following Theorem 49/Corollary 50.) The statement was proven in [\citet=11Gur]. Interpreted in terms of the terminology and logic introduced in the preceding Sections, the proof of [\citet=11Gur] consists (roughly) in combining the inequality by [\citep=98Sch]
+
+[formula]
+
+stated for any doubly stochastic β, with some (gauge) manipulations/transformations of the type discussed above in Sections [\ref=subsubsec:o-BP]. We give our version of the proof (similar to the one in [\citet=11Gur] in spirit, but somewhat different in details) in Appendix [\ref=sec:BP_low]. One direct corollary of the bound ([\ref=B1]) discussed in [\citet=11Gur], is that
+
+For an arbitrary doubly stochastic φ
+
+[formula]
+
+Next, the following two lower bounds follow from analysis of Eq. ([\ref=LC]).
+
+For any non-negative p and doubly stochastic β∈B(int)p solving Eqs. ([\ref=BP2]) (if the solution exists) results in
+
+[formula]
+
+This is the statement of Corollary 7 of [\citet=10WC] valid for any interior point solution of the BP-equations, and it follows from the Gurvits-van der Waerden theorem of [\citet=08Gur] [\citet=09LS], also stated as Theorem 6 in [\citet=10WC].
+
+For any non-negative p and β∈B(int)p solving Eqs. ([\ref=BP2]) (if the solution exists) results in
+
+[formula]
+
+where Π is an arbitrary permutation.
+
+This statement was made in Theorem 8 in [\citet=10WC] and it is also related to an earlier observation of [\citet=73ES]
+
+For any non-negative p and β∈B(int)p solving Eqs. ([\ref=BP2]) (if the solution exists)
+
+[formula]
+
+This statement was made in Proposition 9 of [\citet=10WC].
+
+New Bounds and γ*
+
+Of the bounds discussed above, three are related to BP and one to MF, while as argued in Section [\ref=subsec:conject] the fractional approach interpolates between BP and MF. This motivates exploring below new fractional generalizations of the previously known (and discussed in the preceding subsection) BP and MF bounds.
+
+We first derive a new lower bound generalizing Proposition [\ref=prop:bound3] to the fractional case.
+
+The following is true for any doubly stochastic β and any γ∈[ -  1;1]
+
+[formula]
+
+This bound generalizes Corollary 7 of [\citet=10WC], and it follows directly from the Gurvits-van der Waerden theorem of [\citet=08Gur] [\citet=09LS] (see also Proposition 8 of [\citet=10WC], where a misprint should be corrected nn / n!  →  n! / nn), and the inequality, [formula].
+
+Then, combining Proposition [\ref=prop:fractional-low] with Theorem [\ref=theorem:m-exact], one arrives at the following statement, generalizing Proposition [\ref=prop:bound3]:
+
+For any non-negative p and β∈B(int)p solving Eqs. ([\ref=m3]) (if the solution exists), the following lower bound holds
+
+[formula]
+
+Next, one arrives at the following fractional generalization of Proposition [\ref=prop:bound5].
+
+For any non-negative p and β∈B(int)p solving Eqs. ([\ref=m3]) (if the solution exists), the following upper bound holds
+
+[formula]
+
+This upper bound follows from combining Theorem [\ref=theorem:m-exact], with the simple (and standard) upper bound, [formula] applied to A = β. * (1 - β).-  γ.
+
+Note that Corollary [\ref=corr:fractional-upper], applied to the γ = 0 case and reinforced by the observation, that for γ  ≥  0 the minimum of the fractional functional ([\ref=m1]) is achieved in β∈B(int)p, translates into
+
+[formula]
+
+Combined with Proposition [\ref=prop:gamma_mon], Eq. ([\ref=gamma=0-upper_bound]) results in the following:
+
+For any non-negative p
+
+[formula]
+
+This completes the list of inequalities we were able to derive generalizing the BP and MF inequalities stated in the preceding subsection for the fractional case. These generalizations are valid for any γ∈[0;1]. Therefore, one may hope to derive somewhat stronger statements reinforcing the continuous family of inequalities with the mononotonicity of the fractional approach stated in Proposition [\ref=prop:gamma_mon].
+
+Indeed, combining Eqs. ([\ref=B1]) with Propositions [\ref=prop:gamma_mon],[\ref=corr:gamma=>0-upper_bound] one arrives at
+
+For any non-negative p there exists a special γ*∈[ -  1;0], such that perm(p) = Z(γ*)o - f(p), and the minimal fractional solution upper (lower) bounds the permanent at 0  ≥  γ  >  γ* (- 1  ≤  γ  <  γ*).
+
+Proposition [\ref=prop:FractionalOptim] motivates our experimental analysis of the γ*(p) dependence discussed in Section [\ref=sec:Experiments].
+
+Note also that due to the monotonicity stated in Proposition [\ref=prop:gamma_mon], the γ = 0 upper bound on the permanent is tighter than the MF, γ = 1, upper bound. However, and as discussed in more details in the next subsection, even the γ = 0 upper bound on the permanent is not expected to be tight.
+
+Conjectures
+
+It was conjectured in [\citet=10Von] that
+
+[formula]
+
+and also that [formula]. The second part of the conjecture was disproved by [\citet=11Gur] with an explicit counter-example. The inequality in Eq. ([\ref=conj1]) turns into the equality [formula] when p is doubly stochastic and block diagonal, with all the elements in the 2  ×  2 blocks equal to 1 / 2 . Then it was conjectured in [\citet=11Gur] that
+
+For any non-negative p, f(n) in Eq. ([\ref=conj1]) is [formula].
+
+Another related (but not identical) conjecture of [\citet=11Gur] is as follows:
+
+The following inequality holds for any doubly stochastic n  ×  n matrix φ:
+
+[formula]
+
+Note that if Eq. ([\ref=conj2]) is true it implies according to [\citet=98LSW] a deterministic polynomial-time algorithm to approximate the permanent of n  ×  n nonnegative matrices within the relative factor [formula].
+
+It can be verified directly that the special matrix (with "doubly degenerate" blocks) for which the condition ([\ref=conj2]) is achieved (i.e., inequality is turned into equality), and it also results in Z(γ)f with γ =  - 1 / 2 on the right-hand side of Eq. ([\ref=conj2]). Therefore one reformulates Conjecture [\ref=conj:Gur] as
+
+The following inequality holds for any non-negative p
+
+[formula]
+
+We refer an interested reader to [\citet=11Von] for discussion of some other conjectures related to permanents.
+
+Experiments
+
+We experiment with deterministic and random (drawn from an ensemble) non-negative matrices.
+
+Our simple deterministic example is of the matrices with elements taking two different values such that all the diagonal and all the off-diagonal elements are the same [\cite=10WC].
+
+In our experiments with stochastic matrices we consider the following four different ensembles
+
+[formula]: Ensemble of matrices motivated by [\citet=08CKV] [\citet=10CKKVZ] and corresponding to a mapping between two consecutive images in 2d flows parameterized by the vector λ = (a,b,c,κ), where κ is the diffusion coefficient and (a,b,c) stand for the three parameters of the velocity gradient tensor (stretching, shear and rotation, respectively - see [\citet=10CKKVZ] for details). In generating such a matrix p we need to construct two sets of λ parameters. The first one, [formula], is used to generate an instance of particle positions in the second image, assuming that particles are distributed uniformly at random in the first image. The second one, [formula], corresponds to an instance of the guessed values of the parameters in the learning problem, where computation of the permanent is an auxiliary step. (Actual optimal learning consists in computing the maximum of the permanent over [formula].) In our simulations we test the quality of the permanent approximations in the special case, when [formula], and also in other cases when the guessed values of the parameters do not coincide with the input ones, [formula].
+
+[formula] In this case one generates elements of the matrix independently at random and distributed uniformly within the
+
+[formula]
+
+interval components to all elements of the matrix. The choice of this ensemble is motivated by the special role played by the (doubly degenerate) block-diagonal matrix in the Gurvits conjecture discussed in Section [\ref=subsec:conject].
+
+To make the task of the exact computation of the permanent of a random matrix tractable we consider sparsified versions of the ensembles defined above. To achieve this goal we either prune full matrix from the bare (i.e., not yet pruned) ensemble, according to the procedure explained in Appendix [\ref=sec:pruning], or in the case of the
+
+[formula]
+
+Deterministic Example
+
+We consider a simple example which was already discussed in [\citet=10WC]. The permanent of the matrix p with elements
+
+[formula]
+
+where w > 1 and T > 0, can be evaluated through the recursion,
+
+[formula]
+
+D0 = 1, D1 = 0, and [formula]. On the other hand, seeking for solution of the fractional Eqs. ([\ref=m3]) in the form of a doubly stochastic β, where
+
+[formula]
+
+one finds that ε should satisfy the following transcendental equation,
+
+[formula]
+
+At T  →    ∞   this equation has a unique uniform, ε  →  1 / (n - 1), solution. An interior, ε > 0, solution of Eq. ([\ref=eps-eq]) exists, and it is also unique, at any finite T for γ >  - 1. According to [\citep=10WC], the interior solution does not exists at γ =  - 1 and T <  log ω  /   log (n - 1).
+
+To test the gap between the exact expression for the permanent and the fractional lower bound of Corollary [\ref=corr:fractional-low], we fix w = 2,n = 20 and vary the temperature parameter, T. The results are shown in Fig. [\ref=fig:det_example]a. One finds that the gap depends on γ with γ = 0 resulting in the best lower bound for all the tested temperatures. One also observes that the γ-dependence of the gap decreases with increase in T. Fig. [\ref=fig:det_example]b shows dependence of the special γ*, defined in Proposition [\ref=prop:FractionalOptim], on n and T at w = 2. One finds that, consistently with the Conjecture [\ref=half-conj], γ* is always smaller than - 1 / 2 and it also decreases with increase in either n or T.
+
+Random Matrices. Special γ*.
+
+We search for the special γ  =  γ*, defined in Proposition [\ref=prop:FractionalOptim], by calculating the permanent of a full matrix, p, of size n  ×  n, with [formula], and of a pruned matrix with [formula], and then comparing it with the fractional value Z(γ)f(β,p) , where the doubly stochastic β solves Eqs. ([\ref=m3]) for given p, for different γ. By repeatedly evaluating the fractional approximation for different values of γ and then taking advantage of the Z(γ)f monotonicity and continuity with respect to γ and performing a search we find the special γ for a specific p.
+
+In general we observed that the special γ* for tested matrices was always less than or equal to - 1 / 2, which is consistent with Conjecture [\ref=conj:upper]. We also observed, estimating or extrapolating the approximate value of the special γ* for a given matrix, that it might be possible to estimate the permanent of a matrix efficiently and very accurately for some ensembles.
+
+The [formula] ensemble
+
+In this subsection we describe experiments with several of the [formula] ensembles. We are interested in studying the dependence of the special γ*, defined in Proposition [\ref=prop:FractionalOptim], on the matrix size and other parameters of the ensemble. We consider here a variety of cases.
+
+Fig. [\ref=fig:gamma_small] shows the results of experiments with full but (relatively) small matrices and different values [formula]. The results are presented in the form of a scatter plot, showing results for different matrix instances from the same ensemble.
+
+As can be seen from the grouping of the first five plots in Fig. [\ref=fig:gamma_small], the dependence of the special γ* on the matrix size at [formula] is largely sensitive to the diffusion parameter κ and it is not so dependent on the advection parameters a,b,c. Indeed, Figs. [\ref=fig:gamma_small] (a,b) are similar to each other, as are Figs.  [\ref=fig:gamma_small](c-e), despite having different values of a,b,c.
+
+Figs. [\ref=fig:gamma_small](a-e), along with Figs. [\ref=fig:gamma_small](f,g), also demonstrate an interesting feature: the lower κ, the more erratic the behavior of the special γ*, with Figs. [\ref=fig:gamma_small](f,g) demonstrating this tendency at its extreme. With low diffusion, matrices were dominated by the largest permutation and search for the special γ* became less meaningful, with seemingly random behavior.
+
+Analyzing the three last cases in Fig. [\ref=fig:gamma_small] with [formula], we observed that the larger the value of κout, the more regular the resulting behavior.
+
+Fig. [\ref=fig:gamma_large] shows the same scatter plots as in Fig. [\ref=fig:gamma_small], observed for larger but sparser (90% pruned) matrices. We observed the general tendency for the average special γ* to decrease with increasing n; however, it is not clear from the observations if the resulting level of fluctuations decreases with the increase in n or remains the same.
+
+Summarizing, for the [formula] ensemble, we found that the behavior of the special γ* with respect to matrix size to be largely dependent on κout, the diffusion coefficient used to generate the matrix, while the dependance of other factors is significantly less pronounced. The average special γ decreases with increasing n, while respective variance remains roughly the same.
+
+Uniform and δ-exponential ensembles
+
+Fig. [\ref=fig:gamma_random] shows scatter plots for examples of the (a)
+
+[formula]
+
+The
+
+[formula]
+
+We also studied the special γ* in "badly-behaved" cases such as the one brought up earlier, with 2  ×  2 squares of 1 / 2's positioned along the diagonal. (See discussion in Section [\ref=subsec:conject].) It can be easily shown that the special value of γ* of the bare block-diagonal matrix is - 1 / 2. Unsurprisingly, our experiments, documented in Fig. [\ref=fig:gamma_shifted], showed that: (a) the resulting γ is always smaller than - 1 / 2, and (b) as more noise was introduced, the special γ* decreased in value faster with respect to matrix size. However, this decrease with n towards smaller γ* was much slower than in other ensembles, particularly for low noise.
+
+Random Matrices: Testing Inequalities and Conjectures
+
+Figs. [\ref=fig:inequality],[\ref=fig:inequalityscatter] and Figs. [\ref=fig:prunedinequality],[\ref=fig:prunedinequalityscatter], showing average behavior and scatter plots for smaller and larger (pruned) matrices, respectively (see figure captions for explanations), present experimental verification to the variety of inequalities discussed in Section [\ref=subsec:ineq]. The ensemble used for these plots was the ensemble [formula]. The data suggests that neither of the bounds are actually tight, and moreover the values of the gaps, between the exact expression and respective estimates tested, fluctuate more strongly with increasing matrix size. We also observe from Figs. [\ref=fig:inequality] and Figs. [\ref=fig:inequalityscatter]f, that Eq. ([\ref=conj1]) has f(n) growing faster with n than [formula] even on average. In the case of larger pruned matrices we removed the two expressions [formula] and [formula]. We removed the former because in the case of pruning the resulting β is often partially-resolved (with some elements of β equal to one) and in this case the inequality does not carry any restriction. We removed the latter because, in the pruned case and for a randomly chosen permutation, it is very likely that at least one element of β is zero, making the bound discussed unrestrictive.
+
+Fig. [\ref=fig:gamma] shows that the bounds given by the Corollaries [\ref=corr:fractional-low], [\ref=corr:fractional-upper] do not depend much on γ and that they in practice depend more on matrix size and on peculiarities of individual matrices. There is a slight change for values of γ near - 1, but otherwise the plot is nearly flat, so it seems that unfortunately little tightening of the bounds can be achieved by tweaking γ. Another noteworthy observation is that a higher upper bound implies a higher lower bound, and vice-versa.
+
+Fig. [\ref=fig:gurvits] is related to discussions of Corollary [\ref=cor:Gurvits] for the permanent of a doubly stochastic matrix. We generate an instance of a doubly stochastic matrix and calculate the respective BP expression in three steps (this is the procedure of [\citet=67KS], also discussed by [\citet=09HJ]): (a) generate a non-negative matrix from the
+
+[formula]
+
+Conclusions and Path Forward
+
+The main message of this and other related recent papers by [\citet=08CKV] [\citet=09HJ] [\citet=10CKKVZ] [\citet=10WC] [\citet=10Von] [\citet=11Von] [\citet=11Gur] is that the BP approach and improvements not only give good heuristics for computing permanents of non-negative matrices, but also provide theoretical guarantees and thus reliable deterministic approximations. The main highlights of this manuscript are
+
+The construction of the fractional approach, parameterized by γ∈[ -  1;1] and interpolating between BP (γ =  - 1) and MF (γ = 1) limits.
+
+The discovery of the exact relation between the permanent of a non-negative matrix, perm(p) and the respective fractional expression, Z(γ)f(p), where the latter is computationally tractable.
+
+The proof of the continuity and monotonicity of Z(γ)f(p) with γ, also suggesting that for some γ*∈[ -  1;0], perm(p) = Z(γ*)f(p).
+
+The extension of the list of known BP-based upper and lower bounds for the permanent by their fractional counterparts.
+
+The experimental analysis of permanents of different ensembles of interest, including those expressing relations between consecutive images of stochastic flows visualized with particles.
+
+Our experimental tests include analysis of the gaps between exact expression for the permanent, evaluated within the ZDDs technique adapted to permanents, and the aforementioned BP- and fractional-based lower/upper bounds.
+
+The experimental analysis of variations in the special γ for different ensembles of matrices suggests the following conclusions. First, the behavior of the special γ varies for different ensembles, but the general trend remains the same: as long as there is some element of randomness in the ensemble, the special γ decreases as matrix size increases. Second, for each ensemble the behavior of the special γ is highly distinctive. For some considered random matrix ensembles the variance decreases quickly with increasing matrix size. All of the above suggest that the fractional approach offers a lot of potential for estimating matrix permanents.
+
+We view these results as creating a foundation for further analysis of theoretical and computational problems associated with permanents of large matrices. Of the multitude of possible future problems, we consider the following ones listed below as the most interesting and important:
+
+Improving BP and fractional approaches and making the resulting lower and upper bounds tighter.
+
+Further analysis of the γ-dependence, making theoretical statements for statistics of log-permanents at large n and for different random ensembles.
+
+Utilizing the new permanental estimations and bounds for learning flows in the setting of [\citet=10CKKVZ]. Combining within the newly introduced fractional approach the β-optimization with optimization over flow parameters (by analogy with what is done in [\citet=10CKKVZ]). Applying the improved technique to various Particle Image Velocimetry (PIV) experiments of interest in fluid mechanics in general, and specifically to describe spatially smooth multi-pole flows in micro-fluidics, see e.g. discussion of the most recent relevant experiments in [\citet=10DGMPT] [\citet=10GJG] and references therein .
+
+Addressing other GM problems of the permanental type, e.g. counting matchings (and not only perfect matchings) on arbitrary graphs (drawing inspiration from [\citet=11SMW] generalizing [\citet=06BN] [\citet=08BSS] in the ML setting) and higher-dimensional matchings, in particular corresponding to matching of paths between multiple consecutive images within the "learning the flow" setting.
+
+Most Probable Perfect Matching
+
+This short appendix is introduced to guide the reader through material which is related, but only indirectly (through physics motivation and historical links), to the main subject of the manuscript.
+
+Most Probable Perfect Matching over Bi-Partite Graphs
+
+According to Eq. ([\ref=Z-def]), the permanent can be interpreted as the partition function of a GM. The partition function represents a weighted counting of the n! perfect matchings. Using "physics terminology" one says that this perfect matching representation allows to interpret the permanent as the statistical mechanics of perfect matchings (called dimers in the physics literature) over the bi-partite graph. This is statistical mechanics at finite temperatures, as the partition function represents a (statistical) sum over the perfect matchings.
+
+However, it is still of interest to discuss (at least in the context of establishing historical links) the "zero temperature," or Maximum Likelihood (ML) version of Eq. ([\ref=Z-def])
+
+[formula]
+
+According to the logic of [\citet=05YFW], Eq. ([\ref=ML]) can also be stated in the probability space (i.e., in terms of b(σ)) as
+
+[formula]
+
+Then, the functional of b(σ) which is the object of minimization over beliefs in Eq. ([\ref=ML_LP]) is naturally the ML (zero temperature) version of the FE functional ([\ref=KL]).
+
+By construction, ZML(p)  ≤  Z(p) for any p. Note also that Eq. ([\ref=ML]) is a Linear Programming (LP) equation, but one which at first sight appears intractable, giving an optimization defined over a huge polytope and spanning all the perfect matchings with nonzero probability. For a general GM the LP-ML formulation is indeed intractable, but for the specific problem under consideration (finding the perfect matching over a bipartite graph) the ML-LP problem ([\ref=ML_LP]) becomes tractable, as discussed below in the next subsection. Given classical results from the optimization theory, related to the so-called Hungarian algorithm, by [\citet=55Kuh], and the auction algorithm, by [\citet=92Ber], this special solvability (reduced complexity) of the ML perfect matching problem is not surprising.
+
+Linear Programming Relaxation of BP
+
+The Bethe FE ([\ref=F_BP]) can be split naturally into the self-energy term and the self-entropy terms (at unit temperature), FBP = EBP - SBP:
+
+[formula]
+
+If the entropy term is ignored in Eq. ([\ref=o-BP]) the problem turns into the Linear Programming (LP) formulation of BP
+
+[formula]
+
+One can also arrive at the same LP formulation ([\ref=o-LP]) relaxing the original ML-LP setting ([\ref=ML_LP]). As shown in [\citet=08BSS] [\citet=08Che], the relaxation is provably tight for any p , i.e., ZLP(p) = ZML(p), as the resulting matrix of constraints in the LP problem ([\ref=o-LP]) describing the doubly stochasticity of β is totally uni-modular, so the corners of the respective polytope are in one-to-one correspondence with the perfect matching configurations/corners of the higher-dimensional polytope from Eq. ([\ref=ML_LP]), also in accordance with the Birkhoff-von Neumann theorem by [\citet=36Kon] [\citet=46Bir] [\citet=53vonNeu].
+
+Bethe-Free Energy Approach
+
+Exact BP-based Relations for Permanents
+
+We present here a simple proof of Eq. ([\ref=LC]), essentially following a slightly modified version of what was the main statement of [\citet=10WC].
+
+Consider an interior minimum of the Bethe FE functional ([\ref=F_BP]) achieved with a strictly nonzero (for elements with positive pij) doubly stochastic β. Then, the minimum satisfies Eqs. ([\ref=BP2]), where log (u) are respective Lagrangian multipliers. Weighting the logarithm of Eqs. ([\ref=BP2]) with β, summing up the result over all the edges, using Eq. ([\ref=F_BP]) and the double stochasticity of β, one derives
+
+[formula]
+
+On the other hand, applying the permanent to both sides of Eq. ([\ref=BP2]) one arrives at
+
+[formula]
+
+Combining Eq. ([\ref=u-eqs]) with Eq. ([\ref=BP-Perm]) results in Eq. ([\ref=LC]).
+
+Iterative Algorithm(s) for finding solution of BP equations
+
+First of all, let us recall that according to Proposition [\ref=prop:BP-convexity], ([\ref=F_BP]) is convex. However, as explained above the convexity is not trivial, as it is enforced by global constraints. This lack of convexity of individual edge-local terms in Eq. ([\ref=F_BP]) creates a technical obstacle to finding a valid fixed point of FBP, suggesting that an iterative algorithm converging to the fixed point of FBP will be more elaborate than the one discussed below in the MF case.
+
+To find a valid solution of BP in our numerical experiments we use the following practical iterative scheme (heuristics), previously described in [\citet=08CKV] (see Eqs. (7,8) as well as preceding and following explanations):
+
+[formula]
+
+where the arguments of the β's indicate the order of the iterations. The damping parameter λ (typically chosen [formula]) helps with convergence. To ensure appropriate accuracy for solutions with β's close to zero or unity we also insert a normalization step after Eqs. ([\ref=beta_n]) but prior to Eqs. ([\ref=U_n]), making the following two transformations subsequently, (a) [formula]: [formula], and (b) [formula]: [formula]. (The two steps implement an elementary step of the Sinkhorn operation from [\citet=09HJ].) The algorithm is sensitive to initial values for β and u. To ensure convergence, one initiates the algorithm with the output of the MF scheme (which converges much better) as described in Appendix [\ref=subsec:MF-iterat], i.e., β(0) = βMF and u(0) = vMF. Numerical experiments show that this procedure always converges to an interior stationary point of the BFE ([\ref=F_BP]), when one exists and is not degenerate. In the special cases when the solution is on the boundary it seemed to converge there as well, but we did not study this systematically to make a definitive statement.
+
+Note that the algorithm presented above is certainly not the only option one can use to find a doubly stochastic solution of BP Eqs. ([\ref=BP2]). In fact, the standard Sum-Product Algorithm (SPA) of [\citet=05YFW], stated for the problem of computing the permanent in [\citet=10CKKVZ], is a serious competitor, which according to Theorem 32 of [\citet=11Von] always converges to the minimum of the Bethe FE. Future work is required to compare the convergence speed of the two algorithms.
+
+Mean-Field (Fermi) Approach
+
+Exact MF-based Relations for Permanents
+
+We present here a simple proof of Eq. ([\ref=MF-exact]), essentially following the logic of what was described above for BP in Appendix [\ref=subsec:BP-exact].
+
+Weighting the logarithm of Eqs. ([\ref=MF3]) with that doubly stochastic β which minimizes Eq. ([\ref=MF-exact]), summing the result over all the edges, and making use of Eqs. ([\ref=MF3],[\ref=MF1]), one derives
+
+[formula]
+
+On the other hand, applying the permanent to both sides of Eq. ([\ref=MF3]) one arrives at
+
+[formula]
+
+Combining Eq. ([\ref=v-eqs]) with Eq. ([\ref=MF-Perm]) results in Eq. ([\ref=MF-exact]).
+
+Iterative Scheme for Solving Mean-Field Equations
+
+An efficient heuristic way to find a (unique) solution of the MF system of Eqs. ([\ref=MF3]) for doubly stochastic β is to initialize with vi(0) = vj(0) = 1 and iterate according to
+
+[formula]
+
+until the tolerance δ  >   max ((β(n + 1) - β(n))) is met.
+
+Fractional Approach
+
+Exact Relations for Permanents
+
+We present here a simple proof of Eq. ([\ref=m-exact]), which is a direct generalization of what was discussed above in Appendices [\ref=subsec:BP-exact],[\ref=subsec:MF-exact].
+
+Weighting the logarithm of Eqs. ([\ref=m3]) with that doubly stochastic β which minimizes Eq. ([\ref=m-exact]), summing the result over all the edges, and making use of Eqs. ([\ref=m3],[\ref=m1]), one derives
+
+[formula]
+
+On the other hand, applying the permanent to both sides of Eq. ([\ref=m3]) one arrives at
+
+[formula]
+
+Combining Eq. ([\ref=w-eqs]) with Eq. ([\ref=m-Perm]) results in Eq. ([\ref=m-exact]).
+
+Iterative Scheme for Solving Fractional Equations
+
+All edge-local terms in the fractional functional ([\ref=m1]) are convex in β∈[0;1] for γ > 0, while for negative γ the edge-term convexity holds only when all elements of β are smaller than a threshold βc  ≥  1 / 2, which is a solution of βc log (βc) =  - γ(1 - βc) log (1 - βc). This suggests different iterative schemes for positive and negative γ.
+
+When γ > 0 we use the following modification of the MF scheme ([\ref=MF_it_1],[\ref=MF_it_2]):
+
+[formula]
+
+In the case of γ  ≤  0 we use the following modification of the BP scheme
+
+[formula]
+
+where the arguments of the β's indicate the order of the iterations. The damping parameter λ (typically chosen [formula]) helps with convergence. To ensure appropriate accuracy for solutions with β's close to zero or unity we also insert a normalization step after Eqs. ([\ref=rho_n]) but prior to Eqs. ([\ref=w_n]), making the following two transformations consequently,
+
+[formula]
+
+The algorithm is sensitive to initial values for β and w. To ensure convergence, we initiate the algorithm with the output of the MF scheme (which converges much more easily) described in Appendix [\ref=subsec:MF-iterat], i.e., β(0) = βMF and w(0) = vMF. Numerical experiments show that this procedure converges to a stationary point of the fractional FE ([\ref=m1]). We also verified that the iterative scheme designed for γ < 0 converges in the γ > 0 case, even thought the former scheme is obviously faster.
+
+Note that fractional version of the standard Sum-Product Algorithm (SPA) can be developed. It is also natural to expect, in view of the general convexity of the fractional FE discussed in the main body of the text, that there exists a provably convergent version of the SPA. It will be important to design such a convergent γ-SPA in the future and to compare its practical performance against one of the heuristics described above.
+
+BP Gives Lower Bound on the Permanent
+
+Here we give our version of the proof of the lower bound ([\ref=B1]). First of all, in the case when the Bethe FE reaches its minimum in the interior of the domain, i.e., at β∈Bp, Eq. ([\ref=B1]) follows directly from the main result of [\citet=10WC], i.e., Eq. ([\ref=LC]), and Schijver's inequality ([\ref=Sch-ineq]). Therefore, according to explanations of Section [\ref=subsubsec:o-BP], we only need to analyze the case when the minimum of the Bethe FE is a partially resolved solution, with a β which can be split by appropriate permutations of rows and columns of the matrix into a perfect matching block (corresponding to a corner of the respective projected polytope), the block with all elements smaller than unity and nonzero unless the respective element of p is zero (thus lying in the interior of the respective subspace), and all cross elements of β (between the blocks) equal to zero. Then, Zo - BP for such a partially resolved solution is split into the product of two contributions, Zo - BP = Zpm  ·  Zint, where Zpm corresponds to the perfect matching block, and Zint corresponds to the interior block. In fact, Zpm is equal to the weighted perfect matching block of p and -   log (Zint) corresponds to the minimum of the Bethe FE computed for the interior block of p. On the other hand the full partition function, Z, can be bounded from below by the product Z  ≥  Z1  ·  Z2, where Z1 and Z2 are permanents of the first and second blocks of the original matrix p. (Thus contributions of all the cross-terms of p into Z are ignored.) However, Z1  ≥  Zpm, as counting only one perfect matching (and ignoring others), and Z2  ≥  Zint in accordance to what was already shown above for any minimum of Bethe FE achieved in the interior of the respective domain.
+
+Pruning of the Matrix
+
+Computing the permanent of sufficiently dense matrixes exactly with the ZDD approach explained in Appendix [\ref=sec:ZDD] is infeasible for n > 30. To overcome this difficulty we choose to sparsify dense matrices generated in one of our experimental ensembles, removing their less significant entries in the following steps. First, we use LP, described in Appendix [\ref=subsec:LP], to find the permutation correspondent to the maximum perfect matching. To avoid getting a zero permanent in the result, we include all components of the maximum perfect matching permutation in the pruned matrix. Second, we consider every other entry of the matrix (not contributing the maximum perfect matching) and keep it in the matrix only if it is included in a perfect matching which is close to the maximum perfect matching, i.e., the two permutations share all but a few of their entries and ratio of their weighted contributions (in the permanent) is larger than a pre-defined value. Then, we act according to either of the two strategies, both of which are explored in this manuscript. One strategy is to include all permutations whose products are more than a given fraction of the main permutation. This method will tend to reduce the fluctuations in the error of the pruned matrix (i.e., will reduce the variation in [formula]). The other method is to always prune a set fraction of entries from the matrix, and prune them in order of decreasing value as determined by the above criterion. This method will reduce the fluctuations in the runtime of the algorithm.
+
+Zero-suppressed Binary Decision Diagrams (ZDD) method
+
+Zero-suppressed Binary Decision Diagrams, or ZDD, are a tool useful for representing combinatorial problems. The concept was introduced by Shin-Ichi Minato in 1993 [\cite=93Minato]. The idea of ZDD is as follows: if one defines a combinatorial problem to be a function of many variables, each taking values in {0, 1}, with the value of the function itself being also in {0, 1}, then those sequences of inputs that lead to unity can be thought of as "solutions" to the problem. Furthermore, each solution can be described in terms of the input variables within it that are equal to unity. The problem, then, can be described as being a "family of sets," or set of sets, where the family is of all solutions to the problem and each set within the family is the set of input variables whose value is 1 in that solution.
+
+To give an example of the "family of sets" concept, consider the [formula] function, which returns 1 if and only if the inputs are equal. This function can also be represented as the family of sets [formula], where 1 and 2 correspond to inputs 1 and 2 to the function, because if the function is to have value 1 then either both inputs must be equal to 1 or neither must be. Once this has been understood, it is best to see the ZDD as nothing more than a concise representation of this family of sets, since the family can get quite cumbersome for problems with many solutions and many variables. Note that this system of representing problems provides the greatest improvement when there are few solutions, and when the solutions themselves are sparse, since the family of sets is then small. Correspondingly, ZDD are most efficient under these conditions.
+
+The actual format of a ZDD is that of a directed tree of nodes, with each node having a directed edge to two other nodes. Each edge emanating from a node has an identity, in that it is either a "HI" branch or a "LO" branch, and of the two edges emanating from each node, there must be exactly one "HI" branch and one "LO" branch. Each node also has an identity, a number from 1 to n if there are n inputs to the combinatorial problem. The tree must contain one or two special nodes, or "sinks", one of which is the "True" sink, and optionally the "False" sink. We also introduce the conventions that nodes can only point to nodes of higher identity than themselves and that no two nodes can be identical in both their identity and their LO and HI pointers.
+
+Each node in a ZDD represents a choice about the variable the node identifies. If one begins at the top node of a ZDD, taking the HI branch represents including the variable represented by the node's identity in a prospective solution, and taking the LO branch represents not including that variable. If a LO or HI branch points to the True sink, that implies that a solution is reached if and only if all variables with identity greater than the current node identity are not included. If a LO branch points to the False sink, that implies that no solution is possible given the choices made previously. Interestingly, the constraints introduced in the paragraph previous to this one imply that a HI branch can never point to the False sink.
+
+ZDD are best understood with examples. The first example, also illustrated in Fig. [\ref=fig:zdd1], is of the ZDD for the exactly-two function of three variables, in other words, the function that returns 1 if exactly two of its three inputs have value 1 and 0 otherwise. It can also be described as the family of sets {{1, 2}, {1, 3}, {2, 3}}. Here, a dotted line denotes a LO branch and a normal line denotes a HI branch. Furthermore, the T and F symbols denote the True and False sinks, respectively, and the numbers inside each node refer to the nodes' identities (the variables that they represent). Our second example, shown in Fig. [\ref=fig:zdd2], represents the family of sets [formula]. Note the absence of a False sink. Note, also, the fact that a node's HI and LO branches need not point to the different locations. A more in-depth exploration of the ZDD concept can be found in [\citet=Knuth:2009:ACP:v4f1].
+
+Once the basic concept of ZDD is introduced, one can use it for solving various combinatorial problems, e.g. to represent a permanent as a ZDD in order to use the method. When we apply ZDD to the computations of permanent, we classify each entry of the matrix as either zero or nonzero. Then, we define a variable for each nonzero entry in the matrix. Each solution of our resulting ZDD will represent a possible permutation, meaning a set of entries in the matrix such that exactly one entry in each row and column is included in the set. There is a recursive algorithm, suggested in [\citet=Knuth:2009:ACP:v4f1], that allows for efficient counting of the solutions of the ZDD. The algorithm is simple: the number of solutions of a ZDD rooted at a node is equal to the sum of the numbers of solutions of the ZDD rooted at the HI and LO children of that node. The True sink is defined as having 1 solution, and the False sink as having 0. Note that the number of solutions of a ZDD representing a matrix is equal to the permanent of the corresponding to 0 - 1 matrix, with each 1 corresponding a nonzero entry.
+
+In order to find the permanent of matrices that are not 0-1 matrices, only a small modification is necessary. Instead of purely counting solutions of the ZDD, we do a weighted count, where the weighted number of solutions of a ZDD rooted at a node is equal to the value of the corresponding matrix entry times the weighted number of solutions at the HI child added to the weighted number of solutions at the LO child. In other words, if we are considering a node n with children HI and LO whose identity corresponds to a matrix entry of nonzero value v, then
+
+[formula]
+
+The WeightedCount of the root node of the ZDD will be equal to the permanent of the corresponding matrix.
+
+This leaves the question of how to build the ZDD from the matrix. This is done using Knuth's "melding" algorithm. The algorithm is somewhat complex and will not be described here, but it is described in detail in [\citet=Knuth:2009:ACP:v4f1]. The melding algorithm is an efficient and systematic method for constructing larger ZDD out of the logical combination of smaller ones. The smallest ZDD being melded together using Knuth's algorithm are ZDD representing the "exactly-one" constraint for each row and column of the matrix; in other words, they are constraints requiring exactly one matrix entry in every row and column to be included in a permutation which will be a "solution" to our problem.
+
+Comparison of Ryser's formula with the ZDD-based method
+
+As part of our experiments we compared the speed of Ryser's formula with the speed of the ZDD-based method by counting memory accesses in each of the two algorithms in order to fairly compare them. We found that the values we got for memory accesses were strongly correlated with the actual speed of the algorithm. We found that for very dense matrices, Ryser's formula is faster, but for sparser matrices the ZDD-based method is faster. We performed experiments with matrices that were 20%, 40%, and 60% sparse in order to get a good idea of the point where the ZDD-based method starts outperforming Ryser's formula. (Naturally, with no pruning, Ryser's formula outperforms the ZDD-based method significantly.)
+
+As can be seen from Fig. [\ref=fig:Ryzer_vs_ZDD], the ZDD-based method begins outperforming Ryser's formula when matrices are around 60% sparse.

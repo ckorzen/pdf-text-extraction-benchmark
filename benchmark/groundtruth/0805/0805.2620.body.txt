@@ -1,0 +1,191 @@
+Algorithms for Büchi Games
+
+This research was supported in part by the AFOSR MURI grant F49620-00-1-0327 and the NSF ITR grant CCR-0225610 and the SNSF under the Indo-Swiss Joint Research Programme.
+
+Introduction
+
+The algorithmic complexity of solving Büchi games is one of the more intriguing questions in graph algorithms. The input of the Büchi game problem consists of a directed graph whose states S are partitioned into player 1 states and player 2 states, and a set B  ⊆  S of Büchi states. In each player 1 state, the first player chooses an outgoing edge, and each player 2 state, the second player chooses an outgoing edge. The question is if, from a given start state, player 1 has a strategy to visit a state in B infinitely often.
+
+The classical algorithm for solving Büchi games has time complexity O(n  ·  m), where n is the number of states and m is the number of edges. The classical algorithm proceeds in a seemingly naive fashion: first it computes the set W1 of states from which player 1 has a strategy to visit B once, which requires time O(m); then it computes the set of states [formula] such that player 2 has a strategy to visit [formula] once. The set [formula] is removed from the game graph and the algorithm iterates over the reduced game graph unless [formula] is empty for the current game graph. The algorithm converges in at most n iterations, is the answer to the Büchi game problem. This algorithm seemingly performs unnecessarily repetitive work, yet no asymptotically faster algorithm is known.
+
+In [\cite=CJH03], we gave a subquadratic algorithm for the special case of graphs with constant outdegree. In this special case m = O(n), and thus the classical algorithm performs in time O(n2). We gave an algorithm with running time O(n2  /   log n). While the classical algorithm computes each set W1 by backward search of the graph, our algorithm alternated backward searches with bounded amounts of forward searches.
+
+In this paper, we present two new algorithms for Büchi games. While they fall short of the ultimate goal of a better than O(n  ·  m) algorithm, they present progress in that direction. First, in Section 3 we give an algorithm that performs at most O(m) more work than the classical algorithm. However, there exist families of game graphs of outdegree 2 on which our algorithm performs in time O(n), while the classical algorithm requires time Ω(n2). Also there exist families of game graphs of O(n log n) states with outdegree at most 2 on which both the classical and the algorithm of [\cite=CJH03] requires O(n2 log n) time, where as our algorithm requires O(n log n) time. However, there exist game graphs where our algorithm requires O(n  ·  m) time in the worst case. Our algorithm performs several backward searches, but instead of backward search from B it performs backward search from a subset of [formula] that are candidates to be in [formula].
+
+Second, in Section 4 we give an algorithm with running time O(n  ·  m  ·   log δ(n) /  log n), where 1  ≤  δ(n)  ≤  n is the outdegree of the graph. If δ(n) = O(1), then this algorithm performs asymptotically like the algorithm of [\cite=CJH03]; indeed, the new algorithm is based on the algorithm from [\cite=CJH03]. The forward search of the algorithm of [\cite=CJH03] was very naive; we develop a more refined forward search which saves repetitive work of the forward search of the algorithm of [\cite=CJH03] and thus obtain the generalization of the algorithm of [\cite=CJH03] to general game graphs. If δ(n) = O( log n), then our algorithm performs better than the classical algorithm; it is to our knowledge the first algorithm that improves on the classical algorithm in this case.
+
+Definitions
+
+We consider turn-based deterministic games played by two-players with Büchi and complementary coBüchi objectives for the players, respectively. We define game graphs, plays, strategies, objectives and notion of winning below.
+
+Game graphs. A game graph G = ((S,E),(S1,S2)) consists of a directed graph (S,E) with a finite state space S and a set E of edges, and a partition (S1,S2) of the state space S into two sets. The states in S1 are player 1 states, and the states in S2 are player 2 states. For a state s∈S, we write E(s) = {t∈S|(s,t)∈E} for the set of successor states of s. We assume that every state has at least one out-going edge, i.e., E(s) is non-empty for all states s∈S.
+
+Plays. A game is played by two players: player 1 and player 2, who form an infinite path in the game graph by moving a token along edges. They start by placing the token on an initial state, and then they take moves indefinitely in the following way. If the token is on a state in S1, then player 1 moves the token along one of the edges going out of the state. If the token is on a state in S2, then player 2 does likewise. The result is an infinite path in the game graph; we refer to such infinite paths as plays. Formally, a play is an infinite sequence [formula] of states such that (sk,sk + 1)∈E for all k  ≥  0. We write Ω for the set of all plays.
+
+Strategies. A strategy for a player is a recipe that specifies how to extend plays. Formally, a strategy σ for player 1 is a function σ: S*  ·  S1  →  S that, given a finite sequence of states (representing the history of the play so far) which ends in a player 1 state, chooses the next state. The strategy must choose only available successors, i.e., for all w∈S* and s∈S1 we have σ(w  ·  s)∈E(s). The strategies for player 2 are defined analogously. We write Σ and Π for the sets of all strategies for player 1 and player 2, respectively. An important special class of strategies are memoryless strategies. The memoryless strategies do not depend on the history of a play, but only on the current state. Each memoryless strategy for player 1 can be specified as a function σ: S1  →  S such that σ(s)∈E(s) for all s∈S1, and analogously for memoryless player 2 strategies. Given a starting state s∈S, a strategy σ∈Σ for player 1, and a strategy π∈Π for player 2, there is a unique play, denoted [formula], which is defined as follows: s0 = s and for all k  ≥  0, if sk∈S1, then [formula], and if sk∈S2, then [formula].
+
+Büchi and coBüchi objectives. We consider game graphs with a Büchi objective for player 1 and the complementary coBüchi objective for player 2. For a play [formula], we define [formula] to be the set of states that occur infinitely often in ω. We also define reachability and safety objectives as they will be useful in the analysis of the algorithms.
+
+Reachability and safety objectives. Given a set T  ⊆  S of states, the reachability objective [formula] requires that some state in T be visited, and dually, the safety objective [formula] requires that only states in F be visited. Formally, the sets of winning plays are [formula] and [formula]. The reachability and safety objectives are dual in the sense that [formula].
+
+Büchi and co-Büchi objectives. Given a set B  ⊆  S of states, the Büchi objective [formula] requires that some state in B be visited infinitely often, and dually, the co-Büchi objective [formula] requires that only states in C be visited infinitely often. Thus, the sets of winning plays are [formula] and [formula]. The Büchi and coBüchi objectives are dual in the sense that [formula].
+
+Winning strategies and sets. Given an objective Φ  ⊆  Ω for player 1, a strategy σ∈Σ is a winning strategy for player 1 from a state s if for all player 2 strategies π∈Π the play ω(s,σ,π) is winning, i.e., ω(s,σ,π)∈Φ. The winning strategies for player 2 are defined analogously. A state s∈S is winning for player 1 with respect to the objective Φ if player 1 has a winning strategy from s. Formally, the set of winning states for player 1 with respect to the objective Φ is [formula] Analogously, the set of winning states for player 2 with respect to an objective Ψ  ⊆  Ω is [formula] We say that there exists a memoryless winning strategy for player 1 with respect to the objective Φ if there exists such a strategy from all states in W1(Φ); and similarly for player 2.
+
+The following assertions hold.
+
+For all game graphs G = ((S,E),(S1,S2)), all Büchi objectives Φ for player 1, and the complementary coBüchi objective [formula] for player 2, we have [formula].
+
+For all game graphs and all Büchi objectives Φ for player 1 and the complementary coBüchi objective Ψ for player 2, there exists a memoryless winning strategy for both players.
+
+Observe that for Büchi objective Φ and the coBüchi objective [formula] by definition we have [formula]. Theorem [\ref=thrm:determinacy] states that [formula], i.e., the order of the universal and the existential quantifiers can be exchanged.
+
+Iterative Algorithms for Büchi Games
+
+In this section we present the classical iterative algorithm for Büchi games and an alternative iterative algorithm, i.e., algorithms to compute the winning sets in Büchi games. The running time of the alternative algorithm is never more than the running time the classical algorithm by an additive factor of O(m), where m is the number of edges in the game graph. We also present a family of game graphs with Büchi objectives where the classical algorithm requires quadratic time and the alternative algorithm works in linear time. We start with the notion of closed sets and attractors which are key notions for the analysis of the algorithm.
+
+Closed sets. A set U  ⊆  S of states is a closed set for player 1 if the following two conditions hold: (a) for all states [formula], we have E(u)  ⊆  U, i.e., all successors of player 1 states in U are again in U; and (b) for all [formula], we have [formula], i.e., every player 2 state in U has a successor in U. The closed sets for player 2 are defined analogously. Every closed set U for player [formula], for [formula], induces a sub-game graph, denoted [formula].
+
+Consider a game graph G, and a closed set U for player 1. Then the following assertions hold.
+
+There exists a memoryless strategy π for player 2 such that for all strategies σ for player 1 and for all states s∈U we have [formula].
+
+For all [formula], we have [formula].
+
+Attractors. Given a game graph G, a set U  ⊆  S of states, and a player [formula], the set [formula] contains the states from which player [formula] has a strategy to reach a state in U against all strategies of the other player; that is, [formula]. The set [formula] can be computed inductively as follows: let R0 = U; let
+
+[formula]
+
+then [formula]. The inductive computation of [formula] is analogous. For all states [formula], define [formula] if [formula], that is, [formula] denotes the least i  ≥  0 such that s is included in Ri. Define a memoryless strategy σ∈Σ for player 1 as follows: for each state [formula] with [formula], choose a successor [formula] (such a successor exists by the inductive definition). It follows that for all states [formula] and all strategies π∈Π for player 2, the play ω(s,σ,π) reaches U in at most [formula] transitions.
+
+For all game graphs G, all players [formula], and all sets U  ⊆  S of states, the set [formula] is a closed set for player [formula].
+
+Classical algorithm for Büchi games
+
+In this subsection we present the classical algorithm for Büchi games. We start with an informal description of the algorithm.
+
+Informal description of classical algorithm. The classical algorithm (Algorithm [\ref=algorithm:classical]) works as follows. We describe an iteration i of the algorithm: the set of states at iteration i is denoted as Si, the game graph as Gi and the set of Büchi states [formula] as Bi. At iteration i, the algorithm first finds the set of states Ri from which player 1 has a strategy to reach the set Bi, i.e., computes [formula]. The rest of the states [formula] is a closed subset for player 1, and [formula]. The set [formula] is identified as winning for player 2. Then the set of states Wi + 1, from which player 2 has a strategy to reach the set [formula], i.e., [formula] is computed. The set Wi + 1 is identified as a subset of the winning set for player 2 and it is removed from the state set. The algorithm then iterates on the reduced game graph. Observe that at every iteration the set of states removed is an attractor set and by Proposition [\ref=prop:attractor] the reduced game graph (the complement of an attractor) is a closed set and hence a game graph. In every iteration it performs a backward search from the current Büchi states to find the set of states which can reach the Büchi set. Each iteration takes O(m) time and the algorithm runs for at most O(n) iterations, where m and n denote the number of edges and states in the game graph, respectively. The algorithm is formally described as Algorithm [\ref=algorithm:classical]. The correctness of the algorithm easily follows from the results in [\cite=McN93] [\cite=Thomas97].
+
+Given a game graph G = ((S,E),(S1,S2)) and B  ⊆  S the following assertions hold:
+
+[formula] and [formula], where W is the output of Algorithm [\ref=algorithm:classical];
+
+the running time of Algorithm [\ref=algorithm:classical] is O(b  ·  m) where b = |B| and m = |E|.
+
+Observe that the size of the set of Büchi states B can be O(n), where n = |S| is the number of states, i.e., b in Theorem [\ref=thrm:classical] can be O(n). Hence the worst case running time of the classical algorithm can be O(n  ·  m), where n = |S| and m = |E|.
+
+Alternative algorithm for Büchi games
+
+We now present a new alternative iterative algorithm for Büchi games. The algorithm differs from the classical algorithm in its computation of the set [formula] (computed in step 2 of procudure [formula]) at every iteration. Recall that the set [formula] is a player 1 closed set with empty intersection with the set of Büchi states. The alternative algorithm at every iteration identifies the set [formula] in an alternative way. We first present an informal description of the algorithm.
+
+Informal description of alternative algorithm. We describe an iteration i of Algorithm [\ref=algorithm:alternative]. We denote by [formula] the set of coBüchi states. We denote the set of states at iteration i by Si, the game graph as Gi, the set of Büchi states [formula] as Bi, and the set of coBüchi states as [formula] as Ci. The algorithm proceeds as follows: first it computes the set of player 1 states in Ci with all successors in Ci and the set of player 2 states in Ci with a successor in Ci. Then the player 2 attractor to the union of the above two sets is computed and let this set be Zi. The states of Zi such that player 1 has a strategy to leave Zi is not a part of the player 1 closed set, and the remaining states of Zi is a player 1 closed set with empty intersection with Bi, and this is identified as the set similar to the set [formula] of Algorithm [\ref=algorithm:classical]. The details of the algorithms is as follows. In step 4.2 the set of player 1 states Ci1 is computed where for all s∈Ci1, all successors of s in Gi is in Ci; and in step 4.3 the set of player 2 states Ci2 is computed where for all s∈Ci2, there is a successor of s in Ci. Then the set Xi is computed as the set of states such that player 2 has a strategy in Gi to reach [formula] against all player 1 strategies, i.e., [formula], and the set Zi is obtained as [formula]. The set Di denotes the set of states such that player 1 can escape Zi in one step, i.e., either a player 1 state with an edge out of Zi or a player 2 state with all edges out of Zi. The set Li denotes the set of states where player 1 has a strategy in Xi to reach Di against all player 2 strategies, i.e., [formula]. Observe that the set Xi is not always a proper sub-game, however, for all states in [formula] we have [formula], and hence for the purpose of the computation of the attractor of Di we can consider [formula] as a sub-game. The set [formula] is identified as winning for player 2. Then the set of states Wi + 1, from which player 2 has a strategy to reach the set i, i.e., [formula] is computed. The set Wi + 1 is identified as a subset of the winning set for player 2 and it is removed from the state set. The algorithm then iterates on the reduced game graph. The algorithm is described formally as Algorithm [\ref=algorithm:alternative].
+
+Correctness arguments. The main argument to prove the correctness of Algorithm [\ref=algorithm:alternative] is as follows: we will show that, given that the game graph Gi are same at iteration i of Algorithm [\ref=algorithm:classical] and Algorithm [\ref=algorithm:alternative], set [formula] computed in step 2 of the iteration of classical algorithm and the set i computed in step 4.8 of the alternative algorithm coincide. Once we prove this result the correctness of the alternative algorithm follows easily. We prove this result in several steps. The following proposition states that [formula] is the largest player 1 closed subset of Ci and it follows easily from the properties of attractors and Proposition [\ref=prop:closed].
+
+Let Gi be the graph at iteration i if Algorithm [\ref=algorithm:classical] and let Ui  ⊆  Ci such that Ui is player 1 closed, then [formula].
+
+By Proposition [\ref=prop:alt1] to prove our desired claim it suffices to show that [formula], and i is a player 1 closed subset of Ci (this would imply [formula]).
+
+[formula].
+
+Observe that [formula] is a player 1 closed of Ci. Hence for all states [formula] the following assertions hold: (a) if s∈S1, then [formula]; and (b) if s∈S2, then [formula], and hence [formula]. Hence if [formula], then [formula].
+
+[formula], where Zi is the set computed at step 4.5 of Algorithm [\ref=algorithm:alternative].
+
+By Lemma [\ref=lemm:alt1] we have [formula] and hence we have [formula]. Since [formula], we have [formula].
+
+[formula], where Zi and Li are the sets computed at step 4.5 and 4.7 of Algorithm [\ref=algorithm:alternative], respectively.
+
+By Lemma [\ref=lemm:alt2] we have [formula] and hence we have [formula]. Observe that from states in Di player 1 can force the game to reach [formula]. Similarly, in the sub-game Xi with Di as target set, player 1 can force the game to reach Di from Li and then force the game to reach [formula]. Since [formula] and [formula] is a player 1 closed set, player 2 can keep the game in [formula] forever (by Proposition [\ref=prop:closed]). Hence we must have [formula]. Hence we have [formula] and [formula]. Thus we obtain [formula].
+
+[formula] and [formula] is a player 1 closed set.
+
+Since [formula], it follows that for all states s∈Xi we have (a) if [formula], then [formula], and (b) if [formula], then we have [formula]. Since [formula], for all states [formula] the following assertions hold: (a) if s∈S1, then [formula], as otherwise s would have been in Li; and (b) if s∈S2, then [formula], as otherwise s would have been in Li. Hence it follows that [formula] is player 1 closed, and since Zi  ⊆  Ci, the desired result follows.
+
+[formula].
+
+By Lemma [\ref=lemm:alt3] we have [formula]. By Lemma [\ref=lemm:alt4] we have i is a player 1 closed subset of Ci. Then, by Proposition [\ref=prop:alt1] we have [formula]. This proves the desired result.
+
+The correctness of Algorithm [\ref=algorithm:alternative] easily follows from Lemma [\ref=lemm:alt5] and induction.
+
+Given a game graph G = ((S,E),(S1,S2)) and B  ⊆  S we have [formula] and [formula], where W is the output of Algorithm [\ref=algorithm:alternative].
+
+Work analysis of Algorithm [\ref=algorithm:alternative]. We first analyze the work for the computation of step 4.2 and step 4.3 over all iterations of Algorithm [\ref=algorithm:alternative]. It easily follows that [formula], this follows since if a state s∈S2 has an edge to Wi - 1, then s would have been in Wi - 1 itself. The total work in the computation of the sets Ci1 overall iterations is O(m): this is achieved as follows. For every state s∈S1 we keep a counter for the number of edges to the set [formula], and once an edge to [formula] is removed from the graph the counter for the respective state is decremented by 1. Once the counter for a state reaches 0 it is included in Ci1. Hence the total work for step 4.2 and step 4.3 overall iterations is O(m). We now argue that the excess work of Algorithm [\ref=algorithm:alternative] as compared to the classical algorithm is at most O(m). The total work of step 4.2 and step 4.3 is already bounded by O(m). The rest of the argument is as follows: the classical algorithm for the computation of [formula] never works on the edges in [formula], i.e., on edges in [formula]. At iteration i Algorithm [\ref=algorithm:alternative] does excess work as compared to classical algorithm on the edges in [formula] and does only constant amount of work on this edges. However, edges in [formula] are removed at every iteration i, and hence the excess work of Algorithm [\ref=algorithm:alternative] as compared to the classical algorithm is O(m).
+
+Let [formula] denote the running time of Algorithm [\ref=algorithm:classical] on a game graph G with B  ⊆  S and [formula] denote the running time of Algorithm [\ref=algorithm:alternative]. Then we have [formula], where m = |E|.
+
+We now present an example of a family of game graphs where the classical algorithm requires quadratic time, whereas Algorithm [\ref=algorithm:alternative] works in linear time.
+
+The family of game graphs is constructed as follows. Given n  ≥  1 we consider a game graph consisting of n gadgets [formula] as follows. The gadget H(i) consits of a player 1 state ti (shown as a [formula]-state in Fig [\ref=figure:buchi-example]) and a player 2 state wi (shown as a [formula] state in Fig [\ref=figure:buchi-example]). The set of edges is as follows:
+
+For 0  ≤  i  <  n we have E(wi) = {ti,ti + 1} and E(wn) = {tn}.
+
+For 0  <  i  ≤  n we have E(ti) = {ti,wi - 1} and E(t0) = {t0}.
+
+The set of Büchi states is B = {wi|0  ≤  i  ≤  n}. Given n  ≥  1, the game graph constructed has 2n states and 4n - 2 edges, i.e., we have O(n) states and O(n) edges.
+
+The sets [formula] and Wi + 1 obtained at iteration i, for i  ≥  0, for the classical algorithm are as follows: [formula] and Wi + 1  =  {ti,wi}. At iteration i the classical algorithm works on edges of gadgets [formula], for [formula]. Hence the total work of the classical algorithm is at least [formula] i.e., the classical algorithm requires time quadratic in the size of the game graph.
+
+We now analyze the work of Algorithm [\ref=algorithm:alternative]. The sets of Algorithm [\ref=algorithm:alternative] of iteration i, for i  ≥  0, is as follows: (a) Ci1  =  {ti} and [formula]; (b) Xi  =  {ti,wi} and Zi  =  {ti}; and (c) Di  =  {ti}, Li  =  {wi} and i  =  {ti}. The work of Algorithm [\ref=algorithm:alternative] is constant for every iteration i: since the computation of steps 4.4 to steps 4.9 only works on edges in H(i) and H(i + 1). Hence the total work of Algorithm [\ref=algorithm:alternative] is O(n), i.e., the alternative algorithm works in linear time.
+
+Also if in every gadget H(i) the self-loop at state ti is replaced by a cycle of 2 log (n) states, then both the classical algorithm and the algorithm of [\cite=CJH03] requires O(n2 log (n)) time, whereas Algorithm [\ref=algorithm:alternative] requires O(n log (n)) time.
+
+Dovetailing Algorithm [\ref=algorithm:classical] and Algorithm [\ref=algorithm:alternative]. We already proved that the set [formula] and i of Algorithm [\ref=algorithm:classical] and Algorithm [\ref=algorithm:alternative] coincide. Algorithm [\ref=algorithm:classical] never works on the edges in [formula] and is favorable when [formula] is large and Algorithm [\ref=algorithm:alternative] is favorable when [formula] is small. Hence in every iteration both the algorithms can be run in a dovetailing fashion and obtaining [formula] by the algorithm that completes first. The computation of the sets Ci + 11 and Ci + 12 can be computed during the computation of the set Wi + 1.
+
+Improved Algorithm for Büchi Games
+
+In this section we present the improved algorithm for Büchi games. The algorithm is a generalization of the improved algorithm of [\cite=CJH03] to general game graphs, as compared to the algorithm of [\cite=CJH03] which works only for binary game graphs (game graphs with every state having out-degree at most 2). We will use the following notations in this section.
+
+Notation. For a set U and a game graph G we denote by [formula] is the set of states with edges that enter U. Given a game graph G we denote by δ(G) =  max {|E(s)||s∈S} the maximum out-degree of a state in G.
+
+Informal description of the new algorithm We observe that in step 1 of every iteration i of the classical algorithm an O(m) backward alternating search is performed to compute the set Ri, where m is the number of edges. The key idea of our improved algorithm (Algorithm [\ref=algorithm:improved]) is to perform a cheap forward exploration of edges in order to discover subsets of the winning set for player 2. Let U be the set of sources of edges entering the winning set of player 2 discovered in the previous iteration. The states in set U are new candidates to be included in the winning set of player 2. The cheap forward exploration of edges is performed when the size of the set U is small. Formally, if [formula], then an iteration of the classical algorithm is executed (step 4.1), i.e., the backward search is performed. Otherwise, we perform the cheap forward search as follows: we add an auxiliary state [formula] with an edge to every state in U. From the state [formula] a BFS is performed for [formula] steps in step 4.2.2 of Algorithm [\ref=algorithm:improved]. In steps 4.2.3--4.2.7 we check if the explored subgraph contains a closed set for player 1 in which player 2 has a winning strategy. If no such set is detected then one iteration of the classical algorithm is executed. The key for an improved bound of our algorithm is the observation that if step 4.2.7 fails to identify a non-empty winning subset for player 2, then the set discovered by the following iteration of the classical algorithm has at least [formula] states. A formal presentation of the algorithm is given as Algorithm [\ref=algorithm:improved].
+
+Given a game graph G = ((S,E),(S1,S2)) and B  ⊆  S we have [formula] and [formula], where W is the output of Algorithm [\ref=algorithm:improved].
+
+We prove by induction that Wi computed in any iteration of the improved algorithm satisfies [formula].
+
+Base case: [formula].
+
+Inductive case: We argue that [formula] implies that [formula]. The case when step 4.1.1 gets executed, or step 4.2.7 fails and step 4.2.8 gets executed, then the correctness follows from the correcntess of the iteration of the classical algorithm. We focus on the case when step 4.2.7 gets executed, i.e., a non-empty set [formula] is discovered as [formula]. For state [formula], we have [formula]. It follows from step 4.2.4 that [formula]. Let [formula]. Hence the following two conditions hold:
+
+[formula]
+
+By property of attractor we have the following property for [formula]; for all states [formula] the following assertions hold: (a) if s∈S1, then [formula], and (b) if s∈S2, then [formula].
+
+Hence [formula] is a player 1 closed set in Gi and [formula]. It follows that [formula]. Hence it follows that [formula]. The correctness of Algorithm [\ref=algorithm:improved] follows.
+
+Work analysis of algorithm [\ref=algorithm:improved]. We now focus on the work analysis of Algorithm [\ref=algorithm:improved]. Let us denote by [formula] the depth of the search of the BFS at step 4.2.2 of Algorithm [\ref=algorithm:improved]. Since [formula] and the BFS proceeds for [formula] steps, the BFS explores at least [formula] edges of the game graph Gi. Hence must have [formula]. Thus we obtain that [formula]. In the following lemma we denote by [formula] the depth of the BFS search at step 4.2.2 of Algorithm [\ref=algorithm:improved].
+
+Let [formula] be the set computed in step 4.2.2 of Algorithm [\ref=algorithm:improved] and [formula] be the depth of the BFS in step 4.2.2. Let [formula] be an player 1 closed set such that [formula] and [formula]. Then [formula], and hence W is discovered in step 4.2.7.
+
+Given a game graph G and a set of states U we define sequences Ui as follows:
+
+[formula]
+
+By definition [formula]. We prove by induction that [formula]. By Step 4.2.5 we have [formula]. Let Ui be the sequence of set of states in the attractor computation of [formula] with [formula]. We show by induction that [formula].
+
+Base case. Given [formula], for all states w∈W there is a path from [formula] of length at most [formula] to w. It follows that in the BFS from [formula] depth of any state w∈W is less than [formula]. Hence we have [formula]. Since [formula] we have [formula]. Since [formula] we have [formula]. It follows that [formula]. This proves the base case that [formula].
+
+Inductive case. Given [formula] we show that [formula]. Since W is a player 1 closed set, the following assertions hold: for a state [formula], we have [formula] and for a state [formula], we have E(s)  ⊆  W. Consider a state [formula], since [formula], then [formula] and [formula] and hence [formula]. Consider a state [formula], since E(s)  ⊆  W and [formula], we have [formula]. Hence [formula]. Hence [formula].
+
+It follows that [formula]. Since [formula] it follows that [formula]. The result follows.
+
+The total work of step 4.2.2 -- step 4.2.6 of Algorithm [\ref=algorithm:improved] is [formula] and the total work of step 4.2.7 is O(m).
+
+Consider an iteration of Algorithm [\ref=algorithm:improved]: since step 4.2.2 gets executed for [formula] steps it follows that size of the graph [formula] is [formula]. It follows that in any iteration the total work of step 4.2.2 -- step 4.2.6 is [formula]. Since there can be at most O(n) iterations of the algorithm the result for step 4.2.2 -- step 4.2.6 follows.
+
+The edges on which step 4.2.7 works are removed for further iteration when we remove Wi + 1 from the present set of states. Hence in step 4.2.7 no edge is worked for more than once. Thus we obtain that total work of step 4.2.7 of Algorithm [\ref=algorithm:improved] is O(m).
+
+The total work in step 4.2.8 of Algorithm [\ref=algorithm:improved] is [formula].
+
+In Algorithm [\ref=algorithm:improved] when step 4.2.8 gets executed let [formula] be the set of vertices identified by the iteration of the classical algorithm. If [formula], where [formula] is the depth of the BFS search of step 4.2.2, then it follows from Lemma [\ref=lemm:improved1] that it would have been identified by step 4.2.7 in of the iteration. Hence every time 4.8 gets executed at least [formula] states are removed from the graph. So step 4.2.8 can be executed at most [formula] times, where [formula]. The work at every iteration is O(m) and hence the total work of step 4.2.8 of Algorithm [\ref=algorithm:improved] is [formula].
+
+The total work in step 4.1 of Algorithm [\ref=algorithm:improved] is O(m  ·   log (n)).
+
+The condition of step 4.1 ensures that whenever step 4.1 gets executed as least [formula] edges are removed from the graph in the previous iteration. Hence step 4.1 gets executed at most log (n) times and each iteration takes O(m) work. The result follows.
+
+Lemma [\ref=lemm:improved2], Lemma [\ref=lemm:improved3] and Lemma [\ref=lemm:improved4] yield the following result.
+
+The total work of Algorithm [\ref=algorithm:improved] on a game graph G with a Büchi objective [formula], where B  ⊆  S, is [formula].
+
+Observe that for a game graph G with n = |S| we have δ(G)  ≤  n, and hence Algorithm [\ref=algorithm:improved] is asymptotically no worse than the classical algorithm. In [\cite=CJH03] an improved algorithm is presented for binary game graphs (where every state has out-degree at most 2) with a running time of [formula], for game graphs with n-states. For the special case of binary game graphs the running time of Algorithm [\ref=algorithm:improved] matches the bound of the algorithm of [\cite=CJH03]. However, there exists game graphs where Algorithm [\ref=algorithm:improved] out-performs both the classical algorithm and the algorithm of [\cite=CJH03]. For example consider the class of game graphs G with n = |S| and |E(s)| = O( log (n)) for all states, and hence m = O(n  ·   log (n)). The classical algorithm and the algorithm of [\cite=CJH03] (after reduction to binary game graphs) in the worst case take O(n2 log (n)) time, whereas the worst case running time of Algorithm [\ref=algorithm:improved] is bounded in O(n2 log ( log (n))).

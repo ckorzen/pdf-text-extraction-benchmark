@@ -1,0 +1,71 @@
+Continuous Optimization for Fields of Experts Denoising Works
+
+Introduction
+
+For many optimization problems, a local model built using derivatives simply does not give any useful information about the global structure, making it hard for continuous methods to find good solutions. For some of these problems, the discrete optimization methods commonly used in computer vision and image analysis are able to avoid undesired local minima; see [\cite=boykov2001] [\cite=crandall2011discrete].
+
+Fields of Experts (FoE) is a sophisticated prior on the statistics of natural images[\cite=foe]. It has a larger clique structure that is capable of capturing higher order interactions around each image pixel than models based on pairwise interactions. One area where the FoE priors have been used to great success is image denoising. For example, the recent state-of-the-art results in image denoising [\cite=nowozin2012] use FoE as one part in a more complicated machine learning system.
+
+There seems to be a general sense that MAP inference in problems arising from the use of FoE models is hard and that continuous optimization methods may not be suitable for it. Thus an increasingly sophisticated (and expensive) array of discrete optimization methods have been developed to solve them  [\cite=ishikawa2009hocr] [\cite=ishikawa2009] [\cite=kahl2012] [\cite=ishikawa2011] [\cite=fix2011] [\cite=lan2006] [\cite=potetz2007]. In this short paper we argue that a simple continuous optimization method can be used to solve the FoE denoising problem cheaply and effectively. We provide an open-source implementation of this method.
+
+Denoising using Fields of Experts
+
+Given a noisy image [formula], the negative log-likelihood for an image [formula] using the FoE prior is
+
+[formula]
+
+where P is an image patch in the set of all m  ×  m patches P of [formula] and σ is the standard deviation of the Gaussian noise in [formula]. The coefficients αk and the filters [formula] for [formula] are estimated from a database of natural images[\cite=foe]. This, the problem of denoising [formula] can be formulated as the finding image [formula] that minimizes [\eqref=eq:problem].
+
+Fusion Moves
+
+Fusion move is a common discrete optimization method used in image analysis [\cite=lempitsky2010fusion]. Let [formula] be two candidate solutions to a minimization problem [formula]. A new solution can be formed by picking ("fusing") components from [formula] and [formula] independently according to an indicator vector [formula]:
+
+[formula]
+
+Computing the optimal [formula] is a discrete optimization problem which can be solved using roof duality [\cite=lempitsky2010fusion] [\cite=kahl2012]. This framework includes α-expansion [\cite=boykov2001] as a special case.
+
+All of the fastest reported methods for minimizing [\eqref=eq:problem] are based on fusion moves [\cite=ishikawa2009hocr] [\cite=ishikawa2009] [\cite=ishikawa2011] [\cite=fix2011]. Generating good candidates is crucial and can be done in many ways. Two types of candidates have been used for FoE denoising: (i) blurring and randomly perturbing a current solution [\cite=ishikawa2009hocr] [\cite=ishikawa2011] and (ii) generating a candidate from the gradient of the objective function [\cite=ishikawa2009].
+
+Non-linear Least Squares
+
+A robustified nonlinear least squares problem is the minimization of a function of the form[\cite=ceres]:
+
+[formula]
+
+Here, ρi is a loss function. If it is the identity function, the problem is an ordinary non-linear least squares problem. Otherwise, under some mild conditions on ρi, [\eqref=eq:nlls] can still be solved using a non-linear least squares algorithm after appropriate modifications to the residual vector and the Jacobian matrix [\cite=triggs2000].
+
+Observe that the first sum in  [\eqref=eq:problem] can be written in the form of [\eqref=eq:nlls] by setting
+
+[formula]
+
+and the second sum by setting
+
+[formula]
+
+Thus, [\eqref=eq:problem] is a robustified non-linear least squares problem.
+
+Experiments
+
+Setup
+
+We used ceres solver [\cite=ceres] with the Levenberg-Marquardt algorithm [\cite=nocedal2006] in combination with the cholmod sparse Cholesky factorization library [\cite=chen2008algorithm] to minimize the robustified non-linear least squares formulation of [\eqref=eq:problem]. We compare this to two state-of-the-art discrete optimization methods [\cite=ishikawa2009] [\cite=ishikawa2011]. The code for [\cite=ishikawa2011] is publicly available and we implemented [\cite=ishikawa2009] ourselves.
+
+In our experiments, we used the noisy image as the initial point for the solver. Since the discrete methods use integer images, we rounded the continuous solution for the 2[formula]2 filters to the nearest integer in [formula] to get a fair comparison. This increased the final objective function value a little bit ([formula]0.2%). All of the experiments were performed on a 3.47 GHz Intel Xeon and did not use any multi-threaded capabilities.
+
+Results
+
+We begin by denoising four test images using the 2[formula]2 FoE model that has been commonly used for evaluating discrete methods. Table [\ref=table:2x2] shows the results, both as reported in [\cite=ishikawa2009] and of our own experiments and Fig. [\ref=fig:example2x2] illustrates the minima we found. The non-linear least squares solver finds a lower objective function value at a fraction of the runtime of the discrete methods.
+
+Apart from the four test images used for benchmarking in previous publications, we added noise to the 100 test images in the Berkeley Segmentation Database [\cite=berkeley]. The non-linear least squares solver always found a better objective value than the method in [\cite=ishikawa2009] (1% on average) and was much faster (11 and 100 seconds, respectively, on average).
+
+Because of limitations of the methods used for pseudo-boolean optimization, discrete methods for FoE inference have focused on the 2[formula]2 case. The methods in [\cite=fix2011], [\cite=ishikawa2011] and [\cite=kahl2012] are not capable of handling the degree-9 polynomials that would be required for 3[formula]3 inference. In contrast, nothing is preventing a nonlinear least squares solver from using 3[formula]3 or 5[formula]5 filters. Table [\ref=table:3x3-5x5] contains our running times and final objective function values for the four test images.
+
+Finally, we performed an experiment where we resized an image to different sizes, added noise, and denoised it using the nonlinear solver. Figure [\ref=fig:time] shows that the running time is approximately linear in the number of pixels.
+
+Discussion
+
+Non-linear least squares performs very well when applied to MAP Fields of Experts denoising. It is several times faster than the fastest method based on discrete optimization and it is immediately applicable to problems with larger filter sizes.
+
+As pointed out by [\cite=kahl2012], the more efficient reductions in [\cite=fix2011] do improve the speed of [\cite=ishikawa2011], but we observed at most a 1-2 second improvement when we used them with [\cite=ishikawa2009]. The method presented in [\cite=kahl2012] also solves the individual pseudo-boolean problems better, but is slower. Two other approaches exist, but they are both significantly slower [\cite=lan2006] [\cite=potetz2007].
+
+While FoE denoising is a useful benchmark problem for discrete optimization, we should keep in mind that continuous methods can solve these problems much more efficiently.

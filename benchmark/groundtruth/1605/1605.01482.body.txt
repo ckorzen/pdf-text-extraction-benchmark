@@ -1,0 +1,675 @@
+Componentwise accurate Brownian motion computations using Cyclic Reduction
+
+Lemma Corollary
+
+Introduction
+
+Markov-modulated Brownian motion [\cite=asmussen95] [\cite=kk95] is a popular tool to model continuous-time phenomena in a stochastic context. An MMBM can be described as the pair {Y(t),φ(t)}t  ≥  0, where φ(t) is a continuous-time Markov chain on a state space [formula] with rate matrix [formula] ([formula], where [formula] and [formula] are the vectors of all ones and zeros, respectively). Whenever φ(t) = i∈S, Y(t) evolves according to a Brownian motion process with drift di and variance [formula].
+
+The main quantity of interest to determine its steady-state behaviour is the invariant density [formula], which satisfies, with suitable boundary conditions, the differential equation
+
+[formula]
+
+where [formula] and [formula]. The solutions of this ODE are related to the eigenvalues and left eigenvectors of the matrix polynomial
+
+[formula]
+
+The solution of probabilistic interest is asymptotically stable, that is, [formula] when x  →    ∞  . Hence, we are interested in particular in the eigenvalues λi with [formula].
+
+Several methods have been suggested in literature to compute this solution. Some are iterative [\cite=LatN] based on Cyclic Reduction; some depend on the eigendecomposition of a linearization [\cite=kk95], or more generally a block diagonal decomposition [\cite=AgaS]. A few other algorithms rely on finding a special invariant pair (X,U), that is, a pair of matrices [formula] satisfying
+
+[formula]
+
+For instance, Ivanovs [\cite=Iva10] considers a related problem--determining the steady-state behavior of a two-boundary Markov-modulated Brownian motion process--which can be solved with the same techniques. The author constructs the solution starting from an invariant pair in which
+
+[formula]
+
+where the identity block corresponds to the indices i for which vii > 0 or dii > 0. This invariant pair (X,U) has a probabilistic meaning: Ψ  ≥  0 is the matrix recording first-return probabilities of the time-reversed process, and X is a subgenerator matrix (Xij  ≥  0 if i  ≠  j, and [formula]) for the downward-record process.
+
+A special case often considered in literature is when vii > 0 for all i∈S. In this case, U = I, and [\eqref=invpair2] reduces to
+
+[formula]
+
+This matrix equation has been studied extensively, especially because of its connection to quasi-birth-death processes [\cite=blm05] [\cite=ram99].
+
+Another special case interesting in its own is when V = 0, that is, when the Markov-modulated Brownian motion {Y(t),φ(t)} is a stochastic fluid model, also known as a fluid queue. The papers [\cite=xxl12] and [\cite=NguP15] deal with this special case, and provide quadratically convergent algorithms for the invariant density, which are componentwise accurate. That is, the algorithms can deliver an approximate solution [formula] such that the quantity [formula] is bounded, rather than [formula]. In this informal introduction, [formula] refers to the exact value of a vector quantity related to the solution, for instance, the value of [formula] at a determined level x, and [formula] represents its computed version in machine arithmetic.
+
+Informally, this means that all entries of [formula] have the same number of correct significant digits, irrespectively of their magnitude; thus, all components can be computed to a high accuracy. For example, suppose
+
+[formula]
+
+In this case, traditional linear algebra algorithms would instead ensure a high accuracy on the large component [formula] only, while [formula] could vary wildly with few theoretical guarantees: for instance, it could become negative. Componentwise error bounds are particularly meaningful for probability applications, since small components may represent probabilities of catastrophic failure, which have to be assessed carefully.
+
+In this paper, we focus on computing in a componentwise accurate fashion invariant pairs that solve [\eqref=invpair2] (with the additional property [\eqref=ivaU]) and solutions of the matrix equation [\eqref=eq:eqRhat], which can then be used to compute a solution [formula] of [\eqref=ODE]. This problem contains the linear models treated in [\cite=NguP15] [\cite=xxl12] as a special case (V = 0); we extend the techniques introduced there and generalize them to the more challenging second-order case.
+
+In particular, the case in which some of the vii are zero and some are not, requires special attention. To treat it, we use a method related to both the shift technique [\cite=HeMeiniRhee] [\cite=blm05] and the theory of index reduction of differential-algebraic equations [\cite=MehrmannKunkelBook]. We use these techniques in a novel way that combines the themes of these two approaches and adds componentwise accuracy and positivity preservation into the picture.
+
+The paper is structured as follows. In Section [\ref=sec:preliminaries], we introduce most of the concepts needed in the development of the algorithm, including invariant pairs, componentwise accurate algorithms, and Cyclic Reduction. In Section [\ref=sec:discretization], we present our solution strategy and formulate a solution algorithm, first for the case [formula] and then in general. In Section [\ref=sec:stability], we prove the numerical stability of our algorithm in a componentwise sense. Numerical experiments in Section [\ref=sec:numerical] confirm the effectiveness of this approach, and some brief conclusions follow.
+
+To the best of our knowledge, Lemma [\ref=lem:secondcrtriplet] and the fully subtraction-free version of Cyclic Reduction presented in Algorithm [\ref=algo:crt], together with the proof of its componentwise stability, are new also in the context of discrete-time quasi-birth-death models [\cite=blm05].
+
+Assumptions and preliminaries
+
+Eigenvalues and invariant pairs of matrix polynomials
+
+For ease of analysis, we make several assumptions to make sure that the problem cannot be simplified further:
+
+Assumption A1 is to eliminate the cases where our problem can be reduced to smaller disjoint cases. If Assumption A2 is not satisfied, methods for the fluid queue case like the one in [\cite=NguP15] can be used. Finally, if Assumption A3 does not hold, we can replace the problem with another one, where such i is censored out.
+
+Let [formula] denote the set of polynomials in the variable z. We encountered in the introduction the notion of eigenvalues and left eigenvectors of a degree-g matrix polynomial
+
+[formula]
+
+that is, scalars [formula] and row vectors [formula] such that [formula]. Under Assumptions A1-A3, P(z) is a regular matrix polynomial, that is, the scalar polynomial [formula] is not identically zero, as one can see by considering its highest-degree term; hence its eigenvalues are a well-defined set of n complex numbers counted with multiplicity. When the leading term Pg is singular, det P(z) has degree strictly lower than gn. In this case we say that ∞   is an eigenvalue of P(z) with algebraic multiplicity gn -  deg P(z).
+
+An extremely useful tool to deal with multiple eigenvalues simultaneously, both in theory and in numerical practice, is invariant pairs [\cite=BetK] [\cite=GohLR] [\cite=HigK]. For any [formula], a pair [formula] is called a left invariant pair for the matrix polynomial [formula] if
+
+[formula]
+
+and the matrix [formula] has full row rank. It follows from this definition that if (X,U) is a left invariant pair, then so is
+
+[formula]
+
+The reader not acquainted with this concept can consider a simpler case in which P(z) has gn distinct finite eigenvalues; in this case, the invariant pairs for a matrix polynomial are given by
+
+[formula]
+
+where [formula] is arbitrary and for each [formula] the row vector [formula] is a left eigenvector of P(z) with eigenvalue λi, as well as all the pairs obtained from them through the change of basis transformations in [\eqref=eq:qtrans]. Informally speaking, invariant pairs are a tool to deal with several eigenvalues and eigenvectors at the same time without resorting to a Jordan form.
+
+Invariant pairs generalize the concept of solution of polynomial matrix equations: indeed, if X satisfies [\eqref=eq:eqRhat], then (X,I) is a left invariant pair for P(z). Moreover, the following properties hold [\cite=GohLR].
+
+Let (X,U) be a left invariant pair for a regular matrix polynomial P(z). Then, the following properties hold.
+
+The eigenvalues of X are a subset of the finite eigenvalues of P(z) (both counted with their multiplicity);
+
+if
+
+[formula]
+
+with X11 and X22 square and U partitioned conformably, then (X11,U1) is another invariant pair for P(z);
+
+(X,U) is an invariant pair also for P(z)S(z), where [formula] is any other regular matrix polynomial.
+
+A feature that distinguishes linear eigenvalue problems (i.e., the case in which g = 1, or equivalently V = 0 in the case of [\eqref=eq:matpol]) from polynomial ones is the fact that in a non-linear eigenproblem eigenvectors do not uniquely determine their associated eigenvalues. For instance, both [formula] and [formula], with [formula], are left eigenpairs of the matrix polynomial
+
+[formula]
+
+Hence, we have to deal explicitly with both elements U and X of the invariant pair, and compute them both at the same time. Instead, in the algorithms for the case V = 0 [\cite=NguP15] [\cite=xxl12], it is common to deal with the matrix Ψ in [\eqref=ivaU] as the only unknown, and then compute X from it afterwards. This is possible in the first-order case, but not in the second-order one. This point will prove crucial in Section [\ref=SectionWhereWeNeedToRecoverX], where the need to compute X as well will impose a nontrivial restriction not present in the linear case.
+
+Triplet representations and accurate matrix exponentials
+
+As stated earlier, we are interested in performing numerical computations in a way to guarantee the componentwise accuracy of the computed quantities. To this purpose, the main resource are so-called subtraction-free algorithms in linear algebra: when the matrices and vectors involved have a prescribed sign structure, it is possible to carry out linear algebraic operations on a computer in terms of sums only, without ever subtracting two floating-point numbers with the same sign. In this case, there is no cancellation, and the results are provably accurate. The most famous algorithm in this class is the GTH algorithm [\cite=GraTH85] [\cite=oci93] [\cite=AlfXY02] and its generalizations. To introduce it, we need a few preliminary concepts.
+
+Here and in the following, inequalities between matrices and vectors are used in the componentwise sense: for instance, A  ≤  B means Aij  ≤  Bij for each i,j.
+
+For a matrix [formula], we use the notation [formula] to denote a vector [formula] which contains the elements {Mij:i  ≠  j}, i.e., those which do not belong to the main diagonal. The exact ordering of these elements in [formula] is not important here. A matrix M is called M-matrix if it can be expressed as
+
+[formula]
+
+where [formula] is greater or equal than the spectral radius ρ(P). It is well known that if an M-matrix M is invertible, then M- 1  ≥  0 [\cite=bp94].
+
+A triplet representation for an M-matrix M is a triple [formula] such that [formula], and [formula], [formula] are two vectors such that [formula]. The diagonal elements of M do not appear explicitly in the triplet representation, but they are determined uniquely from the relation [formula]. Not all M-matrices admit triplet representations [\cite=guonew]; a counterexample is [formula] M-matrices that admit a triplet representation are called regular M-matrices. Non-regular M-matrices must necessarily be singular and reducible [\cite=guonew], so most M-matrices appearing in applications (and, in particular, all those appearing in the rest of this paper) are indeed regular.
+
+The following result shows that one can solve linear systems with a regular M-matrix with almost perfect componentwise accuracy, given a triplet representation as input.
+
+Let [formula], be a triplet representation for an invertible regular M-matrix [formula], and [formula]. Then, there is an algorithm to compute in O(n3) floating-point arithmetical operations (starting from the floating-point numbers [formula]) an approximation [formula] of [formula] such that
+
+[formula]
+
+with [formula] and [formula] being the machine precision.
+
+Notice the remarkable absence of the condition number of M, which would be necessary in an error bound for an algorithm that uses the matrix entries rather than a triplet representation. The use of a triplet representation as an input makes it possible to solve a linear system with perfect accuracy (up to a polynomial function of the dimension), regardless of its condition number.
+
+The algorithm basically works by computing a LU decomposition of M, in which both L and U are M-matrices. Using variants of the same algorithm, one can also perform other related tasks, again starting from a triplet representation [formula] of a regular M-matrix M:
+
+computing M- 1;
+
+solving linear systems of the form [formula], with [formula];
+
+finding the left and right kernel of a singular irreducible M.
+
+We shall also need the following result.
+
+Let
+
+[formula]
+
+(where all the matrices are partitioned conformably) be a triplet representation for the regular M-matrix M. Then,
+
+[formula]
+
+are subtraction-free expressions for triplet representations of a principal submatrix M22 and its Schur complement S  =  M11  -  M12M- 122M21.
+
+The relation [formula] which defines the first triplet representation comes from expanding the second block row of [formula]. The second relation comes from premultiplying both sides of [formula] by
+
+[formula]
+
+Additionally, note that M12,M21  ≤  0 and M- 122  ≥  0 (which can be obtained in a subtraction-free way using the GTH algorithm and the triplet representation [\eqref=tripletsub]), so computing the last terms in [\eqref=tripletsub] and [\eqref=tripletschur] does not involve subtractions. The computation of S via the formula S = M11  -  M12M- 122M21 involves subtractions only for the diagonal entries, but conveniently in the triplet representation we only need [formula].
+
+Given a triplet representation for M, [formula] can be reconstructed using subtraction-free formulas only.
+
+It is sufficient to consider [\eqref=tripletsub] in the case in which M22 is 1  ×  1. Then, [formula], where the numerator and denominator are scalar quantities, too.
+
+We comment briefly also on the computation of the matrix exponential, which we shall need only in the final step of our algorithm. For an M-matrix M, it holds that exp ( - M)  ≥  0. As studied in [\cite=xy08], it is impossible to find an unconditionally accurate algorithm for this computation in the style of the GTH algorithm; we can only compute approximations [formula] of E =  exp ( - M) satisfying a bound of the form
+
+[formula]
+
+where c(M) is a condition number which depends explicitly on M. Algorithms for the componentwise accurate computation of matrix exponentials were discussed in [\cite=sgx12]; one of the first steps in these methods is decomposing M = sI - P as in [\eqref=expdecomposition] and using the identity exp ( - M) = e- s exp (P). Hence it is appealing to look for explicit accurate decompositions of the form [\eqref=expdecomposition] for the matrices whose exponentials we are going to compute.
+
+Quadratic matrix equations and their properties
+
+We now discuss the properties of the solutions of matrix equations of the form A - BX + CX2 = 0. We focus here on the most common setting in its probabilistic applications; namely, we assume that
+
+is irreducible and aperiodic.
+
+The case most frequently appearing in the probability applications [\cite=blm05] is the one in which I - B  ≥  0 and A,I - B,C are the transition matrices of a quasi-birth-death (QBD) process, with A being the transition to a lower level.
+
+Under Assumptions A4, A5, A6, one can prove that A - B + C is an irreducible singular M-matrix; we call its left Perron vector [formula]; then we have [formula], [formula]. Moreover, one can prove the following results [\cite=blm05].
+
+Let [formula] satisfying Assumptions A4, A5, A6. Then, the following matrices exist: Moreover, the location in the complex plane of the eigenvalues of F(y) = Ay2 - By + C, and of G and R, is related to the sign of the mean drift [formula] as described in Table [\ref=tab:discretecase].
+
+The letters S and U in the table stand for 'stable' and 'unstable', respectively, while d stands for 'discrete time' and c in the following will stand for 'continuous time'.
+
+Assumption A6 can be relaxed to the less stringent one where [formula] has only one final class [\cite=blm05], with only some minor technical complications.
+
+Cyclic Reduction
+
+Cyclic Reduction (CR) is the following matrix iteration. Set
+
+[formula]
+
+and compute for each [formula]
+
+The following applicability and convergence results hold for Cyclic Reduction.
+
+Let [formula] satisfying Assumptions A4, A5, A6. Then,
+
+Bk is nonsingular for k  ≥  0; hence, CR can be applied with no breakdown.
+
+Ak,Ck are nonnegative, and Bk and [formula] are M-matrices for k  ≥  0.
+
+Bk and [formula] converge monotonically to matrices that we shall call B∞ and [formula], respectively. The matrix [formula] is invertible.
+
+We have
+
+The convergence speed is linear with factor 1  /  2 in the null recurrent case, quadratic with factor ρ(R) < 1 in the positive recurrent case, and quadratic with factor ρ(G) < 1 in the transient case.
+
+[formula] for each k  ≥  0, hence [formula] is a triplet representation for Bk.
+
+The last item in particular is useful because it allows one to perform the iteration using the GTH algorithm for the inversions required in [\eqref=eq:cr]. Hence, [formula] can be computed in a subtraction-free fashion. This is how Cyclic Reduction is currently implemented in software packages such as SMCSolver [\cite=SMCSolver]. However, to implement the final step, [\eqref=eq:crsol], in a subtraction-free way, we need to find a triplet representation for [formula]. To this purpose, we give the following result.
+
+Under Assumptions A4, A5, A6, the following results hold for the iterates of Cyclic Reduction.
+
+[formula] for each k  ≥  0, hence
+
+[formula]
+
+and [formula] is a triplet representation for [formula].
+
+[formula] for each k  ≥  0.
+
+[formula] for each k  ≥  0, hence
+
+[formula]
+
+and [formula] is a triplet representation for [formula].
+
+We prove only the first equality, the others are analogous. The proof is by induction and similar to the one of item [\ref=crfirsttriplet] of Theorem [\ref=thm:crconv]. For k = 0, the result holds by Assumption A5. The inductive step is
+
+[formula]
+
+where we have used the fact that [formula] (item [\ref=crfirsttriplet] of Theorem [\ref=thm:crconv]).
+
+Armed with these triplet representations, we can formulate a fully subtraction-free version of Cyclic Reduction, Algorithm [\ref=algo:crt].
+
+Derivation of the algorithm
+
+In this section, we focus on the problem of finding a left invariant pair (X,U) for the matrix polynomial P(z) in [\eqref=eq:matpol] associated to its eigenvalues in the left half-plane. We shall see in Section [\eqref=sec:solvingODE] that a solution to [\eqref=ODE] can be constructed from this pair.
+
+The spectrum of P(z)
+
+We start with a theoretical result on the location of the eigenvalues of P(z). To formulate it, we subdivide the indices [formula] into three disjoint subsets, according to the values of vii and dii, as shown in Table [\ref=tab:states]. Moreover, we set [formula] for i = 1,2,3, so that n = n1 + n2 + n3, and we call [formula] the left Perron vector of Q.
+
+The location in the complex plane of the eigenvalues of P(z) is related to the sign of the mean drift [formula] as described in Table [\ref=tab:continuouscase].
+
+The case d < 0 appears in [\cite=kk95]; the case d > 0 can be proved by replacing D with - D (which has the effect of changing the sign of all eigenvalues).
+
+For the case d = 0, the proof is not immediate; we give only a sketch, since the result is not necessary for the rest of the paper. A limit argument from both sides shows that [formula] and [formula]. Since we assume that vii and dii are not both zero, [formula] is nonsingular, and hence the n2 + n3 Jordan chains for λ  =    ∞   (as defined in [\cite=GohLR]) have length 1. Hence the only thing left to prove is that there are no more than 2 eigenvalues on the imaginary axis. The Gerschgorin argument in [\cite=kk95] shows that the only possible eigenvalue on the imaginary axis is zero. The multiplicity of the eigenvalue 0 is at most 2, because for h small enough the matrix polynomial I + hP(z) satisfies the hypotheses of Theorem [\ref=discreteproperties], as we show in more detail in the following.
+
+We now have all we need to define precisely which invariant pair we are looking for. We call a left invariant pair of P(z) c-stable, if its associated eigenvalues are:
+
+the n1 + n2 eigenvalues in Sc, if P(z) is positive recurrent; or
+
+the n1 + n2 - 1 eigenvalues in Sc and the eigenvalue 0 with multiplicity 1, if P(z) is null recurrent or transient.
+
+Similarly, with respect to Table [\ref=tab:discretecase], we call a left invariant pair of F(y) d-stable, if its associated eigenvalues are:
+
+the n eigenvalues in Sd, if F(y) is positive recurrent; or
+
+the n - 1 eigenvalues in Sd and the eigenvalue 1 with multiplicity 1, if F(y) is null recurrent or transient.
+
+Notice that (R,I), where R is the matrix in [\eqref=eq:foursolutions], is a d-stable invariant pair for F(y).
+
+The case [formula]
+
+We start by treating the simpler case in which [formula] (or, in probabilistic terms, the dynamic in all states has a Brownian motion component). We have [formula] and n2 = n3 = 0, all 2n eigenvalues of P(z) are finite and we are looking for exactly n of them. The formulation in [\eqref=ivaU] has U = I, hence the task of finding an invariant pair becomes the one of finding a solution of the matrix equation [\eqref=eq:eqRhat].
+
+We have seen that Cyclic Reduction can be applied to matrix polynomials F(y) with a specific sign structure, which is associated with a specific spectral structure as shown in Table [\ref=tab:discretecase]. The sign structure and spectral structure of P(z) in [\eqref=tab:continuouscase] do not match these requirements, so we need some preprocessing to convert one case into the other. Even if the sign structure is a stricter requirement, it is useful for our analysis to focus first on the spectral structure, and describe methods of altering the position of the eigenvalues.
+
+We start from a general lemma on rational transformations of matrix polynomials.
+
+Let
+
+[formula]
+
+be a degree-1 (scalar) rational function, with [formula] and αδ  ≠  βγ, z = f- 1(y) = (δy  -  β)  /  (α   -   γy) its inverse, and [formula] be a degree-g regular matrix polynomial with eigenvalues [formula] (counted with multiplicity, and possibly including ∞  ). Then, the following properties hold.
+
+The matrix polynomial
+
+[formula]
+
+is regular and has eigenvalues f(λi), for each [formula].
+
+If (Z,U) is a left invariant pair for P(z) and γZ + δI is nonsingular, then (f(Z),U) is an invariant pair for F(y). Conversely, if (Y,U) is an invariant pair for F(y) and αI - γY is nonsingular, then (f- 1(Y),U) is an invariant pair for P(z).
+
+Note that f(Z)  =  (γZ + δI)- 1(αZ + βI) = (αZ + βI)(γZ + δI)- 1 is well-defined for a matrix argument Z since the two factors commute, and similarly for f- 1(Y). If U = I, the last item gives a relation between the solutions to the unilateral matrix equations associated to P(z) and F(y).
+
+Lemma [\ref=rattrans] suggests a general strategy to approach the problem:
+
+Choose a function f such that f(0) = 1 and the images of Sc,Uc lie inside and outside the unit circle, respectively.
+
+Construct F(y) = Ay2 - By + C as in Lemma [\ref=rattrans].
+
+Apply Cyclic Reduction to find the solution R to
+
+[formula]
+
+then, (R,I) is a d-stable invariant pair of F(y).
+
+Compute X = f- 1(R).
+
+This general framework of relocating eigenvalues via rational transformations is quite common in literature; see for instance [\cite=bmp] for a discussion of it in the case of fluid queues (V = 0). Frequent choices for f are
+
+[formula]
+
+where h > 0 is a parameter. However, some care is needed here to allow for componentwise accurate computations within the framework. The first important restriction comes from the last step: once we have obtained R  ≥  0, we need to be able to compute f- 1(R). If one chooses y = 1  +  hz  /  1  -  hz, the computation becomes X = h- 1(I - R)(I + R)- 1. This is problematic, because the matrix I + R, which we need to invert, is a nonnegative matrix; hence Theorem [\ref=thm:gth] does not apply, and we do not know of another componentwise algorithm to invert matrices with this sign pattern, even if triplet representations are available.
+
+Things are easier if one chooses the function y = 1 + hz. In this case, the last step becomes X = h- 1(R - I); subtractions are needed only to compute its diagonal, and we can avoid them completely using Corollary [\ref=diagcorollary] if we manage to obtain a triplet representation for - X. Moreover, the matrix is now naturally expressed in the form [\eqref=expdecomposition]. For this reason, we set y = f(z) = 1 + hz in the following.
+
+With this choice, we get z = (y  -  1)  /  h, and
+
+[formula]
+
+hence
+
+[formula]
+
+Once we have decided to use [\eqref=ABC] to convert the setting into that of a discrete-time quadratic matrix equations, we have to choose the value of the parameter h. A first requirement is that Assumption A4 is satisfied; it is easy to see that it holds provided that vii - diih + qiih2  ≥  0 for each i. Since we assume vii > 0 for each i∈S for now, this holds for sufficiently small values of h. Moreover, we have to ensure that the computed diagonal of C is componentwise accurate. For this, we follow the strategy used in [\cite=xxl12]: we choose h small enough so that all the required subtractions are of the form b - a with b  ≥  2a  ≥  0. In this case, there cannot be catastrophic cancellation in the subtraction in machine arithmetic. This requirement translates to the following constraints on h: All these inequalities are satisfied for a sufficiently small value of h, which is easy to compute explicitly. Another possibility is performing these subtractions using machine arithmetic with a higher precision; since there are only O(n) of them, this safeguard will not impact the final cost of the algorithm.
+
+It is easy to check that Assumption A5 is always satisfied. We prove below that A6 is satisfied as well.
+
+Suppose the matrix Q is irreducible and aperiodic, and V  ≠  0. Then, Assumption A6 holds for the matrices A,B, and C defined in [\eqref=ABC].
+
+We identify each element in the index set of the infinite matrix [\eqref=biinf] with a pair [formula], where the second entry denotes the block (level) and the first denotes the position in the block. We shall prove that there is a walk in the graph associated to [\eqref=biinf] between any two states [formula].
+
+Let [formula] be such that vkk > 0. By the irreducibility assumption, we can find in the graph associated to Q a walk from i to j which passes through k and has length at least [formula]. Since C has the same offdiagonal nonzero structure as Q, the same walk can be used in the matrix [\eqref=biinf], and after each step the second element of the pair goes up by one. Hence the path goes from [formula] to (j,m + p), for some p > 0. We modify this walk by inserting p transitions using the nonzero entry Akk when we first reach k as the first element of the pair. The resulting graph goes from [formula] to (j,m), as requested.
+
+If Q is aperiodic, the same construction can be made with different values of p which are coprime; hence [\eqref=ABC] is aperiodic, too.
+
+Moreover, we can prove that our transformation [\eqref=ABC] preserves the sign of the mean drift.
+
+Let dc be the mean drift of the Markov-modulated Brownian motion process with parameters V,D,Q, and dd be the mean drift of the QBD process associated to A,B,C as in [\eqref=ABC]. Then, dd  =  h- 1dc.
+
+First note that A - B + C = Q, so the left Perron vector [formula] of A - B + C coincides with the one of Q. Then it is easy to compute
+
+[formula]
+
+Finally, we note that as a byproduct of Cyclic Reduction (Algorithm [\eqref=algo:crt]) we can obtain explicitly a triplet representation for [formula].
+
+The triplet
+
+[formula]
+
+is a triplet representation for the matrix [formula], where X = h- 1(R - I).
+
+By Lemma [\ref=lem:secondcrtriplet], we have [formula]. Hence,
+
+[formula]
+
+Summing up everything, our algorithm for the case [formula] is described in Algorithm [\ref=algo:vpos].
+
+Shifting infinite eigenvalues in P(z)
+
+The method outlined in the previous section uses the assumption that vii > 0 for each i. When this is not the case, it is not true in general that we can choose h small enough to have h- 2vii + h- 1dii + qii  ≥  0. This is possible for i∈E2, since dii > 0, but if E3 is not empty the algorithm cannot be applied.
+
+Moreover, if V is singular, then the matrix polynomial P(z) has infinite eigenvalues, and a c-stable invariant pair (X,I), with X of size n  ×  n, cannot be constructed since even in the positive recurrent case P(z) does not have n eigenvalues in the left half-plane.
+
+Finally, the discretization methods outlined in the previous section all break down in some way: if we use the map y = 1 + hz, then we cannot enforce the requirement that the eigenvalue z =   ∞   is mapped inside the unit circle by choosing a small enough h; if we use a variant of the Cayley transform, then f(  ∞  ) =  - 1, and we are left with an eigenvalue of F(y) at - 1, possibly with high multiplicity; this eigenvalue often prevents the convergence of Cyclic Reduction (note indeed that we are not in the hypotheses of Theorem [\ref=thm:crconv]). All these issues are related, and indeed we can solve all of them with the same modification to the algorithm.
+
+We subdivide the parameter matrices into blocks corresponding to E1,E2,E3 as
+
+[formula]
+
+where V1 > 0, D2  >  0 and D3  ≤  0 are diagonal matrices.
+
+We define
+
+[formula]
+
+The resulting matrix polynomial [formula] has coefficients
+
+[formula]
+
+Every finite eigenvalue λ  ≠    ∞   of P(z) is also an eigenvalue of [formula] (with the same left eigenvector), while n3 infinite eigenvalues are replaced by eigenvalues - h- 1. This can be readily proved by considering the determinants [formula] and their degrees. This formulation of shifting as multiplication by a suitable matrix polynomial has been suggested recently in [\cite=BinM_brauer].
+
+We can interpret this transformation as a manipulation of the differential equation [\eqref=ODE]. Indeed, if we subdivide [formula] conformably, then the third block equation reads
+
+[formula]
+
+differentiating this equation gives
+
+[formula]
+
+then the equation [formula] is obtained from [\eqref=ODE] by replacing the third block equation [\eqref=ODE3] with [formula]. This kind of manipulations is commonly used in the context of index reduction techniques [\cite=MehrmannKunkelBook].
+
+We can set up the discretization scheme described in Section [\ref=sec:discretization] starting from [formula] rather than P(z). The resulting polynomial [formula] has coefficients Notice the nontrivial simplification that zeroes out the last block column of [formula]. Its appearance is due to the fact that the eigenvalues - h- 1 introduced in the previous step get mapped to f( - h- 1) = 0, hence [formula] has n3 zero eigenvalues.
+
+If one chooses a sufficiently small h, the diagonals of h- 2V1  +  h- 1D1 + Q11 and h- 1D2  +  Q22 are nonnegative (and can be computed accurately): it is sufficient to impose [\eqref=eq:hconstraints] on [formula]. Hence, the matrices [formula] and [formula] are nonnegative, and [formula] is an M-matrix, which is the correct sign structure to implement subtraction-free Cyclic Reduction (Algorithm [\ref=algo:crt]).
+
+Deflating zero eigenvalues in R
+
+In the case vii may be zero, the solution R produced by Cyclic Reduction does not give immediately the invariant pair we need. Indeed, in view of our previous analysis of the eigenvalues of F(y) and [formula], in the positive recurrent case the eigenvalues of R comprise of
+
+n3 zero eigenvalues;
+
+f(λ), for each eigenvalue λ of P(z) with [formula], counted with multiplicity.
+
+The eigenvalues of the form f(λ) are precisely the ones we need in our invariant pair, but there are spurious zero eigenvalues. If R were in the form
+
+[formula]
+
+with the bottom-right block n3  ×  n3, we could remove them by applying the result in point [\ref=deflateinvpair] of Theorem [\ref=invpairprops] to the invariant pair (R,I).
+
+Unfortunately, we have [formula], where C0 is in the form [\eqref=trailingzerocolumns] and [formula] is a regular M-matrix (for which we know a triplet representation). When one carries out the product, the zero block is lost. To recover it, we have to switch to a different invariant pair.
+
+Let the matrix C in [\eqref=eq:tildeABC] and the matrix [formula] produced by Cyclic Reduction on [\eqref=eq:tildeABC] be partitioned as
+
+[formula]
+
+where the bottom-right block of dimension n3  ×  n3 corresponds to the indices in E3. Then, [formula], with is a subtraction-free expression for a d-stable left invariant pair of [formula], and
+
+[formula]
+
+is a subtraction-free expression for a c-stable left invariant pair of P(z).
+
+We apply to the d-stable left invariant pair (R,I) of [formula] a transformation of the form [\eqref=eq:qtrans] with
+
+[formula]
+
+obtaining
+
+[formula]
+
+Notice that B22 and S are respectively a submatrix and a Schur complement of the regular M-matrix [formula], so triplet representations to invert both are available by Lemma [\ref=subtriplets]. We can now apply point [\ref=deflateinvpair] of Theorem [\ref=invpairprops] to obtain that [\eqref=dstableinvpairformula] is an invariant pair associated to the d-stable eigenvalues of F(y). Transforming this invariant pair with Lemma [\ref=rattrans], we obtain [\eqref=cstableinvpairformula].
+
+A triplet representation for [formula]
+
+In this section, we obtain a triplet representation for the M-matrix [formula] using subtraction-free expressions only.
+
+The triplet
+
+[formula]
+
+is a subtraction-free expression for a triplet representation of [formula], where X is defined by [\eqref=cstableinvpairformula].
+
+By introducing the partitioning [\eqref=BCpartitioning] in Lemma [\ref=lem:secondcrtriplet], we get [formula]. Hence, [formula], and
+
+[formula]
+
+Again, from Lemma [\ref=lem:secondcrtriplet], we get
+
+[formula]
+
+and the first block column of this expression gives
+
+[formula]
+
+or
+
+[formula]
+
+from which [\eqref=tripletX2] follows. Note that B21  ≤  0 and C21,B- 122,S- 1  ≥  0, so no subtractions are needed in [\eqref=tripletX2].
+
+The algorithm
+
+Putting everything together, we obtain Algorithm [\ref=algo:npt] for the computation of the c-stable invariant pair of a matrix polynomial P(z), which generalizes Algorithm [\ref=algo:vpos] by removing the assumption that [formula].
+
+In the case V = 0, our construction reduces to the method to transform a fluid queue into a QBD introduced by Ramaswami [\cite=ram99], up to a diagonal scaling. Indeed, the transition matrices A0,A1,A2 appearing in [\cite=ram99] satisfy [formula], [formula], [formula], where K is the diagonal matrix with entries
+
+[formula]
+
+(the case dii = 0 is not treated in [\cite=ram99]).
+
+An SDA-like variant
+
+In the linear case, a popular algorithm for this problem is the structured doubling algorithm [\cite=glx05] (SDA) and its variants [\cite=bmp] [\cite=wwl]. It is a slightly different iteration, which has a lower computational cost because it uses the block structure in a more effective way. Merging the derivation in [\cite=bmp] with ours, we can obtain a SDA-lookalike variant for second-order problem. The following algorithm indeed reduces to SDA-ss [\cite=bmp] if n1 = 0.
+
+We start from the matrix polynomial P(z) in the three-blocks form [\eqref=VDQ3blocks], but this time we apply the discretization map y = 1 + hz first, and then we modify the location of the infinite eigenvalues. We have F(y)  =  Ay2  +  By  +  C, with coefficients as in [\eqref=ABC], that is,
+
+[formula]
+
+We postmultiply these coefficients by the inverse of the M-matrix
+
+[formula]
+
+an operation which does not change eigenvalues and left invariant pairs, obtaining (y)  =  Ây2  +  B̂y + Ĉ, with
+
+[formula]
+
+where the block coefficients are given by
+
+[formula]
+
+and
+
+[formula]
+
+To obtain these blocks with a subtraction-free expression, we can make use of the triplet representation [formula] for M.
+
+Finally, we postmultiply by
+
+[formula]
+
+which has the effect of shuffling around some blocks and moving n3 of the infinite eigenvalues to zero; the final result is [formula], with
+
+[formula]
+
+The triple [formula] has the right signs for us to apply Cyclic Reduction, producing the same solution matrix R as the above approach, since the final location of the eigenvalues is the same. Moreover, some of the pattern in the matrices [formula] is preserved under CR iterations; namely, at each step k, the pattern is
+
+[formula]
+
+A slightly more efficient version of Cyclic Reduction can be obtained by exploiting the knowledge of these zero and identity blocks. While in the linear case the formulas simplify notably, in our quadratic case it is dubious whether it is worthwhile dealing with the additional complication of these formulas in the implementation, despite the slight computational advantage.
+
+Solving the ODE
+
+The reference [\cite=GohLR] contains a complete theory of the relations between invariant pairs and solution of matrix linear differential equations. Let (X,U), with [formula] and [formula] in the form [\eqref=ivaU], be a c-stable invariant pair of [\eqref=eq:matpol]. We assume positive recurrence, since otherwise there is no invariant density to compute. Then, the eigenvalues of X coincide with the eigenvalues of P(z) in the open left half-plane, and any solution [formula] of [\eqref=ODE] such that [formula] can be written as
+
+[formula]
+
+Simple probability considerations show that the invariant measure of the Markov-modulated Brownian motion with coefficients V,D,Q is the sum of a mass [formula] at x = 0 (where the matrix partitioning is consistent with [\eqref=ivaU]), and the density [formula]. If the computed invariant pair satisfies [\eqref=ivaU], the unknown coefficients [formula] and [formula] can be determined from the condition
+
+[formula]
+
+Using the relation already derived in [\eqref=vBeq], we get
+
+[formula]
+
+Moreover, [formula] satisfies [formula], hence it follows from [\eqref=tripletX2] that
+
+[formula]
+
+the vector that we already have computed when obtaining a triplet representation for [formula].
+
+Hence we have all the quantities that are needed to compute the invariant density [formula].
+
+Componentwise stability
+
+In this section, we adapt the theory in [\cite=NguP15] to prove that the computation of invariant pairs and matrix equation solutions with Cyclic Reduction (in the non-null-recurrent case) is componentwise stable, provided that one uses triplet representations and the GTH trick as described in Algorithm [\ref=algo:crt].
+
+We define for each [formula] the 4-tuple of nonnegative matrices and vectors
+
+[formula]
+
+and we call F the map such that Sk + 1  =  F(Sk), corresponding to one step of Cyclic Reduction computed with [\eqref=eq:cr].
+
+When Sk and [formula] are two different 4-tuples in the form [\eqref=Qtuple] and α is a real number, we write for short [formula] to mean that the relation holds when we replace Sk with each of the matrices and vectors in the 4-tuple, i.e.,
+
+[formula]
+
+Componentwise perturbation bounds
+
+We start from assessing the error incurred when starting from inaccurate initial values. We focus on first-order results, and adopt the notation [formula] to mean M  ≤  N + O(ε2).
+
+The key to this result is interpreting the iterates of Cyclic Reduction as the result of a censoring operation. The connection between Cyclic Reduction and censoring is a well-established result (see, for example, [\cite=blm05]). The following lemma is one of the possible ways to formalize this connection.
+
+Consider the sequences obtained by Cyclic Reduction [\eqref=eq:cr], and in addition the sequence [formula] defined by [formula] and [formula]. The matrix
+
+[formula]
+
+is the result of censoring all blocks apart from the first and last from the n(2k + 1)  ×  n(2k + 1) matrix
+
+[formula]
+
+We first censor the even-numbered blocks, obtaining
+
+[formula]
+
+We reiterate the same process k times in total, each time censoring the even-numbered blocks in the new matrix; after each step, we obtain a matrix with the same structure, smaller size, and the indices increased by 1.
+
+If the elements in [formula] are small enough that I - B0  ≥  0, then the matrix in [\eqref=bigmatrix] is stochastic, and so is its censoring [\eqref=smallmatrix]. This gives an alternative proof of the relations
+
+[formula]
+
+which appeared in Theorem [\ref=thm:crconv] and Lemma [\ref=lem:secondcrtriplet].
+
+Once this lemma is set up, it is simple to prove the following perturbation bound.
+
+Let [formula] and [formula] be two different triples of matrices satisfying A4, A5, A6, such that Let Sk and [formula] be the 4-tuples resulting from applying k steps of Cyclic Reduction [\eqref=eq:cr] starting from A,B,C and [formula], respectively. Then,
+
+[formula]
+
+Up to a common scaling factor (which does not alter the statement of the theorem), we can assume that I - B  ≥  0. Then, the matrices in [\eqref=smallmatrix] and [\eqref=bigmatrix] are stochastic, and we can apply [\cite=NguP15] to this censoring operation.
+
+In detail, we call P the matrix in [\eqref=bigmatrix], and [formula] its equivalent built starting with the initial values with a tilde. We have for i  ≠  j
+
+[formula]
+
+and similarly for all other entries, so [formula]. Thus, the first part of [\cite=NguP15] holds with m  =  n(2k - 1)  ≤  n2k. This proves that
+
+[formula]
+
+where
+
+[formula]
+
+and equivalent definitions with the tilde symbols. The bounds
+
+[formula]
+
+follow by noting that Bk = B0 - Dk - Ek, [formula] and using [\cite=NguP15].
+
+Stability of a CR step
+
+Our next point is investigating the stability of a step of Cyclic Reduction when performed in machine arithmetic. We rely once again on the lemmas on basic operations in [\cite=NguP15], and we hide in [formula] terms which are second-order in [formula].
+
+Let the 4-tuple [formula] be exactly-represented machine numbers. We denote by Sk + 1  =  F(Sk) the result of performing one step of Cyclic Reduction on them, and by [formula] the result of performing one step of Cyclic Reduction computed in inexact machine arithmetic, starting from the same matrices.
+
+Then,
+
+[formula]
+
+where n is the size of the involved matrices and [formula] is the accuracy bound for the solution of a linear system with the GTH algorithm (as in [\cite=NguP15]).
+
+We use, with a slight abuse of notation, the notation c(X) to denote the computed approximation of a quantity X along one step of the algorithm (even though it is not, strictly speaking, a function of X only).
+
+Using [\cite=NguP15] with a = b = 0, we obtain that the computed value c(B- 1kAk) of B- 1kAk satisfies
+
+[formula]
+
+Hence the computed values of Ak + 1 = AkB- 1kAk and CkB- 1kAk satisfy (by [\cite=NguP15])
+
+[formula]
+
+Analogously we have
+
+[formula]
+
+Using again [\cite=NguP15] for the additions, we have then
+
+[formula]
+
+Stability of multiple CR steps
+
+We can now address multiple steps of Cyclic Reduction. The proof here follows [\cite=NguP15].
+
+Let [formula] be three matrices satisfying Assumptions A4, A5, A6, and such that A,C and [formula] are exactly-represented machine numbers. Denote by Sk  =  Fk(S0) the result of performing k steps of Cyclic Reduction starting from [formula], and by [formula] the result of k steps of Cyclic Reduction performed in inexact machine arithmetic. Then,
+
+[formula]
+
+We prove the result by induction on k; the base case (k = 1) is Lemma [\ref=onecrstep].
+
+The following manipulation is a formal version of the statement that when considering first-order error bounds we can add up the local errors at the different steps of the algorithm. Consider the telescopic sum
+
+[formula]
+
+By Lemma [\ref=onecrstep], we have
+
+[formula]
+
+Then by Lemma [\ref=censorlemma] used with [formula], we get
+
+[formula]
+
+Passing from the first to the second row we have replaced [formula] with Sk - h; this is possible because they differ by a term of order [formula] by inductive hypothesis.
+
+Insert this inequality into [\eqref=telesum] to get
+
+[formula]
+
+Putting everything together
+
+The previous sections shows that the CR iteration (Algorithm 1) is componentwise stable. The computation of its initial values starting from V,D,Q can be performed with [\eqref=ABC], [\eqref=eq:tildeABC], or [\eqref=SDAlikeABC]; in all three cases, if [\eqref=eq:hconstraints] holds for each [formula], then we obtain an approximation [formula] of the CR initial values satisfying [formula] for a moderate multiple α of the machine precision, and thus by Lemma [\ref=pertboundlemma] the computed iterates are also componentwise accurate.
+
+Once a sufficient number k of steps is performed to achieve convergence, we compute the invariant pair (X,U) as described in Section [\ref=sec:deflatingzeros]. The computed iterates satisfy [\eqref=crstabequation], and similarly the computed approximation [formula] of [formula] satisfies
+
+[formula]
+
+The rest of the computation only involves subtraction-free formulas: we have described in Sections [\ref=sec:deflatingzeros], [\ref=sec:tripletX2], and [\ref=sec:solvingODE] how to get from the matrix R computed by CR (and [formula] and [formula]) to the stable invariant pair of P(z), its triplet representation, and the quantities needed to compute [formula].
+
+Numerical experiments
+
+We compare the following methods.
+
+The main drawback of this method, is that by computing explicitly an eigenvalue decomposition we expect error amplification by the condition number of the eigenvector matrix.
+
+We apply these algorithms to several test problems.
+
+To improve reproducibility without generating the same numbers repeatedly, we have reset the random number seed once before the complete set of experiments.
+
+As a first error measure, we have considered the residual in the Euclidean norm
+
+[formula]
+
+of the left stable invariant pair (X,U) as produced by the algorithms. The values of this residual are in Table [\ref=table:residuals].
+
+Moreover, we have normalized each invariant pair to be in the form [\eqref=ivaU] with a similarity transformation [\eqref=eq:qtrans], and checked the forward errors
+
+[formula]
+
+where the reference values [formula] and [formula] are computed applying method KK with higher precision arithmetic (32 digits, using Matlab's vpa command). The results are in Tables [\eqref=table:Xrel] and [\eqref=table:Psirel]. Note that in the problems with V > 0, we have [formula], and hence the matrix Ψ is empty and computing the error does not make sense. For this reason, Table [\eqref=table:Psirel] does not contain all the experiments.
+
+As one can see, the results obtained by the new algorithm are very satisfying, especially in terms of accuracy of the computed X and Ψ (which are often the quantities of interest in view of their physical interpretation). The relative residual of the computed invariant pair, however, is sometimes slightly higher than the one obtained with the QZ method.
+
+Conclusions
+
+We have described a subtraction-free algorithm to compute the quantities needed to determine the steady-state behavior of Markov-modulated Brownian motion models in a componentwise accurate fashion. The algorithm extends the one described in [\cite=NguP15] for the linear case V = 0, and is based on a componentwise accurate variant of Cyclic Reduction. A componentwise error analysis of this CR algorithm is provided. Our analysis highlights the role of the spectral transformation which converts continuous-time to discrete-time stability. Another interesting result is the use of a transformation related to index reduction for differential-algebraic equation and to the shift technique in this novel context.

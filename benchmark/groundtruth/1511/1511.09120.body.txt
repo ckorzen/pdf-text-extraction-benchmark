@@ -1,0 +1,185 @@
+Autonomous $20 Drone via Pose Estimation Core-sets
+
+Motivation
+
+How can we track an object such as toy micro quadcopter in real-time using home-made tracking system? It is easy to track a quadcopter in a professional lab, using hundreds of frames per second, and accuracy of less than a millimeter, via existing tracking systems that are connected to super computers and are available from companies such as OptiTrack for thousands of dollars [\cite=point2011optitrack].
+
+However, the motivation of this paper was to have a low-cost home-made tracking system (<  $100) that will be able to track not only relatively slow moving objects such as cars or people, but also popular toy micro quadcopters or helicopters (<  $20, [\cite=amazon1]) that require tracking speed of at least 30 frames per second, just to not get crashed in the wall. Since the communication protocols of these robots are usually known [\cite=dev] [\cite=nasser2015fleye], their remote-controller can be easily replaced by a program that runs on Arduino (<  $10 [\cite=amazon2]), computer or a mini-computer. The only component that is missing for having an autonomous low-cost robot inside our apartment or building is then a low-cost tracking system.
+
+Our suggested tracking system needs only 2 components: (A) a mini-computer such as Raspberfy Pi (<  $30 [\cite=amazon3]), or a laptop/desktop , and (B) a pair of standard RGB cameras ([formula]): e.g. fixed web-cams mounted on a wall, tree or in a laptop that allow the quadcopter to carry no sensors at all, or "1gram" cameras (<  $60 [\cite=amazon5] [\cite=amazon7]) including a transmitter that, unlike other sensors such as GPS, can be easily carried by such a toy and make it independent of external sensors. More modern and expensive cameras ($300) are the 3-d cameras e.g. Kinect and Real-sense, that are also used to track objects and people.
+
+Stronger algorithms for weaker devices. Since we don't know how to improve the performance of our low-cost cameras or mini ("Internet of Things") computers without additional cost, the only remaining option is to develop deep, faster and better tracking algorithms that will make up for the weak hardware that is used to solve the following problem, whatever type of cameras that we choose.
+
+How can we compute the location of a robot or a rigid body in space? This is a fundamental question in SLAM (Simultaneous Localization And Mapping) and computer vision [\cite=stanway2015rotation] [\cite=guerrero2011design] [\cite=lee2009minimum]. For the case of static ground cameras outside the robot, the standard approach is to put few markers on the robot or object in known places and distances between them, and then track them on real-time using one 3-D camera, use techniques such as triangulation [\cite=hartley1997triangulation] from few cameras, or solve the PnP problem using only one camera [\cite=lepetit2009epnp].
+
+When the cameras are on the moving robot, and we have prior 3-d modeling of the navigation area, we can find visual features on the space and match them to features in our model to conclude the position of the robot. In this case, the markers are not be represented by d = 3 dimensional points in space, but features in some much higher dimensional space (usually d = 64 or d = 128), such as SIFT or SURF features [\cite=ng2003sift] [\cite=bay2006surf].
+
+Pose Estimation. Whatever type of approach we use for detection and pairing the initial set of n markers (points in Rd) P, with the observed set Q of markers, we then need to solve the pose estimation problem: what is the rotation R and translation μ of P that yielded the observed set Q. The matrix R and the vector μ then yields the position and orientation of the robot, compared to its original position.
+
+What is the error metric that should be used to define these optimal rotation and translation, given P and Q? The easy and popular solution is to minimize the sum of squared distances, i.e., root mean squares (RMS) between each marker in P and its corresponding marker in Q after translating it by μ and rotation it by R*; see Definition [\ref=posdef]. The simple solution is also known as Kabsach algorithm; see Theorem [\ref=kabsch]. Numerical implementation can be found in [\cite=mortari1997esoq] [\cite=markley2014static] and references therein.
+
+Except from its relatively easy computation, the motivation for using this RMS error is that it yields the most likelihood rotation R*, under the assumption that a 3-dimensional Gaussian distribution of zero mean is used in the above definition of Q. In practice, such a Gaussian distribution is usually a good approximation to the actual error model.
+
+Assuming, without loss of generality, that the set P is centered around its mean (centroid), the optimal translation μ* is simply the mean of Q that can be computed in O(nd) time. However, computing the optimal rotation R* requires computing the d-by-d matrix PTQ where each marker is a row in P or Q, and then computing the Singular Value Decomposition (SVD) of this matrix. While the second step takes O(d3) time, the first step takes O(nd2) time and dominated the whole running time of the localization procedure. This is why we focus on this stage in the rest of the paper.
+
+Novel Technique: Core-set for Pose Estimation
+
+In order to boost the computation time of the optimal rotation matrix R*, we suggest to have a smart selection of only small subset P̃ (that we call core-set) of the markers in P and their corresponding markers [formula] in Q, with appropriate distribution (multiplicative weights) on them. Unlike uniform random samples, that are used e.g. in RANSAC-type algorithms [\cite=choi1997performance], our core-set: (i) is guaranteed to produce an optimal rotation matrix R* for the original pair (P,Q) using only the pair of small coreset pair (P̃,). (ii) has number of markers, independent on the cardinality n of the original sets, and has constant size O(1) for the case of 3-dimensional space (real world) or d = O(1). In general, if the points of P are contained in an r-dimensional subspace of [formula], the size of the coreset is at most r(d - 1) + 1. (iii) maintains the optimal rotation R* even after further rotations and translations of the markers Q, or when the location of the original markers P are known up to translation and rotations. Hence, while the robot or object is moving or flying in space, we can keep update its position and orientation on the fly by computing Kabsach algorithm on the same coreset pair (P̃,).
+
+Our coreset is based on two main technical results that may be of independent interest: (1) Using efficient implementation of the existing result in Caratheodory Theorem (Theorem [\ref=carathm]) with proper pre and post processing of the data, for computing the mean of a given set of vectors exactly by a small weighted subset of these vectors. (2) Analysis of the set of possible solutions for the Kabsach algorithm and uniqueness property that is needed to assure that an optimal solution of the coreset will be optimal also for the original data; see Lemma 1.
+
+We use the term coreset, inspired by a lot of recent papers that suggested data reduction for boosting the performance of optimization problems, mainly in computational geometry and machine learning; see survey in [\cite=FL10]. However, our coreset and its definition are very different from previous work, and it is the first coreset for the pose-estimation problem. For example, unlike most of the coresets, our coreset is (i) give exact, not approximated solution, (ii) applied on a pair of set (P,Q) and not a single set, (iii) used in practice also for small (not asymptotically large) values of n, e.g. n < 10, and the proof of its size is exact, with no use of the infamous O() notation; see our experimental results. In addition, we suggest below a novel way of using coresets in real time systems, and this technique can be applied on any type of coresets.
+
+Real-time Robotics meets Coresets on the cloud
+
+While our coresets are small, and optimal, this comes with a price: unlike random sampling which takes sub-linear time to compute (without going over the markers), computing our coreset takes the same time as solving the pose estimation problem on the same frame. To this end, we use property (iii) above to suggest a system that is based on two threads that run in parallel:
+
+The first thread gets a snapshot (frame) of markers, and then compute our coreset for this frame relatively slow, possibly on the cloud. This may include marker identification using computer vision, solving the matching problem, and then computing the actual coreset for the original set P and the observed set Q of markers. In our system this thread usually runs in 1 Frame Per Second (FPS).
+
+The second thread runs locally and on real-time. In our system it handles 30 FPS. This is by using on the new frames the same coreset that was computed by the first thread, until it computes additional coreset for a later frame. The assumption of this model is that, for frames that are closed to each other in time, the observed set of markers will be rotated but still be a translation and rotation of the set Q in the previous frame, up to a small error. Property (iii) guarantees that the coreset for the first frame will still be the same for the new frame.
+
+Of course, the first thread cannot be too slow compared to the speed of the changes in the robot's position, otherwise this assumption of Property (iii) will no longer hold. For example, a single observed marker in Q might significantly change its position also with respect to other markers in Q, and thus there will be no rotation matrix that transforms the set of markers Q from the previuos frame to the set in the current frame.
+
+Why core-set for pose-estimation?
+
+Faster pose estimation. The straight forward application of our coreset is the computation time of the orientation R* of the robot, that is reduced from O(nd2) on the original pair (P,Q) to O(d4) on the coreset. In particular, for d = O(1) the running time reduces from O(n) to O(1), and for the case that motivated this paper, of n markers on a planar quadcopters, the theory guarantees a coreset of size at most r(d - 1) + 1 = 5 markers.
+
+Identification and matching time and quality. In this paper we assume that the matching between each marker in P and its corresponding marker in Q is given. However, this is a hard problem for selecting one over n! permutations of Q. In addition, identification of the markers or visual features in the image frame, even before the matching, is also non-trivial problem in computer vision. However, after computing the coreset in a frame, we only need to solve these identification and matching problems on the coreset for the next frames. This reduces both running time and potential errors.
+
+Coreset for the ICP problem. The most popular solution for solving the "full" pose estimation problem, that includes identification of the markers, matching them and only then using the Kabsach algorithm, is called Iterative Closest Point (ICP); see [\cite=wang2015comparisons] and references therein. This algorithm starts with a random matching (mapping) between P and Q, then (1) run the Kabsach algorithm on this pair, (2) re-match each marker in P to its nearest point in Q, then return to step (1). We suggest to run these steps only on the coreset to reduce both running time and error as explained above. Indeed, ICP is the algorithm that we run on the coresets for our system and experimental results.
+
+Memory. In tracking algroithms that are based on computer vision, such as PTAM, we need to track hunders of visual features in high-dimensional space. Tracking only small subset of them will save us not only time, but also memory.
+
+Streaming and distributed Computation. Our coreset construction is applied on small batches of points (see Algorithm [\ref=caraalg]) by a merge-and-reduce fashion. In particular, the compression (reduction) of each subset of the input markers can be computed independently and in parallel on different computers or GPUs, and then merged and maybe re-compressed again. This technique is common in coresets constructions and thus we refer the reader to e.g. [\cite=NIPS2011_1186] for details.
+
+Optimal Pose Estimation
+
+Suppose that we have a matrix [formula] whose rows [formula] represent a set of n markers on a rigid body. Let [formula] be a corresponding matrix whose rows [formula] represent the location of the markers, after rotating the body in [formula] with some additive random noise. Recall that a rotation matrix [formula] is an orthogonal matrix (RTR = I) whose determinant is 1. We can now define the following pose estimation problem.
+
+Find a rotation matrix R* between the two paired sets of points P and Q in [formula] which minimizes the following root mean squared (RMS) deviation between them,
+
+[formula]
+
+over every rotation matrix R. We denote this minimum by
+
+[formula]
+
+The Kabsch algorithm [\cite=kabsch1976solution] suggests a simple solution for Wahba's problem. Let UDVT be a Singular Value Decomposition (SVD) of the matrix PTQ. That is, UDVT = PTQ, UTU = VTV = I, and [formula] is a diagonal matrix whose entries are non-increasing. In addition, assume that det (U) det (V) = 1, otherwise invert the signs of one of the columns of V. Note that D is unique but there might be more than one such factorizations.
+
+The matrix R* = UVT minimizes [formula] over every rotation matrix R, i.e., [formula]
+
+Coreset for Pose Estimation
+
+A distribution is a vector [formula] in [formula] whose entries are non-negative and sum to one, i.e., a vector in the set
+
+[formula]
+
+The sparsity or support of a distribution w is the number of non-zeroes entries in w.
+
+Our goal is to compute a sparse distribution [formula] which defines a small weighted subset [formula] of markers in P, and its corresponding markers [formula] in Q, such that solving the pose estimation problem on the pair of small sets (P̃,) would yield an optimal solution to the original pair (P,Q). That is,
+
+[formula]
+
+Moreover, we require that the same sparse distribution will hold even after applying more rotations and translations on both of the sets P and Q. This means that we need to know only the relative positions of the set P of the rigid body to compute the coreset. In addition, we can continue to use the coreset even after the markers of Q were translated and rotated simultaneously. In the following definition, X - v for a matrix X and a vector v denote the matrix X after subtracting v from each of its rows.
+
+Let w∈Sn be a distribution that defines the matrices P̃ and [formula] above. Then w is a pose coreset for the pair (P,Q) if for every pair of rotation matrices [formula] and every pair of vectors [formula] the following holds: A rotation matrix [formula] that minimizes [formula] over every rotation matrix R, is also optimal for (PA - μ,QB - ν), i.e.,
+
+[formula]
+
+This implies that we can use the same coreset even if the set Q is translated or rotated over time.
+
+We prove that such a coreset of constant sparsity (independent of n) always exists. Moreover, we provide an algorithm that given any pair P and Q of n points, returns such a coreset w in O(nd2) time. To this end we need to understand better the set of possible optimal solutions to the pose estimation problem, using the following lemma, and to introduce the Caratheodory theorem later.
+
+The solution R* in Theorem [\ref=kabsch] is in general not unique and depends on the specific chosen SVD. In particular, suppose that R* is an optimal solution for our coreset pair (P̃,) and also optimal for the pair (P,Q) as desired. Still, using the Kabsch algorithm with a different SVD for P̃T might yields a different matrix R' which is optimal for the coreset pair (P̃,), but not for the original pair (P,Q). We thus need to prove the following lemma which further characterizes the set of solutions.
+
+Recall that UDVT is the SVD of PTQ, and let r denote the rank of PTQ, i.e., number of non-zeroes entries in the matrix of D. Let [formula] denote the diagonal matrix whose diagonal is 1 in its first r entries, and 0 otherwise.
+
+Let R = GFT be a rotation matrix, such that F and G are orthogonal matrices, and GDrFT = VDrUT. then R is an optimal rotation, i.e.,
+
+[formula]
+
+Moreover, the matrix VDrUT is unique and independent of the chosen Singular Value Decomposition UDVT of PTQ.
+
+It is easy to prove that R is optimal, if
+
+[formula]
+
+see [\cite=kjer2010evaluation]. Indeed, the trace of the matrix RPTQ is
+
+[formula]
+
+Term [\eqref=e1] equals
+
+[formula]
+
+where the previous equality holds since the trace is invariant under cyclic permutations. Term [\eqref=e11] equals
+
+[formula]
+
+where the last equality follows since the matrix (I - Dr)Dr has only zero entries. Plugging the last equality and [\eqref=e2] in [\eqref=e1] yields [formula]. Using this and [\eqref=e4] we have that R is optimal.
+
+For the uniqueness of the matrix VDrUT, observe that for N = PTQ = UDVT we have
+
+[formula]
+
+Here, a squared root X1 / 2 for a matrix X is a matrix such that (X1 / 2)2 = X, and X+ denote the pseudo inverse of X. Let FEGT be an SVD of N. Similarly to [\eqref=e5], (NTN)1 / 2(N)+ = GDrFT.
+
+Since NTN = VD2VT is a positive-semidefinite matrix, it has a unique square root. Since the pseudo inverse of a matrix is also unique, we conclude that (NTN)1 / 2(NT)+ is unique, and thus VDrUT = GDrFT.
+
+The next ingredient of our coreset construction is the Caratheodory theorem [\cite=cara] [\cite=eckhoff1993helly]. Recall that the convex hull of a set of points P in [formula] is the minimal convex set of [formula] that contains P.
+
+If the point [formula] lies in the convex hull of a set [formula], then there is a subset P' of P consisting of d' + 1 or fewer points such that x lies in the convex hull of P'.
+
+We are now ready to prove the main theorem of this paper, regarding Algorithm 1.
+
+Let [formula] be a pair of matrices. Let r denote the rank of the matrix P. Then a call to the procedure (P,Q) returns a pose-coreset w∈Sn of sparsity at most r(d - 1) + 1 for (P,Q) in O(nd2) time; see Definition [\ref=defcore].
+
+Let w∈Sn be a distribution of sparsity at most r(d - 1) + 1, and suppose that the matrix
+
+[formula]
+
+is diagonal and consists of at most r non-zeroes entries. Here pi and qi are columns vectors which represent the ith row of P and Q respectively. Let [formula] and [formula] be the rows of P̃ and [formula] respectively. Let FEGT be an SVD of ATP̃TB such that det (F) det (G) = 1, and let  = GFT be an optimal rotation of this pair; see Theorem [\ref=kabsch]. We need to prove that
+
+[formula]
+
+We assume without loss of generality that μ  =  ν = 0, since translating the pair of matrices does not change the optimal rotation between them [\cite=kjer2010evaluation].
+
+By [\eqref=eq10], UEVT is an SVD of P̃T, and thus ATUEVTB is an SVD of ATP̃TB. Replacing P and Q with P̃A and B respectively in Lemma [\ref=lem] we have that GDrFT = BTVDrUTA. Note that since UDVT is an SVD of PTQ, we have that ATUDVTB is an SVD of ATPTQB. Using this in Lemma [\ref=lem] with PA and QB instead of P and Q respectively yields that  = GFT is an optimal rotation for the pair (PA,QB) as desired, i.e.,
+
+[formula]
+
+It is left to compute a sparse coreset w as defined in [\eqref=eq10]. Since P is of rank r, its rows are contained in an r-dimensional subspace. Without loss of generality, we thus assume that the last d - r entries of every row pi in P are zeros, otherwise we rotate the coordinate system. For every [formula] let [formula] be a vector that consists of the entries of the matrix UTpiqTiV, excluding its last d - r rows and diagonal.
+
+Let [formula] be the translation of each mi / n, and [formula]. Each vector vi is a unit vector on the unit ball, and thus the convex combination
+
+[formula]
+
+lies in the convex hull of the set [formula]. Applying Theorem [\ref=carathm] with [formula] yields that there is a distribution w'∈Sn of sparsity r(d - 1) + 1 such that [formula]. By defining
+
+[formula]
+
+we obtain w∈Sn such that
+
+[formula]
+
+Hence, the non-diagonal entries of [formula] are the same as the non-diagonal entries of [formula], which are all zeroes. That is, there is a diagonal matrix E such that
+
+[formula]
+
+which satisfied [\eqref=eq10] as desired.
+
+O(nd2) time implementation. To compute w we first need to compute SVD for PTQ, to get the matrices U and V, which takes O(nd2) time. Computing the set of vectors [formula] takes additional O(nd) time. Next we need to apply the Caratheodory Theorem on this set. The proof in [\cite=cara] [\cite=eckhoff1993helly] is constructive and removes a vector from the set until only the small set of r(d - 1) + 1 vectors left. Since each iteration takes O(nd2) time, this will take O(n2d2) time. To obtain a running time of O(nd2), we apply the algorithm only on r(d - 1) + 2 vectors and run a single iteration to get r(d - 1) + 1 vectors again; see Algorithm [\ref=caraalg]. Then, we continue to add the next vector and re-compress, until we left with a distribution over r(d - 1) + 1 vectors that approximates all the set, as implemented in Algorithm [\ref=corealg].
+
+Experimental Results
+
+In this section, we run experiments on synthetic and real data sets and compare the rotation error in degrees by computing the orientation of a quadcopter using our coreset compared to uniform random sampling of markers on the quadcopter. All our experiments show that the coreset is consistently and significantly better than a corresponding uniform random sample of the same size.
+
+Real Data: Few Markers on a Quadcopters. We use a 70$ tracking system that is based on two standard web-cameras ($10) that are connected to a mini-board. The lens of the cameras were replaced with an IR filter made by a floppy disk. The tracked object is a SYMA quadcopter that has 10 gray IR reflectors as markers; see Fig. [\ref=fig1]. The goal was to perform autonomous hovering as stable as possible. The markers are identified in each frame of each camera, and their 3-D positions are obtained by triangulation on the pair of frames. The quadcopter's orientation is then obtained from the optimal rotation matrix that is computed using Kabsach algorithm; see Theorem [\ref=kabsch]. The translation of the quadcopter was obtained by simply computing the mean of the markers. The ground truth inside the lab was obtained by a commercial OptiTrack system that consists of 12 Flex13 type cameras [\cite=point2011optitrack]. The control of the quadcopter based on its positioning was done using simple PID controller.
+
+The error is measured by differences in degrees from the ground truth angle (pitch, yaw and roll) to the estimated angle. In each experiment the coreset was computed every x frames by a first thread, where x is called the calculation cycle. After computing the coreset, the chosen weighted markers were used for the next x frames, and then a new coreset of size 5 = r(d - 1) is computed by Algorithm 1, where d = 3 and r = 2 as the quadcopter is roughly planar. For each frame we computed the error compared to the ground truth, and report the average error on the graph. Similarly, we replaced the coreset by a uniform random sample of 5 markers out of 10 for comparison.
+
+Synthetic Data. When visual features from an RGB image are used instead instead of IR markers, there is usually a much larger number of markers (say, hundreds) in each frame. To simulate such a situation, we generate the n  ×  3 matrix P as a set of n  =  60 points (rows) that lie two orthogonal lines, 50 points on one line and 10 on the other line, with additional Gaussian noise of zero mean and a standard unit variance for each point. We then rotate the rows of P by right multiplication with an appropriate rotation matrix Ri such that Qi  =  PRi for 1  ≤  i  ≤  m = 2000, and Ri corresponds to rotation angles (roll, pitch, yaw) = [formula], where k = 0.01. The i frame is then corresponds to the set Qi of observed markers, with additional random Gaussian noise of zero mean and a variance of one unit.
+
+The error of the ith frame in this set is measured as in the real data, where the ground truth is given by Ri instead of the OptiTrack Cameras.
+
+Increased Noise. In the last set of experiments we wanted to compare the behaviour of the errors in the coreset and random sample of markers, when the noise that is added to the "observed" set Q is getting larger. To this end, we repeat the experiment in in the previous section for cycle of 10 frames, while increasing the variance of the Gaussian noise in each test. The graph in Fig. [\ref=fig5] shows the coreset average error compared to the random sampling average error over the frames for every integer variance value between 0 and 30. As expected, when the added noise is zero, every small set of markers can be used to compute the optimal rotation, including a random sample of markers. Similarly, when too large noise is added, the signal to noise ratio approaches zero and it is impossible to retrieve the generative rotation Ri using both the coreset on the random sample. In between, the estimated rotation by the coreset is usually better than the corresponding approximation using the random sample.

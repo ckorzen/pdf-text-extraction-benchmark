@@ -1,0 +1,279 @@
+Model Predictive HVAC Control with Online Occupancy Model
+
+Introduction
+
+The long-term increase in energy prices has driven greater interest in demand-based HVAC control. Fixed temperature setpoint schedules and occupancy-triggered operation are commonly used to trim energy consumption, but these approaches have significant drawbacks. First, fixed schedules become outdated; when occupancy patterns change, early or late occupants are left uncomfortable, or the space is conditioned prematurely or for too long. Second, thermal lag limits response speed and thus precludes aggressive temperature set-back. Addressing both schedule inaccuracy and thermal lag requires a stochastic occupancy model and a control scheme that can use it effectively.
+
+Considerable research effort has been directed toward occupancy detection and modeling. Work on detection has focused on boosting accuracy through sensor fusion using probabilistic, neural, or utility networks [\citep=lam2009occupancy] [\citep=dodier2006building] [\citep=meyn2009sensor] [\citep=modelingCountData]. Agent-based models have been used to predict movement within buildings [\citep=liao2012agent] [\citep=erickson2009energy], as have Markov chains [\citep=erickson2010occupancy] [\citep=page2008generalised] [\citep=dong2011integrated]. Erickson and Dong, for example, considered rooms to be Markov states and movements among them to be transitions in order to predict persons' behavior, while Dong and Lam [\citep=dong2014real] used a semi-Markov model to merge multiple sensor streams into an occupant count estimate. The simpler Page model considered boolean occupancy (occupied or vacant) under a time-heterogeneous Markov chain to generate realistic simulation input data, rather than for on-line forecasting [\citep=page2008generalised].
+
+With the exception of the Page model, the above efforts have found use in heuristic [\citep=erickson2011observe] [\citep=selfprogthermostat] [\citep=goyal2013occupancy] or model predictive control (MPC) schemes [\citep=dong2014real] [\citep=Oldewurtel201215] [\citep=goyal2013occupancy], but they face barriers to widespread usage. Most notably, where authors have used MPC, they have also used manually-generated thermal models [\citep=dong2014real] [\citep=Oldewurtel201215] [\citep=goyal2013occupancy] even though model creation is tedious and time-consuming and therefore expensive. Eager to demonstrate excellent performance, researchers have favored systems with complex topologies and numerous adjustments that yield "one-off" engineering efforts without a clear path to large-scale adoption. The system outlined in [\citep=dong2014real], for instance, uses 2, sound, and light sensors that require carefully set detection thresholds for each room, plus an on-board weather forecasting algorithm in lieu of forecasts already available. We aim, instead, to make occupancy-predicting control accessible to a broader audience by presenting a simple but effective algorithm with a straightforward implementation. For example, we use an automated BIM translation facility outlined in a previous paper [\citep=Greenberg201344], and the core algorithm is industry-standard MPC with occupancy weighting in the cost function. Each of the very few adjustments serves a clearly-defined purpose, and we have outlined each component's operation with the practitioner in mind.
+
+Second, recent research has paid little attention to the commissioning and maintenance of occupancy prediction algorithms; model training, if mentioned at all, has been a secondary consideration assumed to by done one time by someone skilled in the art [\citep=page2008generalised] [\citep=dong2014real] [\citep=erickson2011observe]. Although most training algorithms could be extended to work on-line, ongoing maintenance remains a source of long-term cost neglected by the literature. An occupancy model invariably becomes out-of-date unless it is periodically retrained or can incrementally refine itself with new observations. Our work uses on-line Bayesian inference for stable performance without ongoing manual effort.
+
+The paper progresses as follows. First, we outline the problem formulation. Second, we describe the stochastic occupancy model and its on-line training algorithm. Third, we discuss its integration with model predictive control. Finally, we present simulation results using real-world occupancy data and compare our method's performance to a correctly set scheduled controller and to an occupancy-triggered controller. Throughout the discussion, the control scenario is kept deliberately simple to emphasize the contribution of occupancy learning and its use with MPC.
+
+Problem Statement
+
+We wish to minimize the total energy usage of a building heating (or cooling) system while maintaining occupant comfort. Versus conventional occupancy-triggered or scheduled control, we aim to
+
+boost comfort by conditioning the space before occupants arrive,
+
+limit energy consumption by not running the system too early, and
+
+exploit stored thermal energy by reducing power before occupants leave.
+
+Our approach is based on MPC but uses a cost function weighted by occupancy predictions from a self-training stochastic model (Figure [\ref=fig:ProposedArch]). At each step, the system measures how much of the previous hour the space was occupied, and the expected occupancy is used to find the best sequence of N future heat inputs to the thermal zone that minimizes the expected cost. The optimization is
+
+[formula]
+
+where
+
+[formula] is the current time step, and j∈[0,N  -  1] is the optimization index over the horizon;
+
+[formula] describes the building's thermal dynamics;
+
+[formula] contains the building's thermal state;
+
+[formula] contains the controller output, constrained within the system's capacity umax;
+
+Bu is a vector that connects the heat input u to the zone air volume;
+
+wk is the current weather observation, and [formula] contains an up-to-date weather prediction;
+
+Bw is a vector that connects the weather conditions to the building envelope;
+
+τ is the temperature setpoint, which is constant for this study (but can be varied in practice);
+
+Γk is the latest occupancy measurement, and [formula] are the predicted occupancies; and
+
+g(x,u,τ,Γ) is a cost function that penalizes total energy consumption and penalizes discomfort based on the occupancy Γ.
+
+The expectation operator [formula] in Equation [\ref=eq:firstMpcDef] reflects that future values of g require predictions of occupancy and of the weather. The optimization yields an optimal sequence of N power commands to the HVAC system, where positive values are heat and negative are cooling; the first command uk is applied, and the rest are discarded. The previous and current occupancy observations are then used to train the occupancy model, and the entire process repeats the next time step (Figure [\ref=fig:Process-flow-during]).
+
+Two assumptions are made in this presentation. First, we treat the weather forecast as accurate so that we can later omit the expectation operator from w. Second, we use a very simple cost function with constant efficiency and a single linear actuator. These assumptions improve clarity but are not required in practice. Where available, weather uncertainty data can be rolled into the cost function in order to improve robustness [\citep=Oldewurtel201215]. Multiple actuators (e.g. radiant and forced air with vastly different response times) or nonlinear actuation (e.g. variable air volume damper position) can be pulled into the dynamical model and the cost function without undermining the basic approach [\citep=haves2010model] [\citep=Oldewurtel201215] [\citep=goyal2013occupancy]. Finally, the energy penalty gain can be varied over time to reflect, for example, changing system efficiency or electricity cost.
+
+Building Thermal Model
+
+Thermal model accuracy influences controller performance, so we need a thermal model that closely approximates the dominant dynamics. Here we outline how the state-space building model is generated, and we validate it against EnergyPlus simulation results.
+
+Thermal model creation has historically been a manual process contributing substantially to MPC implementation cost. Research efforts such as the Sustain platform (Figure [\ref=fig:Sustain]) [\citep=Greenberg201344] [\citep=dobbsautomatic] and the Building Resistance-Capacitance Modeling Toolbox [\citep=sturzenegger2014brcm] have arisen to streamline the creation of dynamical equations suitable for MPC. Here we have used a module in Sustain to generate a resistor-capacitor network directly from a CAD model. The thermal model states are the building's internal temperatures, including zone air plus wall layers and roofing materials that are not normally measured; a state observer can easily estimate these values during operation. Although not used here, ways to automatically tune the RC network parameters on-line and even estimate disturbances such as solar load have recently been introduced [\citep=radecki_online_2013].
+
+The model used for this study has 41 states: one for zone air and the rest for building structure. It assumes well-mixed air and uses time-invariant convection coefficients. Fixed coefficients imply that the thermal gradients are always in the same direction, whereas EnergyPlus switches coefficients depending on whether the gradient enhances convection [\citep=EnergyPlusReference2011]. In practice, for improved accuracy, the RC network can be adjusted at each step, or a nonlinear model may be used. We have included limited support for radiant transfer using coefficients from EnergyPlus' Simple and SimpleCombined convection algorithms [\citep=EnergyPlusReference2011]. The model accepts the following inputs:
+
+the outside dry-bulb temperature,
+
+the ground temperature, and
+
+heat injected by the control system to the space (positive or negative).
+
+The state equation of the building is
+
+[formula]
+
+where k is the time step (in hours) and xk is the complete temperature state vector containing the zone temperature [formula]. The vector wk contains the weather forecast, and uk is the heat injected into the room by the HVAC system. The sign of uk and its constraints can be made negative, or the sign of the vector Bu can be reversed, for cooling.
+
+Let us now validate the model by comparing the zone temperature time response of the RC network to EnergyPlus results under simplified conditions. The goal is not to exactly match EnergyPlus, but rather to show that the dominant response is plausibly close. To do this, we have simulated the building using first the RC network and then EnergyPlus under the following set of conditions:
+
+a step change in air, ground, and sky infrared temperatures from 10[formula] to 20[formula],
+
+no wind or humidity, and
+
+EnergyPlus heat transfer algorithms: Simple convection for interior, SimpleCombined for exterior, and CTF (conduction transfer function) for walls.
+
+The RC network implementation lacks support for sky infrared transfer through windows; by matching the sky radiant temperature to the outside air temperature, we have removed this source of discrepancy from the simulation. Under the simplified conditions, very similar response times (Figure [\ref=fig:rcVersusEp]) suggest that the RC model is adequate for demonstration.
+
+Stochastic Occupancy Model
+
+The heart of our method is its on-line trained Markov occupancy model that quickly adapts and enables the MPC to predict occupancy. The input is a stream of asynchronous pulses from pyroelectric infrared (PIR) or similar sensors that indicate whether at least one person is in the space. We have chosen the Mitsubishi Electric Research Lab (MERL) motion detector data set [\citep=merldata], which consists of a series of one-second pulses from various motion sensors located throughout hallways and conference rooms in MERL. The meetings in the Belady conference room show a good balance between repetition and variety to showcase the benefits of on-line learning.
+
+Markov Chain Formulation
+
+The occupancy model is as a periodic Markov chain updated at every observation. The occupancy at time k is either γk  =  1 (occupied) or γk = 0 (vacant). The current occupancy state and the time of day determine the probability of future occupancy. We wish to estimate the probabilities
+
+[formula]
+
+The transition probabilities of this two-state time-varying Markov chain (Figure [\ref=fig:markovChain]a) are periodic; we have chosen a period M = 24 hours, so [formula] and [formula]. To better visualize the periodicity, we unroll the Markov chain into 2M states (Figure [\ref=fig:markovChain]b), where each hour has a 1k and 0k state. Although k in general grows without bound, its range is limited to 0  ≤  k  ≤  M - 1 when dealing with the Markov chain. The choice of M affects how learned patterns relate to subsequent predictions; if space usage patterns vary significantly across the weekdays, one might want to prevent occupancy observations on Monday from influencing control actions on Tuesday, in which case a one-week chain would be more appropriate. For this study, the one-day Markov chain is trained using Monday through Friday occupancy data from the MERL data set, ignoring weekends. In practice, one could switch to a different Markov chain or use occupancy-triggered control over weekends.
+
+Training
+
+In contrast to batch training, which uses a fixed-size history (Figure [\ref=fig:trainingSchematic]a) , on-line incremental training proceeds without user intervention. It uses observations to update density functions for each of the transition probabilities; the expected values of these density functions in turn populate the Markov chain's transition matrix (Figure [\ref=fig:trainingSchematic]b).
+
+Boolean occupancy lacks granularity that could otherwise make predictions more accurate. For example, occupancy for the entirety of the previous hour implies different future occupancy compared to just a few minutes. The question we wish to answer is: Given the space was occupied for a certain fraction of the previous hour, for what portion of subsequent hours do we expect occupancy? We approach the problem in three steps. First, we explain the simplest case where boolean occupancy is directly observed. Second, we augment the boolean training with forgetting capability. Finally, we refine the approach to use fractional occupancy in order to make predictions more precise.
+
+Boolean observed occupancy
+
+Each state of the unrolled Markov chain (Figure [\ref=fig:markovChain]b) has two outgoing transition paths, analogous to a coin toss where the coin's bias is unknown. The well-known probability function of a biased coin is
+
+[formula]
+
+where [formula] is the number of ways to permute NH heads in a sequence of N tosses, and θ is the heads bias (with 0.5 being a fair coin). This function can be parameterized on θ, N, or NH depending on the purpose. With the bias θ  =  θ0 known and the number of tosses N = N0 fixed, the probability of obtaining NH heads, ψ(θ  =  θ0,N = N0,NH), is a discrete binomial distribution over NH. When N and NH are fixed, ψ(θ,N = N0,NH = NH0) is the probability density over the bias θ, with [formula].
+
+Instead of computing ψ using N and NH all at once, we can obtain it iteratively using Bayes' rule. Suppose we have a sequence of outcomes xj∈{1,0} where 1 means heads. The distribution, now parameterized only on θ, is defined recursively as
+
+[formula]
+
+where
+
+[formula]
+
+and ψ0(θ) = 1 is a uniform distribution reflecting no prior knowledge of the bias. The ~   notation means dividing by a constant so that [formula] holds. Our best guess of the bias is [formula].
+
+Now let us apply this analogy to occupancy prediction. Coin toss outcomes are independent, but occupancy transition probabilities depend on the current state. An any given time there are two possible states, so we need to maintain two distributions per time step. Let γk∈{0,1} be the occupancy. The transition probabilities of interest are
+
+[formula]
+
+where the density functions fk(pk) and gk(qk) are the latest iterations of fk,j(pk) and gk,j(qk), updated each training instance j using
+
+[formula]
+
+The ~   indicates normalization, and f0(pk) = 1 and g0(qk) = 1 as before. The distribution fk,j(pk) does not change from fk,j - 1(pk) unless the space was occupied, and gk,j - 1(qk) is also left alone unless the space was vacant. In other words, to update the distributions for a state, a transition out of that state must have been observed.
+
+Forgetting Factor
+
+As training proceeds, the distributions fk(pk) and gk(qk) become increasingly narrow and converge toward delta functions, the oldest and newest training data exerting equal but ever-decreasing influence on the model; even the newest training data becomes diluted. This is acceptable for batch training, where the history length is chosen explicitly, but not for incremental training, where eventually the distributions cannot change at all. We introduce a forgetting factor λ to gradually discount older training data and allow the Markov chain to retain its flexibility. Linear forgetting is implemented using
+
+[formula]
+
+where f0(pk) = 1 and g0(qk) = 1, and fk,j(pk) and gk,j(qk) are the posterior distributions that have just been trained before application of forgetting.
+
+There is no direct equivalence between forgetting factors and batch training history length; batch training (Figure [\ref=fig:trainingSchematic]a) is analogous to a finite impulse response (FIR) filter with a defined memory length, while incremental training (Figure [\ref=fig:trainingSchematic]b) is structurally reminiscent of an infinite impulse response (IIR) filter where the previous output is fed back into the filter. With batch training, the hand-picked data set may not contain all the transitions of interest, so some transitions may not be trained at all. The incremental approach applies training and forgetting simultaneously, retaining infrequently observed transitions longer.
+
+To illustrate the effect of forgetting on the distributions, we have trained a single state of the Markov chain repeatedly using alternating transitions γ0 = 0  →  γ1 = 1 and γ0 = 0  →  γ1 = 0. This is analogous to flipping an unbiased coin numerous times and observing heads every other flip, from which we expect an increasingly narrow distribution for p0 peaking near 0.5 (Figure [\ref=fig:forgettingFactor]a). This result would be preferred if the pattern were never expected to change, but such concentration in the distribution hinders its ability to change and is therefore undesirable. Using 15% forgetting (λ = 0.85) gives a distinctly broader distribution lifted off the horizontal axis (Figure [\ref=fig:forgettingFactor]b). The distribution--and therefore its expected value--shifts laterally with each alternate observation, even after many iterations; this extra mobility reflects greater adaptability. The value λ = 0.85 is much more forgetful than would be used in practice; Section [\ref=sub:Choosing] will explore the relationship between λ and prediction accuracy.
+
+Using Fractional Occupancy
+
+Measuring the percentage of occupancy over each time makes occupancy predictions more precise. To convert the asynchronous pulses from PIR sensors (Figure [\ref=fig:discretization]a) into a discrete-time sequence of fractional values, we apply a simple two-step heuristic. First, we merge closely-spaced pulses using a minimum dwell time to get a square wave signal γ(t) (Figure [\ref=fig:discretization]b). Then we superimpose a fixed time grid over the signal and average it over each step to obtain the discrete sequence
+
+[formula]
+
+essentially treating Γk (Figure [\ref=fig:discretization]c) as the duty cycle sequence of the pulse width modulated signal γ(t). We subsequently pretend that γ(t) is sampled probabilistically through Γk with a distribution over the Markov state space [formula]. The statements Γk = 60% and [formula] are considered equivalent. From this we estimate the occupancy at time k + 1 using
+
+[formula]
+
+where the expectation operator reflects the fact that pk and qk are estimated via fk(pk) and gk(qk). At each step k, there are four possible state transitions with associated posterior distributions
+
+[formula]
+
+where f(1)k,j is the updated posterior distribution as if γk = 1 and γk + 1 = 1 had been observed, f(0)k,j is similar to f(1)k,j but updated as if γk + 1 = 0 had been observed, and likewise for g(1)k,j and g(0)k,j. To obtain fk,j(pk), we blend f(1)k,j(pk) and f(0)k,j(pk) according to the later observation Γk + 1. We then weight the training according to Γk, which reflects how likely the space was to have started occupied; values of Γk closer to one apply more training to fk(pk), while those closer to zero cause heavier training of gk(qk). The training for gk,j(qk) follows analogously.
+
+[formula]
+
+Once the new distributions fk,j(pk) and gk,j(qk) have been found, forgetting is applied similarly to Equation [\ref=eq:forgetting], where Equations [\ref=eq:fractionalPosteriors] are used instead for the posterior distributions. The post-forgetting distributions are then stored.
+
+Effect of Training on Distribution Shape
+
+To illustrate the connection between training data patterns and the shapes of fk(pk) and gk(qk), we have trained two Markov chains with the MERL Belady conference room data from March 22 to June 9 and sampled the distributions afterward. In Figure [\ref=fig:Transition-probabilities], two sets of distributions--one for →   (a) and the other for →   (b)--are shown for both strong forgetting (λ = 0.85, solid) and no forgetting (λ = 1.0, dashed). In Figure [\ref=fig:Transition-probabilities]a we see that both occupancy and vacancy at strongly imply vacancy at . In other words, early morning occupancy is very uncommon and usually brief. Because occupancy is rare at , the transition γ2 = 12  →  γ3 = 13 (blue) is very weakly trained and has a very flat distribution. In Figure [\ref=fig:Transition-probabilities]b, we see that occupancy at is more varied, resulting in more typical bell-shaped distributions. The distributions for suggest that meetings are likely to continue into the next hour but are unlikely to start the following hour. The distributions for λ = 0.85 are shaped similarly to those for λ = 1.0 but are markedly subdued with expected values closer to 0.5.
+
+Transition Matrix and Occupancy Prediction
+
+Recall from Section [\ref=sub:Markov-chain-formulation] and Figure [\ref=fig:markovChain]b the Markov chain has states [formula] and [formula]. The probability distribution of the current occupancy state [formula] evolves according to πk + 1  =  πkP. The matrix P can be constructed from the four blocks: P( for [formula], P() for [formula], P() for [formula], and P() for [formula] transitions. The entries for P() and P() are the expected values of [formula] and [formula], and the other two matrices are their complements.
+
+[formula]
+
+where [formula] means k = i + 1 ( mod M). For example, [formula] takes the form
+
+[formula]
+
+The complete matrix is
+
+[formula]
+
+The expected occupancy m steps in the future given a current estimate Γk is
+
+[formula]
+
+where [formula] is a vector with the kth element set to one and all others left zero.
+
+MPC Formulation
+
+To balance competing demands for occupant comfort and low total energy consumption, we need to avoid conditioning the space when vacancy is expected; the level of comfort should scale with occupancy. To simplify the cost function, we have augmented the building's state space model with the non-changing temperature setpoint and a weather forecast shift-register system, i.e.
+
+[formula]
+
+where x is the building's thermal state (Equation [\ref=eq:buildingStateEquation]), τ is the comfort setpoint, and φ is a shift-register state that iterates through the weather forecast over the MPC horizon. The augmented matrix Ã connects the weather forecast to the building thermal model internally. We seek the optimal control law
+
+[formula]
+
+where uk + j is an individual control action and Γk + j∈[0,1] is an occupancy measurement or prediction. This is standard except that the stage cost adjusts the discomfort weigh using occupancy, i.e.
+
+[formula]
+
+where
+
+[formula] is the augmented system state vector and [formula] is the zone air temperature being controlled,
+
+u is the heat input to the zone,
+
+Γ is the observed or predicted occupancy,
+
+τ is the comfortable setpoint temperature (constant),
+
+Q is a matrix that extracts [formula] from [formula], and
+
+β and r are the discomfort and energy cost gains.
+
+The many (2N) possible occupancy state trajectories, along with the constraints on u, make it difficult to find a closed-form solution using exact dynamic programming. (Recall from Figure [\ref=fig:markovChain] that each occupancy state has two possible outgoing transitions.) If we instead condition all occupancy predictions solely on the present observation, we obtain the approximation
+
+[formula]
+
+where [formula] comes from Equation [\ref=eq:occupancyProjection]. The optimization is then
+
+[formula]
+
+As with conventional MPC, the controller applies uk to the system and discards [formula]; the solution is repeated at each subsequent step.
+
+The controller never reaches the setpoint τ for two reasons. First, including energy in the cost function counteracts temperature regulation, with the trade-off tuned through the ratio β / r. Second, the discomfort cost is weighted by expected occupancy, which never reaches 1.0. We have chosen to penalize [formula], rather than u2, because quadratic cost suppresses peaks and spreads control action over time; peak suppression inhibits the full system shutdown necessary to save energy during vacancy. When high occupancy is predicted, the discomfort cost (Figure [\ref=fig:Cost-function]) becomes steeper and causes the temperature to more closely approach the setpoint.
+
+Comparison to Conventional Control
+
+Experimental Setup
+
+To demonstrate the algorithm's advantages over conventional control, we have run a simulation under the following conditions:
+
+MERL occupancy data for the Belady conference room (sensors 452 and 453) from February 12 to April 10, 2007;
+
+EnergyPlus weather data for Elmira, NY starting March 1 (typical meteorological year) and a three-week warm-up period;
+
+no un-modeled disturbances;
+
+one-hour time step;
+
+system capacity of 8.0kW.
+
+The thermal model is the single-zone building RC network discussed previously. To emphasize the benefit of prediction, we have chosen the weather period to just saturate the control output in typical winter conditions. (These conditions emphasize the need to predict more than one hour out; we could have chosen January and increased the system capacity slightly for the same result.)
+
+Choosing λ
+
+Before we run the simulation, we need to choose the forgetting factor. Without forgetting (λ = 1.0), consistent occupancy patterns allow predictions to asymptotically approach Γ = 0 and Γ = 1, but the ever-lengthening effective history length hinders adaptation and leads to very large prediction error. At the other extreme, high forgetting ([formula]) gives a model easily distracted by irregularities that consistently predicts occupancy near Γ = 0.5, which again leads to high prediction error. Intuition suggests that a minimum prediction error should exist between these limits, and indeed this is the case. Figure [\ref=fig:Influence-of-forgetting] shows the relationship between λ and one-hour prediction error using the simulation occupancy data, with λ = 0.974 giving the best prediction accuracy. Of course, there is no guarantee that the best past value of λ will work well in the future; nonetheless, the convexity suggests that λ could be calibrated on-line with an extremum-seeking algorithm [\citep=ariyur2003real].
+
+Performance Comparison
+
+Figure [\ref=fig:Simulation-results] shows simulation results for three identically-tuned MPC implementations:
+
+a purely occupancy-triggered controller,
+
+a scheduled controller supplemented with occupancy triggering, and
+
+an on-line trained occupancy-predicting controller with one week of pre-training (λ = 97.4%).
+
+The occupancy-triggered controller (green) maintains [formula] during occupied hours and [formula] during vacant hours. The scheduled controller uses the same setpoint from to and any time the space is occupied. To simplify the simulation, all three controllers ignore occupancy and control to [formula] ([formula]) over weekends.
+
+Energy and Comfort
+
+The occupancy-triggered controller consumes by far the least energy because it does not account for thermal lag or expected occupancy and therefore runs the least. Not surprisingly, its comfort performance upon occupant arrival is very poor, with large leading spikes on the discomfort trace in Figure [\ref=fig:Simulation-results]c and frequent calls for maximum output power in Figure [\ref=fig:Simulation-results]d. The scheduled controller leaves plenty of margin around the typical occupancy envelope and consequently yields excellent comfort at the expense of energy efficiency. The comfort performance of occupancy predicting MPC lies between these two methods, with peak discomfort slightly worse than scheduled control but without the severe deviations of triggered control. Table [\ref=fig:resultTable] shows up to 19% energy savings compared to the scheduled controller and significantly lower peak discomfort than the occupancy-triggered controller.
+
+Perhaps more interesting than the discomfort peak is its distribution. Figure [\ref=fig:histogram] shows how many times various occupancy-weighted discomfort levels occur under each control method. It comes as little surprise that the scheduled controller maintains discomfort within [formula] at all times. (Clearly, though, an out-of-date schedule would not perform this well, so this is a rather optimistic profile of scheduled control.) The occupancy-predicting controller maintains discomfort less than [formula] more than 94% of the time with relatively mild outliers. The occupancy-triggered controller trails with 75% incidence of low discomfort and numerous severe violations. In summary, the occupancy predicting control scheme yields comfort performance that rivals that of a properly tuned schedule.
+
+Energy performance is also as expected. The conservative schedule leaves ample time to pre-condition the space along with some margin in the evening. The cost of this performance is 24% more total energy over the simulation than the occupancy-triggered controller. Consumption by the occupancy-predicting controller is moderate, at 12% more than the triggered and 19% less than the scheduled control, and there are very few instances where the system needs to run at maximum power to catch up.
+
+Conclusion
+
+We have demonstrated the use of model predictive control with a stochastic occupancy model to reduce HVAC energy consumption. Using occupancy predicted by an automatically-trained Markov chain, the algorithm is simplified by approximate dynamic programming where occupancy is projected multiple steps into the future using a current observation. We remark that although our method relies on weather forecasts and a dynamical model of the building, on-line data sources and emerging software tools have made these easy to acquire.
+
+We have made some simplifications to improve clarity. First, we have chosen a rather coarse one-hour time step, even though practical controllers normally operate on a much finer time scale to provide adequate bandwidth; the Markov model may, however, operate on an entirely different time scale from the MPC with only minor implementation changes. Second, our hypothetical system has constant efficiency and operates only in heat mode to simplify the cost function and maintain focus on the paper's contribution. As long as energy consumption can be controlled and room temperature can be measured, the stochastic occupancy model may be applied to arbitrarily complex MPC scenarios. Finally, we have used a certainty-equivalence assumption for weather and occupancy predictions; recent research has addressed ways to incorporate uncertainty into the optimization for added robustness. Demonstrating our algorithm without these simplifications is left to future work.
+
+Acknowledgements
+
+The authors thank Peter Radecki for his constructive feedback.
+
+References

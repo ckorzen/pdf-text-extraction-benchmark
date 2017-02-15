@@ -1,0 +1,421 @@
+Tight Logic Programs
+
+Introduction
+
+This note is about the relationship between two theories of negation as failure--one based on program completion [\cite=cla78], the other based on stable models, or answer sets [\cite=gel88]. Franois Fages (1994) showed that if a logic program satisfies a certain syntactic condition, which is now called "tightness," then its stable models can be characterized as the models of its completion. Lifschitz (1996) observed that Fages' theorem can be extended to programs with infinitely many rules and to programs with classical negation [\cite=gel91b] if the concept of completion in the statement of the theorem is replaced by its semantic counterpart--the concept of a supported model [\cite=apt88]. Fages' theorem was further generalized in [\cite=bab00].
+
+In this paper we show how to extend Fages' theorem to programs with nested expressions in the bodies of rules. A generalization of the completion semantics to such programs was proposed in [\cite=llo84a], and a similar generalization of the answer set semantics is given in [\cite=lif99d]. Here is an example. Program
+
+[formula]
+
+contains nested occurrences of negation as failure in the body of the first rule. It belongs to the syntactic class for which our theorem guarantees the equivalence of the answer set semantics to the completion semantics. This program has two answer sets [formula], {p}; they are identical to the models of the completion
+
+[formula]
+
+of this program.
+
+A preliminary report on the tightness of programs with nested expressions is published in [\cite=erd01a].
+
+The second question studied here is the tightness of logic programs containing the definition of the transitive closure of a predicate:
+
+[formula]
+
+Such rules are found in many useful programs. Unfortunately, the definition of tightness may be difficult to verify directly for a program containing these rules. We give here a sufficient condition that can make this easier. A preliminary report on this part of the work was presented at the 2001 AAAI Spring Symposium on Answer Set Programming [\cite=erd01].
+
+The concept of a tight program and generalizations of Fages' theorem may be interesting for two reasons.
+
+First, the completion semantics and the stable model semantics are among the most widely used definitions of the meaning of negation as failure, and it is useful to know under what conditions they are equivalent to each other.
+
+Second, the class of tight programs is important from the perspective of answer set programming. Whenever the two semantics are equivalent, answer sets for the program can be computed by solving the satisfiability problem for its completion. This can be done using a satisfiability solver such as sato or mchaff [\cite=bab00]. The idea of computing answer sets for a program using a satisfiability solver led to the creation of the system cmodels which, in some cases, finds answer sets faster than "general-purpose" answer set solvers such as smodels and dlv. Our generalization of Fages' theorem allows us to apply this idea to programs containing weight constraint rules [\cite=sim02], because such programs can be viewed as a special case of programs with nested expressions [\cite=fer03]. For instance, rule {p} can be treated as shorthand for
+
+[formula]
+
+cmodels uses this fact to handle programs with weight constraints, and our generalization of Fages' theorem allows cmodels to decide whether the answer sets for such a program are identical to the models of its completion.
+
+We begin by reviewing the definitions of answer sets, closure, supportedness and completion for programs with nested expressions (Sections [\ref=sec:programs], [\ref=sec:supportedness]). After discussing the concept of tightness for such programs in Sections [\ref=sec:tightness] and [\ref=sec:abs], we state our generalization of Fages' theorem (Section [\ref=sec:thm]). As an example, we show how this generalized form applies to a formalization of the n-queens problem (Section [\ref=sec:eightqueens]). Then we study the tightness of programs containing the definition of the transitive closure of a relation (Section [\ref=sec:tc]). A logic programming description of the blocks world is used as an example in Section [\ref=sec:bw]. Proofs of theorems are given in Section [\ref=sec:proofs].
+
+Programs and Answer Sets
+
+This section is a review of the answer set semantics for nondisjunctive programs with nested expressions.
+
+The words atom and literal are understood here as in propositional logic; we call the sign [formula] in a negative literal [formula] classical negation, to distinguish it from the symbol for negation as failure (). Elementary formulas are literals and the 0-place connectives [formula] and [formula]. Formulas are built from elementary formulas using the unary connective  and the binary connectives , (conjunction) and ; (disjunction). A (nondisjunctive) rule is an expression of the form
+
+[formula]
+
+where [formula] is a literal or [formula], and [formula] is a formula. If [formula], we will drop both the body and the arrow separating it from the head; rules with the body [formula] are called facts. If [formula], we will drop the head; rules with the head [formula] are called constraints.
+
+A (nondisjunctive logic) program is a set of rules.
+
+We define when a consistent set X of literals satisfies a formula F (symbolically, [formula]) recursively, as follows:
+
+for elementary F, [formula] if F∈X or [formula],
+
+[formula] if [formula],
+
+[formula] if [formula] and [formula],
+
+[formula] if [formula] or [formula].
+
+A consistent set X of literals is closed under a program Π if, for every rule ([\ref=rule]) in Π, [formula] whenever [formula].
+
+Let Π be a program without negation as failure. We say that X is an answer set for Π if X is minimal among the consistent sets of literals closed under Π. It is easy to see that there can be at most one such set. For instance, the answer set for the program
+
+[formula]
+
+is {p}.
+
+The reduct ΠX of a program Π relative to a set X of literals is obtained from Π by replacing every maximal occurrence of a formula of the form [formula] in Π (that is, every occurrence of [formula] that is not in the scope of another ) with [formula] if [formula], and with [formula] otherwise. A consistent set X of literals is an answer set for Π if it is the answer set for the reduct ΠX. For instance, {p} is an answer set for program ([\ref=ex]) since it is the answer set for the reduct ([\ref=ex-r]) of ([\ref=ex]) relative to {p}.
+
+We say that a formula (or a program) is normal if it does not contain classical negation. We will sometimes identify a normal formula F with the propositional formula obtained from F by replacing every comma with [formula], every semicolon with [formula], and every occurrence of  with [formula]. It is easy to see that, for any normal formula F and any set X of atoms, [formula] iff X satisfies F in the sense of propositional logic.
+
+Supported Sets and Completion
+
+This section is a review of supported sets and completion for the class of logic programs introduced above.
+
+We say that a set X of literals is supported by a program Π if for every literal L∈X there exists a rule ([\ref=rule]) in Π such that [formula] and . For instance, each of the sets {p}, [formula] is supported by the program
+
+[formula]
+
+but their union is not. The set {p} is supported by program ([\ref=ex]); {q} is not.
+
+We are interested in the relationship between the concept of an answer set on the one hand, and the conjunction of the closure and supportedness conditions on the other. According to the following proposition, every answer set is both closed under the program and supported by it.
+
+For any program Π and any consistent set X of literals, if X is an answer set for Π then X is closed under and supported by Π.
+
+For instance, the answer sets for program ([\ref=ex:p-or-q]) are {p} and [formula]; each of them is closed under and supported by ([\ref=ex:p-or-q]). The answer sets for program ([\ref=ex]) are [formula] and {p}; each of them is closed under and supported by ([\ref=ex]).
+
+The converse, in general, is not true. The easiest counterexample is the program consisting of one rule p←p. The set {p} is closed under this program and supported by it, although it is not an answer set. Tightness, defined in Section [\ref=sec:tightness] below, is a syntactic condition that eliminates programs like this.
+
+Let Π be a finite normal program. The "completion" of Π is the set of propositional formulas defined as follows. If A is an atom or the symbol [formula], by [formula] we denote the propositional formula
+
+[formula]
+
+where the disjunction extends over all rules
+
+[formula]
+
+in Π with the head A. The completion of Π is the set of formulas [formula] for all A.
+
+For instance, the bodies of rules ([\ref=ex]), written as propositional formulas, are [formula] and [formula]; for this program Π, formulas ([\ref=ex-comp]) are [formula] and [formula]. In addition to these two formulas, the completion of this program includes also [formula], which is the tautology [formula].
+
+In application to finite normal programs, the conjunction of closure and supportedness exactly corresponds to the program's completion:
+
+For any finite normal program Π, a set of atoms satisfies the completion of Π iff it is closed under and supported by Π.
+
+From Propositions [\ref=easy-main] and [\ref=cs], we conclude:
+
+For any finite normal program Π and any set X of atoms, if X is an answer set for Π then X satisfies the completion of Π.
+
+Tight Programs
+
+To define the concept of a tight program, we need a few auxiliary definitions.
+
+Recall that an occurrence of a formula F in a formula G is singular if the symbol before this occurrence is [formula]; otherwise, the occurrence is regular [\cite=lif99d]. It is clear that the occurrence of F can be singular only if F is an atom. For any formula G, by [formula] we denote the set of all literals having regular occurrences in G. For instance, [formula]. For any formula G, by [formula] we denote the set of all literals having a regular occurrence in G that is not in the scope of negation as failure. For instance, [formula].
+
+For any program Π and any set X of literals, we say about literals L,L'∈X that L is a parent of L' relative to Π and X if there is a rule ([\ref=rule]) in Π such that
+
+[formula],
+
+[formula], and
+
+[formula].
+
+For instance, the parents of p relative to the program
+
+[formula]
+
+and the set {p,q,r} are p and r; on the other hand, p has no parents relative to ([\ref=ex2]) and the set {p,q}.
+
+Now we are ready to give the main definition of this paper:
+
+A program Π is tight on a set X of literals if there is no infinite sequence [formula] of elements of X such that for every i, Li + 1 is a parent of Li relative to Π and X.
+
+In other words, Π is tight on a set X iff the parent relation relative to Π and X is well-founded.
+
+If X is finite then the tightness condition can be reformulated as follows: there is no finite sequence [formula] of elements of X (n > 1) such that for every i (1  ≤  i < n), Li + 1 is a parent of Li relative to Π and X, and Ln = L1.
+
+For instance, program ([\ref=ex]) is tight on {p}: p does not have parents relative to ([\ref=ex]) and {p}, so that the parent relation relative to ([\ref=ex]) and {p} is well-founded. But that program is not tight on {p,q}. Indeed, p and q are the parents of p relative to ([\ref=ex]) and {p,q}, so that in the sequence [formula] every element is followed by its parent.
+
+The proposition below gives an equivalent characterization of tightness:
+
+A program Π is tight on a set X of literals iff there exists a function λ from X to ordinals satisfying the following condition:
+
+for every rule ([\ref=rule]) in Π such that [formula] and [formula], and for every L in [formula], [formula]
+
+For instance, to show that program ([\ref=ex]) is tight on {p}, we can take λ(p)  =  0. To show that program
+
+[formula]
+
+is tight on {p,q,r}, take λ(p)  =  1, λ(q)  =  λ(r)  =  0.
+
+If X is finite then the values of λ in the statement of Proposition [\ref=prop2] can be assumed to be finite.
+
+Proposition [\ref=prop2] is a special case of the following general fact:
+
+To compare the definition of tightness above with the definition given earlier in [\cite=bab00], assume that the rules of Π have the form
+
+[formula]
+
+where each Li is a literal. In this case, condition (*) says: for every rule ([\ref=rule2]) in Π, if
+
+[formula]
+
+[formula]
+
+and
+
+[formula]
+
+then, for all [formula], [formula]. In view of ([\ref=b2]), the intersection [formula] here can be replaced by [formula]. The only difference between this form of condition (*) and the corresponding condition in [\cite=bab00] is the presence of restriction ([\ref=b3]). The additional generality gained by including ([\ref=b3]) can be illustrated by the program
+
+[formula]
+
+--it is tight on {p,q} in the sense of this paper, but not in the sense of [\cite=bab00].
+
+Absolutely Tight Programs
+
+The following modification of the tightness condition is often useful. A program Π is absolutely tight if there is no infinite sequence [formula] of literals such that for every i there is a rule ([\ref=rule]) in Π for which [formula] and [formula]. It is clear that an absolutely tight program is tight on any set of literals.
+
+To prove that a program Π is absolutely tight, it is sufficient to find a function λ from literals to ordinals such that for every rule ([\ref=rule]) in Π with [formula] and for every literal [formula], [formula].
+
+For a program containing finitely many atoms, absolute tightness can be characterized as follows. The positive dependency graph of a program Π is the directed graph G such that
+
+the vertices of G are the literals that have regular occurrences in Π, and
+
+G has an edge from L to L' if there is a rule ([\ref=rule]) in Π for which [formula] and [formula].
+
+A program containing finitely many atoms is absolutely tight iff its positive dependency graph has no cycles.
+
+In application to programs whose rules have the form ([\ref=rule2]) and contain neither [formula] nor classical negation, the definition of absolute tightness above turns into (the propositional case of) Fages' original definition of tightness [\cite=fag94].
+
+Generalization of Fages' Theorem
+
+For any program Π and any consistent set X of literals such that Π is tight on X, X is an answer set for Π iff X is closed under and supported by Π.
+
+For instance, program ([\ref=ex:p-or-q]) is tight on the sets {p} and [formula] that are closed under and supported by ([\ref=ex:p-or-q]). By Proposition [\ref=easy-main] and the theorem above, it follows that {p} and [formula] are the answer sets for ([\ref=ex:p-or-q]).
+
+By Proposition [\ref=cs], we conclude:
+
+For any finite normal program Π and any set X of atoms such that Π is tight on X, X is an answer set for Π iff X satisfies the completion of Π.
+
+For instance, program ([\ref=ex]) is tight on the models [formula], {p} of its completion ([\ref=ex-comp]). In accordance with Proposition [\ref=easy-main] and Corollary [\ref=main-cor], these two models are the answer sets for ([\ref=ex]).
+
+By [formula] we denote the set of literals L such that Π contains a rule ([\ref=rule]) with [formula] and [formula]. For instance, if Π is ([\ref=ex]) then [formula]. If a set X of literals is disjoint from [formula] then no literal in X has a parent relative to Π and X, and consequently Π is tight on X. We conclude:
+
+For any program Π and any consistent set X of literals disjoint from [formula], X is an answer set for Π iff X is closed under and supported by Π.
+
+By Proposition [\ref=cs], it follows then:
+
+For any finite normal program Π and any set X of atoms disjoint from [formula], X is an answer set for Π iff X satisfies the completion of Π.
+
+Since an absolutely tight program is tight on every set of literals, we conclude from Theorem [\ref=fages-extended] and Corollary [\ref=main-cor]:
+
+For any absolutely tight program Π and any consistent set X of literals, X is an answer set for Π iff X is closed under and supported by Π.
+
+For any finite normal absolutely tight program Π and any set X of atoms, X is an answer set for Π iff X satisfies the completion of Π.
+
+Example: The N-Queens Problem
+
+In the n-queens problem, the goal is to find a configuration of n queens on an n  ×  n chessboard such that no queen can be taken by any other queen. In other words, (a) no two queens may be on the same column, (b) no two queens may be on the same row, and (c) no two queens may be on the same diagonal.
+
+A solution to the n-queens problem can be described by a set of atoms of the form [formula] (1  ≤  R,C  ≤  n) satisfying conditions (a)-(c); including [formula] in the set indicates that there is a queen in position (R,C).
+
+The n-queens problem can be described by a program whose answer sets are solutions, as follows. The selections satisfying condition (a) correspond to the answer sets for the program consisting of the rules
+
+[formula]
+
+for all R,C in [formula],
+
+[formula]
+
+for all C in [formula], and
+
+[formula]
+
+for all R,R1,C in [formula] such that R  <  R1. Conditions (b) and (c) are represented by the constraints
+
+[formula]
+
+for all R,C,C1 in [formula] such that C  <  C1 and
+
+[formula]
+
+for all R,R1,C,C1 in [formula] such that C  <  C1 and
+
+The answer sets for program ([\ref=nested-queen1])-([\ref=diagonal-constraint]) are in a 1-1 correspondence with the possible arrangements of n queens. According to [\cite=fer03], rules ([\ref=nested-queen1])-([\ref=nested-queen3]) can be rewritten as weight constraints
+
+[formula]
+
+for all C in [formula] Then the program can be presented to smodels as shown in Figure [\ref=fig:smodels].
+
+Program ([\ref=nested-queen1])-([\ref=diagonal-constraint]) is a finite normal absolutely tight program. By Corollary [\ref=main-cor-abs], its answer sets are identical to the models of its completion. (Note the use of nested negations in rule ([\ref=nested-queen1]); this is the reason why the new generalization of Fages' theorem is needed here.) This fact can be used to find solutions to the n-queens problem using cmodels, that is to say, by running a satisfiability solver on the program's completion. cmodels transforms the input shown in Figure [\ref=fig:smodels] into ([\ref=nested-queen1])-([\ref=diagonal-constraint]), computes the completion, clausifies it, and calls mchaff to find a model. For n = 20 cmodels finds a solution in 2 seconds (for comparison, smodels, given the same input file, finds one in 55 seconds). For n = 25, cmodels finds a solution in 3 seconds, whereas smodels requires more than 2 hours.
+
+This example confirms the conjecture underlying the design of cmodels: using satisfiability solvers to compute answer sets for tight programs may be computationally advantageous. Systematic experimental evaluation of this form of answer set programming is a topic for future research.
+
+Transitive Closure
+
+In logic programming, the transitive closure [formula] of a binary predicate p is usually defined by the rules
+
+[formula]
+
+If we combine this definition with any set Π of facts defining p, and consider the minimal model of the resulting program, the extent of [formula] in this model will be the transitive closure of the extent of p. In this sense, is a correct characterization of the concept of transitive closure. We know, on the other hand, that the sets of atoms closed under and supported by [formula] may be different from the minimal model. In these "spurious" sets of atoms, [formula] is weaker than the transitive closure of p. The absence of such "spurious" sets can be assured by requiring that facts in Π define relation p to be acyclic.
+
+In this section we study the more general situation when Π is a logic program, not necessarily a set of facts. This program may define several predicates besides p. Even [formula] is allowed to occur in Π, except that all occurrences of this predicate are supposed to be in the bodies of rules, so that all rules defining [formula] in [formula] will belong to . The rules of Π may include negation as failure, and, accordingly, we talk about answer sets instead of the minimal model. Program [formula] may have many answer sets. According to Proposition [\ref=thm1] below, the extent of [formula] in each of these sets is the transitive closure of the extent of p in the same set.
+
+Recall that programs in the sense of Section [\ref=sec:programs] are propositional objects; there are no variables in them. Expressions containing variables, such as , can be treated as schematic: we select a non-empty set C of symbols ("object constants") and view an expression with variables as shorthand for the set of all its ground instances obtained by substituting these symbols for variables. It is convenient, however, to be a little more general. We assume p and [formula] to be functions from C  ×  C to the set of atoms such that all atoms p(x,y) and [formula] are pairwise distinct.
+
+Let Π be a program that does not contain atoms of the form [formula] in the heads of rules. If X is an answer set for [formula] then
+
+[formula]
+
+is the transitive closure of
+
+[formula]
+
+If atoms of the form [formula] do not occur in Π at all then the answer sets for [formula] are actually in a 1-1 correspondence with the answer sets for Π. The answer set for [formula] corresponding to an answer set X for Π is obtained from X by adding a set of atoms of the form [formula].
+
+Under what conditions can we assert that the consistent sets of literals closed under and supported by a program containing are not "spurious"? As we know from Theorem [\ref=fages-extended], such a condition is provided by the tightness of the program. The verification of the tightness of programs containing is facilitated by the theorem below, which tells us that in some cases the tightness of a program is preserved after adding  to it.
+
+For any program Π and any set X of literals, we say about literals L,L'∈X that L' is an ancestor of L relative to Π and X if there exists a finite sequence of literals [formula] (n > 1) such that L = L1, L' = Ln and for every i (1  ≤  i < n), Li + 1 is a parent of Li relative to Π and X. In other words, the ancestor relation is the transitive closure of the parent relation.
+
+Let Π be a program that does not contain atoms of the form [formula] in the heads of rules. For any set X of literals, if
+
+Π is tight on X,
+
+{〈x,y〉: p(y,x)∈X} is well-founded, and
+
+no atom of the form [formula] is an ancestor of an atom of the form p(x,y) relative to Π and X,
+
+then [formula] is tight on X.
+
+By Theorem [\ref=fages-extended] and Proposition [\ref=thm1], we conclude:
+
+Let Π be a program that does not contain atoms of the form [formula] in the heads of rules, and let X be a set of literals satisfying conditions (i)-(iii) from Theorem [\ref=thm2]. If, in addition,
+
+X is a consistent set closed under and supported by [formula]
+
+then X is an answer set for [formula], and
+
+[formula]
+
+is the transitive closure of
+
+[formula]
+
+Proposition [\ref=cs] shows that if X is a set of atoms and Π is a finite program without classical negation then condition (iv) can be reformulated as follows:
+
+X is a model of the completion of [formula].
+
+Condition (ii) in the statement of Theorem [\ref=thm2] is similar to the acyclicity property mentioned at the beginning of this section. In fact, if the underlying set C of constants is finite then (ii) is obviously equivalent to the following condition: there is no finite sequence [formula] (n > 1) such that
+
+[formula]
+
+and xn = x1. For an infinite C, well-foundedness implies acyclicity, but not the other way around.
+
+Here is a useful syntactic sufficient condition for (ii):
+
+If Π contains constraint
+
+[formula]
+
+and C is finite then, for every set X of literals closed under [formula], set {〈x,y〉: p(y,x)∈X} is well-founded.
+
+Without condition (ii), the assertion of the theorem would be incorrect. Program Π that consists of one fact p(1,1), with C  =  {1,2} and
+
+[formula]
+
+provides a counterexample.
+
+Condition (iii) is essential as well. Indeed, take Π to be With C  =  {1,2}, set [formula] is closed under and supported by [formula], but is is not an answer set for [formula]: the only answer set for this program is empty.
+
+Example: The Blocks World
+
+As an example of the use of Theorem [\ref=thm2], consider a "history program" for the blocks world--a program whose answer sets represent possible "histories"of the blocks world over a fixed time interval. A history of the blocks world is characterized by the truth values of atoms of two kinds: [formula] ("block b is on location l at time t") and [formula] ("block b is moved to location l between times t and t + 1"). Here
+
+b ranges over a finite set of "block constants,"
+
+l ranges over the set of location constants that consists of the block constants and the constant ,
+
+t ranges over the symbols representing an initial segment of integers [formula],
+
+except that in [formula] we require t < T. One other kind of atoms used in the program is [formula]: "block b is above location l at time t". These atoms are used to express constraint ([\ref=hp5a]) that requires every block to be "supported by the table" and thus eliminates stacks of blocks flying in space.
+
+The program consists of the following rules:
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+To illustrate the use of Theorem [\ref=thm2], in Section [\ref=sec:proofs] we use it to prove the following proposition:
+
+Program ([\ref=hp1])-([\ref=hp5a]) is tight on every set of literals that is closed under it.
+
+This proposition, in combination with Proposition [\ref=easy-main] and Theorem [\ref=fages-extended], tells us that the answer sets for ([\ref=hp1])-([\ref=hp5a]) can be characterized as the sets that are closed under this program and supported by it. These answer sets can be computed by eliminating classical negation in favor of new atoms and generating models of the completion of the resulting program.
+
+The idea of the proof is to check first that program ([\ref=hp1])-([\ref=hp3a]), ([\ref=hp5]), ([\ref=hp5a]) is tight, and then use Theorem [\ref=thm2] to conclude that tightness is preserved when we add the definition ([\ref=hp4]) of . There are two complications, however, that need to be taken into account.
+
+First, and are ternary predicates, not binary. To relate them to the concept of transitive closure, we can say that any binary "slice" of obtained by fixing its last argument is the transitive closure of the corresponding "slice" of . Accordingly, Theorem [\ref=thm2] will need to be applied T + 1 times, once for each slice.
+
+Second, the first two arguments of do not come from the same set C of object constants, as required in the framework of Theorem [\ref=thm2]: the set of block constants is a proper part of the set of location constants. In the proof, we will introduce a program similar to ([\ref=hp1])-([\ref=hp5a]) in which, syntactically, is allowed as the first argument of both and .
+
+Proofs
+
+Given a formula F without negation as failure and two sets Z,Z' of literals such that Z'  ⊆  Z, if [formula] then [formula].
+
+The following lemma is the special case of Proposition [\ref=easy-main] in which Π is assumed to be a program without negation as failure.
+
+For any program Π without negation as failure and any consistent set X of literals, if X is an answer set for Π then X is closed under and supported by Π.
+
+The definition of the reduct FX of a formula F is similar to the definition of the reduct of a program given in Section [\ref=sec:programs].
+
+For any formula F, any program Π, and any consistent set X of literals,
+
+[formula] iff [formula];
+
+X is closed under Π iff X is closed under ΠX;
+
+X is supported by Π iff X is supported by ΠX.
+
+For any formula F and any set X of literals, [formula] iff [formula].
+
+The following lemma is the special case of one half of Theorem [\ref=fages-extended] in which Π is assumed to be a program without negation as failure.
+
+Let Π be a program without negation as failure. For any consistent set X of literals such that Π is tight on X, if X is closed under and supported by Π then X is an answer set for Π.
+
+For any program Π and any consistent set X of literals, if Π is tight on X then so is ΠX.
+
+We have proved the assertion of Proposition [\ref=thm1] for programs without negation as failure. Now let Π be any program that does not contain atoms of the form [formula] in heads of rules, and let X be an answer set for [formula]. Clearly, the reduct ΠX is a program without negation as failure that does not contain atoms of the form [formula] in the heads of rules, and X is an answer set for [formula]. By the special case of the theorem proved above, applied to ΠX, ([\ref=tc]) is the transitive closure of ([\ref=r]).
+
+Conclusion
+
+For absolutely tight logic programs, the answer set semantics is equivalent to the completion semantics. Answer sets for a finite normal absolutely tight program can be found by running a satisfiability solver on the program's completion. Defining tightness relative to a set of literals extends the applicability of this method to some programs that are not absolutely tight. This method of computing answer sets is applicable to rules with nested expressions and with weight constraints.
+
+Although this method is not directly applicable to disjunctive programs, disjunction in the head of a rule can be sometimes eliminated in favor of nested expressions in its body [\cite=lif99d], [\cite=lif02]. For instance, the disjunctive rule
+
+[formula]
+
+in any program can be replaced by
+
+[formula]
+
+without changing the program's answer sets.
+
+Acknowledgments
+
+We are grateful to Yuliya Babovich, Selim Erdo gan, Paolo Ferraris, Joohyung Lee, Victor Marek, Norman McCain and Emilio Remolina for comments and discussions related to the subject of this paper. Special thanks to Hudson Turner for many useful suggestions, including the use of in the definition of tightness instead of the more complicated condition from [\cite=erd01a], and the possibility of restriction ([\ref=b3]) from Section [\ref=sec:tightness].
+
+This work was partially supported by National Science Foundation under grant IIS-9732744 and by the Texas Higher Education Coordinating Board under grant 003658-0322-2001. The first author was also supported by a NATO Science Fellowship.

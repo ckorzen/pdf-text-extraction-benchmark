@@ -1,0 +1,95 @@
+Efficient grid-based Bayesian estimation of nonlinear low-dimensional systems with sparse non-Gaussian PDFs
+
+Introduction
+
+Bayesian estimation strategies are the most general class of solutions to the state estimation problem, and apply readily to nonlinear systems where information about the state is represented by a probability density function (PDF) of general form. In this paper we introduce a novel, computationally cheap method for implementing grid-based Bayesian estimation that exploits the fact that the PDF is usually negligible in most of phase space, while avoiding many of the disadvantages of other methods. The idea of grid-based Bayesian estimation dates back at least to Stratonovich (1959,1960). The equations underlying the algorithm are laid out clearly in Jazwinski (1970, p. 164), and are summarised below. However, numerical implementation of these equations has only been attempted sporadically in the half century since, for instance by Kramer et al. (1988), Terwiesch & Agarwal (1994) and Ungarala et al. (2006). Grid-based Bayesian methods typically suffer from the twin burdens of high computational cost and a finite domain size; indeed, Arulampalam et al. (2002), in their otherwise insightful review of particle filter methods, all but dismiss grid-based methods in § IV.B. We believe that this level of pessimism on this class of methods is unwarranted. The algorithm developed, dubbed GBEES (Grid-based Bayesian Estimation Exploiting Sparsity), provides a means of efficient computation by building on an accurate integration scheme for hyperbolic systems, and a novel gridding scheme over all of phase space.
+
+Grid-based Bayesian estimation exploiting sparsity
+
+Consider the state estimation of the nonlinear system
+
+[formula]
+
+The grid-based Bayesian estimation method is best visualized as an evolution of the PDF of the state estimate [formula] discretized on a fixed grid over all of phase space [formula]; assuming the state [formula] develops according to the nonlinear equation [\eqref=sysnon], the method consists of two relatively straightforward steps (for details, see Jazwinski 1970, p. 164): (i) Between measurement times, the PDF itself, [formula], is marched via discretization of the Kolmogorov forward equation (also called the Fokker-Planck equation)
+
+[formula]
+
+where summation over repeated indices is implied and qij is the (i,j)th element of the spectral density, Q, of the state disturbances (note that, in the special case that Q is diagonal and the state disturbance is independent of [formula], this is just a diffusion term). Risken (2002) reviews a number of methods for solving this equation, including analytic methods for special cases and eigenfunction expansions (focusing on the stationary solution), however state-space and time discretisation for a non-stationary solution (as performed here) is only mentioned briefly, and assumed to apply only to finite domains. An accurate numerical method for marching this equation in time in the case that Q = 0 is outlined in § [\ref=sec:nummeth]; adding an appropriate term to this discretization to apply diffusion to the PDF (to account for Gaussian state disturbances) is straightforward, as discussed in § [\ref=sec:nummethdiff]. (ii) At the measurement times tk, the PDF is updated via Bayes' theorem (Bayes, 1763),
+
+[formula]
+
+where [formula] denotes the a posteriori PDF (after accounting for the measurement [formula]), [formula] denotes the uncertainty associated with the measurement (which may or may not be Gaussian in [formula]), [formula] denotes the a priori PDF (before accounting for the measurement [formula]), and C is an appropriate normalization constant, which is selected for every measurement update to normalize the discretization of [formula] such that its integral over phase space is unity.
+
+To understand how the continuous state-space is discretized, recall that the cumulative distribution function (CDF) of a random real vector [formula], denoted [formula], maps [formula] to the real interval
+
+[formula]
+
+Accurate numerical integration of the Kolmogorov forward equation
+
+The PDE governing the evolution of the PDF in the present problem is given by [\eqref=eq:PDEgovPDF]. If Q = 0, the equation is hyperbolic; if Q > 0, the equation, strictly speaking, changes type to elliptic. In practice, however, Q is usually relatively small. It is thus fitting to design a numerical method for accurate simulation of [\eqref=eq:PDEgovPDF] based on a proven algorithm for accurate simulation of hyperbolic PDEs. Fortunately, the fluid mechanics community has focused on the development of high performance computing techniques for numerical simulation of such "convection-dominated" problems for over 40 years, and these techniques are now quite refined and well understood. The numerical method best suited to the present problem is somewhat involved; a comprehensive review of this class of methods is given in LeVeque (2002). To focus this discussion, consider first the two-dimensional, linear, hyperbolic PDE in conservation form
+
+[formula]
+
+noticing that higher-dimensional cases follow as an obvious extension. Following Chapters 4, 6, 9, 19, and 20 of LeVeque (2002), we implement a Godunov-type finite volume method by writing [\eqref=eq:hyper_con] on a uniform Cartesian 2D mesh (with constant Δx and Δy) in the form
+
+[formula]
+
+where the fluxes Fni - 1 / 2,j and Gni,j - 1 / 2 are determined, for all i and j, by first initializing
+
+[formula]
+
+where u+  =   max (u,0),   u-  =   min (u,0), etc, then applying the corner transport upwind (CTU) terms by updating, for all i and j, where Δpni - 1 / 2,j  =  pnij  -  pni - 1,j,   Δpni,j - 1 / 2  =  pnij  -  pni,j - 1,   then applying the high-resolution correction terms by updating, for all i and j,
+
+[formula]
+
+where
+
+[formula]
+
+and the flux limiter function φ(θ)∈[0,2] is selected as one of several possible choices, including the monotonized central-difference (MC) limiter and the van Leer limiter: Note that exact conservation of the discrete approximation of the integral of p over phase space, as implied by the continuous formulation in [\eqref=eq:hyper_con], follows immediately from [\eqref=eq:hyper_conD].
+
+Numerical analysis
+
+In regions characterized by smooth variation of p, θ  ≈  1 and φ(θ)  ≈  1, and the algorithm described in § [\ref=sec:nummeth] is amenable to straightforward numerical analysis. For simplicity, consider here the 1D test problem
+
+[formula]
+
+where u is a positive or negative constant. In this case, the discretization described above reduces to where and thus Now applying to this equation the multidimensional Taylor series expansion,
+
+[formula]
+
+and rearranging appropriately, gives
+
+[formula]
+
+Differentiating [\eqref=eq:analysisgod] with respect to t and inserting [\eqref=eq:analysisgod] into the RHS of the result, it is seen that the second and third terms on the RHS of the above expression cancel. Thus, in regions of smooth variation of p, the proposed scheme is second-order accurate in both space and time. A similar analysis follows for problems in higher dimensions.
+
+Accounting for diffusion
+
+A diffusion term is easily added to the discretization given in [\eqref=eq:hyper_conD] in a second-order central finite difference fashion simply by updating the fluxes such that, for all i and j,
+
+[formula]
+
+where μ̄ is the coefficient of the diffusion term that is applied numerically. The flux limiter functions mentioned at the end of § [\ref=sec:nummeth] are designed to reduce the algorithm, locally, to a first-order spatial behavior while applying sufficient numerical diffusion in regions of large local curvature of p on the grid, to provide a total variation diminishing (TVD) solution (that is, preventing spurious oscillations with new local minima and maxima). We may compensate for the diffusion introduced by the numerical discretization of the convective terms simply by appropriately reducing the diffusion μ̄ applied in the numerical simulation of [\eqref=eq:PDEgovPDF].
+
+Validation
+
+A simple yet sensitive numerical test of the algorithm is given in Figure [\ref=fig:sparsity]; this numerical test was taken with u = y and v =  - x in order to give simple solid body rotation about the origin, as suggested by LeVeque (2002). If Q = 0, the exact solution of the test problem considered in Figure [\ref=fig:sparsity] at t = 2π, after a single rotation of the system about the origin, is simply the initial condition. For the case Q = 2μI where μ is constant and positive, the exact solution of this problem at t = 2π may be obtained analytically by means of Fourier transforms. As seen by comparing Figure [\ref=fig:sparsity] to Figure 20.5 of LeVeque (2002), the result obtained via the GBEES approach is essentially identical to that obtained using the complete grid when sufficiently small threshold, time step and state-space discretization is used. The information loss due to the discretization scheme may be quantified via the Kullback-Liebler divergence (Kullback & Liebler, 1951), DKL(P0,Pε), where a distribution Pε is used to approximate the true distribution P0. The Kullback-Liebler divergence using the simulation in Figure [\ref=fig:sparsity] when compared to the true analytic solution is 0.089 bits (with the distributions normalised to integrate to unity), whereas the divergence from the true case to the diffusion case calculated analytically for Q = 8  ×  10- 5 is 0.085 bits. The divergence from the true solution to a simulation using a truncation threshold of 10- 16 (not shown) is almost the same as the more aggressively truncated example and is visually indistinguishable. As evident by comparing the numerical solution at t = 2π in Figure [\ref=fig:sparsity] to the initial condition, the discretization described in § [\ref=sec:nummeth] introduces a small numerical error in regions of high curvature. However, by comparing the numerical solution, for μ = 0, Δy = 0.001 and Δx = 0.01, to the exact solution, for μ = 4  ×  10- 5, it is evident that the leading-order error of the numerical discretization is just a bit of additional diffusion, the level of which may be determined by a suitable minimisation process.
+
+Numerical results
+
+A Bayesian approach is justified when the uncertainty of the estimate is significantly non-Gaussian, such as in the estimation of a nonlinear system with relatively large uncertainty, leaving us with particle filtering or grid-based methods; what is perhaps still uncertain is the numerical tractability of a grid-based approach when one exploits the sparsity of the PDF in the manner described in § [\ref=sec:nummethsparse]. Thus, in order to test the efficiency of the GBEES algorithm, as well as to demonstrate how it can capture with unprecedented accuracy the evolution of a non-Gaussian PDF, we have applied the GBEES algorithm to the estimation of the three-state Lorenz system with σ = 4, b = 1, and r = 48. For these parameter values, the system is chaotic, and the attractor takes the familiar form indicated by the green line in Figure [\ref=fig:transformation]. Also illustrated in this Figure [\ref=fig:transformation] is the evolution of an initially (at t = 0) Gaussian PDF [formula], the evolution of which is governed by the Kolmogorov equation [\eqref=eq:PDEgovPDF], with no measurement updates applied and no added process noise (diffusion). The distribution narrows significantly in the direction normal to the attractor, and spreads out rapidly in the direction of the maximum local Lyapunov exponent along the attractor; by t = 1, the PDF is highly non-Gaussian. Note also in the t = 0.8 and t = 1 isosurfaces the remarkable division of the PDF into two distinct lobes in the vicinity of the x3 axis (the vertical coordinate axis in the figures), which is invariant and unstable in the Lorenz system.
+
+Figure [\ref=fig:measurements] represents the evolution of the PDF when measurements (with Gaussian uncertainty) of x3 are taken at every time step. Computationally, the problem addressed in the figure is significantly easier than the "open-loop" problem illustrated in Figure [\ref=fig:transformation], as the number of active cells by t = 1 is reduced from 50,000 to only 4,000; the computation time for this simulation is also reduced accordingly, from 40 to 4 seconds for the time interval shown. The PDF at time t = 1 splits into two concentrated regions on the left and right sides of the figure. Future measurements might reveal in which region the state really is; until such measurements are received, the GBEES algorithm is perfectly capable of following both. A plain Kalman filter, which assumes a central estimate, would necessarily fail to model such a splitting.
+
+Analysis and Conclusions
+
+A novel algorithm is introduced in this paper to exploit the remarkable sparsity of the evolving PDF in phase space, thereby, for the first time, making high-resolution grid-based Bayesian estimation computationally tractable for nontrivial systems. The method generalises straightforwardly to any number dimensions, with computational cost expected to be a trade-off between the curse of dimensionality and the increased sparseness of the PDF. In application, the algorithm developed is shown to track, with unprecedented fidelity, the completely non-Gaussian PDF of the estimate of a Lorenz system, both with and without measurement updates. The simulation exhibits a competition between information loss due to the random state disturbances and stretching of the PDF in the unstable directions of the system, and information gain from measurements.
+
+Grid-based Bayesian estimation algorithms are sometimes referred to as approximate grid-based methods. We point out that the numerical analysis of § [\ref=sec:accuracy] establishes that the numerical method used to propagate the Kolmogorov equation in the present grid-based estimation algorithm is second-order accurate in both space and time; this compares favorably to the (slower than linear) [formula] convergence rate of particle methods applied to the Kolmogorov equation (see Bernard, Talay, & Tubaro 1994).
+
+Finally, Lagrangian (that is, particle-based) simulation techniques have been explored for decades in the field of fluid mechanics, but for n > 2 remain mostly a research novelty. On the other hand, grid-based methods (often with adaptive grids to focus the computational effort where it is needed) have proven immensely successful in a variety of complex situations in fluid mechanics, such as in the characterization of fluid turbulence and in the design of commercial airliners, where computational methods have largely supplanted repetitive wind-tunnel testing. There appears to be no reason why the same success of grid-based methods will not also be realized in Bayesian estimation approaches, once the community working on such problems fully appreciate how the remarkable sparsity of the PDF in such problems may be exploited.
+
+Acknowledgements
+
+The authors gratefully acknowledge Prof. Paulo Luchini for insightful discussions related to this work. An Imperial College Junior Research Fellowship (AS) is also gratefully acknowledged.

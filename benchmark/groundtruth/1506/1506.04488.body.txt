@@ -1,0 +1,91 @@
+Distilling Word Embeddings: An Encoding Approach
+
+, Yan Xu, Lu Zhang, Zhi Jin {moull12, lige, xuyan14, zhanglu, zhijin} Software Institute, Peking University, 100871, P. R. China
+
+Introduction
+
+Distilling knowledge from a neural network--that is, transferring valuable knowledge from a cumbersome network to a lightweight one--is pioneered by ; it has attracted increasing attention over the past year [\cite=distilling] [\cite=hashnet].
+
+As addressed by , the objective of training networks is probably different from deploying networks: during training we focus on extracting as much knowledge as possible from a large dataset, whereas deploying networks takes into consideration multiple aspects, including accuracy, memory, time, energy consumption, etc. It would be appealing if we can first well train a cumbersome network and then distill its knowledge to a small one for deployment. The aim of knowledge distillation is thus to retain high performance, as well as to reduce model complexity, which is particularly important to neural networks' applications in resource-restricted scenarios, e.g., real-time systems, mobile devices, large ensembles of models, etc.
+
+Much evidence in the literature shows the feasibility of transferring knowledge from one neural network to another, for instance, from shallow networks to deep ones [\cite=fitnet], from feed-forward networks to recurrent ones [\cite=dnn2rnn], or vice versa [\cite=deep2shallow] [\cite=rnn2dnn]. The main idea of the above studies is to train a teacher model first, and then use the teacher model's output (estimated probabilities, say, in a classification problem) to guide a student model. We call such approaches matching softmax. It is argued by that these estimated probabilities convey more information than one-hot represented ground truth, and hence knowledge distillation is feasible and beneficial. (Background is reviewed in Section [\ref=sBackground].)
+
+Despite the above generic approach, this paper focuses on distilling word embeddings in NLP scenarios. Particularly, we find the specificity of embeddings brings new opportunities for knowledge distillation.
+
+As word embeddings map discrete words to distributed, real-valued vectors, it can be viewed that a word is first represented as a one-hot vector and then the vector is multiplied by a large embedding matrix, known as a look-up table. During the matrix-vector multiplication, one and only one column in the look-up table is verbatim retrieved for a particular word. Thus, we may build an interlayer--sandwiched between the high-dimensional embeddings and the ensuing network--to squash embeddings to a low-dimensional space. Supervised learning can then be applied to train the encoding layer and other parameters in the network. In such a supervised manner, task-specific knowledge in the original cumbersome embeddings is distilled to low-dimensional ones.
+
+In summary, the main contributions of this paper are three-fold: (1) We address for the first time the problem of distilling word embeddings in NLP scenarios. (2) We propose a supervised encoding approach that distills task-specific knowledge from cumbersome word embeddings. (3) A sentiment analysis experiment reveals a phenomenon that distilling low-dimensional embeddings from large ones is better than directly training a network with small ones.
+
+It should also be noticed that the proposed encoding approach does not rely on a teacher model; our method is complementary to existing ones, like matching [formula], for knowledge distillation.
+
+Background of Matching Softmax
+
+As said, existing approaches of knowledge transfer between neural networks mainly follow a two-step strategy: first training a teacher network; then using the teacher network to guide a student model by matching [formula], depicted in Figure [\ref=fDistill]a.
+
+For a classification problem, [formula] is typically used as the output layer's activation function. Let [formula] be the input of [formula]. (nc is the number of classes.) The output of [formula] is
+
+[formula]
+
+where T is a relaxation variable (used later), called temperature. T = 1 for standard [formula].
+
+Take a 3-way classification problem as an example. If a teacher model estimates [formula] for three classes, it is valuable information to the student model that Class 2 is more similar to Class 1 than Class 3 to Class 1.
+
+However, directly imposing constraints on the output of [formula] may be ineffective: the difference between 0.04 and 0.01 is too small. match the input of [formula], [formula], rather than [formula]. raise the temperature T during training, which makes the estimated probabilities softer over different classes. The temperature of 3, for instance, softens the above [formula] to [formula]. Matching [formula] can also be applied along with standard cross-entropy loss with one-hot ground truth, or more elaborately, the teacher model's effect declines in an annealing fashion when the student model is more aware of data [\cite=fitnet].
+
+The Proposed Encoding Approach for Distilling Embeddings
+
+This section introduces in detail our proposed method for word embedding distillation (Figure [\ref=fDistill]b). We also discuss the rationale for distilling small embeddings from large ones in a supervised manner, rather than directly training with small ones.
+
+Word embeddings are a standard apparatus for neural natural language processing. As feeding word indexes directly to neural networks is somewhat nonsensical, words are mapped to a real-valued vector, called embeddings, where each dimension captures a certain aspect of underlying word semantics. Usually, they are trained in an unsupervised fashion, e.g., maximizing the probability of a corpus [\cite=LM] [\cite=hierarchical], or maximizing a scoring function [\cite=unified] [\cite=word2vec]. The learned embeddings can be fed to standard neural networks for supervised learning, e.g., part-of-speech tagging [\cite=unified], relation extraction [\cite=re], sentiment analysis [\cite=tbcnn_sentence], etc.
+
+To formalize word embeddings in algebraic notations, we let [formula] be one-hot representation of the i-th word xi in the vocabulary [formula]; the i-th element in the vector [formula] is on, with other elements being 0. Let [formula] be a (cumbersome) embedding matrix (look-up table). Then the vector representation of the word, xi, is exactly i-th column of the matrix, given by [formula].
+
+Now we consider distilling, from [formula], an [formula]-dimensional vector for the word, where [formula] is smaller than [formula]. It is accomplished by encoding with a standard neural layer, given by
+
+[formula]
+
+where [formula] and [formula] are parameters of the encoding layer; [formula] denotes the distilled vector representation of a word.
+
+The distilled embeddings can then be fed to a neural network (with parameters Θ) for further processing. Let m be the number of data samples; suppose further [formula] is the output of [formula] for the j-th data sample and t(j) the ground truth. Our training objective is the standard cross-entropy loss, given by
+
+[formula]
+
+A curious question is then why distilling embeddings may help, compared with directly training the neural network with small embeddings. We provide an intuitive explanation as follows.
+
+Since word embeddings are typically learned from a large dataset in an unsupervised manner, the knowledge in embeddings is restrained by dimensionality. For example, the sentiment of a word is of secondary importance compared with its syntactic functionality in a sentence. Hence, sentiment information might be lost in small dimensional embeddings, which is unfavorable in a sentiment analysis task. One the contrary, large embeddings have the capacity to capture different aspects of word semantics. The proposed supervised encoding approach may then distill task-specific (e.g., sentiment) knowledge to a small space, while eliminating irrelevant information. Therefore, we may reasonably expect that distilling embeddings would outperform direct use of small embeddings.
+
+Evaluation
+
+In this section, we present our experimental results. We first describe the testbed and protocol of our experiment in Subsection [\ref=ssTestbed]. Then we analyze in Subsection [\ref=ssResult] the performance of our approach regarding several aspects, namely accuracy, memory, time consumption; other approaches and settings are included for comparison.
+
+For code to reproduce the results, please refer to our website.
+
+The Testbed and Protocol
+
+We tested our distillation approach in a sentiment analysis task [\cite=RNN]. The aim is to classify a sentence into five categories according to its sentiment: strongly/weakly positive/negative, or neutral. The dataset contains 8544/1101/221 sentences for training, validation, and testing. Phrases (sub-sentences) in the training set are also labeled with sentiment, enriching the training set to more than 150k samples. For validation and testing, we do not consider phrases' sentiment.
+
+To evaluate our distilling approach, we leverage a state-of-the-art sentiment classifier [\cite=tbcnn_sentence], based on convolution over parse tree structures. Their neural network achieves 51.4% accuracy by using 300-dimensional embeddings and convolution layer; the last hidden layer is 200-dimensional.
+
+We would like to see if the 300-dimensional embeddings can be distilled to a small space (and further processed by a thinner network). We remained the same neural architecture, but set all dimensions to 50, where embeddings were distilled from 300-dimensional ones. For comparison, we directly trained a small neural network of 50-dimensional layers. Embeddings were pretrained using |word2vec| [\cite=word2vec] on the English Wikipedia corpus.
+
+We also implemented matching [formula] like . We used the same setting as in their paper, with a mild temperature of 2, and a 1:1 mixture of cross-entropy error regarding the ground truth and the teacher model.
+
+In each approach, we used standard back-propagation and stochastic gradient descent with mini-batch 200. Learning rates were chosen from the set {3,1,0.3,0.1,0.03}; for each learning rate, 3 different decay schemes were scheduled. To regularize our model, we applied dropout strategy [\cite=dropout], validated with granularity 0.1. Note that some nonsensical settings were not tested, e.g., larger regularization when the model has already been underfitting.
+
+After choosing the setting of highest validation accuracy, we ran the model 5 times for smoothing with different random initializations.
+
+Results
+
+Table [\ref=tAcc] compares our proposed model with two baselines: directly training a small network, and matching [formula]. Our method outperforms the direct training of a small network by 1.1% accuracy on average, which makes a difference since state-of-the-art methods usually vary in a range of only one or several percents.
+
+We also notice that matching [formula] does not work well in our scenario. Several plausible reasons may explain the result: (1) The teacher model itself has not achieved remarkable accuracy (only about 50%). Using a teacher model introduces additional knowledge as well as errors. If the latter dominates, matching [formula] may hurt the student model. (2) Our dataset is comparatively small than speech/image datasets. The teacher model may fail to fully express its knowledge within a small dataset, as some related studies require additional unlabeled data for knowledge transfer [\cite=modelcompression] [\cite=deep2shallow].
+
+Nonetheless, our proposed encoding approach does not rely on a teacher model or additional data. It distills embeddings by an encoding layer, which can be trained using standard cross-entropy loss. Our method is, in fact, complementary to matching [formula]: the encoding layer distills embeddings in a bottom-up fashion, whereas matching [formula] distills generic knowledge in a top-down fashion. The two methods can be combined straightforwardly, as long as the latter one itself works.
+
+We further compare model complexity with the cumbersome state-of-the-art network in Table [\ref=tComplexity]. While our distilled model retains comparatively high performance, it largely reduces both memory and time consumption to 14% and 4%, respectively. We also position the distilled model in a state-of-the-art list. Table [\ref=tPosition] presents several representative neural networks in the literature. The distilled model outperforms recurrent neural networks (RNNs) with tensor interaction [\cite=RNN], convolutional neural networks (CNNs) with multi-channels [\cite=cnn2], etc. Our result is also comparable to the deep CNN [\cite=CNNNLP] and one version of long short term memory (LSTM)-based RNN [\cite=lstm3]. Although distillation hurts model performance to some extent, the distilled model is usable, as indicated by Table [\ref=tPosition]. It should be noticed that our model is of extremely low complexity: shallow architectures, no LSTM units, no tensor interaction, and low dimensionality.
+
+Conclusion
+
+In this paper, we addressed the problem of distilling embeddings for NLP, which is important when deploying a neural network in resource-restricted scenarios.
+
+We proposed an encoding approach that distills cumbersome word embeddings to a low dimensional space. The experiment has shown the superiority of our proposed distilling method to training neural networks directly with small embeddings. Our method can also be combined with existing approaches of matching [formula], as they are complementary to each other.

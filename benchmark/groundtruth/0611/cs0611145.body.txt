@@ -1,0 +1,97 @@
+cm cm
+
+A Unified View of TD Algorithms Introducing Full-gradient TD and Equi-gradient descent TD
+
+and Philippe Preux INRIA-Futurs - SequeL Université de Lille - LIFL Villeneuve d'Ascq - France
+
+The policy evaluation problem
+
+A Markov Decision Process (MDP) describes a dynamical system and an agent. The system is described by its state s∈S. When considering discrete time, the agent can apply at each time step an action u∈U which drives the system to a state s' = u(s) at the next time step. u is generally non-deterministic.
+
+To each transition is associated a reward [formula]. A policy π is a function that associates to any state of the system an action taken by the agent.
+
+Given a discount factor γ, the value function vπ of a policy π associates to any state the expected discounted sum of rewards received when applying π from that state for an infinite time:
+
+[formula]
+
+This paper addresses the evaluation of a policy by approximating the value function as a linear combination of fixed features, and estimating the coefficients from sampled trajectories (sequences of visited states and received rewards when starting from a certain state).
+
+All the information on v contained in a trajectory [formula] lies in the following system of Bellman equations:
+
+[formula]
+
+The equalities are abusive when the actions are not deterministic, but averaging these equations converges to valid equations as the number of samples tends to infinity.
+
+The policy evaluation problem consists in finding a function that satisfies the most this system (which may include several trajectories). This can be achieved in several ways. In the following, all major methods are described in a single and simple framework:
+
+Section [\ref=sec:gradient] discusses the two currently used gradient functions and their meaning. Section [\ref=sec:td] presents the TD algorithms - TD(λ) [\cite=sutton-barto] and residual-gradient TD [\cite=baird-residual] - in that framework. Section [\ref=sec:lstd] shows that LSTD(λ) [\cite=boyan-lstd] and LSPE(λ) [\cite=nedic-lspe] and their Bellman-residual versions share the same kind of derivation. Section [\ref=sec:full-gradient] discusses a third family of algorithms that use an intermediate update scheme (full gradient). It includes iLSTD [\cite=geramifard-ilstd] [\cite=geramifard-ilstd-lambda] and two algorithms introduced in this paper: Full-TD and Equi-gradient descent TD. Section [\ref=sec:exp] presents experimentations made on the Boyan chain MDP, which illustrate some of the benefits and drawbacks of each method. Finally, the conclusion discusses the potential advantages of the full gradient scheme for optimistic policy iteration.
+
+Complete proofs of the equivalences of these formulations with the original ones and derivation of the equi-gradient descent algorithm are exposed in [\cite=loth-unified-tr] [\cite=loth-egd-tr].
+
+Fixed-point gradient vs. Bellman-residual gradient
+
+The TD(0) algorithm estimates v iteratively by using its current estimate [formula] to approximate the right hand side of these equations:
+
+[formula]
+
+and consequently updating [formula]
+
+TD(λ) averages such approximations of v(st) on all "dynamic programming ranks". It can be seen as expanding the system to all implicit equations:
+
+[formula]
+
+and again replacing v by [formula] in the right hand sides. The different estimations of v(st) are averaged using coefficients determined by a value λ∈[0,1], which leads to estimating v(st) - (st) by [formula]. This error signal is again used to update (st). In the case of linear approximators, the vector of error signals on [formula] can be written as [formula]
+
+[formula]
+
+They are projected on the parameter [formula] of [formula] by [formula]. This gives what one can call a fixed-point gradient, which is the sum of these on all trajectories (ie. the same expression with adequately extended vectors and matrices).
+
+Another way of doing is to aim at solving the Bellman system, ie. minimize [formula] w.r.t. [formula]. This gives the Bellman-residual gradient [formula].
+
+The conceptual difference is simple: The fixed-point gradient transforms the errors on transitions (temporal differences) on the approximate value function itself (ie. errors on single states) by a multi-rank dynamic programming scheme, and then projects these estimated errors on the parameter [formula], whereas the Bellman-residual gradient does a direct projection.
+
+The iterative computation of these gradients proceeds according to the following way: the components of the vector [formula] are the successive temporal differences dt = rt  -  (st)  +  γ(st + 1); the columns of [formula] or [formula] are referred to as the eligibility traces [formula] in the first case - this denomination will be extended here to the second case. Each new sampled transition modifies the gradient [formula] by [formula], [formula] itself being computed iteratively.
+
+These gradients, as well as [formula], are linear in [formula]: [formula], with [formula], and [formula] in the fixed-point case, or [formula] in the Bellman-residual case.
+
+In the following, let us note [formula] the additive term of any update of [formula] in the algorithms.
+
+TD algorithms
+
+TD(λ) [\cite=sutton-barto], in its purely iterative form, performs the following update after each transition: [formula]. Equivalently, the updates can be performed only after each trajectory, which is more consistent with its definition. Depending on one's view (related to the backward/forward views discussed in [\cite=sutton-barto]), the first scheme can be considered as the natural one and the second as cumulating successive updates before commiting it at the end, or the second one can be seen as more natural (given the explanation in the previous section) and the first one as a partial update given the partial computation of [formula]. Note that here, [formula] only concerns the current trajectory: the updates performed in TD(λ) only take into account the last trajectory.
+
+Let us take a neutral point of view and state that the algorithm considers the gradient on the current trajectory and update weights at any chosen time (but necesseraly including the end of the trajectory) by [formula] followed by [formula]: [formula] is computed iteratively, and each time a partial computation has been used, it is "thrown away". At the end of each trajectory, the associated gradient has been used for one update [formula] and is then forgotten.
+
+To summarize, given the fixed-point gradient function [formula], TD(λ) updates [formula] after each transition (as exposed in previous section), and -whenever wanted- performs a parameter update [formula] followed by [formula].
+
+The residual-gradient TD algorithm [\cite=baird-residual] is actually the same algorithm, only using the Bellman-residual gradient.
+
+LSTD algorithms
+
+It has been shown in [\cite=tsitsiklis-analysis] that [formula] converges in TD(λ) to [formula] such that [formula]. This lead to the LSTD(λ) algorithm [\cite=boyan-lstd] which, given sampled trajectories, directly computes [formula].
+
+For various motivations like numerical stability, use of optimistic policy iteration, the possible singularity of [formula], smooth processing time, or getting a specific point of view on the algorithm, the computation can be performed iteratively. The algorithm can then be described as follows:
+
+[\cite=nedic-lspe] introduced a similar algorithm, namely Least Squares Policy Evaluation. The difference resides in updating [formula], and consequently updating [formula].
+
+Full-gradient algorithms
+
+Three algorithms are presented in this section that all rely on the same idea: reduce [formula] (again at any time) in a gradient descent way, but maintain its "real" value: instead of zeroing it after each update, which corresponds to forgetting each trajectory after only one gradient descent step on its contribution to the overall gradient [formula], the residual of the gradient is kept, and thus the following updates not only perform one gradient descent step on the current trajectory, but also continue this process for the previous ones.
+
+The first natural algorithm is introduced here as Full-gradient TD and consists in replacing [formula] by [formula] in the TD algorithm.
+
+The iLSTD algorithm was introduced in [\cite=geramifard-ilstd] [\cite=geramifard-ilstd-lambda] (as well as the notation [formula]). Although it is presented as a variation of LSTD (hence its name), it is most related to gradient descent than to the exact least-squares solving scheme. With the "any-time update" generalization used throughout this article, it can be described as a full-gradient TD in which [formula] is updated only on its more correlated component: ωi←ωi  +  αμi,   with [formula].
+
+Finally, the equi-gradient descent (EGD) TD, introduced here, consists in taking EGD [\cite=loth-egd-tr] steps as an update scheme. In a few words, EGD also consists in modifying only the most correlated parameter ωi, but α is chosen such that after this update, another parameter ωj becomes equi-correlated. The next update is [formula], and so on. The constraint is that to allow the exact computations of the step lengths, [formula] must not be modified (by new samples) in between those steps. So a typical update schedule is to perform a certain number of steps at the end of each trajectory, preferably to one or a few steps after each transition.
+
+The benefit exposed in the first paragraph comes at the cost of maintaining the matrix [formula], which has the same order of complexity as maintaining [formula] in LSTD, but is still about half less complex. However, as exposed in [\cite=geramifard-ilstd], if the features are sparse (states have a non-zero value only on a subset of the features), the complexity of the two last algorithms can be lowered, unlike in LSTD.
+
+EGD TD presents the crucial benefit of not having to tune the α update parameter of gradient descent schemes. Instead of setting the lengths of descent steps a priori and uniformely, and cross-validate them, they are computed on the fly given the data.
+
+Experiments
+
+Experiments were run on a 100 states Boyan chain MDP [\cite=boyan-lstd]. Details are exposed in [\cite=loth-unified-tr]. The fixed-point gradient was used, with λ = 0.5. Here are plotted
+
+Summary and perspectives
+
+The classical algorithms of reinforcement learning have been presented here in a view both practical and enlightning. This view allows a natural introduction of a new intermediate family of algorithms that performs stochastic reduction of the errors, as in TD, but make full use of the samples, as in LSTD. Let alone the time or sample complexity, these methods open interesting perspectives in the frame of optimistic policy iteration. Indeed, the principle of neither forgetting samples after a small update, nor directly fully take them into account, may allow to make a better use of samples than TD while avoiding the issue met by LSTD in that frame: making too much case of samples coming from previous policies. This can be achieved by scaling [formula] by a discount factor after each trajectory (for example), which amounts to reducing only a given ratio of it.

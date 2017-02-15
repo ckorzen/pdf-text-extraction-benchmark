@@ -1,0 +1,129 @@
+A PAC-Bayesian Analysis of Graph Clustering and Pairwise Clustering
+
+Introduction
+
+Graph clustering is an important tool in data analysis with wide variety of applications including social networks analysis, bioinformatics, image processing, and many more. As a result a multitude of different approaches to graph clustering were developed. Examples include graph cut methods , spectral clustering , information-theoretic approaches , to name just a few. Comparing the different approaches is usually a painful task, mainly because the goal of each of these clustering methods is formulated in terms of the solution: most clustering methods start by defining some objective functional and then minimizing it. But for a given problem how can we choose whether to apply a graph cut method, spectral clustering, or an information-theoretic approach?
+
+In this paper we formulate weighted graph clustering as a prediction problem. Given a subset of edge weights we analyze the ability of graph clustering to predict the remaining edge weights. The rational behind this formulation is that if a model (not necessarily cluster-based) is able to predict with high precision all edge weights of a graph given a small subset of edge weights then it is a good model of the graph. The advantage of this formulation of graph modeling is that it is independent of a specific way chosen to model the graph and can be used to compare any two solutions, either by comparison of generalization bounds or by cross-validation. The generalization bound or cross-validation also address the finite-sample nature of the graph clustering problem and provide a clear criterion for model order selection. For very large datasets, where computational constraints can prevent considering all edges of a graph, as for example in , the generalization bound can be used to resolve the trade-off between computational workload and precision of graph modeling.
+
+The formulation and analysis of graph clustering presented here are based on the analysis of co-clustering suggested in , which is reviewed briefly in section [\ref=sec:co-clustering]. In section [\ref=sec:graph-clustering] we adapt the analysis to derive PAC-Bayesian generalization bound for the graph clustering problem. The generalization bound depends on a trade-off between empirical fit of the cluster structure to the graph and the amount of mutual information that the clusters preserve on the graph nodes. This trade-off is related to the objective of a successful graph clustering algorithm Iclust . We discuss this relation in section [\ref=sec:related-work]. In section [\ref=sec:algo] we suggest an algorithm for minimization of our bound and, finally, in section [\ref=sec:applications] we present some experiments with real-world data and analyze the tightness of the bound.
+
+Review of PAC-Bayesian Analysis of Co-clustering
+
+Co-clustering is a widely used method for analysis of data in the form of a matrix by simultaneous clustering of rows and columns of the matrix . A good illustrative example of a co-clustering problem is collaborative filtering . In collaborative filtering one is given a matrix of viewers by movies with ratings given by the viewers to the movies. The matrix is usually sparse and the task is to predict the missing entries. We assume that there is an unknown probability distribution p(X1,X2,Y) over the triplets of viewer X1, movie X2, and rating Y. The goal is to build a discriminative predictor q(Y|X1,X2) that given a viewer and movie pair will predict the expected rating Y. A natural form of evaluation of such predictors, no matter whether they are based on co-clustering or not, is to evaluate the expected loss [formula], where l(Y,Y') is an externally provided loss function for predicting Y' instead of Y.
+
+PAC-Bayesian Analysis of Discriminative Prediction with Co-clustering
+
+Let X1  ×  ..  ×  Xd  ×  Y be a (d + 1)-dimensional product space and assume that each Xi is categorical and its cardinality |Xi| is fixed and known. We also assume that Y is finite with cardinality |Y| and that the loss function l(Y,Y') is bounded. In the collaborative filtering example X1 is the space of viewers, X2 is the space of movies, d = 2, and Y is the space of ratings (e.g., on a five-star scale). The loss l(Y,Y') can be, for example, an absolute loss l(Y,Y')  =  |Y - Y'| or a quadratic loss l(Y,Y')  =  (Y - Y')2.
+
+We assume an existence of an unknown probability distribution p(X1,..,Xd,Y) over X1  ×  ..  ×  Xd  ×  Y and that a training sample of size N is generated i.i.d. according to p. We use p̂(X1,..,Xd,Y) to denote the empirical frequencies of (d + 1)-tuples 〈X1,..,Xd,Y〉 in the sample. We consider the following form of discriminative predictors:
+
+[formula]
+
+The hidden variables C1,..,Cd represent a clustering of X1,..,Xd. The hidden variable Ci accepts values in {1,..,|Ci|}, where |Ci| is the number of clusters used along dimension i. The free parameters of the model [\eqref=eq:qyxd] are the conditional probability distributions q(Ci|Xi) which represent the probability of assigning Xi to cluster Ci and the conditional probability q(Y|C1,..,Cd) which represents the probability of assigning label Y to cell 〈C1,..,Cd〉 in the cluster product space. We denote the free parameters collectively by [formula]. We define the expected and empirical losses L(Q) and L̂(Q) of the prediction strategy defined by Q as:
+
+[formula]
+
+where q(Y|X1,..,Xd) is defined by [\eqref=eq:qyxd]. We define the mutual information Ī(Xi;Ci) corresponding to the joint distribution [formula] defined by q(Ci|Xi) and a uniform distribution over Xi as:
+
+[formula]
+
+where [formula] is the marginal distribution over Ci. Finally, we denote the KL-divergence between two Bernoulli distributions with biases L̂(Q) and L(Q) by
+
+[formula]
+
+The following generalization bound for discriminative prediction with co-clustering was proved in .
+
+For any probability measure p(X1,..,Xd,Y) over X1  ×  ..  ×  Xd  ×  Y and for any loss function l bounded by 1, with a probability of at least 1 - δ over a selection of an i.i.d. sample S of size N according to p, for all randomized classifiers [formula]:
+
+[formula]
+
+In practice [\citet=Sel09] replace [\eqref=eq:grid-discriminative] with a parameterized trade-off
+
+[formula]
+
+and suggest an alternating projection algorithm for finding a local minimum of F(Q) (for a fixed β). Bound [\eqref=eq:grid-discriminative] is minimized by applying a linear search over β and substituting L̂(Q) and Ī(Xi;Ci) obtained from optimization of F(Q) back into [\eqref=eq:grid-discriminative]. Alternatively, the value of β can be tuned by cross-validation. This algorithm achieved state-of-the-art performance on the MovieLens collaborative filtering dataset. Below we adapt this analysis and algorithm to the graph clustering problem.
+
+Formulation and Analysis of Graph Clustering
+
+Graph Clustering as a Prediction Problem
+
+Assume that X is a space of |X| nodes and denote by wij the weight of an edge connecting nodes i and j. We assume that the weights wij are generated according to an unknown probability distribution p(W|X1,X2), where X1,X2∈X are the edge endpoints. We further assume that we know the space of nodes X and are given a sample of size N of edge weights, generated according to p(X1,X2,W). The goal is to build a regression function q(W|X1,X2) that will minimize the expected prediction error of the edge weights [formula] for some externally given loss function l(W,W'). Note that this formulation does not assume any specific form of q(W|X1,X2) and enables comparison of all possible approaches to this problem.
+
+PAC-Bayesian Analysis of Graph Clustering
+
+In this work we analyze the generalization abilities of q(W|X1,X2) based on clustering:
+
+[formula]
+
+One can immediately see the relation between [\eqref=eq:qw] and [\eqref=eq:qyxd]. The only difference is that in [\eqref=eq:qw] the nodes X1,X2 belong to the same space of nodes X and the conditional distribution q(C|X) is shared for the mapping of endpoints of an edge. Let p̂(X1,X2,W) be the empirical distribution over edge weights. The empirical loss of a prediction strategy Q  =  {q(C|X),q(W|C1,C2)} corresponding to [\eqref=eq:qw] can then be written as:
+
+[formula]
+
+The following generalization bound for graph clustering can be proved by a minor adaptation of the proof of theorem [\ref=thm:grid-discriminative].
+
+For any probability measure p(X1,X2,W) over the space of nodes and edge weights X  ×  X  ×  W and for any loss function l bounded by 1, with a probability of at least 1 - δ over a selection of an i.i.d. sample S of size N according to p, for all graph clustering models defined by [formula]:
+
+[formula]
+
+where |C| is the number of node clusters and |W| is the number of distinct edge weights.
+
+The limitation of working with a fixed set of allowed edge weights is resolved by weight quantization in section [\ref=sec:quantization].
+
+Although there is no analytical expression for the inverse KL-divergence, given [\eqref=eq:graph-clustering] we can easily bound L(Q) numerically:
+
+[formula]
+
+Similar to the approach applied by [\citet=Sel09] in co-clustering, in practice we can replace [\eqref=eq:graph-clustering] with a parameterized trade-off:
+
+[formula]
+
+and tune β either by substituting L̂(Q) and Ī(X;C) resulting from a solution of [\eqref=eq:FW] back into [\eqref=eq:kl-bound] or via cross-validation. In section [\ref=sec:algo] we suggest an algorithm for minimization of [\eqref=eq:FW].
+
+Related Work
+
+The regularization of pairwise clustering by mutual information Ī(X;C) was already applied in practice by [\citet=SATB05]. In their work they maximized a parameterized trade-off 〈s〉  -  TĪ(X;C), where [formula] measured average pairwise similarities within a cluster. Their algorithm demonstrated superior results in cluster coherence compared to 18 other clustering methods. The regularization by mutual information was motivated by information-theoretic considerations inspired by the rate distortion theory . Namely, the authors drew a parallel between 〈s〉 and distortion and Ī(X;C) and compression rate of a clustering algorithm. Further, [\citet=YTS09] showed that the algorithm can be run in parallel mode, where each parallel worker operates with a subset of pairwise relations at each iteration rather than all of them. Such mode of operation was motivated by inability to consider all pairwise relations in very large datasets due to computational constraints. [\citet=YTS09] reported only minor empirical degradation in clustering quality, but no formal analysis and guarantees were suggested.
+
+In light of this prior work the main contribution of our paper is not as much the introduction of the trade-off G(Q) in equation [\eqref=eq:FW], but rather the formulation of graph clustering as a prediction problem and the analysis of the finite sample aspect of this problem. The experiments that follow focus on the analysis of tightness of the bound derived in section [\ref=sec:graph-clustering].
+
+An Algorithm for Graph Clustering
+
+In this section we derive an algorithm for minimization of the trade-off G(Q). Unlike the co-clustering trade-off F(Q) in equation [\eqref=eq:F], which is convex in q(C1|X1) and q(C2|X2) and thus can be minimized by alternating projections, the trade-off G(Q) is not convex in q(C|X). Nevertheless, we found in our experiments that alternating projections still provide good outcome in practice. Alternatively, one can apply sequential minimization techniques, as done by [\citet=YTS09]. The alternating projections are much faster though and for that reason were chosen for the experiments.
+
+The alternating projections are derived similar to alternating projection minimization in the rate distortion theory , namely by writing the Lagrangian corresponding to G(Q), deriving it with respect to the free parameters and equating the derivative to zero. This procedure provides a set of self-consistent equations, which are exactly the same as those for alternating projection of F(Q), hence we write the result in the Algorithm 1 box and refer the reader to for derivation details. The only difference in our case is in the form of the derivative [formula], which we derive next.
+
+For notational convenience we reformulate the problem in matrix notation. For simplicity we assume that the edge weights w are sampled without repetition. This assumption usually holds in practice and it also does not affect the tightness of the analysis since the convergence rate of sampling without repetition is lower bounded by the convergence rate of sampling with repetition . With this assumption we can represent the training data by the Hadamard (also known as Schur) entrywise matrix product [formula] (denoted by S ~ .   *  W in Matlab), where Sij = 1 if the edge from node i to node j was observed in the sample and Sij  =  0 otherwise, and Wij  =  wij. In order to obtain the derivative [formula] we have to assume a specific form of l(w,w'). We choose quadratic loss l(w,w')  =  (w - w')2. The maximum likelihood reconstruction (the one that minimizes L̂(Q)) for the quadratic loss is a delta distribution q(w|c1,c2)  =  δ(w,g(c1,c2)), where [formula]. This enables us to write the prediction model [\eqref=eq:qw] and the loss L̂(Q) in a matrix form. Let Q be the matrix of q(c|x) with rows indexed by cluster variables and columns indexed by node variables and G be the matrix of weights predicted in the cluster product space. We denote the elements of G by g(c1,c2). The prediction model [\eqref=eq:qw] can then be written as
+
+[formula]
+
+and the corresponding reconstruction matrix is QTGQ. Note that g(x1,x2) is a function of x1,x2, which corresponds to a probability distribution q(w|x1,x2), which is a delta function. The loss can then be written as:
+
+[formula]
+
+where [formula] is the squared Frobenius norm of a matrix. The maximum likelihood G is given by [formula] and the derivative [formula].
+
+Equation [\eqref=eq:L] provides an easy way to see why L̂(Q) and hence G(Q) are not convex in Q - since Q appears in forth power. Therefore, repeated iteration of alternative projections in Algorithm 1 is not guaranteed to converge (and indeed it does not). However, we found that empirically even a single iteration of Algorithm 1 achieves remarkably good results and due to simplicity of the algorithm it is easy to try multiple random initializations and obtain results comparable to those obtained by sequential optimization within much shorter time. This was the strategy followed in this paper. For large number of clusters we found it useful to anneal β from a lower value β'  =  1 / N up to the desired value in two-fold increments. At each value of β we iterated alternating projections for 5 times and then added a small random noise to q(c|x) before increasing β by a factor of 2 until reaching the desired value.
+
+Correction for Edge Weight Quantization
+
+We note that the alternating projections algorithm derived above operates with continuous weights w, whereas the analysis in theorem [\ref=thm:graph-clustering] allows only a finite set of edge weights. If the edge weights are uniformly quantized at intervals Δ, then [formula] (assume that the quantization starts at [formula] and ends at [formula]). By rounding the continuous edge weights obtained by the alternating projections toward the closest quantization both the empirical and the expected loss are increased by at most [formula]. This is because quantization can shift the prediction by at most [formula] and then [formula], where the last inequality follows from the assumption that the loss l(w,w') is bounded by 1. Hence, for the continuous weights we have
+
+[formula]
+
+As a rule of thumb we have taken Δ  =  5|C|2  /  N, so that the contribution of Δ to the two operands of the inverse KL-divergence is approximately equivalent. In general this correction for quantization had no significant influence on the bound.
+
+Applications
+
+We evaluate the bound derived in section [\ref=sec:graph-clustering] and the algorithm for its minimization from section [\ref=sec:algo] on two real-life datasets used previously in . The first dataset named "king" was taken from . The graph represents a set of 1,740 DNS servers and the edge weights correspond to similarities between the servers. The similarities are negative exponents of the latencies between the servers scaled by dividing by the median value of all latencies in the data. The second dataset contained the graph of all known pairwise interactions among 5,202 Yeast proteins, downloaded on February 15, 2008 from the BioGRID web site. The edge weights were set to be 1 between interacting proteins and 0 otherwise.
+
+In the first experiment we split the king dataset into five random train, cross-validation, and test subsets. The train set size is 103,866 edge weights, the cross-validation set size is 25,967 edges and the test set consists of the remaining 1,383,097 edges. The size of the train set is only 3.4% of all edges or if compared to the size of the node space the number of observed edges is 8|X| ln |X|. This level of sparsity is even slightly lower than the 5.3% fraction of edges considered in each iteration of the parallel Iclust algorithm in (the total number of edges considered in all iterations of parallel Iclust was generally larger). We cluster the graph into 41 clusters, which is the same number used by [\citet=YTS09] and compare the test loss and the value of bound [\eqref=eq:Lwbound] as a function of β. I.e., for each value of β we minimize G(Q) using the alternating projections algorithm and substitute the resulting L̂(Q) and Ī(X;C) into [\eqref=eq:Lwbound] to compute the bound. The result is shown in Figure [\ref=fig:king1].a. The bound is not perfectly tight, mainly due to the large |C|2 ln |W| term in this case. Nevertheless, the bound is meaningful and the cross-validation loss almost coinsides with the test loss.
+
+In the second experiment we consider all edges and cluster the dataset into |C| = 1,2,..,15 clusters. (Due to symmetry every edge in this dataset appears twice, once from node i to j and another time from node j to i, but in our analysis we consider only one copy of each edge.) The value of β in the optimization trade-off G(Q) was set to 1. In general by search for the optimal β the results could be improved slightly, although as we can see from the previous experiment not considerably, so we omitted the search over β in this experiment. The results are shown in Figure [\ref=fig:king1].b. First, we see that modeling this dataset by clustering is provably beneficial: the expected loss in predicting the weights of missing edges (would there be any) drops from 0.046 when predicting the weight with the global average to 0.02 when using four clusters and remains roughly at this level when the number of clusters is further increased. To the best of our knowledge, this is the first time when the benefit of clustering is formally proven and measured without any assumptions on the distribution that generated the edge weights (except that they were generated independently from that distribution). In this experiment there is no test set, but we can see that the bound follows the train loss pretty tightly. The mutual information preserved by the clusters on the node variables saturates at about 1.2-1.5 nats, which corresponds to effective complexity of about four clusters. Clustering of the dataset into seven clusters is illustrated in Figure [\ref=fig:king2].
+
+In our first experiment we apply five random splits of the dataset into 445,125 training and 13,082,676 test edges. Training edges constitute only 3.3% of all the edges or 10|X| ln |X| if compared to the number of graph nodes. As previously, the train set sparsity is slightly lower than the 5.3% sparsity considered in each iteration of the parallel Iclust algorithm in . We cluster the graph into 71 clusters, which is the same number as used by [\citet=YTS09]. The comparison of test loss with the value of the bound is presented in Figure [\ref=fig:yeast1].a. The bound is not perfectly tight, mainly due to the |C|2 ln |W| term, but is still meaningful.
+
+In our second experiment we consider all edges and cluster the graph into |C| = 1,..,10 clusters. (Symmetric edges from i to j and from j to i were considered only once.) The value of β was set to 256. The results are shown in Figure [\ref=fig:yeast1].b. As with the king dataset experiment, the results could be slightly improved by optimizing β, however even for the large value of β chosen the empirical loss L̂(Q) exhibits very minor decrease as the number of clusters grows, hence the results would not change considerably by tuning β. Due to lower number of clusters and larger training set the bound is much tighter here than in the first yeast experiment (note that the bound y scale is on the left hand side of the graph). Unlike in the king experiment the bound tells that clustering does not help in modeling this dataset.
+
+Discussion
+
+We have formulated graph clustering as a prediction problem. This formulation enables direct comparison of graph clustering with any other approach to modeling the graph. By applying PAC-Bayesian analysis we have shown that graph clustering should optimize a trade-off between empirical fit of the observed graph and the mutual information that clusters preserve on the graph nodes. Prior work of [\citet=SATB05] and [\citet=YTS09] underscores practical benefits of such regularization. Our formulation suggests a better founded and accurate way of dealing with the finite sample nature of the graph clustering problem and tuning the trade-off between model fit and model complexity. It also suggests formal guarantees on the approximation quality. In particular such guarantees can be used for optimization of a trade-off between approximation precision and computational workload in processing of very large datasets. Our experiments show that the bound is reasonably tight for practical purposes.

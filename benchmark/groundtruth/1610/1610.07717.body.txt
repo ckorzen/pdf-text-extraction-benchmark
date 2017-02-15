@@ -1,0 +1,197 @@
+Distributed and parallel time series feature extraction for industrial big data applications
+
+Introduction
+
+Promising fields of application for machine learning are the Internet of Things (IoT) [\citep=gubbi_internet_2013] and Industry 4.0 [\citep=hermann_design_2016] environments. In these fields, machine learning models anticipate future device states by combining knowledge about device attributes with historic sensor time series. They permit the classification of devices (e.g. hard drives) into risk classes with respect to a specific defect [\citep=mobley_introduction_2002]. Both fields are driven by the availability of cheap sensors and advancing connectivity between devices, which increases the need for machine learning on temporally annotated data.
+
+In most cases the volume of the generated time series data forbids their transport to centralized databases [\citep=gubbi_internet_2013]. Instead, algorithms for an efficient reduction of the data volume by means of feature extraction and feature selection are needed [\cite=bolon-canedo_feature_2015]. Furthermore, for online applications of machine learning it is important to continuously select relevant features in order to deal with concept drifts caused by qualitative changes of the underlying dynamics [\citep=LiuSetiono1998_fs].
+
+Therefore, for industrial and other applications, one needs to combine distributed feature extraction methods with a scalable feature selection, especially for problems where several time series and meta-information have to be considered per label/target [\citep=kusiak_prediction_2011]. For time series classification, it proved to be efficient to apply comprehensive feature extraction algorithms and then filter the respective features [\citep=fulcher_highly_2014].
+
+Motivated by industrial applications for machine learning models [\cite=christ_time_2016] we are extending the approach of [\citeauthor=fulcher_highly_2014] and propose FeatuRe Extraction based on Scalable Hypothesis tests (FRESH). The algorithm characterizes time series with comprehensive and well-established feature mappings and considers additional features describing meta-information. In a second step, each feature vector is individually and independently evaluated with respect to its significance for predicting the target under investigation. The result of these tests is a vector of p-values, quantifying the significance of each feature for predicting the label/target. This vector is evaluated on basis of the Benjamini-Yekutieli procedure [\citep=benjamini_control_2001] in order to decide which features to keep.
+
+The proposed algorithm is evaluated on all binary classification problems of the UCR time series classification archive [\citep=chen_ucr_2015] as well as time series data from a production line optimization project and simulated time series from a stochastic process with underlying qualitative change of dynamics [\citep=liehr_dissipative_2013]. The results are benchmarked against well-established feature selection algorithms like linear discriminant analysis [\citep=fulcher_highly_2014] and the Boruta algorithm [\citep=kursa_all_2011], but also against Dynamic Time Warping [\citep=wang_experimental_2013]. The analysis shows that the proposed method outperforms Boruta based feature selection approaches as well as Dynamic Time Warping based approaches for problems with large feature sets and large time series samples. This contribution closes with a summary and an outlook on future work.
+
+Time series feature extraction
+
+Temporally annotated data come in three different variants [\citep=ElmasriLee1998_temporal]: Temporally invariant information (e.g. the manufacturer of a device), temporally variant information, which change irregularly (e.g. process states), and temporally variant information with regularly updated values (e.g. sensor measurements). The latter describe the continuously changing state si,j(t) of a system or device si with respect to a specific measurement of sensor j, which is repeated in intervals of length Δt. This sampling captures the state of the system or device under investigation as a sequence with tν + 1  =  tν  +  Δt. Such kind of sequences are called time series and are abbreviated by Here, we are considering [formula] devices with [formula] different time series per device. Therefore, we are dealing with n  ·  m  ·  nt values describing the ensemble under investigation. In order to characterize a time series with respect to its dynamics and reduce the data volume, a mapping [formula] is introduced, which captures a specific aspect k of the time series. One example for such mapping might be the maximum operator which quantifies the maximal value ever recorded for time series [formula]. This kind of lower dimensional representation is called a feature, which is a measurable characteristics of the considered time series. Other examples for feature mappings θk of time series might be their mean, the number of peaks with a certain steepness, their periodicity, a global trend, etc. Comprehensive collections of time series feature mappings are discussed by [\citet=fulcher_highly_2014] and [\citet=nun_fats_2015]. [\citet=fulcher_highly_2014] propose to use more than 9000 features from 1000 different feature generating algorithms.
+
+Now, consider nf different time series feature mappings, which are applied to all m  ·  n time series recorded from n sensors of m devices (Fig. [\ref=fig:ffe_in_detail]). The resulting feature matrix [formula] has m rows (one for each device) and nφ  =  n  ·  nf  +  ni columns with ni denoting the number of features generated from device specific meta-information. Each column of [formula] comprises a vector [formula] capturing a specific characteristic of all considered devices.
+
+Feature filtering
+
+Typically, time series are noisy and contain redundancies. Therefore, one should keep the balance between extracting meaningful but probably fragile features and robust but probably non-significant features. Some features such as the median will not be heavily influenced by outliers, others such as max  will be intrinsically fragile. The choice of the right time series feature mappings is crucial to capture the right characteristics for the task at hand.
+
+Relevance of features
+
+A meaningless feature describes a characteristic of the time series that is not useful for the classification or regression task at hand. [\citet=radivojac_feature_2004] considered a binary target Y, stating that the relevance of feature X is measured as the difference between the class conditional distributions fX|Y  =  0 and fX|Y  =  1. We adopt this definition and consider a feature X being relevant for the classification of the binary target Y if those distributions are not equal. In general, a feature X is relevant for predicting target Y if and only if
+
+[formula]
+
+The condition from Equation [\eqref=eqn_relevant] is equivalent to
+
+[formula]
+
+We will use the statistical independence to derive a shorter definition of a relevant feature:
+
+Hypothesis tests
+
+For every extracted feature [formula] we will deploy a singular statistical test checking the hypotheses
+
+[formula]
+
+The result of each hypothesis test Hφ0 is a so-called p-value pφ, which quantifies the probability that feature Xφ is not relevant for predicting Y. Small p-values indicate features, which are relevant for predicting the target.
+
+Based on the vector [formula] of all hypothesis tests, a multiple testing approach will select the relevant features (Sec. [\ref=subsec_multitest]). We propose to treat every feature uniquely by a different statistical test, depending on wether the codomains of target and feature are binary or not. The usage of one general feature test for all constellations is not recommended. Specialized hypothesis tests yield a higher statistical power due to more assumptions about the codomains that can be used during the construction of those tests. The proposed feature significance tests are based on nonparametric hypothesis tests, that do not make any assumptions about the distribution of the variables, which ensures robustness of the procedure.
+
+Exact Fisher test of independence: This feature significance test can be used if both the target and the inspected feature are binary. Fisher's exact test [\citep=fisher_interpretation_1922] is based on the contingency table formed by Xφ and Y. It inspects if both variables are statistically independent, which corresponds to the hypotheses from Eq. [\eqref=eqn_glb_hypo].
+
+Fisher's test belongs to the class of exact tests. For such tests, the significance of the deviation from a null hypothesis (e.g., the p-value) can be calculated exactly, rather than relying on asymptotic results.
+
+Kolmogorov-Smirnov test (binary feature): This feature significance test assumes the feature to be binary and the target to be continuous. In general, the Kolmogorov-Smirnov (KS) test is a non-parametric and stable goodness-of-fit test that checks if two random variables A and B follow the same distribution [\citep=massey_kolmogorovsmirnov_1951]: By conditionally modeling the distribution function of target Y on the two possible values x1,x2 of the feature Xφ we can use the KS test to check if the distribution of Y differs given different values of Xφ. Setting A = Y|Xφ = x1 and B = Y|Xφ = x2 results in
+
+[formula]
+
+The hypotheses from Eq. [\eqref=eqn_glb_hypo] and [\eqref=enq_ks_hypo] are equivalent as demonstrated in the chain of Equations in [\eqref=proof_equi_sig]. Hence, the KS test can address the feature relevance of Xφ.
+
+Kolmogorov-Smirnov test (binary target): When the target is binary and the feature non-binary, we can deploy the Kolmogorov-Smirnov test again. We have to switch roles of target and feature variable, resulting in the testing of the following hypothesis: This time y1 and y2 are the two possible values of Y and fXφ|Y = yj is the conditional density function of Xφ given Y. This hypothesis is also equivalent to the one in Eq. [\eqref=eqn_glb_hypo].
+
+Kendal rank test: This filter can be deployed if neither target nor feature are binary. Kendall's rank test [\citep=kendall_new_1938] checks if two continuous variables may be regarded as statistically dependent, hence naturally fitting our hypotheses from Eq. [\eqref=eqn_glb_hypo]. It is a non-parametric test based on Kendall's rank statistic τ, measuring the strength of monotonic association between Xφ and Y. The calculation of the rank statistic is more complex when ties are involved [\citep=adler_modification_1957], i.e. feature or target are categorical.
+
+Feature significance testing
+
+When comparing multiple hypotheses simultaneously, errors in the inference tend to accumulate [\citep=curran-everett_multiple_2000]. In this context, a wrongly added feature is a feature Xφ for which the null hypothesis Hφ0 has been rejected by the respective feature significance test, even though Hφ0 is true. If we want to control the percentage of irrelevant added features we have to control the percentage of wrongly rejected null hypothesis among all hypothesis. In multiple testing, this ratio of the expected proportion of erroneous rejections among all rejections is called false discovery rate (FDR).
+
+The FDR as a measure of the accumulated statistical error was suggested by [\citet=benjamini_controlling_1995]. Later the non-parametric Benjamini-Yekutieli procedure was proposed. Based on the p-values it tells which hypotheses to reject while still controlling the FDR under any dependency structure between those hypotheses [\citep=benjamini_control_2001]. It will be the last component of our filtered feature extraction algorithm.
+
+The procedure searches for the first intersection between the ordered sequence of p-values p(φ) (dotted blue curves in Fig. [\ref=fig:by_fdr]) with a linear sequence (green lines in Fig. [\ref=fig:by_fdr])
+
+[formula]
+
+Here, nφ is the number of all null hypotheses and q is the FDR level that the procedure controls. It will reject all hypotheses belonging to p-values that have a lower value than the p-value at the intersection, see the left side of Fig. [\ref=fig:by_fdr_focus].
+
+The proposed feature extraction algorithm
+
+We propose FeatuRe Extraction based on Scalable Hypothesis tests (FRESH) for parameter q∈[0,1], given by the following three steps:
+
+Perform a set of nφ univariate feature mappings as introduced in Sec. [\ref=subsec_mapping] on m  ·  n different time series to create the features Xφ, [formula].
+
+For each generated feature [formula] perform exactly one hypothesis test for the hypothesis Hφ0 from Equation [\eqref=eqn_glb_hypo]. To do so, take the corresponding feature significance test from Sec. [\ref=subsec_featfilt]. Calculate the p-values [formula] of the tests.
+
+Perform the Benjamini-Yekutieli procedure under correction for dependent hypotheses [\citep=benjamini_control_2001] for a FDR level of q on the collected p-values [formula] to decide which null hypothesis Hφ0 to reject (c.f. Sec. [\ref=subsec_multitest]). Only return features Xφ for which the respective hypothesis Hφ0 was rejected by the procedure.
+
+Variants of FRESH
+
+A problem of many filter feature methods such as the one we utilize in steps 2 and 3 of FRESH is the redundancy in the feature selection. As long as features are considered associated with the target, they will all be selected by the filter even though many of them are highly correlated to each other [\citep=kira_practical_1992]. For example median and mean are highly correlated in the absence of outliers and therefore we expect FRESH to either select or drop both median and mean at the same time. To avoid generating a group of highly correlated features we propose to add another step to FRESH:
+
+Normalize the features and perform a principal performance analysis (PCA). Keep the principal components with highest eigenvalue describing p percent of the variance.
+
+This step will reduce the number of features and the obtained principal components are de-correlated, orthogonal variables [\citep=hotelling1933analysis].
+
+One could perform step *   between steps 1 and 2 of FRESH to get rid of the correlations between the created variables early. Then the feature significance tests in step 2 of FRESH will take principal components instead of the original features as input. We will denote this variant of FRESH as [formula](efore). Also, one could perform step *   after the FRESH algorithm, directly after step 3. This means that the PCA will only process those features, which are found relevant by the FRESH algorithm instead of processing all features. This variant of FRESH is called [formula](fter).
+
+Evaluation
+
+In the following, the performance of FRESH, its two variants from Sec. [\ref=sub:variants_FRESH] and other time series feature extraction methods are compared. The evaluation is done with respect to both the meaningfulness of the extracted features as well as the time it takes to extract the features. While doing so, all feature extraction methods operate on the same feature mappings, the differences lay only in the used feature selection process.
+
+Setup
+
+FRESH is parameterized with q = 10%, cf. Eq. [\eqref=eq:linear_sequence]. Its variants, which apply a PCA, are using p = 95% (Sec. [\ref=sub:variants_FRESH]). Full_X uses all the features, which are created during step 1 of FRESH (Sec. [\ref=sec:FRESH]) without any subsequent filtering. Features contained in Full_X will be filtered by applying the Boruta feature selection algorithm [\citep=kursa_all_2011], or by a forward selection with a linear discriminant analysis classifier denoted LDA. Further, the direct classifier DTW_NN, a nearest neighbor search under the Dynamic Time Warping distance, is considered [\citep=wang_characteristicbased_2006]. Those six different extraction methods and DTW_NN were each picked for a reason. DTW_NN is reported to reach the highest accuracy rates among other time series classifiers, LDA was the first proposed algorithm to automatically extract features from time series [\citep=fulcher_highly_2014] and Boruta is a promising feature selection algorithm that incorporates interactions between features.
+
+To guarantee reproducibility we use all 31 time series data sets from the UCR time series archive [\citep=chen_ucr_2015] containing a binary classification problem. To compare the runtime of the different methods, time series of flexible length and sample number belonging to two classes are generated by simulating the stochastic dynamics of a dissipative soliton [\cite=liehr_dissipative_2013]. The last data source originates from the production of steel billets, extracted during the German research project iPRODICT. The project demonstrates a typical application of industrial time series analysis, aiming to predict the passing or failing of product specification testings based on timely annotated data. It contains 26 univariate meta-variables forming the baseline feature set extended by 20 different sensor time series having up to 44 data points for each sample. The data set contained 1554 samples of two classes "broken" and "not broken" each, in total 3108 samples.
+
+Due to limitations regarding the size of this paper, we do not address the regression performance of FRESH and variants yet. In a future work, we catch up on this.
+
+Accuracy
+
+For the data sets from the UCR time series repository as well as the iPRODICT data, the underlying structure and therefore the relevant features are unknown. We cannot compare the different methods on their ability to extract meaningful features because we do not know which features are meaningful and which are not. Also, we cannot compare the extracted features to direct classifiers such as DTW_NN. Therefore, we evaluate the performance of the feature extraction algorithms by comparing the performance of a classification algorithm on the extracted features. Hereby, we assume that more meaningful features will result in a better classification result.
+
+To investigate the feature extraction methods under different conditions and to make sure that the feature filtering is not tuned to a specific classifier, the classification task is solved by a collection of a one layer neural network/perceptron (NN), a logistic regression model (LR), a support vector machine (SVM), a random forest classifier (RFC) and an adaboost classifier (ABC). The hyperparameters for those methods are not optimized to get an unbiased view on the meaningfulness of the extracted features, instead the default values from the Python package scikitlearn version 0.17.1 were used [\citep=pedregosa_scikitlearn_2011].
+
+For every data set, all available samples will be used to perform the feature extraction itself. Then, one third of the samples are randomly picked for a test set, the remaining two thirds are used to train the classifiers. We define the index set for the classification algorithms as [formula] and for the inspected feature extraction methods we define [formula]. Then, the accuracy of a classifier m∈M on the test part of the data set d for the features generated by method a∈A is denoted as accdm(a).
+
+Further, we calculate the mean of the accuracy of the five classification algorithms, which is denoted by [formula]. DTW_NN itself does not perform any feature extraction and its accuracy is directly calculated by predicting on the test set. It is denoted by [formula]. Now, we are able to denote the average accuracy over all 31 UCR data sets with binary classification tasks [\citep=chen_ucr_2015] for each method [formula] by [formula], cf. columns 3 and 7 of Tab. [\ref=tab:evalution_mean].
+
+From the [formula] column of Tab. [\ref=tab:evalution_mean] we can observe that FRESH_PCAa dominated the feature based approaches on the UCR data sets but it was not able to beat DTW_NN. On the iPRODICT data, DTW_NN could only operate on one type of time series without the univariate features. This seems to be the reasons why Boruta and FRESH_PCAa beat the accuracy of DTW_NN as shown in the [formula] column of Tab. [\ref=tab:evalution_mean]. Here FRESH_PCAa again achieved the highest accuracy among all feature based approaches.
+
+Further, we count how often a feature extraction method a*∈A reaches the highest accuracy for the 155 classifier/ data set combinations on the 31 UCR data sets among all six feature extraction methods in A while a draw counts for both methods: The evaluation metric nUCRbest is reported in the [formula] column of Tab. [\ref=tab:evalution_mean]. Again FRESH_PCAa achieved the best result, for over half of the 155 inspected combinations it had the highest reported accuracy and again Boruta came in second with 74.3 combinations on average. Regarding both accuracy metrics, FRESH_PCAa seems to be favorable over the other considered feature based approaches, with Boruta coming close.
+
+Runtime
+
+The second and sixth column of Tab. [\ref=tab:evalution_mean] contains the average pipeline runtime, which is the combined runtime of feature extraction, training of a classifier and predicting. For DTW_NN the pipeline runtime captures just the fitting and predicting steps as no features are extracted. There are tradeoffs between the number of extracted features and the time spent on feature extraction which force us to consider the pipeline runtime instead of the extraction runtime. E.g., time spent in the extraction process can be compensated by a lower number of extracted features which reduces the time spent for training the final classifier.
+
+Analog to the accuracy evaluation metrics, tdm(a) denotes the pipeline runtime in seconds of classifier m∈M and feature extraction method a∈A on data set d. In the same way, [formula] denotes the average pipeline runtime in seconds over all 5 classifiers and [formula] the runtime of fitting and predicting by DTW_NN. The average pipeline runtimes over all UCR data sets for each method [formula] are denoted by [formula]. All calculations are executed on a single computational core in order to increase comparability.
+
+The full feature matrix Full_X is the fastest extraction algorithm in our comparisons on both the UCR and the iPRODICT data, as seen in the [formula] and [formula] column of Tab. [\ref=tab:evalution_mean]. Saved time for the fitting of the feature selection algorithm compensated for the five classifiers having to be trained on more features. Accordingly, the PCA step of FRESH_PCAa saves so much time for the fitting of the classifiers that this step is basically "free", while FRESH_PCAa has a mean pipeline runtime of 33.86 seconds. On average, FRESH takes 33.87 seconds. The same can be observed on the iPRODICT data where Full_X, FRESH and FRESH_PCAa all had similar pipeline runtimes even though the number of extracted features varied greatly. The low average pipeline runtime of just tproject  =  40.17 seconds for DTW_NN in the [formula] column of Tab. [\ref=tab:evalution_mean] is due to the classification algorithm only considering one type of time series while the extraction methods operate on 20 different time series.
+
+Apart from the observed runtimes, we are interested in the feature extraction method's ability to scale with an increasing number of feature mappings, time series length and device numbers. As expected, Fig. [\ref=fig:runtime_length_ts_n_samples] shows that all considered feature extraction methods - in contrast to DTW_NN - scale linearly with an increasing length of the time series or increasing number of samples. This is due to the considered feature mapping having a linear runtime with respect to the length of the time series. However, Fig. [\ref=fig:runtime_fsa_nfeatures] shows that, among the feature based approaches, only FRESH and FRESH_PCAa scale linear with an increasing number of features (e.g. due to more devices, feature mappings or types of time series).
+
+Selected features
+
+The number of features extracted by algorithm a∈A on the data set d are denoted by ndf(a). Again this can be averaged over the UCR data sets resulting in [formula], cf. rightmost column of Tab. [\ref=tab:evalution_mean].
+
+During our simulations, FRESH_PCAa was able to reduce the number of features drastically. For the UCR data, it reduces 161 considered feature mappings to an average number of 8.2 features while on the iPRODICT data it reduces the 3246 calculated features to 33. FRESH_PCAb only selected four respective two features on average, which may explain its low accuracies. If one wishes to extract a minimal set of relevant features, we recommend to deploy FRESH_PCAa, as it extracted the second lowest number of features but achieved the highest and second highest accuracies.
+
+Resume
+
+We proposed FRESH as a highly scalable feature extraction algorithm. Our simulations showed that, in contrast to other considered methods, FRESH is able to scale with the number of feature mappings and samples as well as with the amount of different types and length of the time series. While doing so, it is extracting meaningful features as demonstrated by competitive accuracies.
+
+The relative bad performance of [formula] seems to originate in the PCA step selecting features only based on their ability to explain the variance in the input variables and not in their significace to predict the target variable. By this, relevant information for the classification or regression task can get lost.
+
+On the other hand, the combination of FRESH with a subsequent PCA filtering to reduce the number of redundant and highly correlated features, denoted as FRESH_PCAa was overall the most competitive feature based method in our evaluation. On the UCR data, it achieved the second highest and on the iPRODICT data it reached the highest accuracy. Further, it had the second lowest number of extracted features.
+
+Discussion
+
+FRESH assists the acquisition of domain knowledge
+
+It is common knowledge that the quality of feature engineering is a crucial success factor for supervised machine learning in general [\cite=domingos_few_2012] and for time series analysis in particular [\citep=timmer_characteristics_1993]. But comprehensive domain knowledge is needed in order to perform high quality feature engineering. Contrarily, it is quite common for machine learning projects that data scientists start with limited domain knowledge and improve their process understanding while continuously discussing their models with domain experts. This is basically the reason, why dedicated time series models are very hard to build from scratch.
+
+Our experience with data science projects in the context of IoT and Industry 4.0 applications [\cite=christ_time_2016] showed that it is very important to identify relevant time series features in an early stage of the project in order to engineer more specialized features in discussions with domain experts. The FRESH algorithm supports this approach by applying a huge variety of established time series feature mappings to different types of time series and meta-information simultaneously and identifies relevant features in a robust manner.
+
+We observe that features extracted by FRESH contribute to a deeper understanding of the investigated problem, because each feature is intrinsically related to a distinct property of the investigated system and its dynamics. This fosters the interpretation of the extracted features by domain experts and allows for the engineering of more complex, domain specific features [\cite=christ_time_2016] including dedicated time series models, such that their predictions in return might become a future feature mapping for FRESH.
+
+FRESH is operational
+
+We have already mentioned that FRESH has been developed in the course of IoT and Industry 4.0 projects [\cite=christ_time_2016]. Especially for predictive maintenance applications with limited numbers of samples and high level of noise in e.g. sensor readings, it has been proven as crucial to filter irrelevant features in order to prevent overfitting. To ensure a robust and scalable filtering, we consider each feature importance individually. This causes several implications:
+
+FRESH is robust in the sense of classical statistics, because the hypothesis tests and the Benjamini-Yekutieli procedure do not make any assumptions about the probability distribution or dependence structure between the features. Here, robustness refers to the insensitivity of the estimator to outliers or violations in underlying assumptions [\citep=john_robustness_2013].
+
+FRESH is not considering the meaningfulness of interactions between features by design. Hence, in its discussed form it will not find meaningful feature combinations such as chessboard variables [\cite=guyon_introduction_2003]. However, in our evaluation process the feature selection algorithm Boruta, which considers feature interactions, was not able to beat the performance of FRESH. Further, it is possible for FRESH to incorporate combinations of features and pre-defined interactions as new features themselves.
+
+FRESH is scalable due to the parallelity of the feature calculation and hypothesis tests (see the two topmost tiers in Fig. [\ref=fig:ffe_in_detail]) and can be trivially parallelized and even distributed over several computational units. In addition, the feature filter process has computational costs compared to feature calculation and significance testing. Therefore, FRESH scales linearly with the number of extracted features, length of the time series, and number of considered time series.
+
+A side effect of ensuring robustness and testing features individually is that FRESH tends to extract highly correlated features, which could result in poor classification performance. We propose to combine FRESH with a subsequent PCA, which has been discussed as FRESH_PCAa in Sec. [\ref=sub:variants_FRESH] and indeed improved the performance significantly.
+
+Feature selection of FRESH
+
+[\citet=nilsson_consistent_2007] proposed to divide feature selection into two flavors, the minimal optimal problem is finding a set consisting of all strongly relevant attributes and a subset of weakly relevant attributes such that all remaining weakly relevant attributes contain only redundant information. The all-relevant problem is finding all strongly and weakly relevant attributes. The first problem is way harder than the second, even asymptotically intractable for strictly positive distributions [\citep=nilsson_consistent_2007]. Accordingly, FRESH solves the second, easier problem as we extract every relevant feature, even though it might be a duplicate or highly correlated to another relevant feature [\cite=kursa_all_2011].
+
+[\citet=yu_feature_2003] separated feature selection algorithms into two categories, the wrapper model and the filter model. While the selection of wrapper models is based on the performance of a learning algorithm on the selected set of features, filter models use general characteristics to derive a decision about which features to keep. Filter models are further divided into feature weighting algorithms and subset search algorithms, which evaluate the goodness of features individually or through subsets. According to this definition, the feature selection part of FRESH is a filter model, more precisely, a feature weighting algorithm.
+
+FRESH contains a feature selection part on basis of hypothesis tests and the Benjamini-Yekutieli procedure, which of course can be used as a feature selection algorithm itself. But, due to its systematic incorporation of scalable time series feature mappings and the proposed decomposition in computing tiers (Fig. [\ref=fig:ffe_in_detail]) it is especially applicable to the needs of mass time series feature extraction and is considered as a feature extraction algorithm.
+
+By applying a multiple testing algorithm, FRESH avoids the "look-elsewhere effect" [\citep=gross_trial_2010] which is a statistically significant observation arising by chance due to the high number of tested hypotheses. This effect triggered a recent discussions about the use of p-values in scientific publications [\citep=wasserstein_asas_2016].
+
+Related work
+
+There are both structural and statistical approaches to extract patterns from time series. Many statistical approaches rely on structures that allow the usage of genetic algorithms. They express the feature pattern for example as a tree [\citep=mierswa_automatic_2005] [\citep=geurts_pattern_2001] [\citep=eads_genetic_2002]. While doing so, they aim for the best pattern and the most explaining features by alternating and optimizing the used feature mappings. In contrast, FRESH extracts the best fitting of a fixed set of patterns.
+
+As an example for a structured pattern extraction, in [\citep=olszewski_generalized_2001] the authors search for six morphology types: constant, straight, exponential, sinusoidal, triangular, and rectangular phases. Those phases are detected by structure detectors which then output a new time series whose values stand for the identified structure. Based on this structure a domain-independent structural pattern recognition system is utilized to substitute the original time series signal by a known pattern. Due to its fixed patterns, FRESH can be considered to be a structured pattern extractor.
+
+Of course, there are other promising approaches like the combination of nearest neighbor search with Dynamic Time Warping [\citep=wang_characteristicbased_2006], which is specialized on considering an ensemble of exactly one dedicated time series type and cannot take meta-information into account. For binary classifications it scales with [formula] [\citep=penserini_comparison_2006] with [formula] and [formula] being the number of devices in the train and test set, respectively. This approach also has the disadvantage that all data have to be transmitted to a central computing instance.
+
+The extraction algorithm most similar to ours is presented by [\citet=fulcher_highly_2014]. It applies a linear estimator with greedy search and a constant initial model to identify the most important features, which has been considered in this paper as LDA. The evaluation has shown, that FRESH outperforms the approach of [\citet=fulcher_highly_2014]. Also, FRESH provides a more general approach to time series feature extraction, because it is able to extract features for regression tasks and not only for classification.
+
+Despite the applications for time series classification and regression, the feature selection approach of FRESH could be included into kernel methods [\citep=ChoSaul_NIPS2009] and therefore should find broad applicability in the machine learning community.
+
+Summary and future work
+
+In this work, FeatuRe Extraction based on Scalable Hypothesis tests (FRESH) for time series classification and regression was introduced. It combines well established feature extraction methods with a scalable feature selection based on non-parametric hypothesis tests and the Benjamini-Yekutieli procedure. FRESH is highly parallel and suitable for distributed IoT and Industry 4.0 applications like predictive maintenance or process line optimization, because it allows to consider several different time series types per label and additionally takes meta-information into account. The latter has been demonstrated on basis of a steel billets process line optimization of project iPRODICT.
+
+Our evaluation for UCR time series classification tasks has shown that FRESH in combination with a subsequent PCA outperforms all other feature extraction algorithms with respect to scalability and achieved accuracy. On the iPRODICT data set, it was even able to achieve a higher accuracy than a nearest neighbor search under Dynamic Time Warping.
+
+The parallel nature of FRESH with respect to both feature extraction and filtering makes it highly applicable in situations where data is fragmented over a widespread infrastructure and computations cannot be performed on centralized infrastructure. Due to its robustness and applicability to machine learning problems in the context of IoT and Industry 4.0, we are expecting that FRESH will find widespread application.
+
+Acknowlegement
+
+This research was funded in part by the German Federal Ministry of Education and Research under grant number 01IS14004 (project iPRODICT).

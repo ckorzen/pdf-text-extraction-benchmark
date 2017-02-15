@@ -1,0 +1,205 @@
+=1
+
+> 0
+
+=6
+
+Lemma Definition Example Exercise Convention Statement Fact Axiom Question Proposition Remark Corollary Problem
+
+Key words.
+
+AMS subject classifications 2010.
+
+A fast algorithm for radiative transport in isotropic media
+
+Rongting Zhang
+
+Yimin Zhong
+
+Introduction
+
+This work is concerned with the numerical solution of the steady-state equation of radiative transfer (ERT) with isotropic physical coefficients and scattering kernel [\cite=DaLi-Book93-6] [\cite=Graziani-Book06] [\cite=LeMi-Book93]:
+
+[formula]
+
+where [formula] (d = 2,3) is a bounded domain with smooth boundary ∂Ω, [formula] is the unit sphere in [formula], and [formula] ([formula] being the unit outer normal vector at [formula]) is the incoming part of the phase space boundary. For the only reason of simplifying the presentation, we have assumed that there is no incoming source on the boundary. Moreover, we have assumed that the internal source f is only a function of the spatial variable. In fact, this is not needed either for our algorithm to work; see more discussions in Section [\ref=SEC:Concl].
+
+The equation of radiative transfer is a popular model for describing the propagation of particles in complex media. It appears in many fields of science and technology, ranging from classical fields such as nuclear engineering [\cite=Larsen-NSE88] [\cite=Larsen-TTSP88] [\cite=Mokhtar-Book97], astrophysics [\cite=HeGr-AJ41] [\cite=CeBaBeAi-TTSP99] [\cite=WaUe-ASS89], and remote sensing [\cite=BaRe-IP05] [\cite=SpKuCh-JQSRT01], to modern applications such as biomedical optics [\cite=Arridge-IP99] [\cite=DiRe-JCP14] [\cite=KiMo-IP06] [\cite=Ren-CiCP10] [\cite=ReBaHi-SIAM06] [\cite=ReAbBaHi-OL04], radiation therapy and treatment planning [\cite=Boman-Thesis07] [\cite=JiScPaJi-PMB12] [\cite=TiHeToSiAlPyUl-PMB08], and imaging in random media [\cite=BaRe-SIAM08] [\cite=RyPaKe-WM96]. The coefficients [formula] and [formula] have different physical meanings in different applications. In general, the coefficient [formula] measures the strength of the scattering of the underlying medium at [formula], while [formula] measures the strength of the physical absorption of the medium. The coefficient [formula] measures the total absorption at [formula] due to both the physical absorption and absorption caused by scattering, that is the loss of particles from the current traveling direction into other directions due to scattering.
+
+Numerical methods for solving the equation of radiative transfer has been extensively studied, see for instance [\cite=DaLi-Book93-6] [\cite=Graziani-Book06] [\cite=LaPaSe-Book03] [\cite=LeMi-Book93] [\cite=RoViBo-PNE11] and references therein for an overview. Besides Monte Carlo type of methods that are based on stochastic representation of the ERT [\cite=BhSp-JCP07] [\cite=DeThUr-JCP12] [\cite=Edstrom-SIAM05] [\cite=HaSpVe-SIAM07] [\cite=UeLa-JCP98], many different deterministic discretization schemes have been proposed [\cite=AdNo-JCP98] [\cite=AnLa-JCP01] [\cite=Asadzadeh-SIAM98] [\cite=BoLaAd-JCP92] [\cite=DeVo-JCP02] [\cite=DuKl-JCP02] [\cite=FrKlLaYa-JCP07] [\cite=GaZh-TTSP09] [\cite=GrSc-JCP11] [\cite=GuKa-SIAM10] [\cite=Hermeline-JCP16] [\cite=JiPaTo-SIAM00] [\cite=KaRa-SIAM14] [\cite=KiBeGoMo-JCP10] [\cite=KiMo-SIAM02] [\cite=LaMcHa-JCP16] [\cite=LaThKlSeGo-JCP02] [\cite=Lesaint-FEP86] [\cite=MaReSt-SIAM00] [\cite=MoRaAdKa-TTSP13] [\cite=RaGuKa-JCP12] [\cite=TuFrDuKl-JCP04] and numerous iterative schemes, as well as preconditioning strategies, have been developed to solve the discretized systems; see for instance [\cite=AdLa-PNE02] [\cite=BrMoRa-JCP14] [\cite=GoLi-JCP12] [\cite=OlDe-PNE98] [\cite=PaHo-ANE02] and references therein.
+
+There are many challenging issues in the numerical solutions of the equation of radiative transfer. One of such challenges is the high-dimensionality involved. The ERT is posed in phase space, meaning that the main unknown in the equation, in steady state, depends on both the spatial variable and the angular variable. In the spatial three-dimensional case, the unknown Φ depends on five variables, three in the spatial domain and two in the angular domain. This poses significant challenges in terms of both solution speed and storage.
+
+In this work, we propose a new method to solve the ERT in isotropic media, that is, media whose physical coefficients and the scattering kernel do not depend on the angular variable [formula], i.e., the media absorb and scatter particles in the same manner for all directions. Our method is based on the observation that when the underlying medium is isotropic, the angularly averaged ERT solution, [formula], satisfies a Fredholm integral equation of the second type. This integral equation can be solved, using a fast multiple method, for [formula]. Once this is done, we can plug [formula] into the ERT [\eqref=EQ:ERT] to solve for Φ itself.
+
+The rest of this paper is organized as follows. In Section [\ref=SEC:Integral], we re-formulate the ERT [\eqref=EQ:ERT] into a Fredholm integral equation of the second type for the unknown [formula]. We then propose in Section [\ref=SEC:FMM] a numerical procedure for solving the ERT based on this integral formulation and implement an interpolation-based fast multipole method [\cite=FoDa-JCP09] to solve the integral equation. Important issues on the implementation of our method are discussed in Section [\ref=SEC:Impl]. In Section [\ref=SEC:Num] we present some numerical tests for the algorithm that we developed. Concluding remarks are then offered in Section [\ref=SEC:Concl].
+
+Integral formulation
+
+Our algorithm is based on the integral formulation of the ERT [\eqref=EQ:ERT]. This is a well-developed subject. We refer to [\cite=DaLi-Book93-6] for more details. To present the formulation, let us first introduce a function [formula] defined as We can then rewrite the equation of radiative transfer, using the method of characteristics, into the following integral form [\cite=DaLi-Book93-6]:
+
+[formula]
+
+Here [formula] is the distance it takes for a particle to go from [formula] to reach the domain boundary ∂Ω in the [formula] direction:
+
+[formula]
+
+The integral formulation in [\eqref=EQ:ERT_Intgrl] is classical and has been used to derive many theoretical results and numerical methods on the ERT [\cite=DaLi-Book93-6] [\cite=Mokhtar-Book97].
+
+The most crucial step of our algorithm is to integrate the integral formulation [\eqref=EQ:ERT_Intgrl] again over [formula] to obtain an integral equation for the local density [formula]: The result is a Fredholm integral equation of the second type. It reads
+
+[formula]
+
+where the linear integral operator K is defined as To simplify the expression for K, let [formula], and define the function [formula] which is nothing but the total absorption along the line segment between [formula] and [formula]. We can then express the integral operator K as
+
+[formula]
+
+where the integral kernel K is defined as
+
+[formula]
+
+with [formula] the surface area of the unit sphere [formula]. [formula] when d = 2 and [formula] when d = 3. In the case where μ and μs are independent of the spatial variable, the integral kernel K simplifies to
+
+[formula]
+
+The algorithm we propose here is based on the integral formulation of the ERT for the variable U that we derived in [\eqref=EQ:ERT_Intgrl_U]. We need the following result on the operator K. The proof is standard.
+
+Let μ and μs be bounded such that [formula] [formula]. Then the linear operator K:L2(Ω)  →  L2(Ω), defined in [\eqref=EQ:Operator_K], is compact.
+
+For any ε > 0, we define
+
+[formula]
+
+Since μ and μs are bounded, we conclude that E is bounded, by boundedness of Ω, and therefore [formula]. Therefore, the operator [formula] defined as
+
+[formula]
+
+is a Hilbert-Schmidt integral operator and hence a compact operator.
+
+Let [formula] be a sufficiently large ball that contains Ω, that is, Ω  ⊆  B. For any g∈L2(Ω), we have that
+
+[formula]
+
+where the last step comes from the Young's Convolution Theorem. This implies that, when ε  →  0, we have Therefore, Kε  →  K as ε  →  0. Since [formula] is compact for each ε > 0, we conclude, by for instance [\cite=Hochstadt-Book89], that K is compact.
+
+From ([\ref=EQ:ERT_Intgrl_U]), we can obtain that
+
+[formula]
+
+where [formula]. The operator (I - K) is a Fredholm operator, and by Fredholm alternative theorem and the fact that the ERT admits only the zero solution when [formula], see for instance [\cite=DaLi-Book93-6], we conclude that there is a unique solution to [\eqref=EQ:ERT_Intgrl_FMM].
+
+Let us finish this section with the following important observation. The kernel [\eqref=EQ:Kernel] for the volume integral equation that we derived here takes the same form in the cases of homogeneous (i.e. μ and μs do not depend on spatial variable) and inhomogeneous (i.e. μ and μs depend on spatial variable) media. This means that the algorithm that we present in the next sections work for both homogeneous and inhomogeneous media, even though in the case of homogeneous media some simplifications can be made to reduce the computational costs of the algorithm. This is quite different for integral formulations of many other problems, such as the Helmholtz or the Laplace equation where only homogeneous problems can be done with explicit kernels (that are mostly the corresponding Green functions) [\cite=BeGr-WMMEP97] [\cite=ChJiMi-Book01].
+
+A fast multipole based algorithm
+
+Our strategy of solving the ERT [\eqref=EQ:ERT] is to first solve for U and then solve for Φ from U. The main solution procedure is as follows.
+
+Algorithm I: General Solution Procedure
+
+Evaluate the source function [formula] analytically, or by:
+
+solving the following scattering-free transport equation for u:
+
+[formula]
+
+evaluating [formula].
+
+Use a Krylov subspace method, such as the GMRES  algorithm or the MINRES  algorithm [\cite=Saad-Book03], to solve the integral equation [\eqref=EQ:ERT_Intgrl_FMM] for U.
+
+Recover the ERT solution Φ by
+
+evaluating the source [formula];
+
+solving the following scattering-free transport equation for Φ:
+
+[formula]
+
+The solution of the scattering-free transport equations in the first and last steps can be done efficiently with a fast sweeping method such as that in [\cite=GaZh-TTSP09] or even analytically in special cases. Therefore, our focus here will be on the solution of the integral equation in the second step.
+
+Let us remark that one feature of the above method for solving the ERT [\eqref=EQ:ERT] is that it does not require an explicit discretization over the angular variable. It is clear that the main computational cost of the algorithm is on the solution of the integral equation [\eqref=EQ:ERT_Intgrl_FMM] which involves only the spatial variable. Therefore, besides the solution of the scattering-free transport equation, the computational complexity of the algorithm does not scale with the size of the angular discretization. In many applications, the main quantities of interests is the local density [formula], not [formula]. In these cases, the [formula] step of Algorithm I is not necessary. The computational complexity of the algorithm therefore is completely independent of the angular discretization. For the same reason, the storage requirement of the algorithm also depends only on the spatial discretization.
+
+There are many existing methods for the discretization of the integral equation [\eqref=EQ:ERT_Intgrl_FMM] with weakly singular kernel [formula]; see for instance [\cite=Hochstadt-Book89] [\cite=Kress-Book99] [\cite=Vainikko-Book93] and references therein. Here we assume that we have a spatial discretization, consisting of N nodes, of the integral equation [\eqref=EQ:ERT_Intgrl_FMM] that gives us the following approximation to the integral equation
+
+[formula]
+
+with ωj the weight for the j-th point. Since K is singular at [formula], we set [formula] in the above summation and use the weight ωi to control the self-contribution of [formula] to the summation.
+
+To solve the integral equation (I - K)U = φ with a GMRES  or MINRES  algorithm, we need to be able to evaluate matrix-vector product of the form (I - K)U for different vectors U. Therefore, the main computational cost will be determined by the computational cost of the evaluation of KU, that is the summation [\eqref=EQ:Intgrl_Discr]. Direct evaluation of such a summation takes O(N2) operations in general. In this work, we use the fast multipole method (FMM), originally developed by Greengard and Rokhlin [\cite=GrRo-JCP87], to accelerate the evaluation of this matrix-vector product. For the simplicity of implementation, we use an interpolation-based FMM that was proposed by Fong and Darve in [\cite=FoDa-JCP09]. Other efficient implementations of FMM, see for instance [\cite=ChGrRo-JCP99] [\cite=ChJiMi-Book01] [\cite=GrRo-AN97] [\cite=MaRo-SIAM07] [\cite=YiBiZo-JCP03] and references therein, may also be applied to our problem here. This will be a future work.
+
+The FMM method in [\cite=FoDa-JCP09], based on Chebyshev interpolation, works as follows. Let Tk(x) be the first-kind Chebyshev polynomial of degree k defined on
+
+[formula]
+
+Implementation issues
+
+We now briefly comment on some important issues on the implementation of the algorithm we described in the previous section.
+
+Validity of low rank approximation [\eqref=EQ:Kernel_Approx].
+
+Due to boundedness of the exponential factor [formula] at [formula] and the fact that [formula] decays as a function of [formula], our kernel [formula] in [\eqref=EQ:Kernel] should admit the same if not better low-rank approximation as the kernel [formula] which has been well-studied in the fast multipole method community [\cite=BeGr-WMMEP97] [\cite=ChGrRo-JCP99] [\cite=ChJiMi-Book01] [\cite=GrRo-AN97] [\cite=MaRo-SIAM07] [\cite=YiBiZo-JCP03]. This justifies the Chebyshev interpolation in [\eqref=EQ:Kernel_Approx].
+
+The computational cost.
+
+The mostly computationally expensive step of the FMM algorithm is step (ii) of evaluating [\eqref=EQ:Intgrl_Discr2] where we have to evaluate the integral kernel K for different [formula] pairs. Each evaluation of the kernel requires the evaluation of a line integral of the total absorption coefficient μ along the line that connects [formula] and [formula]. If the integral can be analytically computed, for instance when μ is constant in which case the integral is simply [formula], this evaluation is relatively cheap. Otherwise, these evaluations have to be done numerically with selected quadrature rules.
+
+In many practical applications, the total absorption coefficient μ consists of a constant background with localized perturbations. In this case, we can think of μ as a function with the periodic boundary condition. We can therefore accelerate the evaluation of the line integrals with the technique of fast Fourier transform (FFT). Assume that μ is sufficiently smooth to allow for the Q term Fourier representation:
+
+[formula]
+
+where [formula] is assumed to ensure that μ is real-valued. It is then straightforward to verify that the line integral of μ from [formula] to [formula] is given by
+
+[formula]
+
+where [formula], [formula], and For a given set of Chebyshev interpolation points, we have a fixed number of pairs of [formula] for which we need to evaluate [formula]. In our implementation, we cache all these kernel evaluations. These kernel evaluations will be reused without any extra calculations during the GMRES  iterations; see for instance the numerical results in Tab. [\ref=TAB:Con_Coeff] and Tab. [\ref=TAB:Var_Coeff] of Section [\ref=SEC:Num].
+
+FMM approximation accuracy.
+
+The accuracy of solution to the ERT [\eqref=EQ:ERT] with our numerical procedure depends mainly on two factors: the resolution of the spatial discretization, and the accuracy of the fast multipole approximation of the summation [\eqref=EQ:Intgrl_Discr], the latter relying on the order of the Chebyshev polynomial used. Increasing the order of the polynomial will increase the accuracy of the approximation in general. However, that will also increase the computational cost of the algorithm, due to the increase of cost in evaluating Sn for instance. We have to therefore balance between accuracy and cost. Compared to existing kernels that have been studied the FMM community, our kernel here decays faster when the total absorption μ is large. We therefore have to use more Chebyshev interpolation points in general to ensure accuracy of the approximation.
+
+Let Udir be the numerical solution with a direct evaluation of the summation in [\eqref=EQ:Intgrl_Discr] and UFMM the FMM-accelerated numerical solution. When Udir and UFMM solutions are computed on the same mesh, the finer mesh will produce larger error Udir - UFMM when the same number of interpolation points is used. This is because finer mesh provides structures that are harder to capture with the same interpolation polynomial. Moreover, the accuracy of approximating Udir by UFMM depends on the total absorption coefficient μ since the larger μ is, the faster the exponential decay is in the integral kernel. Therefore, for the same order of interpolation, the larger μ is, the worse the approximation is. We observe these phenomenon in our numerical experiments; see for instance, the simulations in Section [\ref=SEC:Num].
+
+Numerical experiments
+
+We now present some numerical simulations to demonstrate the performance of our algorithm. We focus on the comparison between the algorithm for solving  [\eqref=EQ:ERT_Intgrl_FMM] with a regular GMRES  solver and with our algorithm, i.e., a GMRES  solver with FMM accelerations on the evaluation of [\eqref=EQ:Intgrl_Discr]. Our main purpose is to demonstrate that the computational complexity of the FMM-accelerated GMRES  algorithm indeed scales linearly with respect to the size of the spatial discretization, while maintains desired accuracy. This means that the main cost of our algorithm for solving the ERT [\eqref=EQ:ERT] is independent of the angular discretization.
+
+In all the simulations, we nodimensionalize the transport equation. All the simulations are done in the fixed square domain Ω = (0,1)2 with physical absorption coefficient [formula]. We vary the scattering coefficient to test the performance of the algorithm in different regimes. The larger the scattering coefficient μ is, the more diffusive the solution of the ERT behaves, since the size of the domain and the physical absorption coefficient are fixed. However, as we will see, the performance of our algorithm does not change dramatically from the low scattering transport regime to the highly scattering diffusive regime.
+
+We introduce four time measures: (i) Tdir denotes the time cost of direct summation for [\eqref=EQ:Intgrl_Discr]; (ii) TFMM denotes the time cost of FMM evaluation of  [\eqref=EQ:Intgrl_Discr]; (iii) TdirGMRES  denotes the time cost of the GMRES  algorithm with direct summation for solving [\eqref=EQ:ERT_Intgrl_FMM]; and (iv) TFMMGMRES  denotes the time cost of the GMRES  algorithm with FMM-acceleration for solving [\eqref=EQ:ERT_Intgrl_FMM]. Note that in our computations, we have cached all the line integrals needed when setting up the algorithm. Therefore, the TFMMGMRES  (resp. TdirGMRES ) does not include TFMM (resp. Tdir). All the computational times shown below are based on a Dell OptiPlex 745 Pentium D 3.4GHz desktop with 16GB RAM.
+
+To measure the accuracy of the FMM-accelerated calculation, with respect to the solution of the regular discretization, we use the relative l2 error [formula] where Udir and UFMM are respectively the solutions with the direct GMRES  algorithm and the FMM-accelerated GMRES  algorithm.
+
+Experiment I.
+
+In the first set of numerical experiments, we perform simulations with a fixed scattering coefficient μs = 2.0 and total absorption coefficient μ = 2.2 (which means the physical absorption is μa = 0.2). The source function we used is a ring source illustrated in the left plot of Fig. [\ref=FIG:Sources]. In Tab. [\ref=TAB:Con_Coeff] we show comparisons in three groups with increasing number of Chebyshev interpolation points: n = 4, n = 6 and n = 9. We first note that, with reasonable relative approximation accuracy (on the order of 10- 4 with n = 4), the FFM- GMRES  algorithm outperforms the regular GMRES  algorithm dramatically. This trend is kept when we increase the accuracy of the FMM approximation by increasing, n, the number of Chebyshev interpolation points. When the spatial discretization is too fine, it takes the regular GMRES  algorithm too much time to finish the calculations. However, the FFM-accelerated GMRES  can still solve the system in relatively short time.
+
+Experiment II.
+
+In the second set of numerical experiments, we repeat the simulations in Experiment I for an inhomogeneous medium. The coefficients are given as
+
+[formula]
+
+We again use the a ring source illustrated in the left plot of Fig. [\ref=FIG:Sources]. In Tab. [\ref=TAB:Var_Coeff] we show comparison in three groups with increasing number of Chebyshev interpolation points. The first noticeable difference between Tab. [\ref=TAB:Var_Coeff] and Tab. [\ref=TAB:Con_Coeff] is that the time it takes to evaluate the matrix-vector multiplication is now considerably more expensive. This is mainly due to the fact that for variable coefficient, we need to evaluate the integrals by numerical quadrature rules, while in the constant coefficient case the kernels are given analytically for any pair [formula]. In our implementation, we cached all the line integrals so that they can be used repeatedly during GMRES  iterations. This is the reason why the solution costs TFMMGMRES  for variable coefficient cases in Tab. [\ref=TAB:Var_Coeff] is very similar to the corresponding constant coefficient cases in Tab [\ref=TAB:Con_Coeff]. The overall computational costs again scale linearly with respect to the spatial discretization.
+
+Experiment III.
+
+In the third set of numerical experiments, we study the dependence of the computational cost of the algorithm on the scattering coefficient of the ERT. We perform simulations using the source function that is illustrated in the right plot of Fig. [\ref=FIG:Sources]. The results are summarized in Tab. [\ref=TAB:Periodic_Conv_Para-1024], Tab. [\ref=TAB:Periodic_Conv_Para-4096] and Tab. [\ref=TAB:Periodic_Conv_Para-16384] for different scattering coefficients, μs = 2, μs = 5, and μs = 10, with different levels of spatial discretizations. The solution by the GMRES  algorithm with direct summation [\eqref=EQ:Intgrl_Discr] Udir as well as the error Udir - UFMM (with UFMM being the solution with a FMM-accelerated GMRES  algorithm) are shown in Fig. [\ref=FIG:Periodic_1024], Fig. [\ref=FIG:Periodic_4096], and Fig. [\ref=FIG:Periodic_16384] respectively for the domain with N = 1024, N = 4096 and N = 16384 cells, using different numbers of Chebyshev interpolation points. The results show that the error of the FMM approximation does not change dramatically with respect to the change of the scattering coefficient. That is, the algorithm we developed works in both diffusive regimes and transport regimes, as long as the medium is isotropic.
+
+Experiment IV.
+
+We repeat here the numerical simulations in Experiment III with a different source function, the source function in the left plot of Fig. [\ref=FIG:Sources]. The relative error of the FMM-accelerated solutions are summarized in Tab. [\ref=TAB:Ring_Conv_Para-1024], Tab. [\ref=TAB:Ring_Conv_Para-4096], and Tab. [\ref=TAB:Ring_Conv_Para-16384]. The results are very similar respectively to those showed in Tab. [\ref=TAB:Periodic_Conv_Para-1024], Tab. [\ref=TAB:Periodic_Conv_Para-4096], and Tab. [\ref=TAB:Periodic_Conv_Para-16384]. This shows again that the performance of the algorithm does not depend on the strength of the scattering of the underlying medium. Overall, in either diffusive or transport regime, we can achieve very good accuracy with only a few Chebyshev interpolation points in each direction. The solution by the GMRES  algorithm with the direct summation, Ur and the error Ur - UFMM are show in Fig. [\ref=FIG:Ring_1024] and Fig. [\ref=FIG:Ring_4096].
+
+Concluding remarks
+
+To summarize, we presented in this work a fast numerical method for solving the equation of radiative transfer in isotropic media. The main idea of the method is to reformulate the ERT into an integral equation of the second type and then use the fast multipole technique to accelerate the solution of such an integral equation. Our numerical tests show that the algorithmic cost indeed scales linearly with respect to the size of the spatial component of the problem.
+
+There are a few features of the method we proposed here. First, with the integral formulation, we avoid angular discretization of the ERT in the most expensive part of the solution process. This in principle allows us to handle large problems that would be hard to handle in, for instance, the discrete ordinate formulation, with limited RAM. Second, the kernel in our integral formulation of the ERT takes the same form for homogeneous and inhomogeneous media. Therefore, the algorithm we developed does not need to be modified going from homogeneous media problems to inhomogeneous media problems. This is quite different from existing fast multipole based methods. That said, in homogeneous media, the setup of our algorithm is relatively computationally inexpensive since the kernel in the corresponding integral equation is explicitly given. In inhomogeneous media, the setup requires the evaluation of the kernel for different [formula] pairs that involves line integrals of the total absorption coefficients between [formula] and [formula]. This evaluation is more expensive than the homogeneous media case, but is still relatively low. In many practically relevant problems, we have coefficients that can be treated as periodic functions. Fast Fourier transform type of techniques can be used to accelerate the setup process of the algorithm. In our implementation of the FMM algorithm, we cached all the calculations that involve the evaluation of the line integrals. This does not cause major storage problem since the number of Chebyshev interpolation nodes used in the implementation is always relatively small.
+
+Let us also emphasize that, even though our formulation requires that the underlying medium to be isotropic, the internal and boundary source functions need not to be isotropic at all. In fact, the only thing that would have changed for the algorithm with an anisotropic source is the evaluation of K(μ- 1sf).
+
+In addition, as we have seen from our numerical tests, the FMM approximation with a very small number of Chebyshev interpolation nodes already give relatively accuracy approximations to the true numerical solutions. This suggests that we can probably use the algorithm with small numbers of Chebyshev interpolation points as a preconditioning strategy for a general transport solver for more complicated problems. We are currently exploring in this direction.
+
+To the best of our knowledge, what we proposed is the first algorithm for solving the ERT within the frame work of the fast multipole method. Our contribution is mainly on the introduction of the idea, not on the implementation of fast multipole methods. Indeed, our implementation is rather primitive which we believe can be greatly improved, either by refining the current strategy or by exploring other approaches [\cite=YiBiZo-JCP03]. The study we have in this short paper is by no means enough to draw conclusions on every aspect of the algorithm, for instance how the algorithm benchmarks with existing methods. However, numerical simulations we have performed show that this is a promising method that is worth careful further investigated. We hope that this work can motivate more studies in this direction.
+
+Acknowledgments
+
+This work is partially supported by the National Science Foundation through grants DMS-1321018 and DMS-1620473.
