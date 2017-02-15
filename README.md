@@ -22,5 +22,6 @@ For more details and usage, see [`benchmark/`](https://github.com/ckorzen/arxiv-
 ## The Evaluation
 + assesses the following 13 PDF extraction tools:
 [pdftotext](https://poppler.freedesktop.org/), [pdftohtml](https://poppler.freedesktop.org/), [pdftoxml](https://sourceforge.net/projects/pdf2xml/), [PdfBox](https://github.com/apache/pdfbox), [pdf2xml](https://bitbucket.org/tiedemann/pdf2xml/), [ParsCit](https://github.com/knmnyn/ParsCit), [LA-PdfText](https://github.com/BMKEG/lapdftext), [PdfMiner](http://www.unixuser.org/~euske/python/pdfminer/index.html), [pdfXtk](https://github.com/tamirhassan/pdfxtk), [pdf-extract](https://github.com/CrossRef/pdfextract), [PDFExtract](https://github.com/elacin/PDFExtract), [Grobid](https://github.com/kermitt2/grobid), [Icecite](https://github.com/ckorzen/icecite).
++ provides meaningful evaluation criteria in order to assess the quality on identifying (1) *words*, (2) the *reading order*, (3) *paragraph boundaries* and (4) the *semantic roles* of text elements in PDF.
 
-For more details and usage, see [`evaluation/`](https://github.com/ckorzen/arxiv-benchmark/tree/master/evaluation).
+For more details about the evaluation and the evaluation criteria, see [`evaluation/`](https://github.com/ckorzen/arxiv-benchmark/tree/master/evaluation).
