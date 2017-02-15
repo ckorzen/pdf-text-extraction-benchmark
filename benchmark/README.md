@@ -1,4 +1,4 @@
-# The Benchmark.
+# The Benchmark
 
 Coming soon:
 + Details about the file structure.
