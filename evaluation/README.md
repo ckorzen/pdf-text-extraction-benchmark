@@ -61,7 +61,7 @@ defines the name, a project url, a short info, the command to use on extraction 
 
 ## Evaluation Criteria
 
-On evaluate a tool, each of its `.final.txt` output files is compared with the equivalent ground truth file.
+On evaluating a tool, each of its `.final.txt` output files is compared with the equivalent ground truth file.
 The following evaluation criteria are measured:
 
 + **NL+**: the number of spurious newlines in the output file.
@@ -77,8 +77,8 @@ The following evaluation criteria are measured:
 
 The following table summarizes the evaluation results of each evaluated tool, broken down by the introduced criteria.
 
-Each criteria is given by 2 numbers. 
-An absolute number, and a percentage, that gives, in case of NL+ and NL–, the absolute number relative to the number of newlines in the ground truth files and, in all other cases, the number of affected words relative to the number of words in the ground truth files.
+Each criteria is given by 2 numbers.
+(1) An absolute number, and (2) a percentage, that gives, in case of NL+ and NL–, the absolute number relative to the number of newlines in the ground truth files and, in all other cases, the number of affected words relative to the number of words in the ground truth files.
 
 The column ERR gives the number of PDF files which could not be processed by a tool.
 The column T∅ gives the average time needed to process a single PDF file, in seconds.
