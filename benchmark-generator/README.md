@@ -1,23 +1,29 @@
 # The Benchmark Generator
 
-## Basics
-
-### Prerequisites
-
-### Usage
+## Usage
 
 The executable can be found at `bin/benchmark-generator.jar`. To execute it, make sure that you use *Java 1.8* or later. The usage is as follows:
 
 ```
 java -jar bin/benchmark-generator.jar
-   -f,--format <arg>      The format of output files. [txt, xml, json]
+   -f,--format <arg>      The format of output files [txt, xml, json], Default: "txt".
    -h,--help              Prints the help.
    -i,--input <arg>       A single TeX file or a directory which is scanned recursively for TeX files.
    -o,--output <arg>      The output file (if the input is a single TeX file) or the output directory.
    -p,--prefix <arg>      Only consider TeX files which starts with the given prefix(es).
-   -r,--role <arg>        Only extract the logical text blocks with given semantic role(s).
-   -s,--suffix <arg>      The suffix to use on creating the ground truth files.
+   -r,--role <arg>        Only extract the logical text blocks with given semantic role(s). 
+                          [abstract, affiliation, authors, acknowledgements, body, caption, figure, 
+                           footnote, formula, heading, listing-item, table, title, reference]
+   -s,--suffix <arg>      The suffix to use on creating the ground truth files. Default: ".txt"
 ```
+
+The parameters `--input` and `--output` are mandatory.
+For parameters `--prefix` and `--role`, you can define multiple values by setting the parameters multiple times. For example, if you wish to extract the logical text blocks *title* and *abstract*, type
+
+```
+java -jar bin/benchmark-generator.jar --input [...] --output [...] --role title --role abstract
+```
+
 
 There is also a Makefile, defining a rule `benchmark` that calls the executable with values adapted to our project:
 
@@ -39,7 +45,7 @@ benchmark:
  
 Call it by typing `make benchmark`.
 
-### Compiling the sources
+## Compiling the sources
 
 If you wish to compile the source codes, make sure your system fulfills the following prerequisites:
 
