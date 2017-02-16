@@ -85,16 +85,13 @@ contains the executable, as seen above.
 
 ##### [```tex-parser```](tex-parser) 
 
-contains the source codes to parse TeX files syntactically. 
-
+contains the source codes to parse TeX files syntactically. <br />
 The TeX parser is based on a TeX grammar and built with [*JavaCC*](http://javacc.org/). 
 The JJ file is given by [`TeXParser.jj`](tex-parser/src/main/java/parse/TeXParser.jj)
 
 ##### [```tex-paragraph-parser```](tex-paragraph-parser)
 
-contains the source codes to (1) interpret the parsed TeX files in order to identify the logical text blocks and (2) serialize them to files.
-
+contains the source codes to (1) interpret the parsed TeX files in order to identify the logical text blocks and (2) serialize them to files. <br />
 The interpreter, given by [`TeXParagraphsIdentifier.java`](tex-paragraph-parser/src/main/java/identifier/TeXParagraphsIdentifier.java), is rule-based.
-Basically, the rules, given by [`element-references.csv`](tex-paragraph-parser/src/main/resources/element-references.csv),  define how to interpret particular TeX commands and how they affect the logical text blocks.
-
+Basically, the rules, given by [`element-references.csv`](tex-paragraph-parser/src/main/resources/element-references.csv),  define how to interpret particular TeX commands and how they affect the logical text blocks. <br />
 The serialization of logical text blocks is done by the given serializers in the [`serializer`](tex-paragraph-parser/src/main/java/serializer) folder. Currently, the logical text blocks can only be serialized to *plain text*. The formats *json* and *xml* will be added soon. 
