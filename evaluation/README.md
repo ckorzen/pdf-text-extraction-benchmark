@@ -87,4 +87,11 @@ On evaluation, each `.final.txt` is compared with the equivalent ground truth fi
 
 ## Usage
 
-**TODO**: Introduce the usage.
+To automate the extraction processes, you can use the file [`bin/extractor.py`](bin/extractor.py). 
+Type `bin/extractor.py --help` to get detailed usage infos.
+
+Equivalently, to evaluate the output files against the ground truth, use the file [`bin/evaluator.py`](bin/evaluator.py). 
+Type `bin/evaluator.py --help` to get detailed usage infos.
+
+The [`Makefile`](Makefile) defines rules `extract` and `evaluate` that calls the executables with values adapted to our project.
+Call it by typing `make extract` or `make evaluate`.
