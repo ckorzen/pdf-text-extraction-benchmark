@@ -65,12 +65,12 @@ On evaluating a tool, each of its `.final.txt` output files is compared with the
 The following evaluation criteria are measured:
 
 + **NL+**: the number of spurious newlines in the output file.
-+ **NL-**: the number of missing newlines in the output file.
++ **NL–**: the number of missing newlines in the output file.
 + **P+**: the number of spurious paragraphs in the output file.
 + **P-**: the number of missing paragraphs in the output file.
 + **P<>**: the number of rearranged paragraphs in the output file.
 + **W+**: the number of spurious words in the output file.
-+ **W-**: the number of missing words in the output file.
++ **W–**: the number of missing words in the output file.
 + **W~-**: the number of misspelled words in the output file.
 
 ## Evaluation Results
@@ -86,7 +86,7 @@ The best values in each column are printed in bold.
 
 **TODO**: Continue the table.
 
-| Tool                | NL+  | NL-  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T∅   |
+| Tool                | NL+  | NL–  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T∅   |
 | ------------------- |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
 | pdftotext           | 14 <br/> <sup>(16%)</sup> | 44 <br/> <sup>(53%)</sup> | 60 <br/> <sup>(29%)</sup> | 2.3 <br/> <sup>(0.6%)</sup> | 1.4 <br/> <sup>(1.9%)</sup> | 24 <br/> <sup>(0.7%)</sup> | 2.4 <br/> <sup>(0.1%)</sup> | 41 <br/> <sup>(1.2%)</sup> | 2 <br/> <sup> </sup>   | **0.3** <br/> <sup> </sup> |
 | pdftohtml           |      |      |      |      |      |      |      |      |      |      |
