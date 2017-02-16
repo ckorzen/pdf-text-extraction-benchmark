@@ -31,14 +31,20 @@ If texts were broken down into any kind of blocks (like paragraphs, columns, or 
 There are three folders:
 
 + [`bin`](bin) contains all files needed to manage the extraction processes and to measure the evaluation criteria (see below).
-+ [`tools`](tools) contains the ...
-+ [`output`](output) contains the output files of the extraction tools for each PDF file of the benchmark.
-
- Files ending with `.raw.txt` contain the original outputs of tools (usually in XML or plain text format).
- Files ending with `.final.txt` are the plain text files, translated from the original output.
-
++ [`output`](output) contains the output files of the extraction tools for each PDF file of the benchmark. <br/>
+ Files ending with `.raw.txt` contain the original outputs of tools (usually in XML or plain text format). <br/>
+ Files ending with `.final.txt` are the plain text files, translated from the original output.<br/>
++ [`tools`](tools) contains tool-specific subfolders, one for each evaluated tool.<br/>
+ Each contains
+ * a folder `bin` that contains the binaries of a tool to be used on extraction.
+ * a file `tool_extractor.py` that contains the code to translate a `.raw.txt` file into a `.final.txt` file.
+ * a file `config.ini` defining some tool-specific metadata. In particular, it defines the *command* to use on extracting texts from PDF files.
+ * a file `notices.txt` that contains some hints about the performed steps and some issues occurred on installing the tool.
+ For illustration, consider the folder [`tools/pdftotext`](tools/pdftotext) that contains all files related to *pdftotext*.
+ 
 ## Evaluation Criteria
 
+ On evaluation, each `.final.txt` is compared with the equivalent ground truth file.
 
 ## Evaluation Results
 
