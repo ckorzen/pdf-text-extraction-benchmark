@@ -6,7 +6,7 @@ The executable can be found at `bin/benchmark-generator.jar`. To execute it, mak
 
 ```
 java -jar bin/benchmark-generator.jar
-   -f,--format <arg>      The format of output files [txt], Default: "txt".
+   -f,--format <arg>      The format of output files [txt]. Default: "txt".
    -h,--help              Prints the help.
    -i,--input <arg>       A single TeX file or a directory which is scanned recursively for TeX files.
    -o,--output <arg>      The output file (if the input is a single TeX file) or the output directory.
