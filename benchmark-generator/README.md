@@ -6,7 +6,7 @@ The executable can be found at `bin/benchmark-generator.jar`. To execute it, mak
 
 ```
 java -jar bin/benchmark-generator.jar
-   -f,--format <arg>      The format of output files [txt, xml, json], Default: "txt".
+   -f,--format <arg>      The format of output files [txt], Default: "txt".
    -h,--help              Prints the help.
    -i,--input <arg>       A single TeX file or a directory which is scanned recursively for TeX files.
    -o,--output <arg>      The output file (if the input is a single TeX file) or the output directory.
@@ -76,8 +76,25 @@ This will compile the source codes and recreate the executable `bin/benchmark-ge
  
 ## The Basic Structure
 
-There are three folders:
+There are three folders.
 
-+ ```bin``` containing the executable, as seen above.
-+ ```tex-parser``` containing the source codes to parse TeX files syntactically.
-+ ```tex-paragraph-parser``` containing the source codes to (1) interpret the parsed TeX files, (2) identify the logical text blocks and (3) serialize them to files.
+##### [```bin```](bin)
+
+contains the executable, as seen above.
+
+
+##### [```tex-parser```](tex-parser) 
+
+contains the source codes to parse TeX files syntactically. 
+
+The TeX parser is based on a TeX grammar and built with [*JavaCC*](http://javacc.org/). 
+The JJ file is given by [`TeXParser.jj`](tex-parser/src/main/java/parse/TeXParser.jj)
+
+##### [```tex-paragraph-parser```](tex-paragraph-parser)
+
+contains the source codes to (1) interpret the parsed TeX files in order to identify the logical text blocks and (2) serialize them to files.
+
+The interpreter, given by [`TeXParagraphsIdentifier.java`](tex-paragraph-parser/src/main/java/identifier/TeXParagraphsIdentifier.java), is rule-based.
+Basically, the rules, given by [`element-references.csv`](tex-paragraph-parser/src/main/resources/element-references.csv),  define how to interpret particular TeX commands and how they affect the logical text blocks.
+
+The serialization of logical text blocks is done by the given serializers in the [`serializer`](tex-paragraph-parser/src/main/java/serializer) folder. Currently, the logical text blocks can only be serialized to *plain text*. The formats *json* and *xml* will be added soon. 
