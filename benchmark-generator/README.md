@@ -18,7 +18,7 @@ java -jar bin/benchmark-generator.jar
 ```
 
 The parameters `--input` and `--output` are mandatory.
-For parameters `--prefix` and `--role`, you can define multiple values by setting the parameters multiple times. For example, if you wish to extract the logical text blocks *title* and *abstract*, type
+For parameters `--prefix` and `--role`, you can define multiple values by setting the parameters multiple times. For example, if you wish to extract *title* and *abstract*, type
 
 ```
 java -jar bin/benchmark-generator.jar --input [...] --output [...] --role title --role abstract
