@@ -1,6 +1,6 @@
 # The Benchmark
 
-The benchmarks provides TeX source files, PDF files and ground truth files for in total 12,099 scientific articles of [*arXiv.org*](https://arxiv.org/). The files are given in folders [`src`](src), [`pdf`](pdf) and [`groundtruth`](groundtruth).
+The benchmarks provides TeX source files, PDF files and ground truth files for in total *12,099* scientific articles of [*arXiv.org*](https://arxiv.org/). The files are given in folders [`src`](src), [`pdf`](pdf) and [`groundtruth`](groundtruth).
 
 ## Basic structure
 
@@ -14,11 +14,13 @@ The associated files/folders are:
 + [`src/0001/astro-ph0001196`](src/0001/astro-ph0001196), the folder with TeX source file and supplementary files like images, etc.
 + [`groundtruth/0001/astro-ph0001196.body.txt`](groundtruth/0001/astro-ph0001196.body.txt), the ground truth file.
 
-In total, the benchmark provides the TeX files, PDF files and ground truth files for 12,099 scientific articles of *arXiv*
+In total, the benchmark provides data for *12,099* scientific articles of *arXiv*.
+The articles were selected randomly, 1% from each `YYMM` folder, in order to represent the variety of topics and creation times (and thus article formats), which can be deduced from the [arXiv submission rate statistics](https://arxiv.org/help/stats/2016_by_area/index/).
 
-TODO: How to provide the TeX source files and PDF files? arXiv does not grant the right to distribute arXiv articles.
+**TODO**: How to provide the TeX source files and PDF files? arXiv does not grant the right to distribute arXiv articles.
 
-## The selection of scientific articles
+### Ground Truth Files
 
-From each `YYMM` folder in the *arXiv* dataset, 1% of the articles 
+### PDF files
 
+Please note that the provided PDF files are not those provided by *arXiv*, due to occasional (contentual) mismatches with the corresponding TeX files, but are regenerated from the provided TeX files.
