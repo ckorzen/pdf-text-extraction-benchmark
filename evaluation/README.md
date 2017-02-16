@@ -2,7 +2,7 @@
 
 **TODO**: The content of `output/` is still missing.
 
-We have evaluated the following 13 PDF extraction tools on their semantic abilities to extract the body texts from PDF files of scientific articles:
+The following 13 PDF extraction tools were evaluated on their semantic abilities to extract the body texts from PDF files of scientific articles:
 
 [pdftotext](https://poppler.freedesktop.org/), 
 [pdftohtml](https://poppler.freedesktop.org/), 
@@ -18,17 +18,29 @@ We have evaluated the following 13 PDF extraction tools on their semantic abilit
 [Grobid](https://github.com/kermitt2/grobid), 
 [Icecite](https://github.com/ckorzen/icecite).
 
-## The Basic Structure
+Each tool was used to extract texts from the [PDF files of the benchmark](../benchmark/pdf). 
+For each tool, reasonable input parameters were selected in order to get output files that reflect, as far as possible, the
+structure of [ground truth files](../benchmark/groundtruth).
 
-## The Tools
+For tools with XML output, the output was translated to plain text by identifying the relevant text parts.
+If semantic roles were provided, only those logical text blocks were selected, which are also present in the ground truth files. 
+If texts were broken down into any kind of blocks (like paragraphs, columns, or sections), they were separated by blank lines (like in the ground truth files).
 
-## The Evaluation Criteria
+## Basic Structure
 
-Coming soon:
-+ Details about the evaluation criteria.
-+ Details about the evaluated PDF extraction tools, including used command line arguments.
+There are three folders:
 
-## The Evaluation Results
++ [`bin`](bin) contains all files needed to manage the extraction processes and to measure the evaluation criteria (see below).
++ [`tools`](tools) contains the ...
++ [`output`](output) contains the output files of the extraction tools for each PDF file of the benchmark.
+
+ Files ending with `.raw.txt` contain the original outputs of tools (usually in XML or plain text format).
+ Files ending with `.final.txt` are the plain text files, translated from the original output.
+
+## Evaluation Criteria
+
+
+## Evaluation Results
 
 | Tool                | NL+  | NL-  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T    |
 | ------------------- |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
@@ -47,3 +59,7 @@ Coming soon:
 | Icecite             |      |      |      |      |      |      |      |      |      |      |
 
 **TODO**: To be continued...
+
+## Usage
+
+TODO: Makefile
