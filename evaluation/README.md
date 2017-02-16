@@ -61,14 +61,32 @@ defines the name, a project url, a short info, the command to use on extraction 
 
 ## Evaluation Criteria
 
-**TODO**: Introduce the evaluation criteria.
-On evaluation, each `.final.txt` is compared with the equivalent ground truth file.
+On evaluate a tool, each of its `.final.txt` output files is compared with the equivalent ground truth file.
+The following evaluation criteria are measured:
+
++ **NL+**: the number of spurious newlines in the output file.
++ **NL-**: the number of missing newlines in the output file.
++ **P+**: the number of spurious paragraphs in the output file.
++ **P-**: the number of missing paragraphs in the output file.
++ **P<>**: the number of rearranged paragraphs in the output file.
++ **W+**: the number of spurious words in the output file.
++ **W-**: the number of missing words in the output file.
++ **W~-**: the number of misspelled words in the output file.
 
 ## Evaluation Results
 
+The following table summarizes the evaluation results of each evaluated tool, broken down by the introduced criteria.
+
+Each criteria is given by 2 numbers. 
+An absolute number, and a percentage, that gives, in case of NL+ and NL–, the absolute number relative to the number of newlines in the ground truth files and, in all other cases, the number of affected words relative to the number of words in the ground truth files.
+
+The best values in each criteria are printed in bold. 
+The column ERR gives the number of PDF files which could not be processed by a tool.
+The column T∅ gives the average time needed to process a single PDF file, in seconds.
+
 **TODO**: Continue the table.
 
-| Tool                | NL+  | NL-  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T    |
+| Tool                | NL+  | NL-  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T∅   |
 | ------------------- |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
 | pdftotext           | 14 <br/> <sup>(16%)</sup> | 44 <br/> <sup>(53%)</sup> | 60 <br/> <sup>(29%)</sup> | 2.3 <br/> <sup>(0.6%)</sup> | 1.4 <br/> <sup>(1.9%)</sup> | 24 <br/> <sup>(0.7%)</sup> | 2.4 <br/> <sup>(0.1%)</sup> | 41 <br/> <sup>(1.2%)</sup> | 2 <br/> <sup> </sup>   | 0.3 <br/> <sup> </sup> |
 | pdftohtml           |      |      |      |      |      |      |      |      |      |      |
