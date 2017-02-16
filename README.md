@@ -16,7 +16,7 @@ For more details and usage, see [`benchmark-generator/`](https://github.com/ckor
 Each ground truth file contains the *title*, the *headings* and the *body text paragraphs* of a particular scientific article.
 + was generated using the benchmark generated above.
 
-For more details and usage, see [`benchmark/`](https://github.com/ckorzen/arxiv-benchmark/tree/master/benchmark).
+For more details, see [`benchmark/`](https://github.com/ckorzen/arxiv-benchmark/tree/master/benchmark).
 
 ## The Evaluation
 + assesses the following 13 PDF extraction tools:
