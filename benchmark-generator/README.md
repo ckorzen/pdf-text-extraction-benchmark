@@ -24,7 +24,6 @@ For parameters `--prefix` and `--role`, you can define multiple values by settin
 java -jar bin/benchmark-generator.jar --input [...] --output [...] --role title --role abstract
 ```
 
-
 There is also a Makefile, defining a rule `benchmark` that calls the executable with values adapted to our project:
 
 ```
@@ -67,20 +66,18 @@ cd commons
 mvn -DskipTests install 
 ```
 
-Back to `benchmark-generator/`, type `make compile-benchmark-generator`. This will compile the source codes and recreate the executable `bin/benchmark-generator.jar`.
+Back to `benchmark-generator/`, type 
+
+```
+make compile-benchmark-generator
+```
+
+This will compile the source codes and recreate the executable `bin/benchmark-generator.jar`.
  
 ## The Basic Structure
 
-Details about the basic file/folder structure.
+There are three folders:
 
-## The Approach
-
-Details about the basic approach of the benchmark generator.
-
-### The Rules
-
-Details about the rules used on identifying logical text blocks.
-
-## Usage
-
-Details on prerequisites and how the benchmark generator can be used.
++ ```bin``` containing the executable, as seen above.
++ ```tex-parser``` containing the source codes to parse TeX files syntactically.
++ ```tex-paragraph-parser``` containing the source codes to (1) interpret the parsed TeX files, (2) identify the logical text blocks and (3) serialize them to files.
