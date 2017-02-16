@@ -5,9 +5,9 @@ It provides (1) a benchmark generator, (2) a ready-to-use benchmark and (3) an e
 
 ## The Benchmark Generator
 + constructs high-quality benchmarks from *TeX source files*.
-+ identifies the following 16 semantic units: 
++ identifies the following 16 logical text blocks: 
 *title*, *author(s)*, *affiliation(s)*, *date*, *abstract*, *headings*, *paragraphs of the body text*, *formulas*, *figures*, *tables*, *captions*, *listing-items*, *footnotes*, *acknowledgements*, *references*, *appendices*.
-+ serializes desired semantic units to *plain text*, *XML* or *JSON* format.
++ serializes desired logical text blocks to *plain text*, *XML* or *JSON* format.
 
 For more details and usage, see [`benchmark-generator/`](https://github.com/ckorzen/arxiv-benchmark/tree/master/benchmark-generator).
 
