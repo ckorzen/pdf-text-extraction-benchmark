@@ -20,7 +20,7 @@ All of the *12,099* scientific articles were selected randomly, 1% from each `YY
 
 ### Ground Truth Files
 
-All ground truth files were generated using the [`benchmark-generator`]().
+All ground truth files were generated using the [`benchmark-generator`](../benchmark-generator).
 Each is a *plain text file* and contains the *title*, the *section headings* and the *body text paragraphs* of the associated scientific article, separated by blank lines and in order as they appear in the TeX file.
 Each ground truth files has file extension `.body.txt`.
 
