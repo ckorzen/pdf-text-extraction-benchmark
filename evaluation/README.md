@@ -41,7 +41,7 @@ There are three folders:
  * a file `notices.txt` that contains some hints about the performed steps and some issues occurred on installing the tool.
  
 For illustration, consider the folder [`tools/pdftotext`](tools/pdftotext).
-It contains the folder [`tools/pdftotext/bin`](tools/pdftotext/bin) with the executable `pdftotext` that is used on the extraction process. <br>
+It contains the folder [`tools/pdftotext/bin`](tools/pdftotext/bin) with the executable `pdftotext` that is used on the extraction process.
 The file [`tools/pdftotext/config.ini`](tools/pdftotext/config.ini) with content
   
 ```
@@ -61,9 +61,12 @@ defines the name, a project url, a short info, the command to use on extraction 
 
 ## Evaluation Criteria
 
- On evaluation, each `.final.txt` is compared with the equivalent ground truth file.
+**TODO**: Introduce the evaluation criteria.
+On evaluation, each `.final.txt` is compared with the equivalent ground truth file.
 
 ## Evaluation Results
+
+**TODO**: Continue the table.
 
 | Tool                | NL+  | NL-  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T    |
 | ------------------- |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
@@ -81,8 +84,7 @@ defines the name, a project url, a short info, the command to use on extraction 
 | Grobid              |      |      |      |      |      |      |      |      |      |      |
 | Icecite             |      |      |      |      |      |      |      |      |      |      |
 
-**TODO**: To be continued...
 
 ## Usage
 
-TODO: Makefile
+**TODO**: Introduce the usage.
