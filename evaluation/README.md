@@ -34,14 +34,31 @@ There are three folders:
 + [`output`](output) contains the output files of the extraction tools for each PDF file of the benchmark. <br/>
  Files ending with `.raw.txt` contain the original outputs of tools (usually in XML or plain text format). <br/>
  Files ending with `.final.txt` are the plain text files, translated from the original output.<br/>
-+ [`tools`](tools) contains tool-specific subfolders, one for each evaluated tool.<br/>
- Each contains
- * a folder `bin` that contains the binaries of a tool to be used on extraction.
++ [`tools`](tools) contains tool-specific subfolders, one for each evaluated tool. Each contains
+ * a folder `bin` that contains the binaries of a tool to be used on the extraction process.
  * a file `tool_extractor.py` that contains the code to translate a `.raw.txt` file into a `.final.txt` file.
- * a file `config.ini` defining some tool-specific metadata. In particular, it defines the *command* to use on extracting texts from PDF files.
+ * a file `config.ini` defining some tool-specific metadata, in particular the *command* to use on the extraction process.
  * a file `notices.txt` that contains some hints about the performed steps and some issues occurred on installing the tool.
- For illustration, consider the folder [`tools/pdftotext`](tools/pdftotext) that contains all files related to *pdftotext*.
  
+For illustration, consider the folder [`tools/pdftotext`](tools/pdftotext).
+It contains the folder [`tools/pdftotext/bin`](tools/pdftotext/bin) with the executable `pdftotext` that is used on the extraction process. <br>
+The file [`tools/pdftotext/config.ini`](tools/pdftotext/config.ini) with content
+  
+```
+[general]
+name = pdftotext
+url = https://poppler.freedesktop.org/
+info = Converts PDF files to plain text files.
+
+[run]
+cmd = ./bin/pdftotext -nopgbrk $IN $OUT
+
+[extractor]
+name = tool_extractor.PdfToTextExtractor
+```
+
+defines the name, a project url, a short info, the command to use on extraction (where `$IN` is a placeholder for the path to a PDF file path and `$OUT` is placeholder for the path to the output file) and the name of the class in `tool_extractor.py`.
+
 ## Evaluation Criteria
 
  On evaluation, each `.final.txt` is compared with the equivalent ground truth file.
