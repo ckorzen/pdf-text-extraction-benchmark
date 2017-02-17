@@ -2,7 +2,7 @@ PYTHON = @python3
 CHECKSTYLE = @flake8
 TEST_BINARIES = $(wildcard *_test.py)
 
-TOOLS = $(shell $(MAKE) list-tools)
+TOOLS = pdftotext pdftohtml pdftoxml pdfbox pdf2xml parscit lapdftext pdfminer pdfXtk pdfextract PDFExtract grobid icecite
 
 GROUND_TRUTH_DIR = ../benchmark/groundtruth
 PDF_DIR = ../benchmark/pdf
@@ -11,6 +11,7 @@ OUTPUT_DIR = ./output
 
 EVALUATOR_SRC = ./bin/evaluator.py
 EXTRACTOR_SRC = ./bin/extractor.py
+TABLE_GENERATOR_SRC = ./bin/utils/table_generator.py
 
 PREFIX = 
 GROUNDTRUTH_EXT = .body.txt
@@ -24,6 +25,22 @@ NUM_THREADS = -1
 MUTE = False
 FORCE = False
 TIMEOUT = 300
+TABLE_TYPES = 
+
+extract: 
+	$(PYTHON) $(EXTRACTOR_SRC) \
+		$(TOOLS) \
+		--tools_dir "$(TOOLS_DIR)" \
+		--pdf_dir "$(PDF_DIR)" \
+		--output_dir "$(OUTPUT_DIR)" \
+		--prefix_filter "$(PREFIX)" \
+		--suffix_filter "$(PDF_EXT)" \
+		--yy_filter "$(YY)" \
+		--mm_filter "$(MM)" \
+		--num_threads "$(NUM_THREADS)" \
+		--timeout "$(TIMEOUT)" \
+		--force "$(FORCE)" \
+		--mute "$(MUTE)"
 
 evaluate: 
 	$(PYTHON) $(EVALUATOR_SRC) \
@@ -41,20 +58,22 @@ evaluate:
 		--force "$(FORCE)" \
 		--mute "$(MUTE)"
 
-extract: 
-	$(PYTHON) $(EXTRACTOR_SRC) \
+table:
+	$(PYTHON) $(TABLE_GENERATOR_SRC) \
 		$(TOOLS) \
-		--tools_dir "$(TOOLS_DIR)" \
-		--pdf_dir "$(PDF_DIR)" \
+		--table_type $(TABLE_TYPES) \
 		--output_dir "$(OUTPUT_DIR)" \
+		--groundtruth_dir "$(GROUND_TRUTH_DIR)" \
 		--prefix_filter "$(PREFIX)" \
-		--suffix_filter "$(PDF_EXT)" \
+		--suffix_filter "$(GROUNDTRUTH_EXT)" \
 		--yy_filter "$(YY)" \
 		--mm_filter "$(MM)" \
+		--rearrange "$(REARRANGE)" \
+		--case_insensitive "$(CASE_INSENSITIVE)" \
+		--junk $(JUNK) \
 		--num_threads "$(NUM_THREADS)" \
-		--timeout "$(TIMEOUT)" \
 		--force "$(FORCE)" \
-		--mute "$(MUTE)"
+		--mute "True"
 
 list-tools:
 	@echo $(shell find ./tools -mindepth 1 -maxdepth 1 -type d -printf "%f ")
