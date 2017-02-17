@@ -84,8 +84,6 @@ The column ERR gives the number of PDF files which could not be processed by a t
 The column T∅ gives the average time needed to process a single PDF file, in seconds.
 The best values in each column are printed in bold. 
 
-**TODO**: Continue the table.
-
 | Tool                | NL+  | NL–  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T∅   |
 | ------------------- |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
 | pdftotext | 14 <br> <sup>(16%)</sup> | 44 <br> <sup>(53%)</sup> | 60 <br> <sup>(29%)</sup> | 2.3 <br> <sup>(0.6%)</sup> | 1.4 <br> <sup>(1.9%)</sup> | 24 <br> <sup>(0.7%)</sup> | 2.4 <br> <sup>(0.1%)</sup> | 41 <br> <sup>(1.2%)</sup> | 2 | **0.3** |
