@@ -600,7 +600,7 @@ def get_argument_parser():
         "-f", "--force",
         metavar='<bool>',
         help="Forces the computation of values for evaluation criteria, "
-             "even if there are some cached values. %(default)s.",
+             "even if there are some cached values. Default: %(default)s.",
         type=ast.literal_eval,
         default=False
     )

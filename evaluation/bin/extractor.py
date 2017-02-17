@@ -276,7 +276,7 @@ class ToolExtractor:
 
         # Abort if directories could not be created.
         if not file_utils.ensure_dirs(target_path):
-            raise IOError("The path '%s' could not be created." % raw_path)
+            raise IOError("The path '%s' could not be created." % target_path)
 
         cmd = self.tool_config.get_string("run", "cmd")
         if cmd is None:
@@ -311,7 +311,7 @@ class ToolExtractor:
         }
 
         if not file_utils.ensure_dirs(plain_path):
-            raise IOError("The path '%s' could not be created." % plain)
+            raise IOError("The path '%s' could not be created." % plain_path)
 
         raw_status_code, plain_output = self.create_plain_output(raw_path)
         status_code = max(raw_status_code, file_result.status_code)
@@ -450,7 +450,7 @@ def get_argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "tool_names",
-        help="The name of tools to evaluate.",
+        help="The name of tools to use on extraction.",
         nargs='+'
     )
     parser.add_argument(
@@ -500,7 +500,7 @@ def get_argument_parser():
     parser.add_argument(
         "-n", "--num_threads",
         metavar='<int>',
-        help="The number of threads to use for evaluation. "
+        help="The number of threads to use for extraction. "
              "Per default, as many as possible threads are used.",
         action=check_num_threads(),
         default=None,

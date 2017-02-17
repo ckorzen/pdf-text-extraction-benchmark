@@ -2,20 +2,8 @@ import para_diff
 import para_diff_rearrange as para_diff_rearr
 import word_diff
 import diff_utils
-import logging
-import sys
 import doc_diff_visualize as vis
 from collections import Counter
-
-# Increase the recursion limit for pickle.
-sys.setrecursionlimit(100000)
-
-# Initialize the logger.
-log = logging.getLogger(__name__)
-logging.basicConfig(
-    format='%(asctime)s : %(levelname)s : %(module)s : %(message)s',
-    level=logging.DEBUG
-)
 
 
 def doc_diff_from_strings(
