@@ -3,13 +3,14 @@ import os
 import os.path
 import subprocess
 
+from lxml import etree
+
 # The current working directory.
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(CWD, "../../bin")))
 
-from lxml import etree
-from utils import file_utils
-from extractor import ToolExtractor
+from utils import file_utils  # NOQA
+from extractor import ToolExtractor  # NOQA
 
 title_xpath = """./algorithm[@name='ParsHed']//title"""
 variant_xpath = """./algorithm[@name='SectLabel']//variant"""
@@ -58,7 +59,7 @@ class ParscitExtractor(ToolExtractor):
             # Try to create the directory if it doesn't exist.
             try:
                 os.makedirs(output_dir, exist_ok=True)
-            except Error:
+            except:
                 # Return None if the directory couldn't be created.
                 return None
 

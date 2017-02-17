@@ -5,7 +5,7 @@ import os.path
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(CWD, "../../bin")))
 
-from extractor import ToolExtractor
+from extractor import ToolExtractor  # NOQA
 
 
 class PdfMinerExtractor(ToolExtractor):
