@@ -88,20 +88,19 @@ The best values in each column are printed in bold.
 
 | Tool                | NL+  | NL–  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T∅   |
 | ------------------- |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
-| pdftotext           | 14 <br/> <sup>(16%)</sup> | 44 <br/> <sup>(53%)</sup> | 60 <br/> <sup>(29%)</sup> | 2.3 <br/> <sup>(0.6%)</sup> | 1.4 <br/> <sup>(1.9%)</sup> | 24 <br/> <sup>(0.7%)</sup> | 2.4 <br/> <sup>(0.1%)</sup> | 41 <br/> <sup>(1.2%)</sup> | 2 <br/> <sup> </sup>   | **0.3** <br/> <sup> </sup> |
-| pdftohtml           |      |      |      |      |      |      |      |      |      |      |
-| pdf2xml (Xerox)     |      |      |      |      |      |      |      |      |      |      |
-| pdf2xml (Tiedemann) |      |      |      |      |      |      |      |      |      |      |
-| PdfBox              |      |      |      |      |      |      |      |      |      |      |
-| ParsCit             |      |      |      |      |      |      |      |      |      |      |
-| LA-PdfText          |      |      |      |      |      |      |      |      |      |      |
-| PdfMiner            |      |      |      |      |      |      |      |      |      |      |
-| pdfXtk              |      |      |      |      |      |      |      |      |      |      |
-| pdf-extract         |      |      |      |      |      |      |      |      |      |      |
-| PDFExtract          |      |      |      |      |      |      |      |      |      |      |
-| Grobid              |      |      |      |      |      |      |      |      |      |      |
-| Icecite             |      |      |      |      |      |      |      |      |      |      |
-
+| pdftotext | 14 <br> <sup>(16%)</sup> | 44 <br> <sup>(53%)</sup> | 60 <br> <sup>(29%)</sup> | 2.3 <br> <sup>(0.6%)</sup> | 1.4 <br> <sup>(1.9%)</sup> | 24 <br> <sup>(0.7%)</sup> | 2.4 <br> <sup>(0.1%)</sup> | 41 <br> <sup>(1.2%)</sup> | 2 | **0.3** |
+| pdftohtml | 3.6 <br> <sup>(4.3%)</sup> | 70 <br> <sup>(84%)</sup> | 9.2 <br> <sup>(31%)</sup> | 4.2 <br> <sup>(3.2%)</sup> | 0.1 <br> <sup>(0.1%)</sup> | 16 <br> <sup>(0.5%)</sup> | 1.6 <br> <sup>(0.0%)</sup> | 95 <br> <sup>(2.9%)</sup> | **0** | 2.2 |
+| pdftoxml | 33 <br> <sup>(40%)</sup> | 20 <br> <sup>(25%)</sup> | 80 <br> <sup>(31%)</sup> | 1.8 <br> <sup>(0.5%)</sup> | 0.1 <br> <sup>(0.1%)</sup> | 21 <br> <sup>(0.6%)</sup> | 1.5 <br> <sup>(0.0%)</sup> | 154 <br> <sup>(4.7%)</sup> | 1 | 0.7 |
+| PdfBox | **3.0** <br> <sup>**(3.6%)**</sup> | 70 <br> <sup>(85%)</sup> | 7.6 <br> <sup>(27%)</sup> | **0.9** <br> <sup>**(0.2%)**</sup> | 0.0 <br> <sup>(0.1%)</sup> | 17 <br> <sup>(0.5%)</sup> | **1.5** <br> <sup>**(0.0%)**</sup> | 53 <br> <sup>(1.6%)</sup> | 2 | 8.8 |
+| pdf2xml | 33 <br> <sup>(40%)</sup> | 39 <br> <sup>(48%)</sup> | 44 <br> <sup>(21%)</sup> | 40 <br> <sup>(30%)</sup> | 7.8 <br> <sup>(9.5%)</sup> | 8.6 <br> <sup>(0.3%)</sup> | 3.6 <br> <sup>(0.1%)</sup> | 34 <br> <sup>(0.9%)</sup> | 1444 | 37 |
+| ParsCit | 15 <br> <sup>(18%)</sup> | 39 <br> <sup>(47%)</sup> | 10 <br> <sup>(10%)</sup> | 14 <br> <sup>(6.4%)</sup> | 1.3 <br> <sup>(1.8%)</sup> | 16 <br> <sup>(0.5%)</sup> | 2.3 <br> <sup>(0.1%)</sup> | 37 <br> <sup>(1.1%)</sup> | 1 | 6.8 |
+| LA-PdfText | 5.5 <br> <sup>(6.4%)</sup> | 23 <br> <sup>(28%)</sup> | **4.8** <br> <sup>**(3.1%)**</sup> | 52 <br> <sup>(73%)</sup> | 2.9 <br> <sup>(5.9%)</sup> | **5.7** <br> <sup>**(0.1%)**</sup> | 6.1 <br> <sup>(0.1%)</sup> | 26 <br> <sup>(0.6%)</sup> | 324 | 24 |
+| PdfMiner | 32 <br> <sup>(38%)</sup> | 18 <br> <sup>(21%)</sup> | 84 <br> <sup>(30%)</sup> | 3.6 <br> <sup>(1.0%)</sup> | 1.4 <br> <sup>(2.1%)</sup> | 34 <br> <sup>(1.0%)</sup> | 2.6 <br> <sup>(0.1%)</sup> | 110 <br> <sup>(3.3%)</sup> | 23 | 16 |
+| pdfXtk | 7.9 <br> <sup>(9.7%)</sup> | 68 <br> <sup>(84%)</sup> | 12 <br> <sup>(29%)</sup> | 4.5 <br> <sup>(3.5%)</sup> | 0.1 <br> <sup>(0.1%)</sup> | 59 <br> <sup>(1.8%)</sup> | 6.1 <br> <sup>(0.2%)</sup> | 95 <br> <sup>(3.0%)</sup> | 739 | 22 |
+| pdf-extract | 95 <br> <sup>(114%)</sup> | 53 <br> <sup>(64%)</sup> | 99 <br> <sup>(32%)</sup> | 8.4 <br> <sup>(3.1%)</sup> | 4.1 <br> <sup>(7.7%)</sup> | 74 <br> <sup>(2.1%)</sup> | 41 <br> <sup>(1.2%)</sup> | 149 <br> <sup>(4.2%)</sup> | 72 | 34 |
+| PDFExtract | 9.5 <br> <sup>(11%)</sup> | 33 <br> <sup>(40%)</sup> | 28 <br> <sup>(21%)</sup> | 22 <br> <sup>(25%)</sup> | 0.8 <br> <sup>(0.9%)</sup> | 12 <br> <sup>(0.4%)</sup> | 2.8 <br> <sup>(0.1%)</sup> | 61 <br> <sup>(1.8%)</sup> | 176 | 46 |
+| Grobid | 9.5 <br> <sup>(11%)</sup> | 30 <br> <sup>(36%)</sup> | 7.5 <br> <sup>(6.7%)</sup> | 11 <br> <sup>(15%)</sup> | **0.0** <br> <sup>**(0.0%)**</sup> | 14 <br> <sup>(0.4%)</sup> | 1.6 <br> <sup>(0.0%)</sup> | 63 <br> <sup>(1.9%)</sup> | 29 | 42 |
+| Icecite | 3.4 <br> <sup>(4.0%)</sup> | **10** <br> <sup>**(13%)**</sup> | 6.2 <br> <sup>(4.2%)</sup> | 7.7 <br> <sup>(5.5%)</sup> | 0.1 <br> <sup>(0.1%)</sup> | 10 <br> <sup>(0.3%)</sup> | 1.7 <br> <sup>(0.1%)</sup> | **21** <br> <sup>**(0.6%)**</sup> | 34 | 41 |
 
 ## Usage
 
