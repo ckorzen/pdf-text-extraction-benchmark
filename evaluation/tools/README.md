@@ -2,5 +2,5 @@ The tools data are available at http://arxiv-benchmark.informatik.uni-freiburg.d
 
 To include the data into the project structure, type
 
-    cd arxiv-benchmark/benchmark/
+    cd arxiv-benchmark/evaluation/
     make download-data-tools
