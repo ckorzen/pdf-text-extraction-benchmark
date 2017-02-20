@@ -1,2 +1,0 @@
-./graphwrap.sh graphwrap-test/tm_08aug07_p02z.pdf graphwrap-test/wrapper-example.xml -console
-#./graphwrap.sh graphwrap-test/tm_08aug07_p02z.pdf graphwrap-test/wrapper-example.xml graphwrap-test/wrapper-output.xml
