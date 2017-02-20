@@ -16,8 +16,6 @@ The associated files/folders are:
 
 All of the *12,099* scientific articles were selected randomly, 1% from each `YYMM` folder, in order to represent the variety of topics and creation times (and thus article formats), which can be deduced from the [arXiv submission rate statistics](https://arxiv.org/help/stats/2016_by_area/index/).
 
-**TODO**: How to provide the TeX source files and PDF files? arXiv does not grant the right to distribute arXiv articles.
-
 ### Ground Truth Files
 
 All ground truth files were generated using the [`benchmark-generator`](../benchmark-generator).
