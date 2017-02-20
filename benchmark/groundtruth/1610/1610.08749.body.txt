@@ -1,0 +1,163 @@
+Differentially Private Variational Inference for Non-conjugate Models
+
+Introduction
+
+Recent years have seen a boom in collection of digital data due to many technological advances but mostly processing power, automatised collection and easy storage. Machine learning methods running on larger data sets provide better estimates with more generalisation power. With more people getting more tightly involved in the ubiquitous data collection, privacy concerns related to the data are becoming more important. People will be much more willing to contribute their data if they can be sure that the privacy of their data can be protected.
+
+Differential privacy (DP) [\citep=dwork06differential] [\citep=DworkRoth] is a strong framework with strict privacy guarantees against attacks from adversaries with arbitrary side information. The main principle is that output of an algorithm (such as a query or an estimator) should not change much if the data for one individual is modified or deleted. This can be accomplished through adding stochasticity at different levels of the estimation process, such as adding noise to data itself (input perturbation), changing the objective function to be optimised or how it is optimised (objective perturbation), releasing the estimates after adding noise (output perturbation) or by sampling from a distribution based on utility or goodness of estimates (exponential mechanism).
+
+A lot of ground breaking work has been done on privacy-preserving versions of standard machine learning approaches, such as objective-perturbation-based logistic regression [\citep=chaudhuri08privacy], regression using functional mechanism [\citep=zhang12functional] to name a few. However, privacy preserving Bayesian inference has not accomplished such big leaps. There are important work on incorporating the above mechanisms into probabilistic modelling and handling them in a Bayesian setting, such as [\citep=williams10probabilistic] [\citep=zhang14privbayes]. One posterior sample [\citep=wang15privacy] and posterior perturbation [\citep=Dimitrakakis2014] [\citep=zhang16differential] have been important steps towards private Bayesian learning, however they suffer from lacking asymptotic efficiency, i.e., learning does not optimally benefit from having larger number of data points. [\citet=foulds16theory] proposed an asymptotically efficient private Gibbs sampling method based on perturbing sufficient statistics of data. This approach is applicable to models where non-private inference can be performed by accessing sufficient statistics.
+
+In this paper, we introduce a privacy-aware variational Bayesian (VB) inference method. Sufficient statistics perturbation idea of [\citet=foulds16theory] can also be applied to models where VB makes use of only those statistics from data. The goal in this work is to tackle the general case. A differentially-private VB method (DPVB) is proposed based on gradient perturbation, which can be seen as a form of objective perturbation. The method does not make any assumptions on conjugacy in models and whether data are accessed individually or not. We make a thorough case study on the Bayesian logistic regression model with comparisons to the non-private VB under different design decisions for DPVB.
+
+The paper is organised as follows: In Section 2 the basics of DP and VB are explained and the proposed method, DPVB, is explained in Section 3. The case study, Bayesian logistic regression model, and DPVB derivation for it are given in Section 4. Detailed experiments are carried out in Section 5 to analyse the effect of different parameter and design settings. Section 6 concludes the paper with direction of future research.
+
+Background
+
+Differential privacy
+
+Differential privacy (DP) [\citep=dwork06differential] is a framework that provides mathematical formulation for privacy that enables proving strong privacy guarantees. There are two different variants depending on which data sets are considered adjacent: in unbounded DP data sets x,x' are adjacent if x' can be obtained from x by adding or removing an entry, while in bounded DP x,x' are adjacent if they are of equal size and equal in all but one of their elements [\citep=DworkRoth]. The definition is symmetric in x and x' which means that in practice the probabilities of obtaining a specific output from either algorithm need to be similar. The privacy parameter ε measures the strength of the guarantee with smaller values corresponding to stronger privacy.
+
+ε-DP defined above, also known as pure DP, is sometimes too inflexible and a relaxed version called (ε,δ)-DP is often used instead. It is defined as follows: It can be shown that (ε,δ)-DP provides a probabilistic ε-DP guarantee with probability 1 - δ [\citep=DworkRoth].
+
+Composition theorems
+
+One of the very useful features of DP compared to many other privacy formulations is that it provides a very natural way to study the privacy loss incurred by repeated use of the same data set. Using an algorithm on a data set multiple times will weaken our privacy guarantee because of the potential of each application to leak more information. In fact in worst case if our algorithm is (ε,δ)-DP, then k-fold composition of that algorithm provides (kε,kδ)-DP. More generally releasing joint output of k algorithms Ai that are individually (εi,δi)-DP will be [formula]-DP. Under pure ε-DP when [formula] this is the best known composition that yields a pure DP algorithm.
+
+Moving from the pure ε-DP to general (ε,δ)-DP allows a stronger result with a smaller ε at the expense of having a larger total δ on the composition. This trade-off is characterised by the Advanced composition theorem of [\citet=DworkRoth], which becomes very useful when we need to use data multiple times The theorem states that with small loss in δtot and with small enough ε, we can provide more strict εtot than just summing the ε. This is obvious by looking at the first order expansion for small ε of
+
+[formula]
+
+In this paper we are using data iteratively over many iterations so the advanced composition becomes necessary.
+
+Gaussian mechanism
+
+There are many possibilities how to make algorithm differentially private. In this paper we use objective perturbation. We use the Gaussian mechanism as our method for perturbation. Theorem 3.22 of [\citet=DworkRoth] states that given query f with [formula]-sensitivity of Δ2(f), releasing f(x) + η, where η  ~  N(0,σ2), is (ε,δ)-DP when
+
+[formula]
+
+The important [formula]-sensitivity of a query is defined as:
+
+Privacy amplification
+
+We use a stochastic gradient algorithm that uses subsampled data while learning, so we can make use of the amplifying effect of the subsampling on privacy. This Privacy amplification theorem [\citep=Li] states that if we run (ε,δ)-DP algorithm A on randomly sampled subset of data with uniform sampling probability q > δ, privacy amplification theorem states that the subsampled algorithm is (εamp,δamp)-DP with
+
+[formula]
+
+assuming log (1 + q(eε - 1))  <  ε.
+
+Variational Bayes
+
+Variational Bayes (VB) methods [\citep=jordan99introduction] provide a way to approximate the posterior distribution of latent variables in a model when the true posterior is intractable. True posterior [formula] is approximated with a variational distribution [formula] that has a simpler form than the posterior, obtained generally by removing some dependencies from the graphical model such as the fully-factorised form [formula]. [formula] are the variational parameters and their optimal values [formula] is obtained through minimising the Kullback-Leibler (KL) divergence between [formula] and [formula]. This is also equivalent to maximising evidence lower bound (ELBO).
+
+When the model is in the conjugate exponential family [\citep=ghahramani2001propagation] and [formula] is factorised, the expectations that constitute [formula] are analytically available and each [formula] is updated iteratively by fixed point iterations. Most popular applications of VB fall into this category, because handling of the more general case involves more approximations, such as defining another level of lower bound to ELBO or estimating the expectations using Monte Carlo integration.
+
+In this paper we focus on model that are not conjugate and exact variational updates are thus not tractable. We need to fit the approximate posterior with some optimisation algorithm based on an approximation of the ELBO. Early algorithms for non-conjugate models used tailored approximations of the ELBO combined with a suitable, e.g. natural gradient optimisation algorithm [\citep=Honkela2010JMLR] while more recent methods such as ADVI [\citep=Kucukelbir2016] have focused on stochastic approximation of the ELBO combined with stochastic gradient optimisation.
+
+Methodology
+
+In this section we introduce the proposed DPVB-SGA algorithm. It is a DPVB algorithm that runs on mini batches of data and is based on stochastic gradient ascent (SGA). The variational parameters [formula] are learned by maximising ELBO with SGA. AdaGrad [\citep=Duchi] is used to improve the learning rate.
+
+The algorithm requires several parameters to be set. Sampling frequency q for subsampling within the data set, total number of iterations T and clipping threshold ct are important design decisions that determine the privacy budget. Clipping the gradients using the threshold ct enables evaluation of sensitivity of gradients and is one of the important backbones of the method. The algorithm also needs initial values for variational parameters [formula] and a learning rate η.
+
+At each iteration a subset U of the data set D is chosen based on q and gradient for each data sample is calculated and clipped using ct. Then, gradient contributions from all data samples in the mini batch are summed and perturbed with Gaussian noise [formula]. The pseudo-code is presented in Algorithm [\ref=algo]. In the next subsections we describe in detail how privacy design parameters are chosen and privacy budget is calculated.
+
+Choosing clipping threshold
+
+Clipping threshold is chosen before learning, and does not need to be constant. After clipping [formula]. Obviously clipping will effect on learning, but it is necessary to provide privacy. Clipping gradients too much will distract SGA, but on the other hand large clipping threshold will cause large amount of noise to sum of gradients.
+
+SGA sample size
+
+Parameter q determines how large subsample of the training data we use to for gradient ascent. With small q values we need larger T. However small q values cause more amplifying on privacy. Sample size and ct effect mutually on the accuracy. This can be seen by keeping σ parameter constant, without loss of generality lets choose σ = 1, and choosing q so that only 1 individual data point is sampled in each iteration. Now as norm of added noise will be [formula] and norm of sum gradient ≤  ct, the released private gradient will be dominated by the noise term. While in our experiments q was fixed, we could also alter the q during iteration.
+
+Calculating privacy budget
+
+We have chosen to perturb gradients in each iteration with zero mean multivariate normal noise with covariance matrix [formula]. Parameter σδ in noise level determines our total ε and depends on the total δ in privacy budget. We can calculate by the total privacy budget by setting [formula]. Clipping will lead [formula] sensitivity of gradient sum to be 2ct, so perturbing each sum with aforementioned noise will lead each iteration to be (εiter,δiter)-DP w.r.t the subset. If sampling probability q amplifies privacy i.e εamp  <  ε, then also δ will be amplified and every iteration and SGA will be ( log (1 + q(eεiter - 1)),qδiter)-DP w.r.t the whole data set. Now if we set δiter  =  (δtot  -  δ') / Tq, where δ' comes from advanced composition, we can provide δtot as δ parameter in total privacy cost. The ε parameter in our total privacy cost will be
+
+[formula]
+
+where δiter is chosen as above and
+
+[formula]
+
+If we choose not to keep σ constant during training we cannot use advanced composition. However we can sum up individual privacy costs as was stated in section [\ref=comp]. This kind of perturbation could be useful because it allows to use different noise levels during training, but in our experiments we have used constant σ and ct.
+
+Example: logistic regression
+
+We apply DPVB-SGA to infer posterior of regression coefficient [formula] of logistic regression. Our model is:
+
+[formula]
+
+where σ(x)  =  1 / (1 +  exp ( - x)). We take no prior on the covariance matrix [formula] which is fixed to [formula]. We assume that the approximate posterior [formula] is multivariate normal with mean [formula] and covariance [formula] and we denote these variational parameters with [formula]. The individual ELBOs become
+
+[formula]
+
+Expectation in the ELBO is intractable because of the form of our likelihood, so we approximate it using Monte Carlo estimation with
+
+[formula]
+
+where samples [formula] are drawn from [formula]. In order to draw the Monte Carlo sample, we reparametrise [formula] as
+
+[formula]
+
+where
+
+[formula]
+
+and N is the Cholesky factor of [formula] satisfying
+
+[formula]
+
+Now we can rewrite [\eqref=elbo] as
+
+[formula]
+
+The KL-divergence between two multivariate normal distributions can be written as
+
+[formula]
+
+Using the assumption [formula], the above expression simplifies to
+
+[formula]
+
+Experiments
+
+We tested logistic regression using the Abalone data set from the UCI Machine Learning Repository [\citep=Lichman:2013] for the binary classification task. Individuals were divided into two classes based on whether individual had less or more than 10 rings. The data set consisted of 4177 samples with 8 attributes. Training of classifier was performed using 80% of the data using stochastic gradient with sampling ratio q = 0.02. Before training, features of the data set were standardised by subtracting feature mean and dividing by feature standard deviation.
+
+In order to test the scalability of the method to more samples, we also tested it with a synthetic data set with 7 features and 50000 samples from which 80% was used for training the classifier. In addition to that we compare the performance on two subsets of the entire data set with 10000, and 20000 samples. We generated the synthetic data set by drawing each sample of [formula] from [formula]. The coefficient [formula] was drawn from [formula]. For each [formula] we calculate the class probability [formula] and draw the target class yi according to this probability.
+
+From Figure [\ref=fig:abalone_example1] we can see, that our private classifier performs quite well with relatively small εtot values. Compared to the 77% classification accuracy of the non-private algorithm, even with εtot = 0.1 we still classify 73% of the test set correctly with the accuracy approaching non-private level as εtot increases.
+
+The effect of gradient clipping
+
+As was mentioned before, there are many parameters that we can change and Figure [\ref=fig:abalone_example2] shows the effect of gradient clipping threshold. We can see that aggressive clipping with small ct values is useful in overcoming the effect of large noise with a tight privacy budget corresponding to a small ε, but under a looser privacy budget, clipping will start hurting the learning more. Clipping the gradients too little is also bad because the increase in the level of added noise will be more significant than the increase in the retained information because of less clipping.
+
+The effect of subsampling ratio
+
+The effect of SGA sampling ratio q is shown in Figure [\ref=fig:abalone_example3]. The figure shows that q = 0.005 corresponding to a minibatch size of approximately q  ·  0.8  ·  4177  ≈  17 is clearly inferior to the larger values of q. Presumably the level of noise added is too strong relative to the magnitude of the gradient at this sample size. There are no clear trends in the performances of the other sampling ratios, suggesting that minibatch sizes in the range [formula] seem to perform reasonably well.
+
+The effect of number of iterations
+
+It is clear that the performance of our classifier depends greatly on the convergence of variational parameters. On the other hand in order to maintain fixed privacy budget we need to add more noise per iteration for longer runs of the algorithm. The effect of iteration number T on test accuracy is shown in Figure [\ref=fig:abalone_example4]. There do not appear to be significant differences between the different values tested here, with the exception of the smallest number T = 100 which seems to perform clearly worse in the high εtot regime.
+
+The effect of number of samples
+
+In order to test the method with larger data sets, we also applied it to a synthetic data set with n = 50000 samples also testing smaller subsets. We fixed T = 500 and ct = 2 for the synthetic data set and compared the accuracies between two different q values. Results are shown in Figure [\ref=fig:simu_example]. As the number of samples grows, we can see that classifier both becomes more accurate and approaches the accuracy of the non-private version. This is expected because the number of samples itself doesn't really affect on our noise level, but sampling ratio q on the other hand does change our noise level. For example between n = 50000 and n = 10000 with q = 0.001, the number of samples used in each iteration is 5 times bigger with n = 50000 than with n = 10000, but still our noise level stays the same. We can see that with n = 20000 we are very close to non-private classifiers accuracy even with εtot = 0.1 and with n = 50000 our private classifier with εtot  ≥  0.1 is practically indistinguishable from the non-private one.
+
+Comparing the different values of q on the synthetic data we see that q = 0.001 is inferior to q = 0.01 for n  ≤  20000 while there does not appear to be a significant difference for n  =  50000. This further confirms that the smaller minibatch sizes of 8 and 16 for n = 10000 and n = 20000, respectively, are too small, while the minibatch size of 0.001  ·  0.8  ·  n  =  40 with n = 50000 is already sufficient.
+
+Discussion
+
+There is currently a strong dichotomy in differentially private Bayesian methods. Conjugate exponential models with a finite sufficient statistic can be handled very efficiently through perturbation of the sufficient statistic using the Laplace mechanism. As shown by [\citet=foulds16theory] and [\citet=Honkela2016] this approach is both consistent and efficient: as the size of the data set increases the private estimates converge to the corresponding non-private variants at an optimal rate of 1 / n.
+
+The situation with non-conjugate models is much more difficult and no similarly efficient algorithms are known. Algorithms such as the posterior sampling of [\citet=wang15privacy] and our DPVB are iterative and carry a privacy cost for each iteration, which means that the number of iterations basically has to be fixed beforehand if one wishes to adhere to a fixed privacy budget. The algorithms cannot be guaranteed to be run until convergence with a fixed privacy budget. While this is theoretically unpleasant, in practice it can be seen to reflect the situation that some problems are difficult and may not be solvable to a high accuracy under a tight privacy budget.
+
+Differential privacy and high dimensionality do not go well together. This can also be seen in the norm of the noise added to the gradients in our algorithm, which depends linearly on the dimensionality of the variational parameter. This can create another interesting trade-off for higher dimensional data sets: a posterior approximation with a full covariance is in general more accurate [\citep=Kucukelbir2016], but as it requires many more parameters at some point the DPVB algorithm with a diagonal covariance is likely to yield more accurate results.
+
+As demonstrated in the experiments, some level of gradient clipping can increase the accuracy of the method as less noise needs be added to the more tightly bounded gradients. In theory, gradient clipping is a safe operation as it will almost surely not change the fixed points of the gradient algorithm. In practice things may be more complicated as the clipped gradients may affect the convergence rate and under a fixed iteration budget implied by a fixed privacy budget too aggressive clipping may hurt the results.
+
+In the experiments we also tested various levels of subsampling of the data. Based on all the results it seems that a minibatch of size 20 or less will be too small as presumably the noise added to the gradients becomes too dominant. Minibatches of size 50-100 or more seem to work well.
+
+The variational inference framework used in this work is very similar to the Automatic Differentiation Variational Inference (ADVI; [\citealp=Kucukelbir2016]). It should be relatively straightforward to combine our method and the ADVI framework to develop a differentially private ADVI method, making it very easy to apply the method to arbitrary new models.
+
+This work was funded by the Academy of Finland (Centre of Excellence COIN; and grants 278300, 259440 and 283107).

@@ -1,0 +1,135 @@
+Metric learning pairwise kernel for graph inference
+
+Introduction
+
+Increasingly, molecular and systems biology is concerned with describing various types of subcellular networks. These include protein-protein interaction networks, metabolic networks, gene regulatory and signaling pathways, and genetic interaction networks. While some of these networks can be partly deciphered by high-throughput experimental methods, fully constructing any such network requires lengthy biochemical validation. Therefore, the automatic prediction of edges from other available data, such as protein sequences, global network topology or gene expression profiles, is of importance, either to speed up the elucidation of important pathways or to complement high-throughput methods that are subject to high levels of noise [\cite=vonmering:comparative].
+
+Edges in a network can be inferred from relevant data in at least two complementary ways. For concreteness, consider a network of protein-protein interactions derived from some noisy, high-throughput technology. Our confidence in the correctness of a particular edge A--B in this network increases if we observe, for example, that the two proteins A and B localize to the same cellular compartment or share similar evolutionary patterns [\cite=ramani:exploiting] [\cite=pazos:silico] [\cite=marcotte:detecting]. Generally, in this type of direct inference, two genes or proteins are predicted to interact if they bear some direct similarity to each other in the available data.
+
+An alternative mode of inference, which we call indirect inference, relies upon similarities between pairs of genes or proteins. In the example above, our confidence in A--B increases if we find some other, high-confidence edge C--D such that the pair {A,B} resembles {C,D} in some meaningful fashion. Note that in this model, the two connected proteins A and B might not be similar to one another. For example, if the goal is to detect edges in a regulatory network by using time series expression data, one would expect the time series of the regulated protein to be delayed in time compared to that of the regulatory protein. Therefore, in this case, the learning phase would involve learning this feature from other pairs of regulatory/regulated proteins. The most common application of the indirect inference approach in the case of protein-protein interaction involves comparing the amino acid sequences of A and B versus C and D (e.g., [\cite=sprinzak:correlated] [\cite=gomez:learning] [\cite=martin:predicting] [\cite=ben-hur:kernel]).
+
+Indirect inference amounts to a straightforward application of the machine learning paradigm to the problem of edge inference: each edge is an example, and the task is to learn by example to discriminate between "true" and "false" edges. Not surprisingly, therefore, several machine learning algorithms have been applied to predict network edges from properties of protein pairs. For example, in the context of machine learning with support vector machines (SVM) and kernel methods, Ben-Hur and Noble [\cite=ben-hur:kernel] describe how to map an embedding of individual proteins onto an embedding of pairs of proteins. The mapping defines two pairs of proteins as similar to each other when each protein in a pair is similar to one corresponding protein in the other pair. In practice, the mapping is defined by deriving a kernel function on pairs of proteins from a kernel function Kg on individual proteins, obtained by a tensorization of the initial feature space. We therefore call this pairwise kernel, shown below, the tensor product pairwise kernel (TPPK):
+
+[formula]
+
+Less attention has been paid to the use of machine learning approaches in the direct inference paradigm. Two exceptions are the works of Yamanishi et al. [\cite=yamanishi:protein] and Vert et al. [\cite=vert:supervised], who derive supervised machine learning algorithms to optimize the measure of similarity that underlies the direct approach by learning from examples of interacting and non-interacting pairs. Yamanishi et al. employ kernel canonical correlation analysis to embed the proteins into a feature space where distances are expected to correlate with the presence or absence of interactions between protein pairs. Vert et al. highlight the similarity of this approach with the problem of distance metric learning [\cite=Xing2003Distance], while proposing an algorithm for that purpose.
+
+Both of these direct inference approaches, however, suffer from two important drawbacks. First, they are based on the optimization of a proxy function that is slightly different from the objective of the embedding, namely, finding a distance metric such that interacting/non-interacting pairs fall above/below some threshold. Second, the methods of [\cite=yamanishi:protein] and [\cite=vert:supervised] are applicable only when the known part of the network used for training is defined by a subset of proteins in the network. In other words, in order to apply these methods, we must have a complete set of high-confidence edges for one set of proteins, from which we can infer edges in the rest of the network. This setting is unrealistic. In practice, our training data will generally consist of known positive and negative edges distributed throughout the target network.
+
+In this paper we propose a convex formulation for supervised learning in the direct inference paradigm that overcomes both of the limitations mentioned above. We show that a slight relaxation of this formulation bears surprising similarities with the supervised approach of [\cite=ben-hur:kernel], in the sense that it amounts to defining a kernel between pairs of proteins from a kernel between individual proteins. We therefore call our method the metric learning pairwise kernel (MLPK). An important property of this formulation as an SVM is the possibility to learn from several data types simultaneously by combining kernels, which is of particular importance in various bioinformatics applications [\cite=pavlidis:gene] [\cite=lanckriet:statistical].
+
+We validate the MLPK approach on the task of reconstructing two yeast networks: the network of metabolic pathways and the co-complex network. In each case, the network is inferred from a variety of genomic and proteomic data, including protein amino acid sequences, gene expression levels over a large set of experiments, and protein cellular localization. We show that the MLPK approach nearly always provides better prediction performance than the state-of-the-art TPPK approach.
+
+Algorithm
+
+Let us assume that a gene is represented by a vector [formula] of genomic data such as a microarray expression profile. The problem of supervised gene network inference is, given a set of n genes [formula] and a training set [formula] of interacting (I) and non-interacting (N) pairs, to predict whether pairs of genes not in the training set interact or not. Following [\cite=vert:supervised], we note that a possible approach to solve this problem is to learn a distance metric d between genes with the property that pairs of nearby genes with respect to d are connected by an edge, while pairs of genes far from each other are not. If such a metric is available, then the prediction of an edge between a candidate pair of genes simply amounts to computing their distance to each other and predicting an edge if the distance is below a threshold.
+
+Distance metric learning
+
+More formally, let us investigate distance metrics obtained by linear transformations of the input space. Such metrics are indexed by symmetric positive semidefinite matrices M as follows:
+
+[formula]
+
+Our goal is to learn a distance metric which separates interacting from non-interacting pairs, while controlling over-fitting to the training set. Following the spirit of the SVM algorithm, we enforce an arbitrary margin of 1 between the distances of interacting and non-interacting variables up to slack variables, and control the Frobenius norm of M by considering the following problem:
+
+[formula]
+
+under the constraints:
+
+[formula]
+
+In order to solve this problem we first prove the following extension to the representer theorem [\cite=Kimeldorf1971Some]:
+
+The solution of ([\ref=eq:opt1]-[\ref=eq:opt2]) can be expanded as:
+
+[formula]
+
+with [formula] for (i,j)∈T.
+
+For any pair (i,j), let us denote uij = xi - xj, and let Dij be the p  ×  p matrix [formula]. Then we can rewrite
+
+[formula]
+
+where [formula] is the Frobenius inner product. Introducing the hinge loss function L(y,y') =  max (1 - yy',0) for [formula], we can eliminate the slack variables and rewrite the problem ([\ref=eq:opt1]-[\ref=eq:opt2]) as:
+
+[formula]
+
+This shows that the optimization problem is in fact equivalent, up to the positive semidefinitiveness constraint, to an SVM in the linear space of symmetric matrices endowed with the Frobenius inner product. Each edge example is then mapped to the matrix Dij. In particular, if the constraint on M was not present, then Lemma [\ref=lem:representer] would be exactly the representer theorem. Here we need to show that it still holds with the constraint [formula]. For this purpose let [formula] and [formula] be the solution of ([\ref=eq:opt1]-[\ref=eq:opt2]). M can be uniquely decomposed as [formula], where MS is in the linear span of [formula] and [formula] for (i,j)∈T. By the Pythagorean theorem we have [formula], so if [formula] the functional minimized in ([\ref=eq:hinge]) is strictly smaller at [formula] than at [formula]; this would be a contradiction if [formula]. Therefore, to prove the lemma it suffices to show [formula]. Let [formula] be any vector. We can decompose that vector uniquely as [formula], where vS is in the linear span of the [formula] and [formula] for (i,j)∈T. We then have [formula] and [formula], and therefore
+
+[formula]
+
+where we used the fact that [formula] in the last inequality. This is true for any [formula], which shows that [formula], concluding the proof.
+
+Kernelization
+
+By plugging the result of Lemma [\ref=lem:representer] into ([\ref=eq:opt1]-[\ref=eq:opt2]) we see that this problem is equivalent to that of finding αij,(i,j)∈T and γ. In order to write out the problem explicitly, let us introduce the following kernel between two pairs [formula] and [formula] :
+
+[formula]
+
+This kernel is positive definite because it is the Frobenius inner product between the matrices Dab representing the pairs. Moreover, although KMLPK is formally defined for ordered pairs only, we observe that it is invariant by permutation of the elements of each pair (e.g., when x1 and x2 are flipped). It can therefore be considered as a positive definite kernel over the set of unordered pairs, seen as the quotient space of the set of ordered proteins with respect to the equivalence relation of permutation among each pair. We call this kernel for unordered pairs the metric learning pairwise kernel (MLPK), hence the notation KMLPK.
+
+In order to express the problem ([\ref=eq:opt1]-[\ref=eq:opt2]) in terms of the α variables provided by Lemma [\ref=lem:representer], we need to express the constraint [formula] in terms of α. Denoting pairs of indices t = (i,j), Lemma [\ref=lem:representer] ensures that M can be written as [formula]. As we showed in the proof of Lemma [\ref=lem:representer], this implies that M is null on the space orthogonal to the linear span of [formula]. Therefore, [formula] if and only if [formula] for any v in the linear span of [formula]. This is equivalent to the fact that the [formula] matrix F defined by [formula] is positive semidefinite. Finally, if we denote by Ft the [formula] matrix whose (t1,t2) entry is [formula], this is equivalent to [formula].
+
+Plugging the representation of Lemma [\ref=lem:representer] into ([\ref=eq:opt1]-[\ref=eq:opt2]), and replacing the Frobenius inner product by the MLPK kernel, we show that the problem is equivalent to
+
+[formula]
+
+under the constraints:
+
+[formula]
+
+An important property of this problem is that the data only appear through the kernel KMLPK and the matrices Fij. Furthermore, the MLPK kernel itself ([\ref=eq:mlpk]) computed between two pairs of vectors only involves inner products between the vectors; similarly the (t1,t2)-th entry of the matrix Ft is a product of inner products, which can easily be computed from the inner products of the data themselves. As a result, we can apply the kernel trick to extend the problem ([\ref=eq:opt1ker]-[\ref=eq:opt2ker]) to any data space endowed with a positive definite kernel Kg. The resulting MLPK kernel between pairs becomes
+
+[formula]
+
+and for any three pairs t = (i,j),t1 = (i1,j1),t2 = (i2,j2) in T the entry (t1,t2) of Ft is
+
+[formula]
+
+Relaxation
+
+The problem ([\ref=eq:opt1ker]-[\ref=eq:opt2ker]) is a convex problem over the cone of positive semidefinite matrices that can in theory be solved by algorithms such as interior-point methods [\cite=boyd:convex]. The dimension of this problem, however, is [formula]. This is typically of the order of several thousands for small biological networks with a few hundreds or thousands vertices, which poses serious convergence issues for general-purpose optimization software.
+
+If we relax the condition [formula] in the original problem, then it becomes the quadratic program of the SVM, for which dedicated optimization algorithms have been developed: current implementations of SVM easily handle several tens of thousands of dimensions [\cite=scholkopf:learning]. The obvious drawback of this relaxation is that if the matrix M is not positive semidefinite, then it does not define a metric. Although this can be a serious problem for classical applications of distance metric learning such as clustering [\cite=Xing2003Distance], we note that in our case the goal of metric learning is just to provide a decision function f(x,x')  =  dM(x,x') for predicting connected pairs, and negativity of this decision function is not a problem in itself. Therefore, we propose to relax the constraint [formula], or equivalently [formula] in ([\ref=eq:opt2ker]), and to solve the initial problem using an SVM over pairs with the MLPK kernel ([\ref=eq:mlpk]).
+
+Experiments
+
+We present below a comparison of the previously described TPPK kernel and the new MLPK kernel for the reconstruction of two biological networks: the metabolic network and the co-complex protein network. For each network, we cast the problem of network reconstruction as a binary classification problem, where the presence or absence of edges must be inferred from various types of data relevant to the proteins. Because the network contains relatively few edges compared to the total number of possible pairs, we created a balanced dataset by keeping all known edges as positive examples and randomly sampling an equal number of absent edges as negative examples. We compare the utilities of the TPPK and MLPK kernels in this context by assessing the performance of an SVM for edge prediction in a five-fold cross-validation experiment repeated three times (3x5cv) with different random folds. At each fold, the regularization parameter C of the SVM is chosen among 18 values evenly log-spaced on the interval
+
+[formula]
+
+Metabolic network
+
+Most biochemical reactions in living organisms are catalyzed by particular proteins called enzymes, and occur sequentially to form metabolic pathways. For example, the degradation of glucose into pyruvate (called glycolysis) involves a sequence of ten chemical reactions catalyzed by ten enzymes. The metabolic gene network is defined as an undirected graph with enzymes as vertices and with edges connecting pairs of enzymes that can catalyze successive chemical reactions. The reconstruction of metabolic pathways for various organisms is of critical importance, e.g., to find new ways to synthesize chemical compounds of interest. This problem motivated earlier work on supervised graph inference [\cite=yamanishi:protein] [\cite=vert:supervised]. Focusing on the budding yeast S. cerevisiae, we collected the metabolic network and genomic data used in [\cite=yamanishi:protein]. The network was extracted from the KEGG database and contains 769 vertices and 3702 undirected edges.
+
+In order to infer the network, various independent data about the proteins can be used. In this experiment, we use four relevant sources of data provided by [\cite=yamanishi:protein]: (1) a set of 157 gene expression measurements obtained from DNA microarrays; (2) the phylogenetic profiles of the genes, represented as 145-bit vectors indicating the presence or absence of each gene in 145 fully sequenced genomes; (3) the protein's localization in the cell determined experimentally [\cite=huh:global], represented as 23-bit vectors corresponding to 23 cellular compartments, and (4) yeast two-hybrid protein-protein interaction data [\cite=vonmering:comparative], represented as a network. For the first three data sets, a Gaussian RBF kernel was used to represent the data as a kernel matrix. For the yeast two-hybrid network,we use a diffusion kernel [\cite=kondor:diffusion]. Additionally, we considered a fifth kernel obtained by summing the first four kernels. This is a simple approach to data integration that has proved useful in previous work [\cite=pavlidis:gene] [\cite=yamanishi:extraction].
+
+Table [\ref=table:results] (top) shows the performance of each pairwise kernel for the five data sets. The MLPK is never worse than the TPPK kernel. The two kernels have similar performance on the sum kernel; MLPK is slightly better than TPPK on the expression, localization and phylogenetic profile kernels, and much better on the yeast two-hybrid dataset (76.6% vs. 59.2% in accuracy).
+
+Interestingly, we note that although connected pairs, i.e., pairs of enzymes acting successively in a pathway, are expected to have similar expression, phylogenetic profiles and localization (explaining the good performance of the MLPK on these datasets), the indirect approach implemented by the TPPK also gives good results for these data. This result implies that for these data, interacting pairs in the training set are often similar not only to each other but also to other interacting pairs in the training set. This observation is not surprising because, for example, if two proteins of the test set are co-localized in a particular organelle, it is likely that interacting pairs of proteins co-localized in the same organelle are also present in the training set, because there are not so many organelles where connected proteins can be.
+
+In the case of yeast two-hybrid data, on the other hand, the kernel between single proteins is defined as a diffusion kernel over the yeast two-hybrid graph. One can speculate that, in that case, similarity between pairs can be easily assessed and used by the MLPK to predict edges, but similarity between pairs as defined by the TPPK kernel is less likely to be observed. In a sense, the dimensionality of the feature space of the diffusion kernels is much larger than that defined by the other kernels, and a protein is only close to its neighbors in the yeast two-hybrid graph.
+
+Protein complex network
+
+Many proteins carry out their biological functions by acting together in multi-protein structures known as complexes. Understanding protein function therefore requires identification of these complexes. In the co-complex network, nodes are proteins, and an edge between proteins A and B exists if A and B are members of the same protein complex. Some high-throughput experimental methods, such as tandem affinity purification followed by mass spectrometry, explicitly identify these co-complex relationships, albeit in a noisy fashion. Also, computational methods exist for inferring the co-complex network from individual data types or from multiple data types simultaneously [\cite=jansen:bayesian] [\cite=qi:evaluation]. We derived the co-complex data set based on an intersection of the manually curated MIPS complex catalogue [\cite=mewes:mips] and the BIND complex data set [\cite=bader:bind]. The co-complex network contains 3280 edges connecting 797 proteins. In addition, our data set contains 3081 proteins with no co-complex relationships.
+
+For this evaluation, we again use four different data sets that we consider relevant to the co-complex network. The first data set is the same localization data that we used above [\cite=huh:global]. The second is derived from a chip-based version of the chromatin immunoprecipitation assay (so-called "ChIP-chip" data) [\cite=harbison:transcriptional]. This assay provides evidence that a transcription factor binds to the upstream region of a given gene and is likely to regulate the expression of the given gene. Our data set contains data for 113 transcription factors, and so yields a vector of length 113 for each protein. The final two data sets are derived from the amino acid sequences of the yeast proteins. For the first, we compared each yeast protein to every model in the Pfam database of protein domain HMMs () and recorded the E-value of the match. This comparison yields a vector of length 8183 for each protein. Finally, in a similar fashion, we compared each yeast protein to each protein in the Swiss-Prot database version 40 () using PSI-BLAST [\cite=altschul:gapped], yielding vectors of length 101,602. Each of the four data sets is represented using a scalar product kernel.
+
+We used the same experimental procedure to compare the quality of edge predictors for the co-complex network using MLPK and TPPK. The results, shown in Table [\ref=table:results] (bottom), again show the value of the MLPK approach. Using either performance metric (accuracy or ROC area), the MLPK approach performs better than the TPPK approach on three out of four data sets.
+
+Most striking is the improvement for the ChIP-chip data set (accuracy from 63.8% to 82.4%). This result is expected, because we know that proteins in the same complex must act in concert. As such, they are typically regulated by a common set of transcription factors.
+
+In contrast, the MLPK approach does not fare better than TPPK on the localization data set. This is, at first, suprising because two proteins must co-localize in order to participate in a common complex. This problem is thus an example of the direct inference case for which the MLPK is designed. However, the localization data is somewhat complex because (1) only approximately 70% of yeast proteins are assigned any localization at all, and (2) many proteins are assigned to multiple locations. As a result, among 3280 positive edges in the training set, only 1852 (56%) of those protein pairs share exactly the same localization. Furthermore, 550 (16.8%) of the 3280 negative edges used in training connect proteins with the same localization, primarily "Unknown." These factors make direct inference using this data set difficult. The indirect method, by contrast, is apparently able to identify useful relationships, corresponding to specific localizations, that are enriched among the positive pairs relative to the negative pairs.
+
+Discussion
+
+We showed how a particular formulation of metric distance learning for graph inference can be formulated as a convex optimization problem and can be applied to any data set endowed with a positive definite kernel. A relaxation of this problem leads to the SVM algorithm with the new MLPK kernel ([\ref=eq:mlpk]) between pairs. Experiments on two biological networks confirm the value of this approach for the reconstruction of biological network from heterogeneous genomic and proteomic data.
+
+Beyond the direct and indirect approaches to graph inference mentioned in the introduction, there exist many alternative ways to infer networks, such as estimating conditional independence between vertices with Bayesian networks [\cite=Friedman2000Using]. An interesting property of methods based on supervised learning, such as the SVM with the TPPK and MLPK kernels, is the limited hypothesis made on the nature of the edges; the only hypothesis made is that there is information related to the presence or absence of edges in the data, and we let the learning algorithm model this information. The good accuracy obtained on two completely different networks (metabolic and co-complex) supports the general utility of this approach.
+
+An interesting and important avenue for future research is the extension of these approaches to inference of directed graphs, e.g., regulatory networks. Although the TPPK and MLPK approaches are not adapted as such to this problem, variants involving for example kernels between ordered pairs could be studied.
+
+Acknowledgements
+
+This work was funded by NIH award R33 HG003070.

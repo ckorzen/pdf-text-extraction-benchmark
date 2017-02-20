@@ -1,0 +1,281 @@
+plus 2mm minus 1mm
+
+a I. Physikalisches. Institut, RWTH Aachen, D-52056 Aachen, Germany b ZEUS Collaboration, mccance@zow.desy.de
+
+Introduction
+
+Next-to-leading order QCD Monte Carlo programs are used for comparisons of QCD perturbation theory and experimental data. Nowadays four programs are available, which allow user defined observables; these are MEPJET[\cite=mepjet], DISENT[\cite=disent], DISASTER++[\cite=disaster], and JETVIP[\cite=jetvip]. With the availability of different programs cross-checks become important. In order to make a comparison, the user code has to be implemented for each program. This procedure is susceptible to bugs and updating of several versions needs a decent revision control system.
+
+To eliminate this additional source of error, a common scheme was developed and is presented here. The scheme consists of three independent parts, which are described in the following sections.
+
+Section [\ref=secsteer] introduces the steering card. This file is read at the beginning of each calculation and sets up the most important parameters. The user has the ability to add additional parameters to steer his own user routines.
+
+The interface to the user routines is described in section [\ref=secuser]. This code calculates the observables the user is interested in. For most standard procedures, e.g. performing boosts to different frames or calculating the number of jets, special functions are available in a library. These functions are explained in detail in section [\ref=seclib].
+
+A more detailed version of this manual including the full description of the function library and an example are available with the source code at www.desy.de/[formula]heramc/proceedings [\cite=webversion].
+
+Steering Card
+
+At the beginning of the calculation a steering card is read from standard input to set up the input parameters. This allows the easy modification of the most important starting values even after compilation.
+
+While the generator's adjustable parameters are known, this is not true for the user code. Therefore an easy interface is provided, which allows the user to expand the set of steering card parameters.
+
+Basic Structure of the Steering Card
+
+The basic structure of the steering card is equivalent to that of most Monte Carlo generators. The steering card consists of several banks, labeled by a character string of four characters. The number of banks in a steering card is not limited.
+
+Each bank consists of an unique four character label, an integer version number and an arbitrary number of entries (including none).
+
+An entry consists of an identifier and the value of the field. The value can be of type integer, real or string, where string stands for a character constant of arbitrary length.
+
+Comments can be marked by an asterisk (*) in the first column or by an exclamation mark (!) anywhere in a line. If a comment mark is found the rest of the line is ignored.
+
+Predefined Banks
+
+Many parameters, like the particle density function and the number of events, have to be set for all programs, these parameters are collected and can be set by the use of a steering card bank called MOCA.
+
+Below you see the complete MOCA bank. Some of the entries are described in detail below.
+
+ITYPE is coded as follows :
+
+NEVE is the only field required for each run. It gives the number of events to be generated.
+
+PDFL and PDFH specify the parton density functions used. Two values are given in order to enable the distinction of leading order and next-to-leading order processes. The format of each of the values is NGROUP * 1000 + NSET where NGROUP and NSET are given by the PDFLIB.
+
+The renormalization and factorization scale can be set using the formula
+
+[formula]
+
+where the factors fxy are set with the steering parameter Ssxy.
+
+IAEL and AELM steer the running of [formula] and ALOO and LAM4 steer the running of αs accordingly. When ALOO is set to -1, the αs calculation included in the pdf library is used. If it is 0, [formula] LAM4 for every scale, otherwise LAM4 corresponds to [formula] and the masses MASx are used for calculating [formula]
+
+Some parameters are still program specific, therefore for each generator an additional steering card exists. Below you can find the steering card of DISASTER++[\cite=disaster] and DISENT[\cite=disent].
+
+Please note, that due to the usage of crossing functions the parton density functions for Mepjet is not set with PDFL, PDFH, but by the IPDF switch using the crossing functions found in the pdfcross directory.
+
+User Functions for Steering Card Access
+
+In order to add an additional parameter to the steering card, two steps are required. First the parameter has to be initialized before the steering card is read using one of the following routines :
+
+call SCARINT(bank,identifier,value) for integer parameters
+
+call SCARREAL(bank,identifier,value) for double precision parameters
+
+call SCARCHAR(bank,identifier,value) for string parameters
+
+where bank is the four letter bank name, identifier is the one to four character identifier and the value is the default value of the type corresponding to the type of the parameter.
+
+After the steering card has been read, the user can retrieve the current parameter value. To do so, three functions are available :
+
+value = GCARINT(bank,identifier) for integer parameters
+
+value = GCARREAL(bank,identifier) for double precision parameters
+
+value = GCARCHAR(bank,identifier) for string parameters
+
+where bank and identifier correspond to the values given above and value will be the one given in the steering card or the default parameter, if the corresponding bank or identifier in the bank was not set in the steering card. Values and banks may appear more than once in a steering card, but only the last value is stored and can be retrieved.
+
+In principle the get routines could be called each time one of the values is needed, but since this requires several string comparisons, it is rather slow. The recommended procedure is to get the values once and store them in a FORTRAN common block.
+
+User Routines
+
+In this section, the routines that have to be supplied by the user in order to run the programs are described. Therefore the general scheme is sketched here. The number of user routines is quite large, but most routines can be replaced by empty or short routines if no special action is needed.
+
+Figure [\ref=fig_overview] shows the calling tree of the relevant functions and subroutines. Routines printed in typewriter have to be supplied by the user and are described in detail below, functions in italic and roman are provided by the corresponding cross-section Monte Carlo and the library, respectively.
+
+Initialization and Termination Routines
+
+Several initialization and termination routines are called to allow the user to predefine values, to open files, or to book histograms. None of these subroutines take an argument. In the following each routine is described.
+
+disinit is called only once at the beginning of the program. This is the place to initialize the users steering card values.
+
+After the steering card has been read, init is called. Here the parameter values can be copied to a common block, as proposed at the end of section [\ref=secsteer]. Also output files should be opened here.
+
+Corresponding to these initialization routines a termination routine disterm exists. This function is called once at the end of the run. Here all files should be closed.
+
+In addition to these called-once routines an additional set of init and term routines exists. The evtinit subroutine is called before a new event is generated and evtterm afterwards. Since all contributions to the observable of one event have to be added before the error can be calculated[\cite=disent_manual], the main summation can only be done in those routines. Please note that the evtterm routine will not be called if an event has to be dropped due to technical reasons (e.g. after a floating point exception). See the web version of this manual [\cite=webversion] for an example.
+
+Main User Routines
+
+For each event a number of phase spaces is generated, each of these phase spaces can have several contributions. The main idea is to calculate your observables once for each phase space iphasno and add all weights of the corresponding contributions to the event weight. The calculation of the observables is done in disphase and the summing is done in discontr. The user has to take care that the observables are saved in a common block and are available when discontr is called. It is sufficient to allocate space for up to 30 different phase spaces.
+
+In addition to the actual event sampling, some programs perform an adaptation loop to adapt the phase space to the region that is actually used. In this additional loop disphase is called only. The adaptation is then done according to the return value.
+
+The syntax is and where the arguments have the following meaning :
+
+iphasno gives the number of the phase space.
+
+npar is the number of outgoing particles (excluding the scattered lepton)
+
+ntype is the type of the contribution
+
+nalp and nalps are the orders of [formula] and αs, respectively. n2pi gives the power of an additional factor of [formula]
+
+ilognf selects one of the following factors :
+
+ps(i,j) defines the phase space. The array contains several particles distinguished by the second index j.
+
+The first index gives the 4-vector components, where i = 1 corresponds to the energy, and i = 2,3,4 to the x,y, and z components of the momentum, respectively.
+
+iadapt is set to 1 during the adaptation loop. The value returned by disphase is used to adapt the integration and sampling phase space. If a negative is returned, a default adaptation calculation is used.
+
+weight is an array containing several weights. For each contribution only a specific range in this array, defined by jmin and jmax is valid. Each weight has to be multiplied by a factor ρi and then all weights have to be summed. The factor ρi for the weight i depends on the particle density functions fα for the different flavours α and is calculated by :
+
+The full weight of one contribution is then
+
+[formula]
+
+This somewhat complicated procedure can be performed by a library function double wsum (nord, nalp, nalps, n2pi, ilognf, jmin, jmax, weight, fscale, rscale, alphas). See section 2 of the web version[\cite=webversion] for an example. nord selects the leading or higher order particle density function (see steering card values PDFL and PDFH). fscale and rscale are the input values for the factorization and renormalization scales, respectively. alphas is an output parameter returning the value of αs at this phase space point.
+
+Additional information for experienced users : For DISASTER++ all phase spaces for one event are generated at the beginning of the event and the disphase routine is called for each phase space, before the first call to discontr is made. The ntype information is 0 for tree level and -1 otherwise. In DISENT the sequence is different, for each contribution disphase and discontr are called right after each other. The ntype information is fully available. The adaptation loop is performed in DISASTER++, only.
+
+Common Blocks
+
+Some common blocks are provided to the disphase and discontr routines. They contain the steering card values for the predefined bank and the event kinematics.
+
+Here are the definitions :
+
+and where the values correspond to the steering card parameters.
+
+The additional KINE common block defines the event kinematics with some invariants and some energies in the laboratory frame of reference.
+
+Interface to HzTool
+
+HzTool[\cite=hztool] is a package that provides code to compare data plots published by the HERA experiments to Monte Carlo programs. Some of the plots could also be compared to next-to-leading order calculations and an interface from this library to HzTool is presented here.
+
+Note that several observables are not applicable in next-to-leading order programs, such as particle or track multiplicities, and others would require to add hadronisation effects to the calculation. Therefore the comparison is a priori limited to a few observables.
+
+HzTool reads data from the HEPEVT common block, a standard format for high energy physics Monte Carlo programs. In addition, HzTool expects that every call contains the full information for one event with a corresponding weight. Since different contributions to one event have to use a special error treatment, a decent error calculation without changing all HzTool routines is not possible.
+
+The restrictions implied are therefore:
+
+Only observables available to next-to-leading programs allow comparisons.
+
+Be especially aware of cuts that spoil cancelations of divergencies[\cite=durham].
+
+Errors calculated by HzTool are not valid.
+
+Differences according to non-perturbative effects can be expected.
+
+Some NLO programs might give unusable results, e.g. dijet rates need the simultaneous calculation of O(1) and O(αs) tree level diagrams, which is e.g. not possible in Disaster++.
+
+To use the HzTool interface, add the file nlolib/src/hztool/hzhep.f to your source. This routine provides implementations to the standard user routines and therefore replaces the interface specified in section [\ref=secuser] and figure [\ref=fig_overview] by the one given in figure [\ref=fig_hztool].
+
+The routines that have to be provided by the user are hzinit(), hzterm(), and hzuser(). These routines should call the hzxxxxx routines with iflag equal to 1, 3, and 2 respectively. See the HzTool manual [\cite=hztool] for more information.
+
+Note for authors of hzxxxxx routines
+
+In order to work with this library, hzxxxxx routines have to fulfil some additional requirements.
+
+Add the common block HZNLO to your routine.
+
+Initialize the variable NLO to 0 in the iflag.eq.1 section.
+
+Add an if clause to every hbook fill or weight summation line in order to check, whether the current event counts for the desired process, e.g. check for total cross sections, whether the process is a O(1) born term or a O(αs) correction. This check can easily be done using the variables defined in the HZNLO common block.
+
+The HZNLO common block is defined as follows:
+
+An example might look like:
+
+Function Library
+
+In addition to the unified interface a set of subroutines is defined. Please, see the full list below.
+
+jet algorithms
+
+JADE
+
+kt
+
+longitudinal boost-invariant kt
+
+event shape variables
+
+Lorentz boosts
+
+support routines for calculation of momentum, angles, masses, etc.
+
+For the full documentation of most routines see the web version[\cite=webversion].
+
+Jet Algorithms
+
+Several jet algorithms exist. The calling sequence for those is where <algo> is replaced by the name of the algorithm (i.e. one of jade, kt).
+
+The common arguments are :
+
+P the input particles,
+
+NPA the number of input particles,
+
+VEC the output jet axes and energies,
+
+NUM the number of jets and
+
+IRECOM gives the recombination scheme for two particles (see the description of the support routine vadd in section [\ref=sec_support] for more details).
+
+The remaining arguments are algorithm dependent. Please refer to the individual manual. The basic idea is, that SCALE corresponds to a scaling factor and YCUT corresponds to a cut value. This is for example the scale for the invariant mass and the maximum mass over scale value for the jade algorithm and the minimum jet Et and the maximal cone radius for the cone algorithm. I is an additional input value with no predefined meaning.
+
+For the KTCLUS package, a slightly different calling sequence is used :
+
+where the arguments correspond to the arguments explained in the beginning of the section.
+
+Lorentz Boost
+
+Two routines are provided to perform Lorentz boosts to other reference frames.
+
+boost1 boosts one vector, given in array V into the new frame, where V will be used for input and output. boost can boost N vectors given in array P into the new frame. Here the original vectors are conserved and the new vectors are filled in array V. boost should be preferred, when more than one vector is to be boosted, since the calculation of the rotation matrices is done only once for all vectors.
+
+The boost is specified by three 4-vectors, which will have the following characteristics in the boosted frame : BR will be the 0-vector, BZ will point in z-direction and BXZ will lie in the x-z-plane. If IDIR is zero a normal boost will be performed, if IDIR is one, the boost is reverted such that boosting the returned particles in V with the given boost vectors (and IDIR=0) would result in the original particles P.
+
+If an error occurs during boosting IERR will contain a non-zero value.
+
+The routines
+
+perform the boosting of one or several vectors from the H1 laboratory frame to the Breit frame and vice versa.
+
+Event Shape Routines
+
+A single routine is provided to calculate a variety of event shape variables.
+
+where the input parameters are
+
+NPAR the number of input particles,
+
+PS(4,11) the four vectors PS() from disphase,
+
+SCALE the scale to normalise to for some variables, usually Q.
+
+the subroutine outputs
+
+SUME the total energy in the current region of the Breit frame,
+
+SHAPE(NOVAR) and array with all the event shapes. They are indexed by a letter code eg. SHAPE(itz) for current jet thrust.
+
+The table below gives the indexes for all 14 of the available event shapes. The remaining 6 variables in SHAPE(20) are internal or obsolete and should not be used.
+
+The index variables are available by including the file index.inc. The routine is designed to be called from within disphase and passed the common library four-vectors ps() directly. No cut on the total energy in the current region (to ensure infrared safety) is performed within the routine; this quantity is returned and any cut is the responsibility of the user routine.
+
+Support Routines
+
+A collection of small functions are available. Most of the routines come in two versions, one that takes a vector and one that takes an array of vectors and an index as arguments.
+
+vcopy (A,I,B,J) copies the i'th vector of array A to the j'th vector of array B.
+
+vadd(A,I,B,J,IRECOM) adds the j'th vector in array B to the i'th vector in array A. The available recombination schemes are :
+
+P = ATH (A,I) calculates the theta angle (in radian) of the i'th vector of array A wrt. the + z-axis.
+
+P = VP2 (V) and P = AP2(A,I) returns the momentum squared of the particle V and A(i), respectively.
+
+P = VMASS2 (V) and P = AMASS2(A,I) returns the invariant mass squared of the particle V and A(i), respectively.
+
+In the above functions and subroutines the variables are defined as follows :
+
+Summary
+
+In this paper we have presented a scheme for a complete library of next-to-leading order QCD programs. This library consists of three parts; a steering card mechanism, a unified interface for the user routines and an expandable set of FORTRAN library functions.
+
+Acknowledgments
+
+We would like to thank the authors for their support and appreciate the comments and suggestions on the program and this paper. We also thank the organizers and conveners of this workshop for the interesting topics.

@@ -1,0 +1,229 @@
+Comparing Probabilistic Models for Melodic Sequences
+
+Introduction
+
+In this paper we are interested in learning a generative model for melody directly from musical sequences. This task is challenging for machine learning methods. Repetition of musical phrases, which is essential for Western music, can occur in almost arbitrary points in time and with different degrees of variation. Furthermore, although pieces from the same genre are built using the same structural principles, the statistical relations among and within melodies from different pieces are highly complex, as melody depends on several different components, such as scale, rhythm and meter, which in many cases interdepend on each other.
+
+Capturing the statistical regularities within a musical genre is a first step towards realistic music generation. Additionally, identifying and representing these dependencies in an unsupervised manner is particularly desirable, as descriptive features of the underlying structure of music can not only help in the analysis and synthesis of music, but also enhance the performance on a variety of musical tasks such as genre classification and music retrieval.
+
+In this work we consider two methods for the problem of melody modeling; a Time Convolutional Restricted Boltzmann Machine (TC-RBM) and a Dirichlet Variable Length Markov Model (Dirichlet-VMM). The first is an adaptation of the Convolutional RBM [\citep=Lee2009_ConvolutionalRBM] for modeling sequential data and is motivated by the ability of RBM type models to extract high quality latent features from the input space. The second one is a non-latent variable model and is a novel form of VMM, the latter one being regarded as state of the art in melody generation [\citep=Paiement2008_thesis].
+
+Our purpose is to answer the following questions. Are these probabilistic models able to learn the inherent structure in melodic sequences and generate samples that respect the statistics of the music genre? What aspects of the musical stucture can each of the models learn? Can melodies be decomposed into a set of musical features in the same way that images can be decomposed into sets of edges and documents into sets of topics?
+
+We train the models on a set of traditional reel tunes and perform a comparative analysis of these with a standard VMM. We show that the TC-RBM learns descriptive music features, such as underlying chordal structure, musical motifs and transformations of those. We assess the models on future prediction and find that our proposed methods perform significantly better than the standard VMM and are comparable to each other, with the Dirichlet-VMM having slightly higher log-likelihood. Likewise, we evaluate the short order statistics of model samples, using the Kullback-Leibler divergence, and show that samples from the TC-RBM and the Dirichlet-VMM match the statistics of the test data significantly better than samples from the VMM.
+
+Related Work
+
+In many cases, the difficulties associated with modeling music have been dealt with by incorporating domain knowledge in the models. In this line of research, [\citet=Paiement2008_thesis] proposes modeling different aspects of music, such as chord progressions, rhythm and melody, using graphical models and Input-Output HMMs. The structure of the models and the data representations used are based on musical theory. Additionally, [\citet=Weiland2005_HHMM] propose a Hierarchical Hidden Markov Model (HHMM) for pitch. The HHMM is structurally simple and its internal states are pre-defined with respect to music assumptions.
+
+A different course of research examines more general machine learning methods, which are able to automatically capture complex relations in sequential data, without introducing much prior knowledge. In this paper we are taking this approach and consider models that do not make assumptions explicit to music.
+
+[\citet=Lavrenko2003_MRFsPolyphonic] propose Markov Random Fields (MRFs) for modeling polyphonic music. In order for the MRF to remain tractable, much information needs to be discarded, thus making the model less suitable for realistic music.
+
+[\citet=Eck02_longtermstructureofblues] show that a Long-Short Term Memory (LSTM) Recurrent Neural Network can successfully model long-term structure in two simple musical tasks. In [\citet=Eck2008_LSTM] the LSTM is extended to include meter information. The output of the network is conditioned on the current chord and specific previous time-steps, chosen according to the metrical boundaries. Trained on a set of traditional Irish reels the LSTM is shown to generate pieces that respect the reel style.
+
+Finally, [\citet=Shlomo2003_PST_Music] propose Incremental Parsing (IP) and Prediction Suffix Trees (PSTs) for modeling melodies, the latter one being the data structure used to represent VMMs. Both algorithms train simple dictionary-based predictors that parse music into a lexicon of phrases or motifs. [\citet=Paiement2008_thesis] argues that despite their simple nature, these two models generate impressive musical results when sampled and can be considered state of the art in melody generation.
+
+Preliminaries
+
+Musical Motifs
+
+Before describing the models, we explain the concept of motifs and their importance to music modeling, as we believe it is useful in understanding the types of structures that the VMM and the TC-RBM are trying to capture.
+
+In Western Music, the smallest building block of a piece is called a motif. Motifs typically comprise three, four or more notes and most pieces can be expressed as a combination of different motifs and their transformations. Frequent transformations include replacement, splitting and merging of notes, and typically respect the metrical boundaries of a piece. We believe that successful capturing of music motifs can be very useful when modeling melodies, as specific motifs and their transformations are highly likely to be repeated within a piece, as well as among pieces from the same musical form.
+
+Variable Length Markov Model
+
+The VMM [\citep=Ron1994_VLMMs] is a statistical model for discrete sequential data and has been shown to generate state of the art musical results when modeling melodies [\citep=Shlomo2003_PST_Music]. Its advantage to a standard Markov Model (n-gram) is that the order of the former is not fixed, but instead depends on the observed context.
+
+A VMM is represented by a Prediction Suffix Tree. The edges of the tree are labeled with symbols from the alphabet, in this case the different music notes. Each node defines the conditional probability distribution of the next symbol given the context we acquire by concatenating all the edge symbols from the root to the node . The tree has depth L, but is not complete, thus giving rise to contexts that are shorter than L but are still used for prediction.
+
+To learn the tree, we start from a single root node labeled by the empty string and 'grow' the tree using a breadth-first search for contexts that satisfy the following criteria:
+
+The resulting tree comprises contexts corresponding to musical phrases that appear frequently in the data and convey significant information about the value of future time-steps. After the tree is built, the empirical conditional probability distributions are smoothed by adding a constant probability γmin to all symbols in the alphabet and renormalizing.
+
+Restricted Boltzmann Machine
+
+The Restricted Boltzmann Machine (RBM) is a two-layer undirected graphical model with a set of visible and a set of hidden units. It is a special, bipartite form of the Boltzmann Machine [\citep=Ackley1985_BMs], in which the interaction terms are restricted to units from different layers. The joint distribution over observed and latent variables is defined through an energy function, which assigns a scalar energy to every possible configuration of the variables:
+
+[formula]
+
+where [formula] is a normalizing constant called the partition function and [formula] is used to denote the set of model parameters.
+
+In its original form, an RBM has binary, logistic units in both layers and its energy function is defined as:
+
+[formula]
+
+where [formula] and [formula] are the biases for the visible and hidden units, respectively, and [formula] is the weight matrix for the interaction terms.
+
+Inference in this model can be performed efficiently using block Gibbs sampling, as due to the bipartite structure of the model, the conditional distributions of the hidden units given the visibles and of the visible units given the hiddens factorize.
+
+Maximum Likelihood learning in the RBM is difficult due to the partition function [formula] which is typically intractable. However, parameter estimation can be performed using Contrastive Divergence [\citep=Hinton2002_PoE_CD], an objective that approximates the likelihood and has been shown to work well in practice.
+
+Models
+
+Dirichlet-VMM
+
+The VMM is similar to an n-gram model in that its performance is significantly influenced by the smoothing technique used. An alternative to a standard form of variable length Markov model is a hierarchical model, where each conditional multinomial distribution in the tree is sampled from a dirichlet Distribution, centered at the sample multinomial for the parent node. In this model smoothing is performed implicitly by taking a Bayesian approach and introducing an appropriate prior distribution at each node while building the tree.
+
+More formally, let [formula] be defined by
+
+[formula]
+
+Then we model each conditional distribution as:
+
+[formula]
+
+This forms a hierarchical tree with the marginal distribution [formula] as the root node, and successively more specific conditional distributions as we traverse down the tree. The intermediate nodes, though identified with particular distribution, are not used directly to model the data; that is done by the leaf nodes.
+
+Learning this hierarchical distribution involves learning the posterior distributions at each level of the hierarchy from the data associated with the given node (i.e. the data that satisfies the conditional distribution).
+
+[formula]
+
+where the [formula] function counts the number of occurrences of sequence [formula] in the dataset where the last element is in state k, and E denotes expectation.
+
+The mean of the posterior Dirichlet at each node is the prior Dirichlet for the data at the child nodes. Note the top levels of the hierarchy have a large amount of associated data, but as we progress down the tree the amount of data reduces. In the limit where there is no data the posterior distribution for that node is just given by the posterior for the parent node.
+
+This model is directly related to the sequence memoizer [\citep=Wood09_memoizer], but is a finite model using Dirichlet distributions, instead of a Pitman Yor model. Using Dirichlet distributions makes the inference procedure entirely conjugate and thus no sampling is required. We call this model a Dirichlet-VMM in this paper.
+
+Time Convolutional RBM
+
+We propose a Time Convolutional RBM (TC-RBM) as a new way of modeling sequential data with an RBM type network. We believe that models based on the RBM are particularly suitable for capturing the componential structure of music, as they can learn distributed representations of the input space, decoupling the different factors of variation into features being "on" or "off". The TC-RBM is an adaptation of the Convolutional RBM for sequences and it is motivated by the successful application of such models in static image data [\citep=Lee2009_ConvolutionalRBM] [\citep=Norouzi09_CRBMs].
+
+Previous RBM approaches to sequence modeling use the RBM to model a single time-step and attempt to capture the temporal relations in the data by introducing different types of directed connections from units in previous time-steps [\citep=Taylor2006_CRBM] [\citep=Sutskever2007_TRBM] [\citep=Taylor2009_FactoredCRBM]. In contrast, the TC-RBM is a fully undirected network and attempts to capture the structure of music at a motif level rather than a single time-step.
+
+The TC-RBM is depicted in Fig. [\ref=fig:TCRBM]. Local temporal dependencies are captured by learning an RBM on visible subsequences of fixed length - instead of single data points. This allows the hidden units to learn valid configurations for a whole subsequence and thus capture frequent motifs and their transformations. Longer sequences are modelled by applying convolution through time. This weight sharing mechanism allows us to better model boundary effects and provides the model with translation invariance along time, which is desirable as motifs can appear anywhere in a musical piece.
+
+The energy function of the TC-RBM is defined as:
+
+[formula]
+
+where [formula] is a visible sequence, [formula] is the hidden configuration for that sequence and τ is the size of the filter we apply. The interaction terms are parameterized by the weight tensor [formula] and the unit biases, [formula] and [formula] for visible and hidden units respectively, are the same for all time-steps.
+
+Similarly to an RBM, the joint probability distribution of the observed and hidden sequence under the TC-RBM is defined as [formula].
+
+The conditional probability distributions of this model factorize over time and units and are given by softmax and logistic functions:
+
+[formula]
+
+[formula]
+
+Inference can be performed using block Gibbs sampling. The computation of ([\ref=eq:cond1]) and ([\ref=eq:cond2]) can be performed efficiently by convolving along the time dimension the appropriate slice of the weight tensor with the hidden and visible sequence respectively. As in the RBM, learning can be performed using the Contrastive Divergence rule.
+
+Experiments
+
+In the following section we want to assess the ability of the models to learn the inherent structure of melodic sequences belonging to the same genre. An appropriate measure for this evaluation is the marginal likelihood of the data under each model M, [formula]. However, computing the marginal likelihood under the TC-RBM is intractable and thus we need to make use of other quantitative measures.
+
+In the music modeling literature, evaluation is primarily based on qualitative analysis, like listening to model generations. To our knowledge, the only quantitative measures used so far are next-step prediction accuracy [\citep=Paiement2008_thesis] [\citep=Lavrenko2003_MRFsPolyphonic] and perplexity [\citep=Lavrenko2003_MRFsPolyphonic]. In this work, we broaden this evaluation framework to consider longer future prediction, instead of only next-step, as this provides an insight regarding model performance through time.
+
+To make our comparative analysis more rigorous, we also examine the short order statistics of the models and compare them with the data statistics. To perform this analysis we compute the Kullback-Leibler divergence between the frequency distribution of events in test sequences and in model samples, which measures how well the model statistics match the data, or put differently, how much a model has yet to learn.
+
+Besides the quantitative evaluation, we are also interested in assessing the capabilities of the models to identify and represent the statistical regularities of the data. In the VMM models, the learned lexicon of phrases determines the frequent musical motifs, but does not provide any information regarding the underlying structure, as the encoded patterns are fixed. On the other hand, the TC-RBM learns a distributed representation of the input space; a set of latent features that are 'on' or 'off' depending on the input signal. We demonstrate that these features are music descriptors extracted from the data and convey information regarding music components such as scale, octaves and chords.
+
+Data Processing and Representation
+
+In the following experiments we use a dataset comprising 117 traditional reels collected from the Nottingham Folk Music Database. Reels are traditional Scottish and Irish tunes used to accompany dances. All tunes are in the G major scale and have 4/4 meter.
+
+Our representation is depicted in Fig. [\ref=fig:data]. The components we wish to model are pitch and duration of the notes in the melody. Duration is modelled implicitly by discretizing time in eighth-note intervals. At each time-step, pitch is encoded using a 1-of-m vector. We use only two octaves, C4-B5, giving rise to a 24-dimensional vector. Values outside this octave range are trunctated to the nearest octave.
+
+Finally, we augment the 1-of-m vector with two more values. The first one is used to represent music silence. The second one is used to represent 'continuation' of an event and allows us to keep more accurate information concerning the duration of notes.
+
+Implementation Details
+
+We trained a VMM, a Dirichlet-VMM and a TC-RBM. To set the parameters cmin, εmin and γmin of the VMM we applied grid search over the product space of the parameters and chose the values that maximize the data log-likelihood using leave-one-out cross validation on the training data. We used the same grid search procedure to set the parameter α of the Dirichlet prior in the Dirichlet-VMM.
+
+For the TC-RBM, we used 50 hidden units. We chose the size of the filters to be 8 time-steps, which corresponds to the length of a music bar. For learning the model we used the following settings: CD-5, 500 epochs, 0.5 learning rate decreasing on a fixed schedule, 0.0002 weight decay. We additionally used a sparsity term in the objective function, which encourages hidden units to be 'off'. We implemented sparsity as described in [\citet=Lee2007_V2], and set the desired activity level to 0.1.
+
+Learning Musical Features
+
+In the TC-RBM each hidden unit is connected with all the visible units from eight subsequent time-steps. This gives rise to a 26    ×    8-dimensional filter for each hidden unit.
+
+The filters corresponding to 6 different hidden units from the learned TC-RBM are depicted in Fig. [\ref=fig:filters]. We can notice that all units prefer visible configurations with notes from the G major scale to be 'on', but have various degrees of selectivity and respond to different subsets of these notes in different positions.
+
+For instance, filter (6) is fairly broad and may respond to several different configurations of notes from the G major scale, whereas filter (5) is highly selective, responding primarily to the downwards-upwards movement EDCBGAB through the scale and certain variations of it.
+
+An interesting property of the top two filters is their relation with respect to the octave. Both units respond to similar music phrases. For instance, both units respond to the motif F#GAB starting at either position 1 or 3. However, the left unit operates in the lower octave (C4-B4), whereas the right one operates in the higher octave (C5-B5).
+
+Another interesting property is the relation of the filters to the tone chords of the scale. In several filters, the prefered subset of notes at each time-step corresponds to the notes of a tone chord. This property is particularly prominent in filters (3) and (4). For instance in filter (3), the prefered subset of notes at odd time-steps corresponds to the notes of the Gmaj chord (GBD), whereas at even time-steps to the notes of the Am chord (ACE).
+
+In order to better understand how the filters behave, we looked at random visible configurations that tend to activate a hidden unit during sampling. Figure [\ref=fig:visibles] shows two such visible configurations for the hidden unit corresponding to filter (5). Although the two configurations seem fairly different, they both contain the motif D   *   BG in positions 2 to 5 with either a pass through A or 'continuation' of D in position 3. Filter (5) is highly responsive to this motif, and although time-steps 6 to 8 in the visible configurations are not highly preferable, the unit is still very likely to turn 'on'.
+
+Overall, we can see that the learned filters encode familiar musical movements, such as arpeggios and scales. However, the interesting and potentially powerful characteristic of the TC-RBM representation is that it also encodes and groups together many possible transformations of these movements. Therefore, in contrast to the VMM representation, the motifs learned by the TC-RBM are not fixed; the TC-RBM filters group together musically sound variations of motifs, thus encoding possible note substitutions, merging and splitting. This is very advantageous when modeling music, given its highly complex and ingenious nature, and also allows for more genuine music generations.
+
+Prediction Task
+
+Given an observed test subsequence we want to evaluate how well a model can predict the following k time-steps. We define the prediction log-likelihood of a test sequence D under a model M with parameters [formula], as the log probability of the actual future time-step dt + τ given time-steps d1 up to dt, averaged over all time-steps Tn of the test sequence. More specifically:
+
+[formula]
+
+We use the empirical marginal distribution as a baseline for evaluating model performance.
+
+Computing Prediction log L under the VMM and the Dirichlet-VMM.
+
+For τ = 1 we can compute ([\ref=eq:predictiveDistribution]) exactly under the VMM models. For τ  >  1 we need to marginalize over the future time-steps that are between dt and dt  +  τ, ie:
+
+[formula]
+
+We approximate this distribution by drawing a number of sampled paths from the VMM and averaging over the conditional probability distributions defined by these paths which are given exactly under the VMM:
+
+[formula]
+
+We use 100 sampled paths in the experiments reported here.
+
+Computing Prediction log L under the TC-RBM.
+
+In order to evaluate ([\ref=eq:predictiveDistribution]) under the TC-RBM, we need to marginalize over future visible time-steps that are between dt and dt  +  τ for τ   >   1 and over the possible configurations of hidden units for time-steps t to t   +   τ. To avoid this computation we approximate the predictive distribution using samples from the model. The sampling procedure is given in Algorithm 1.
+
+In our experiments, we use 100 chains and run 15 Gibbs iterations within each chain. Overall, we use 500 samples to approximate the predictive distribution, discarding the first 10 samples from each chain.
+
+Results.
+
+Figure [\ref=predLogL] shows the log-likelihood of predicting the true succession given an observed sub-sequence from a test tune under different models. As already mentioned, our baseline for assessing model performance is the empirical marginal distribution. The log-likelihood of the test data under the empirical marginal corresponds to the black curve.
+
+Compared to the empirical marginal distribution, the standard VMM (green x) performs significantly better in predicting the first two future time-steps, only slightly better for time-steps 3 and 4 and significantly worse than the empirical marginal after the 5th time-step.
+
+Both the Dirichlet-VMM (cyan crosses) and the TC-RBM (blue stars) perform significantly better than the standrad VMM in predicting all future time-steps. These two models have similar performance in the prediction task, with the Dirichlet-VMM outperforming the TC-RBM for the first two time-steps and their prediction log-likelihood being almost the same from the 3rd time-step onwards.
+
+We should note that the performance of the TC-RBM in prediction may be compromised by the fact that the block Gibbs procedure samples the future sub-sequence as a whole at each iteration. This means that due to the convolutional structure of the model, the time-step we are trying to predict receives information not only from the past, which is clamped to the observed context, but also from the future which is initialized randomly and can thus drive the samples into different energy basins.
+
+Compared to the empirical marginal distribution, both the Dirichlet-VMM and the TC-RBM perform better for the first 10 time-steps. The prediction log-likelihood under the models is initially much higher than the one under the empirical marginal distribution, but decays as we try to predict further into the future. The models slowly forget the information upon which they have been conditioned and after the 10th time-step converge to a steady-state distribution, which is slightly worse than the empirical marginal distribution for prediction.
+
+While long-term prediction is useful for characterizing model behaviour through time, it is not adequate for evaluating the generative capabilities of the models. For instance, even if a musical phrase is highly predictable given a certain context, the models can get bad predictive performance if they are not able to determine the correct starting time-step for the phrase.
+
+Nevertheless, we can note that in contrast to the standard VMM, our proposed models converge to the empirical marginal distribution over time and thus are better in capturing the statistical regularities in the data, which is the first step towards realistic music generation.
+
+Using the Kullback-Leibler divergence to compare statistics
+
+The Kullback-Leibler (KL) divergence is a measure of how different two probability distributions, P and Q, are. For discrete random variables, it is defined as [formula] and shows the average number of extra bits needed to encode events from a distribution P with a code based on an approximating distribution Q. If the true distribution that generated the data is P and the model distribution is Q, then the lower the KL-divergence the better the model matches the data.
+
+To compare model statistics with data statistics, we compute the frequency distribution of events in samples generated by each of the models and in test sequences, and compute the KL-divergence between the normalized data and model frequencies. More specifically, let dt denote the observation of a single time-step at time t. Then to compare first-order statistics we estimate the KL-divergence between P(dt) and Q(dt) by computing:
+
+[formula]
+
+where [formula] is the empirical marginal distribution of data sequences and QM(dt) is the marginal distribution of samples generated by model M. Similarly, for pairwise statistics we compute [formula], for third order statistics [formula], and so on.
+
+Since the true distribution that generated the data is unknown, we perform a bootstrapping procedure for the estimation of the KL-divergence. More specifically, we compute the KL-divergence for each statistic 50 times, each time using a different data resample, obtained by random sampling with replacement from the original test dataset. In our results, we report the mean and variance of the KL-divergence for each statistic.
+
+The number of possible events grows exponentially with the order we consider, which makes the statistics for higher-orders less reliable, given that we have a finite test set. In order to get a better understanding of how the models perform through time, we additionally consider pairwise statistics with lags, that is statistics of events comprising two time-steps which are not adjacent in time. For instance for lag l = 1 we consider the frequencies of events [formula], for lag l = 2 we consider [formula] and so on.
+
+Results.
+
+Table 1 shows the mean and variance of the KL-divergence between the statistics of test sequences and a priori samples for various models. The first row compares test sequences to train sequences and is used as a reference for interpreting the results. Looking at the first order statistics we can note that the TC-RBM and the Dirichlet-VMM have much lower KL-divergence than the VMM, with the Dirichlet-VMM having the lowest amongst the models. In fact the KL-divergence for the former two models is very close to the KL-divergence between test sequences and train sequences, which indicates that samples generated from these models match the statistics of the test data well.
+
+For the second, third and fourth order statistics, the TC-RBM has the lowest KL-divergence, with the Dirichlet-VMM following closely and the VMM lagging behind. Interestingly, the KL-divergence of these statistics for the TC-RBM and the Dirichlet-VMM is even lower than the one for the train data. We believe that this stems from the fact that the models are capturing the underlying structure that characterizes the whole musical genre, and to some extent ignore the finer structure that characterizes each individual music piece. This can result in model samples that have higher inter- and lower intra-piece similarity than a set of real music sequences.
+
+For fifth and sixth order statistics, the KL-divergence for the TC-RBM and the VMM is close to the KL-divergence for the train data, whereas for the Dirichlet-VMM is lower. As mentioned earlier, the estimates for higher order statistics are less reliable, since the number of possible configurations is exponentially large and thus very difficult to characterize from a finite set of samples.
+
+Finally, for the pairwise statistics with lags, the KL-divergence for both the TC-RBM and the Dirichlet-VMM is low, very close to the one for the train data, whereas for the VMM it is considerably higher. This suggests that our proposed methods respect the short order statistics of the musical genre and are better than the VMM in capturing the statistical regularities of the data through time.
+
+Discussion
+
+We addressed the problem of learning a generative model for music melody by considering two probabilistic models, the Dirichlet-VMM and the Time Convolutional RBM. We showed that the TC-RBM, trained on a dataset of tunes from the same genre, learns descriptive musical features that can be used to decompose the underlying structure of the data into musical components such as scale, octave and chord.
+
+We performed a comparative analysis of the two models with the standard VMM, which, to our knowledge is state of the art in melody generation. We showed that in a long-term prediction task both models perform significantly better than the VMM and comparably with each other. The Dirichlet-VMM is a better next-step predictor, which can be partially accredited to its main strength, that is its ability to use shorter or longer contexts depending on whether they provide useful information or not.
+
+We evaluated the short order statistics of the models by comparing the Kullback-Leibler divergence between test sequences and model samples. We demonstrated that sampled generations from our proposed methods match the statistics of the test sequences considerably better than samples from the VMM and respect the genre statistics, as the KL-divergence for the TC-RBM and the Dirichlet-VMM is very close to the KL-divergence between test and train sequences.
+
+The ability of the TC-RBM to extract descriptive musical features allows us to consider hierarchical approaches for melody generation, which can help modulate the appearance of features through time. We are currently experimenting with deeper TC-RBM architectures, where TC-RBMs are stacked on top of one another in a greedy manner (see [\citet=Hinton2006_CD_DBNs] for the RBM case). Deep models have been shown to learn hierarchical representations of the input space, where more abstract features are captured in higher layers, which according to the tonal music theory [\citep=Lerdahl1983_generativeTheoryMusic] is how music composition should be understood.
+
+Finally, an interesting direction for future research in music modeling involves exploration of methods that can distinguish between inter- and intra-piece similarity. The methods examinded in this work can learn the statistical relations within a musical genre, but are not able to effectively model piece-wise variation. Considering methods that enable us to sample a prior distribution for each piece, such as topic models, would be a first step towards this direction.

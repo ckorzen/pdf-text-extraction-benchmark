@@ -1,0 +1,351 @@
+6.5 in 9 in 0.0 in 0.0 in 0.0 in = 0.0 in 0.0 in
+
+Proposition Corollary Lemma
+
+= 10000
+
+A graphical analysis of cost-sensitive regression problems
+
+Motivation
+
+In classification, the traditional notion of operating condition is common and well understood. Classifiers may be trained for one cost proportion and class distribution (both making the operating condition) and then deployed on a different operating condition. Some of the techniques and notions for addressing these cases are cost matrices, cost-sensitive classification [\cite=Elk01] and very especially ROC analysis [\cite=lusted1971] [\cite=Swe86] [\cite=Bradley1997] [\cite=SDM00] [\cite=flach2003decision] [\cite=lasko2005use] [\cite=Fawcett06] [\cite=krzanowski2009roc]. ROC space decomposes the performance of a classifier in a dual way. On the x-axis we show the false positive rate (FPR) and on the the y-axis we show the true positive rate (TPR). ROC curves neatly visualise how the TPR and the FPR change for different (crisp) classifiers or evolve for the same (soft) classifier (or ranker) for a range of thresholds. The notion of threshold is the fundamental idea to adapt a soft classifier to an operating condition. ROC analysis is the tool that illustrates (among other things) how classifiers and threshold choices perform. The number and variety of applications and areas (radiology, medicine, statistics, bioinformatics, machine learning, pattern recognition, to name a few) have been increasing over the years [\cite=Goin1982] [\cite=Mamitsuka2006] [\cite=Khreich2010] [\cite=Khreich2012]. Also, some metrics derived from the ROC curve, such as the Area Under the ROC Curve (AUC) are now key for the evaluation and construction of classifiers [\cite=ferri2002learning] [\cite=Marrocco2008] [\cite=Toh2008] [\cite=hand2010evaluating] [\cite=Ricamato2011] [\cite=Kim2012]
+
+The adaptation of ROC analysis for regression has been attempted on many occasions. However, there is no such a thing as the 'canonical' adaptation of ROC analysis in regression, since regression and classification are different tasks, and the notion of operating condition may be completely different. In fact, the mere extension of ROC analysis to more than two classes has always been difficult because the degrees of freedom grow quadratically with the number of classes (see, e.g., [\cite=srinivasan1999note] [\cite=ferri2003volume] [\cite=Schubert2011]). The inclusion of probabilities (and other magnitudes) in ROC curves or the use for abstaining classifiers [\cite=ferri2004cautious] [\cite=Pietraszek2005] [\cite=ferri2005modifying] has not paved the way on how to do similar things for regression. Consequently it is even questionable whether a similar graphical representation of ROC curves in regression (or other tasks [\cite=rocai2004]) can even be figured out. Notable efforts towards ROC curves (or graphical tools) for regression are the Regression Error Curves (REC) [\cite=bij2003regression], the Regression Error Characteristic Surfaces (RECS) [\cite=torgo2005regression], the notion of utility-based regression [\cite=torgo2009precision] and the definition of ranking measures [\cite=rosset2007ranking]. These approaches are based on gauging the tolerance, rejection rules or confidence levels. Some of these approaches actually convert a regression problem into a classification problem (tolerable estimation vs. intolerable estimation). Another recent approach has been based on the calculation of Kendall's rank τ correlation coefficient between the predicted and actual values [\cite=ROCregrankers], so disregarding the magnitudes. However, none of these previous approaches started from a notion of 'operating condition', related to an asymmetric loss function. Also, the notion of threshold was not replaced by a similar concept playing its role for adjusting to the operating condition, and the dual positive-negative character in ROC analysis was blurred.
+
+In this paper we present a graphical representation of regression performance based on a very usual view of operating condition, in regression. Many regression applications have deployment contexts where over-estimations are not equally costly as under-estimations (or vice versa). This is called the loss asymmetry. Loss asymmetry is just a kind of operating condition (or one of its constituents), but a very important one in many applications.
+
+The ROC space for regression is then defined by placing the total over-estimation on the x-axis and the total under-estimation on the y-axis. This duality leads to regions and isometrics in the ROC space where over-estimations have less cost than under-estimations and vice versa, and we can plot different regression models to see the notions of dominance. We also consider the construction of hybrid regressors. The plot leads to curves when we use the notion of shift, which is just a constant that we can add (or subtract) to example predictions in order to adjust the model to an operating condition. This notion is parallel to the notion of threshold in classification. Interestingly, while we can derive the best shift for a dataset given an existing model (which boils down to shift it to make its average error equal to zero), there are some effective methods to determine this shift for the deployment data given an operating condition, as has been recently explored by [\cite=Bansal2008][\cite=zhao2011extended]. Also, there are some other ways to make this shift dependent to each example [\cite=probreg2012]. All this leads to a more meaningful interpretation of what the ROC curves in regression mean, and what their areas represent. This will also be explored in this paper.
+
+The paper is organised as follows. Section [\ref=sec:background] introduces some notation, the problem of context-sensitive evaluation and the use of asymmetric costs in regression. The RROC space is introduced in section [\ref=sec:rocspace], where we represent several regression models as points, derive the isometrics of the space and develop the notions of hybrid models, dominance and convex hull. Section [\ref=sec:roccurves] introduces RROC curves, which are drawn by ranging a constant shift over the predictions. We introduce an algorithm for plotting them and determine some of its properties in terms of segment slopes and convexity. The area over the RROC curve () is also introduced and analysed. Section [\ref=sec:nonconstant] discusses RROC curves with non-constant shifts and soft regression models, and the relation with cost plots. Finally, section [\ref=sec:conclusions] closes the paper with an enumeration of issues for future investigation.
+
+Context-sensitive problems
+
+In this section we introduce some notation and the basic concepts about context-sensitive regression and the need of asymmetric loss functions.
+
+Notation
+
+Let us consider a multivariate input domain [formula] and a univariate output domain [formula]. The domain space [formula] is then [formula]. The length of the dataset will usually be denoted by n. Examples or instances are just pairs [formula], and datasets are subsets of [formula]. A crisp regression model m is a function [formula]. A soft regression model accompanies each prediction with a reliability, confidence or, more generally, a conditional probability density function (y|x) with [formula] and [formula]. When the regression model is crisp, we just represent the true value by y and the estimated value by ŷ. Subindices will be used when referring to more than one example in a dataset.
+
+Vectors (unidimensional arrays) are denoted in boldface and its elements with subindices, e.g., [formula]. Operations mixing arrays and scalar values will be allowed, specially in algorithms, as usual in the matrix arithmetic of many statistical computing languages. For instance, [formula] means that the constant c is added to all the elements in the vector [formula]. The mean of a vector is denoted by [formula] and its standard deviation as [formula] --over the population, i.e., divided by n. Given a dataset with n instances [formula], the error vector [formula] is defined as [formula]. The value [formula] is known as the mean squared error (), [formula] is known as the mean error (or error bias), [formula] is known as the mean absolute error () and [formula] as the error variance.
+
+Context-sensitive problems and loss functions
+
+In context-sensitive learning [\cite=Elk01], there are several features which describe a context, such as the data distribution, the costs of using some input variables and the loss of the errors over the output variables [\cite=turney2000types]. In this paper, we focus on loss functions over the output, which is the kind of costs which ROC analysis deals with (typically integrated, along with the class distribution, within the notion of skew). A loss function is defined as follows:
+
+A loss function is any function [formula] which compares elements in the output domain. For convenience, the first argument will be the estimated value, and the second argument the actual value, so its application is usually denoted by [formula].
+
+Typical examples of loss functions are the absolute error ([formula]) and the squared error ([formula]), with [formula] and [formula]. These two loss functions are symmetric, i.e. for every y and r we have that [formula]. Two of the most common metrics for evaluating regression, the mean absolute error () and the mean squared error () are derived from these losses.
+
+Asymmetric costs
+
+Actually, although symmetric loss functions (and derived metrics) are common for the evaluation of regression models, it is rarely the case that a real problem has a symmetric cost. For instance, the prediction of sales, consumptions, calls, prices, demands, etc., has almost never a symmetric loss. For instance, a retailing company may need to predict how many items will be sold next week for stock (inventory) management purposes, e.g., in order to calculate how many items must be ordered to refill the stock. Depending on the kind of product, it is usually not the same to over-estimate (increasing stocking costs) than under-estimate (an item is exhausted and it cannot be sold or sold with delays). In fact, it is also rare to find applications where even an asymmetric cost is invariable. For instance, depending on the warehouse saturation, the cost (and the asymmetry) may change in a weekly or daily fashion. We wish to remark here that a specialised model for a fixed given asymmetry is not the solution in many occasions, either. This motivates the adaptation (or reframing) of models, rather than their re-training for each new asymmetric loss. This is at the core of ROC analysis.
+
+There has been an extensive amount of work on regression using asymmetric loss functions. In some cases, the loss function is embedded in the learning algorithm (see, e.g., [\cite=Crone2002] [\cite=jino2010machine]), which is useful if we know the operating condition during training. However, the adaptation (or reframing) of an existing model to a different operating condition has also been investigated for regression (e.g., Granger [\cite=granger1969prediction] [\cite=granger1999outline]. Many different kinds of asymmetric functions have been explored: Lin-Lin (asymmetric linear), Quad-Quad (asymmetric quadratic), Lin-Exp (approximately linear on one side and exponential on the other side) and Quad-Exp (approximately quadratic on one side and exponential on the other side) [\cite=zellner1986bayesian] [\cite=christoffersen1996further] [\cite=christoffersen1997] [\cite=basu1992bayesian] [\cite=thompson1996asymmetric]. Some of these approaches try to adapt to the operating condition using complex (generally non-parametric) density functions, which is problematic in general. There are many other approaches. We just mention some of these approaches as an illustration of how important it is in practice to adjust regression models to work with a specific loss function.
+
+As mentioned above, there are many possible asymmetric loss functions. The simplest (and perhaps most common) one is the asymmetric absolute error [formula]:
+
+The asymmetric absolute error [formula] is a loss function defined as follows:
+
+[formula]
+
+with α being the cost proportion (or asymmetry) between 0 and 1, with increasing values meaning higher cost for low predictions (underestimation). In other words, when α = 0 we mean that predictions below the actual value have no cost. When α = 1 we mean that predictions above the actual value have no cost. When α = 0.5 we mean that costs above and below are symmetric.
+
+The RROC space
+
+For every regression model deployed to a new dataset we can determine the error for each example and whether it is an over-estimation or under-estimation. More formally:
+
+The total over-estimation is given by [formula] and the total under-estimation is given by [formula].
+
+The following example illustrate this:
+
+Consider a regression model m1 which is applied to a dataset with n = 10 examples [formula], issuing the predicted values ŷ and actual values y:
+
+The error row (e) shows the difference, which is positive for over-estimations and negative for under-estimations. The sum of over-estimations ([formula]) is 2.569 while the sum of under-estimations ([formula]) is - 5.676. This regression model clearly under-estimates (it has a negative error bias, since [formula]). The (0.825) and the (1.219) do not show the asymmetry of predictions.
+
+Showing models in RROC space
+
+Certainly, different regression models would show different error asymmetries (or error bias). The basic idea of the ROC space for regression is to show this asymmetry:
+
+The Regression Receiver Operating Characteristic (RROC) space is defined as a plot where we depict total over-estimation ([formula]) on the x-axis and total under-estimation ([formula]) on the y-axis. Since [formula] is always positive (but unbounded) and [formula] is always negative (but unbounded), we typically will place the point (0,0) on the upper left corner (the RROC heaven), and will clip both the x-axis and y-axis as necessary to show the region of interest.
+
+Figure [\ref=fig:RROCnoshift] shows the RROC space and the regression model m1 in example [\ref=ex:example1]. We will occasionally draw a diagonal line [formula] to show the points where the under-estimation equals the over-estimation.
+
+One might argue why we use absolute values for the x-axis and y-axis instead of relative values. In fact, ROC analysis uses relative values. There are two reasons for this. First, using relative values would not make the RROC space finite. Second, and more importantly, using relative values we could have cases where changing a single infinitesimal change on one example could end up at very different locations. For instance, consider the error vectors eA  =  { - 10, - 0.1,5} and eB  =  { - 10,0.1,5}. While and are almost the same, the relative and would be { - 5.05,5} and { - 10,2.55} for two almost equal error vectors. This justifies that the RROC space shows absolute values. In this sense, and strictly speaking, the parallel with ROC analysis for classification can be done with the 'coverage curves' [\cite=petersbook], which are the absolute variant of ROC curves.
+
+Let us now consider a second model:
+
+Consider a regression model m2 which is applied to the same dataset as example [\ref=ex:example1]:
+
+The sum of over-estimations ([formula]) is 4.972 while the sum of under-estimations ([formula]) is - 4.972. This regression finds an equilibrium between over and under-estimations (it is unbiased, since [formula]). The (0.9944) and the (1.7619) are worse than m1 in example [\ref=ex:example1].
+
+This model (m2) with [formula] is also shown in Figure [\ref=fig:RROCnoshift]. Clearly it is on the diagonal.
+
+Finally let us consider a third model:
+
+Consider a regression model m3 as follows:
+
+In this case, the sum of over-estimations ([formula]) is 10.431 while the sum of under-estimations ([formula]) is - 1.215. This regression model clearly over-estimates (it has a positive error bias, since [formula]). The (1.165) and the (2.12) show that this model is, in terms of overall error, worse than models m1 and m2.
+
+From each point in RROC space, we can derive its very easily. For model m3, for example, we have that [formula], so it is just half the perimeter of the rectangle that each point creates with the RROC heaven (0,0). In other words, the (more precisely the absolute error) is just the Manhattan distance to RROC heaven. It is important to note that the diagonal (the Euclidean distance) is just given by [formula], which we call [formula] (as a macro-averaged version of [formula]). This [formula] measure is interesting in itself, because highly penalises models for which there is a high imbalance in over and under-estimations, and can be seen, in some way, as a measure of 'symmetric calibration' [\cite=Handbook].
+
+In RROC space we denote the regression model always outputting ∞   and the model always outputting -    ∞   as the (trivial) extreme regression models, which fall at (  ∞  ,0) and (0,  -    ∞  ) respectively in RROC space.
+
+RROC space isometrics
+
+We have mentioned above that (1 / 2 of) the perimeter of the rectangle from RROC heaven to the regression model corresponds to [formula]. Can we extend this observation to the asymmetric loss? The following straightforward lemma shows that total asymmetric absolute loss can be calculated graphically as the sum of the distance to the y-axis ([formula]) and to the x-axis ([formula]), using the appropriate asymmetry factor α.
+
+The total asymmetric absolute loss is given by:
+
+[formula]
+
+[formula]
+
+Clearly, for α = 0.5, we have that this is the absolute error. All this also shows that the closer we are to RROC heaven (0,0) (in terms of a Manhattan distance) the better. Finally, this leads to loss isometrics:
+
+RROC isometrics are defined by varying t over:
+
+[formula]
+
+We can get any of the infinite (and parallel) isometrics. The following proposition just gets the slope of each isometric:
+
+Given an isometric [formula], the slope only depends on α and is given by:
+
+[formula]
+
+By isolating the variable [formula] we have:
+
+[formula]
+
+The slope is then given by the second term [formula]
+
+Clearly, for α = 0 (under-estimations have no cost) and we have infinite slope. For α = 1 (over-estimations have no cost), we would have a slope 0.
+
+This notion of isometric is very similar to the notion already present in ROC analysis for classification [\cite=Fla03]. In fact, this means that we can slide isometrics to find optimal points in RROC space, in the very same way as we do in ROC space.
+
+Let us illustrate this. Figure [\ref=fig:RROCnoshiftiso] shows the RROC space and the regression models m1, m2 and m3 in examples [\ref=ex:example1], [\ref=ex:example2] and [\ref=ex:example3] respectively. We also consider the operating condition α  =  0.8, meaning that under-estimations are 4 times more expensive than over-estimations. This α leads to a slope of 0.25. By sliding through all the parallel isometric lines from the one crossing the RROC heaven (0,0) to the first isometric touching a point corresponding to any model, we touch at (10.431, - 1.215) first. In fact, the intercept is given by isolating it from the line equation [formula], i.e., [formula], which, in this case, leads to - 3.82275. The line [formula] is then shown on Figure [\ref=fig:RROCnoshiftiso], touching regression model m3. Even though model m3 has a worse mean (symmetric) absolute error than m1, for this operating condition α, it leads to lower total asymmetric absolute error. While m1 has a loss of [formula], we have that m3 has a loss of [formula].
+
+Hybrid models, dominance and convex hull
+
+Another construction that is also originally present in ROC analysis for regression is the notion of hybrid models. Given any two models, we can construct a hybrid model by randomly choosing each prediction from any of both models using a (biased) coin. Note that this is very different to averaging both models.
+
+Figure [\ref=fig:RROCnoshift13] shows the isometric (in light grey) passing through models m1 and m3. The solid black segment connecting both models shows that any model along the segment can be constructed. More precisely, each point in that segment would represent the expected value of a model constructed in this way. Consequently, we can just connect both points since any point in between is technically achievable (at least in expectation).
+
+In this particular case, we just draw a line between the point representing m1: (2.569, - 5.676) and the point representing m3: (10.431, - 1.215), leading to [formula]. From this slope of 0.567, we just calculate [formula]. Obviously, for this α both models have the same loss. L(m1)  =  0.638  ·  5.676  +  (1 - 0.638)  ·  2.569  =  4.551 and L(m3) = 0.638  ·  1.215  +  (1 - 0.638)  ·  10.431  =  4.551.
+
+Given these two models, we say that, for slopes lower than 0.567 and asymmetries α greater than 0.638, model m3 dominates, while we have that model m1 dominates for the rest of operating conditions.
+
+This leads to the notion of dominance and convex hull. In fact, when connecting all the points by the segments representing the hybrid models (and also including the extreme classifiers at (0, -   ∞  ) and (  ∞  ,0), we can calculate the convex hull, since any model under the convex hull can be discarded, in the same way as traditional ROC analysis DOES. Figure [\ref=fig:RROCnoshifthull] shows the convex hull of the three models and the extreme models. We see that model m2 can be discarded. It cannot be optimal for any operating condition.
+
+RROC curves
+
+In ROC analysis for classification, we can tweak the predictions of a crisp classifier by changing the predicted class to a random percentage of examples. With this, we can move the classifier in the ROC space, but this just moves the classifier along the two straight lines that connect the original point with the points at (0,0) and (1,1) (the trivial, or extreme, classifiers). For this reason, occasionally a crisp classifier is represented in ROC space as trapezium, connecting the point which corresponds to the classifier with the extreme classifiers. This two-segment 'curve' does not bring more information than the original point, but shows that other TPR and FPR can be achieved by this random swapping of examples. In the end, it just shows the hybrid classifier constructed with the extreme classifiers.
+
+In general, however, in ROC analysis, curves are constructed by the use of soft classifiers, i.e., classifiers which output a rank, score or probability estimation. By moving a threshold from the lowest possible valuable to the highest possible value (or vice versa) we get many possible crisp classifiers, each of them represented by a point in ROC space.
+
+Interestingly, in RROC space, we do not need soft regression models in order to create a curve. It is just sufficient to use a shift, which works as a parallel concept to the notion of threshold. For each example we can get a modified prediction as [formula], where s is the shift. Although there are, as we will see, many ways of determining this shift, it seems natural to consider first that s is constant, i.e., that we apply the same value for all the examples.
+
+Given a regression model m, a (constant-)shifted regression model, denoted by [formula], is the result of adding the same shift s to all its predictions, i.e., ŷ'←ŷ  +  s for all predictions ŷ.
+
+This shift can be moved from the lowest possible value (-    ∞  ) to the maximum possible value (∞  ). This leads to the notion of RROC curve.
+
+Given a regression model m, its RROC curve using a (constant) shift is given by plotting all the models [formula] with s ranging in
+
+[formula]
+
+We can instantly plot the curves pointwise, by just using a sufficient dense range of values for s. However, there is a more direct way of plotting and analysing the RROC curve if we investigate a little bit. This is what we do next.
+
+Algorithm for drawing RROC curves
+
+We can realise that if we move the shift from s1 to s2 and no example changes from to or vice versa, then the increment/decrement in and is linear, as the following proposition shows:
+
+Given a model m, for any two shifts s1 and s2 such that the examples for which [formula] and [formula] over-estimate are the same (and hence the rest that under-estimate are also the same for both), then for any other shift s3 with s1  ≤  s3  ≤  s2 we have that the points [formula] for the three models [formula], [formula] and [formula] lie on the same straight line.
+
+We have that [formula] for [formula] is calculated as: [formula] while [formula] for [formula] is calculated as: [formula]. Since, by assumption, the examples which over-estimate are the same for [formula] and [formula], let us call this number no. The previous two expressions can then be rewritten as:
+
+[formula]
+
+[formula]
+
+Note that the second term is also rewritten with s1, since the elements are the same. In this way, we express that the second term is equal. Also, since the examples which over-estimate are the same for s1 and s2 they have to be the same necessarily for every s3 with s1  ≤  s3  ≤  s2 as well. So, we also have:
+
+[formula]
+
+We can see that these three co-ordinates only differ on the first term, which is linearly related to s (s1, s2 or s3). We can obtain similar expressions for [formula], [formula] and [formula] and their nu examples. This means that the three points are related by a linear term on s, expressed as (nos,nus) so they lie on the same line.
+
+From proposition [\ref=prop:line] we can introduce a very simple algorithm to draw RROC curves:
+
+From the first line of the algorithm, we see that the RROC Curve can be drawn by just giving the error vector (e.g., the last row in examples [\ref=ex:example1], [\ref=ex:example2] and [\ref=ex:example3]).
+
+Figure [\ref=fig:RROCshift1] shows a RROC curve using this algorithm for m1 in example [\ref=ex:example1]. The points where the slope of the RROC Curve change are called vertex points, and the rest of points are said to fall onto the segments. Consequently a RROC Curve for a regression model applied to a dataset with n instances has n + 2 vertex points (typically, only n are visible on the plot, because two are the extreme points) and n + 1 segments, denoted by [formula] with [formula]. We clearly see n = 10 points on Figure [\ref=fig:RROCshift1].
+
+In case there are some ties in the error vector, then some of these vertex points and segments collapse into a single point. Figure [\ref=fig:RROC4ties] shows
+
+Consider a regression model m4 as follows:
+
+We see a triple tie between examples 1, 3 and 9, another triple tie between examples 2, 7 and 8, and a double tie between examples 4 and 6. With this, there are only 5 different error values.
+
+Properties: slope and convexity
+
+From the new RROC curve, we may want to determine the slopes of each segment, in order to exactly determine where each possible isometric (and asymmetry α) would lead to on the curve. This can be done very easily, as the following lemma shows:
+
+The slope of each segment [formula] in the RROC curve is given by (n + 1 - i) / (i - 1), with [formula].
+
+Let us assume no ties in the error vector. As shown in proposition [\ref=prop:line], there is one example changing from to (from bottom-left to top-right) at each vertex point. At the first vertex point i = 1, all the examples are under-estimated, and the shift change moves along an infinite slope. For the next vertex point i = 2, we have n - 1 under-estimated examples and 1 over-estimated example. This means that the shift change moves along one unit right and n - 1 units up, with a slope of n - 1. By induction, this leads to (n + 1 - i) / (i - 1), with the last segment having 0 slope. If there are ties, the result is similar with more than one example changing from under-estimation to over-estimation at a time.
+
+Thus, and somewhat surprisingly, given a fixed number of examples, several regression models will have exactly the same slopes. The difference between the curves will be given by the length of the segments, not their slopes. From the equation [formula] in proposition [\ref=prop:slope] relating asymmetries and slopes, we have that each segment [formula] corresponds to an [formula], leading to [formula] with [formula].
+
+Finally, from the previous Figure [\ref=fig:RROCshift1], we see that the curve is convex. Is this true in general? The following proposition shows it is.
+
+For every regression model, the RROC Curve is convex.
+
+It is direct from lemma [\ref=lemma:slope] since the sequence of the segment slopes of the curve (n + 1 - i) / (i - 1) is non-increasing.
+
+The convexity of a single RROC curve does not mean that the notion of convex hull seen in the previous section is useless for curves. More on the contrary. Whenever we have more than one model, we can see concavities. Figure [\ref=fig:RROCshiftall] precisely shows this.
+
+From these three curves, we can calculate their convex hull, as shown in Figure [\ref=fig:RROC3CH].
+
+Areas and metrics
+
+RROC analysis, as ROC analysis, can be especially useful for analysing models under different operating conditions and select the best one for a single operating condition or a region, or even better, to create hybrids through the notion of convex hull. Nonetheless, in ROC analysis we are also interested in evaluating models that can work well for a wide range of operating conditions. One measure that gives us a good indication of a classifier performing well in a wide range of operating conditions is the Area Under the ROC Curve (). Can we develop a similar measure for RROC curves?
+
+The good mapping so far between ROC curves and RROC curves in terms of what they represent suggests that this is possible. The following definition introduces such a measure:
+
+The Area Over the RROC Curve () is defined as follows:
+
+[formula]
+
+Lower values for are better.
+
+The previous area can be calculated very easily using the sum of the n + 1 upward trapeziums given between the elements 1 and n+2 from RROCX and RROCX in algorithm [\ref=algo:RROCcurve]. Actually, for models always outputting finite values, this can be calculated from 2 to n, since the extreme trapezium 1 to 2 has area 0 and the trapezium n + 1 to n + 2 as well, so this only need to sum n - 1 trapeziums. Consequently:
+
+[formula]
+
+The first question about this area is why we have defined the area over the curve and not under the curve. This has an easy answer: since the RROC space is unbounded, the area under the curve is always infinite. But what about the ? The following proposition gives an answer:
+
+For any regression model m which always outputs finite values, the is finite.
+
+Since the model m always outputs finite values, there is a shift so, such that for any shift s  ≤  so we have that [formula] and there is also a shift su, such that for any shift s  ≥  su we have that [formula]. This means that the curve touches (and stays at) both the x-axis and the y-axis. Then the area is finite.
+
+For the three models in Figure [\ref=fig:RROCshiftall], the is 56.1387, 88.0933 and 63.9295 for models m1, m2 and m3 respectively. Although a single number loses most of the information we can see on the curve, these numbers summarise their overall performance.
+
+From the notion of , we can investigate what exactly means to have low and high . The 'best' model in terms of (a perfect square with top-left corner at the RROC heaven (0,0)) means that there is a shift that achieves 0 error. This is rarely the case, except for datasets for one single example (where there is always a shift getting 0 loss). It is also very rare to have a dataset for which the error is always the same, another possible situation where we would have 0 . Note that a model with very high or could, in principle, have [formula]. This would suggest that the shift was very badly chosen. The parallel with classical ROC analysis here is clear, where we can have bad accuracy for a model with optimal by choosing a bad threshold.
+
+What about the 'worst' model in terms of ? Of course we can have a value of as high as we want. We can even get an infinite , if the model outputs ∞   or -    ∞   for one single example. So, the question must be stated more precisely: given a model with a certain , what is the worst value for ? This is difficult to answer. At first sight, it seems that the degree of dispersion of the error may affect, since it may make the shift more effective. Also, the degree of correlation between the actual and predicted values could be important. Figure [\ref=fig:RROCnormal] shows how a random model looks (in violet), which typically shows low performance. Also, it compares two models with similar performance, but one which is just generated adding random noise to the true values (in orange) and the other by calculating the mean of the true values (in brown). While these two last models have very different dispersion (the last model has null dispersion) and very different correlation (the last model has null correlation), their metrics and RROC curves are very similar. This is explained because their error distributions are similar. Hence, one possible way of looking at RROC curves is precisely this. They represent the distribution of errors.
+
+A different question is to give a numerical interpretation of the . While its definition suggests that it may be the expected value of the total under-estimation given a uniform value for the total over-estimation, this is not well-defined because both and are not bounded. A possible interpretation is that it aggregates the macro-average squared error ([formula]) with a distribution which depends on the model, which is similar to one recent interpretation given to [\cite=hand2009measuring]. Other interpretations as an aggregation of expected loss may be possible, as it has happened to recently, where new interpretations have been introduced [\cite=ICML11CoherentAUC] [\cite=JMLR12].
+
+Having said all this, our previous idea of the being related to the distribution of errors seems more appealing. If we have a compact error distribution, then will be low. If we have a sparse error distribution, then will be high. One classical measure of dispersion is precisely the variance, defined and decomposed as follows:
+
+The error variance [formula] is defined as:
+
+[formula]
+
+where [formula] represents the mean of the vector [formula].
+
+Note that we define the population variance, by dividing by n (instead of n - 1). The reason is just to keep the expressions that will follow next as simple as possible. We will use just σ (instead of [formula]) and μ (instead of [formula]) when clear from the context. The last term in definition [\ref=def:var] is just a different way of showing the classical decomposition as the sum of the squared error bias (μ2) and the error variance (σ2).
+
+Quite surprisingly, the observation that the and the error variance are related can be made extremely precise, as the following theorem shows:
+
+The area over the RROC curve equals the population variance σ2 of the errors multiplied by a factor n2 / 2 which is independent of the model. Namely:
+
+[formula]
+
+We start with an error vector [formula] of length n, which we assume is sorted in decreasing order, as in algorithm [\ref=algo:RROCcurve]. We use a different notation for the points in the RROC curve. Instead of using n + 2 points, we will just ignore the two extremes (which do not contribute to the area for finite cases) and we will just work with n points, denoted by [formula]. The components of each point are pi  =  (oi,ui). Note that oi  =  RROCXi + 1 using the notation in algorithm [\ref=algo:RROCcurve] and ui  =  RROCYi + 1. We will also introduce the error differences di  =  ei  -  ei + 1, which are defined from i = 1 to i = n - 1. Note that di  ≥  0 since the error vector [formula] is in decreasing order. It is easy to see that [formula] and [formula]. According to this notation:
+
+[formula]
+
+In order to prove this theorem, we will proceed by induction.
+
+Base case
+
+The base case will consider any error vector of size n = 2. In this case, we only have two points p1  =  (0, - d1) and p2  =  (d1,0). From here,
+
+[formula]
+
+Inductive step
+
+We assume that
+
+[formula]
+
+holds for any dataset of size n.
+
+Without loss of generality, we consider that the case for n + 1 is constructed by adding example en + 1, assumed to be lower than the other examples [formula] in the case for n. Consequently, the error vector for the case n + 1 is [formula]. The difference vector is also an extension for n + 1, denoted by [formula]. Note that since we assume that eq. [\ref=eq:inductivestep] holds for any dataset of n examples, we can choose the order of examples that we prefer in order to build any case with n + 1 examples.
+
+The [formula] for the n case is given by:
+
+[formula]
+
+The [formula] for the n + 1 case is given by
+
+[formula]
+
+We will use a wide tilde to denote the [formula], [formula], [formula], etc., for the n + 1 case. The first thing we can see is that [formula], [formula], etc. We use these latter expressions on ([\ref=eq:newaoc]):
+
+[formula]
+
+The second thing we realise is that oi and [formula] are equal for [formula]. From here, we can calculate the delta between n + 1 and n as follows:
+
+[formula]
+
+But we have that [formula]. So, we rewrite:
+
+[formula]
+
+Using the expression of the square of a sum: [formula], and joining/distributing terms, we see that the above expression can be rewritten as:
+
+[formula]
+
+From here, we can now write:
+
+[formula]
+
+From the induction step (equation [\ref=eq:inductivestep]), we have:
+
+[formula]
+
+This last expression completes the induction step and so does the proof.
+
+If the model is unbiased (i.e. [formula]) then:
+
+[formula]
+
+The proof is direct from theorem [\ref=theo:wow] and definition [\ref=def:var] ( decomposition).
+
+For the models m1, m2 and m3 in examples [\ref=ex:example1], [\ref=ex:example2] and [\ref=ex:example3] we have a variance of 1.1228, 1.7619 and 1.2786 respectively. The is 56.1387, 88.0933 and 63.9295 respectively. Since m2 is unbiased, its [formula] is precisely 1.7619, its error variance. The constant factor is n2 / 2 = 50 in the three cases. Similarly, for the third model (in brown) in Figure [\ref=fig:RROCnormal], as it always outputs the mean of a distribution with standard deviation 0.01 and 1,000 examples, we have that the was 50.31. The expected result is 0.001  ·  10002 / 2 = 50. The difference is not given because theorem [\ref=theo:wow] is approximate, but just because the sample is generated with a distribution with σ2  =  0.0001, but the sample does not exactly have this variance (it is actually 0.00010062).
+
+Given the connection between the area over the RROC curve and the population variance, we can explore the connection between the RROC curve and an error density plot. As we can see in Figure [\ref=fig:density], there is a high correspondence between the density plots and the RROC curve, but the cumulative character of the RROC curve make the latter smoother.
+
+Note that this connection between [formula] and the error variance indicates that it is the dispersion that counts when trying to adapt our models to cost-sensitive situations with asymmetries, and not the position, which can be ignored by assuming that the optimal shift will be chosen for each particular operating condition. This again shows a parallel with ROC analysis. In ROC analysis, the absolute values of the scores do not affect the . Only their order matters. Here, for RROC curves, the position of the mean error (the error bias) does not affect the , only the dispersion of the error.
+
+This is a fundamental result as well because it is a graphical representation of the error variance, which can sum up to the applicability of RROC curves. The n2 factor in theorem [\ref=theo:wow] also suggests that a scaled representation of RROC curves could be done by dividing both the x-axis and y-axis by n, i.e., plotting [formula] against [formula]. This would make the curves independent of the number of examples, but the meaning of each point would be somewhat blurred, as the 'average over-estimation or (under-estimation) per example'. Nonetheless, this could be the standard representation in many application, especially when the number of examples in the datasets may vary or we may even compare several models (or the same model) against different datasets (with different sizes). Figure [\ref=fig:RROCnormalised1] shows the same plot as Figure [\ref=fig:RROCshift1] but normalising by the number of examples (in this case n = 10).
+
+ROC curves for non-constant shifts and soft regressors
+
+In classification, there are many possibilities for choosing the threshold [\cite=JMLR12]. In regression, there are many possibilities as well for the shift. Until now, we have considered that the shift is chosen as a constant. Other possibilities rely on the use of any function of the prediction and the operating condition. Figure [\ref=fig:RROCnonconstant] shows the model m1 from example [\ref=ex:example1] using a constant shift, the same model using a third-degree polynomial, and the same model using a third-degree polynomial combining s and ŷ. As we can see on the figure, there are places where the use of a different shift formula can reach places where the constant shift cannot. Actually, we can find functions such that the predictions are modified in such a way that they can attain any point on the RROC space. However, in order to get close to the RROC heaven, we would need very ad-hoc functions, basically embedding an error correction inside.
+
+In general, we are interested in shift functions and methods that are systematic (i.e., a procedure which is the same for all models). Clearly, a constant shift is a systematic method, provided we find a way to find the appropriate constant for each operating condition. Recently, a method to find the appropriate shift for each operating condition (asymmetry) has been introduced [\cite=Bansal2008]. Simply, given a value of α, the method calculates the best shift for the training set. Then, this shift can be applied to the test set. This method does not obtain the optimal shift for every α, but if the training set and test set are similar, the approximation can be good. By ranging over operating conditions α (instead of shifts), and using this method, we can construct a RROC curve which does not show the evolution of and for an optimal (or ideal) shift choice method, but an actual, feasible one. This reinforces the view expressed by [\cite=JMLR12] for classification: we evaluate pairs of models and threshold choice methods. The translation to regression and RROC curves is that we plot models assuming a shift choice method (both threshold choice methods and shift choice methods are types of reframing methods). In the previous sections, we have assumed an optimal constant-shift choice method, but many other options exist and may lead to other curves for the same model (which are not necessarily convex). The good thing about the RROC space is that we can visualise several options in the same plot, as done with Figure [\ref=fig:RROCnonconstant], and evaluate both models and shift choice methods at the same time.
+
+Overall, there are many shift choice methods to be explored. For instance, [\cite=zhao2011extended] generalise the constant-shift choice method from [\cite=Bansal2008] by using any polynomial function. A different, and more powerful, perspective is introduced by [\cite=probreg2012], where instead of using crisp models, the regression model accompanies a standard deviation to each prediction. This standard deviation is used to better adjust the shift according to each example, which is now a function of two variables instead of one. The adjustment is found by risk minimisation.
+
+This also suggests the exploration of the connection between RROC curves and its corresponding cost curves.
+
+The cost space for regression is defined as a plot where the expected loss (e.g., the asymmetric absolute loss) is shown on the y-axis for a range of operating conditions (e.g., the asymmetry α).
+
+Figure [\ref=fig:costcurve] shows this cost space, which is similar to the cost space of Drummond and Holte's cost curves for classification[\cite=drummond-and-Holte2006]. The investigation of the mapping between the regression cost space and the RROC space can lead to new important findings as has been recently done for classification [\cite=ROCandCost].
+
+Concluding remarks
+
+We said in the introduction that there is no such a thing as the 'canonical' ROC space for regression, corresponding exactly to the ROC space for classification, since regression and classification are very different tasks. Having said this, we think that the RROC space, curves and analysis that we have introduced in this paper present so many parallelisms and share so many notions and procedures, that their curves could reasonably called the ROC curves for regression, with arguable more support than other previous attempts. We have seen that the notions of operating condition, cost asymmetry, RROC space, points, segments, RROC heaven, RROC isometrics, hybrid models, convexity, dominance, convex hull, curves, shift choice methods, etc., derive smoothly and work almost the same as in the classification case, so the practitioners which are used to ROC curves can directly apply their expertise on ROC analyse to regression quite easily.
+
+There are naturally several issues which could lead to more general (or slightly different) notions of RROC curve for regression, keeping the same basic structure. The first issue that could be explored and generalised is the very notion of operating condition. We have only considered the asymmetry while, in classification, the class distribution can also be integrated (along with the cost proportion) in what is usually referred to as skew. In regression, the distribution of the output value (and not only the loss asymmetry) may also be considered part of the operating condition as well. This integration does not seem to be direct, but it is worth being investigated.
+
+A second issue is the use of other loss functions. For instance, instead of an asymmetric absolute error, we could use an asymmetric squared error Quad-Quad. We guess that this would lead to non-straight isometrics and non-straight segments in the RROC curve, but the basic ideas would remain. Again, plotting different isometrics in RROC space for many different loss functions ( Lin-Lin, Quad-Quad, Lin-Exp, Quad-Exp, etc.) would be a work on its own, very much resembling the celebrated paper [\cite=Fla03] on isometrics for ROC curves in classification.
+
+A third important avenue of future work would be to further investigate the connection with the error variance we have unveiled here and to analyse the relation of to other metrics, as well as the relation of RROC space with other plots to analyse the performance of regression. We think that RROC curves represent the expected loss for a range of operating conditions on one side, and the distribution of the error on the other side. There may be important connections to be unveiled between regression techniques trying to minimise the error variance (which we have shown here to be equal to the AOC) instead of squared error and those classification techniques trying to maximise the AUC (which has recently been shown to be equivalent to the refinement loss term of the MSE decomposition using the ROC curve [\cite=JMLR12]) instead of accuracy [\cite=ferri2002learning]. So we anticipate a plethora of connections between RROC curves and many other performance metrics in regression, as has been done for classification in the past years [\cite=PRL09] [\cite=hand2009measuring] [\cite=ICML11CoherentAUC] [\cite=ICML11Brier] [\cite=JMLR12].
+
+Overall, we think that RROC curves could become a fundamental tool in the assessment, improvement and deployment of regression models. In order to facilitate their use in real applications, we have developed a library for plotting RROC curves, calculating their areas and deriving their convex hulls. The software, in R [\cite=Rproject], is available at . The availability of software, the ubiquitous appearance of asymmetric losses in regression applications, and the success of ROC analysis for classification in the past decades suggests that RROC curves may soon become mainstream in all the areas where ROC analysis has shown to be useful: medicine, bioinformatics, decision making, statistics, machine learning and pattern recognition.
+
+Acknowledgments
+
+I would like to thank Peter Flach and Nicolas Lachiche for some very useful comments and corrections on earlier versions of this paper, especially the suggestion of drawing normalised curves (dividing x-axis and y-axis by n). This work was supported by the MEC/MINECO projects CONSOLIDER-INGENIO CSD2007-00022 and TIN 2010-21062-C02-02, GVA project PROMETEO/2008/051, the COST - European Cooperation in the field of Scientific and Technical Research IC0801 AT, and the REFRAME project granted by the European Coordinated Research on Long-term Challenges in Information and Communication Sciences & Technologies ERA-Net (CHIST-ERA), and funded by the respective national research councils and ministries.

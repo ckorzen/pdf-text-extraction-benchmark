@@ -1,0 +1,77 @@
+Markovian Network Interdiction and the Four Color Theorem
+
+Introduction
+
+Network interdiction is a class of discrete optimization problems originating in applications such as supply chains, sensing and disease control [\cite=Corley-1982-most] [\cite=Pan-2003-models] [\cite=Pourbohloul05]. In network interdiction one or several "evaders" traverse the network and the objective is to place devices for sensing or capturing the evaders (the text uses the words "sensing", "capturing" and "detecting" interchangeably). The problem is hard in part because the motion of the evaders is to some extent stochastic. Depending on the application such stochasticity may be caused by random errors, systematical misestimation of the network topology, deliberate misdirection or computational power that is insufficient for path optimization. The simplest model of this stochasticity is based on a Markov chain on the nodes of the network [\cite=Gutfraind08markovian].
+
+For a concrete example, consider the problem of placing police units (the sensors) on the highway network to catch a bank robber (the evader) moving towards a safehouse. Because of his haste and lack of information his motion is not predictable with certainty. Another application is found in problems like electronic network monitoring, where a limited number of devices must be placed to scan as much of the traffic as possible even though the traffic moves stochastically.
+
+These and similar applications suggest a formulation of network interdiction where evaders are (1) Markovian and (2) cannot or do not change their motion based on where the sensors were placed. The resulting optimization problem has been termed "Unreactive Markovian Evader Interdiction" (UME) [\cite=Gutfraind09unreactive] (see also earlier work in [\cite=Berman95]). In UME the objective is to place sensors at nodes or edges of the network (generally a directed weighted graph G(V,E)), subject to a cardinality constraint, so as to maximize the probability that the evader passes through a sensor on his way to his target.
+
+It was shown in [\cite=Gutfraind09unreactive] that when the number of evaders can be arbitrarily large then the UME problem is NP-hard, but the complexity of UME is an open problem when the number of evaders is bounded. Such complexity must arise from network structure and stochasticity of motion, and this problem is addressed here.
+
+An instance of UME contains an evader - a Markov chain given by initial "source" distribution [formula] and transition probability matrix [formula] with the property that a specified "target" node t is a "killing" state: upon reaching t the evader is removed from the network. The sensors are represented by a matrix of decision variables [formula]: rij = 1 if (i,j) is interdicted and 0 otherwise. If an evader passes through a sensor at edge (i,j) he is detected with probability dij∈[0,1], termed "interdiction efficiency" (in general dij  ≠  dji even if the graph is undirected). The objective is to choose [formula], subject to a budget constraint (cardinality of non-zero entries:[formula]), so as to maximize the probability J of "catching" the evader before he reaches the target t. Under certain restrictions on the Markov chain (e.g. t is an absorbing state) this probability J can be expressed in closed form [\cite=Gutfraind09unreactive]:
+
+[formula]
+
+where the symbol [formula] means element-wise (Hadamard) multiplication.
+
+It would be convenient later to use a closely-related problem of "node interdiction", where the interdiction set is chosen from nodes rather than edges. Define "interdiction of node i" to mean setting rij = 1 [formula] (that is, interdicting all evaders leaving i). The UME problem on nodes is then the problem of finding an interdiction set Q  ⊂  V maximizing J subject to [formula].
+
+UME can be generalized for applications where there are multiple evaders or scenarios each realized with probability w(k) ([formula]). Evader k follows a Markov chain [formula] and has probability of capture J(k) found from Eq. [\ref=eq:evader-cost]:
+
+[formula]
+
+The UME objective becomes maximizing the expected probability of capture:
+
+[formula]
+
+The motivation to determine the complexity of the problem is both theoretical and practical. On the theoretical level it is known that other formulations of network interdiction (such as where the evaders react to the interdiction decisions - can see and possibly avoid the sensors) are NP-hard and hard to approximate [\cite=Bar-noy-1995-complexity] [\cite=Boros06-inapproximability]. On the practical level one wishes to explain the difficulty solving exactly even small instances of UME. Computational experiments described in [\cite=Gutfraind09unreactive] indicate that state-of-the-art integer programming packages such as CPLEX version 10.1 may fail to efficiency solve instances of UME involving 4 evaders on networks with just 100 nodes (runtime > 9 hours). The proof in the next section indicates that already with 2-evaders UME is NP-hard, and hence in general UME can only be attacked using approximation algorithms (unless P=NP).
+
+UME with 2 evaders is NP-hard
+
+The following proof is a reduction of Planar Vertex Cover - an NP-complete problem [\cite=Garey74] (the word "vertex" is used interchangeably with the word "node"). Planar Vertex Cover asks to determine whether given an undirected planar graph G'(V',E') there exists a set C of [formula] vertices that can "cover" all the edges of G'. The set C  ⊂  V is called a "vertex cover" if all the edges are incident to at least one vertex in C. The proof constructs an instance of UME with possibly multiple evaders so that each one of the edges in E' is traversed by at least one evader, who then immediately moves to a special target node. These conditions mean that to achieve interdiction with expected probability = 1 it would be necessary and sufficient to interdict at least one of the incident vertices of every edge - creating a cover.
+
+The Markovian property of the evaders sets a lower bound on the number of evaders needed to meet those conditions - a lower bound directly related to the chromatic number of the graph (see therein). Famously, in the class of planar graphs graph coloring requires just 4 colors and polynomial time [\cite=Robertson96] . The number of the evaders needed for this reduction is 2 because 2 =  log 24 (see therein).
+
+It would be sufficient to consider node interdiction since edge interdiction is computationally equivalent to it:
+
+The UME problem on edges is polynomially equivalent in complexity to UME on nodes.
+
+The idea is standard: split each edge to create UME on nodes; to create UME on edges break each node into two nodes connected by an edge. See [\cite=Gutfraind09unreactive] for details.
+
+The class of UME problems on nodes with 2 evaders is NP-hard.
+
+Proof: Given an instance of the Planar Vertex Cover problem G'(V',E') with budget B' construct an instance of UME node interdiction on a derived graph G(V,E) as follows in steps 1-3. Step 1: Graph Coloring. Run the algorithm [\cite=Robertson96] on G' and compute the color assignment: [formula] (abbreviated [formula]).
+
+Step 2: Construction of the UME graph. Assemble G(V,E) as follows (Fig. [\ref=fig:reduction1]): (a) The nodes are copied from V' and a special "target" node t is added: [formula] (b) Include the original edges E' and for all u∈V' (non-singletons) add an edge (u,t) to t: [formula] (c) Define [formula]: All nodes u∈V' can be completely interdicted: duv = 1 [formula].
+
+Step 3: Construction of the source distributions and transition matrices. The two evaders would follow 3-node paths: from some source node through a "penultimate node" to the node t, as follows. Define two sets of "source nodes" S1 and S2 by including all the non-singleton nodes with colors [formula] in S1 and all non-singletons with colors [formula] in S2:
+
+Define two sets of "penultimate nodes" P1 and P2 over all the non-singleton nodes with colors [formula] in P1 and all non-singletons with colors [formula] in P2:
+
+Finally, introduce evaders [formula]. For each evader i, let [formula]be uniformly distributed over all nodes of class Si and define [formula] so the evader follows the 3-node path discussed earlier:
+
+M(i)uv = 0 if u∉Si or u = t or v∉Pi
+
+[formula] if u∈Si and v∈Pi where [formula]
+
+M(i)uT = 1 if u∈Pi  .
+
+An illustration of the evader motion is found in Fig. [\ref=fig:reduction2]. In the pathological case where all nodes in G' are singletons, arbitrarily choose any node u  ≠  t and for [formula] let [formula] with [formula].
+
+Notice also that the definitions of [formula] and [formula] do not guarantee that there is a path from every node of type Si to node t but still meet the requirement that each edge would be traversed by at least one evader. An extreme example is a star graph such that [formula] nodes surround a central node of type [formula]: the edges are traversed by evader 2 and evader 1 cannot reach node t.
+
+Define the UME decision problem: Is it possible to find an interdiction set Q of size at most B so that expected interdiction probability [formula]?
+
+Justification: The pathological case where all nodes are singletons is a UME "YES" instance for any [formula] since the evader cannot reach the target and it is also a Planar Vertex Cover "YES" instance ([formula]) since no edges exist.
+
+Suppose now that a non-pathological UME instance is a "YES" instance. Since adjacent nodes in G' have different colors, Observation 1 implies that any two adjacent nodes [formula] must be different by at least one bit. Thus [formula]evader i such that one of [formula] is a source node (ith bit = 0) while the other is a penultimate node (ith bit = 1). The definitions of [formula] and [formula] imply that evader i traverses through (u,v) with Pr > 0. Since this is a "YES" instance with [formula], the interdiction set Q must contain at least one of the endpoints [formula] (whether or not node t∈Q, by Observation 3). Therefore the set Q is a cover for graph G'.
+
+Conversely, if the Planar Vertex Cover decision problem is a "YES" instance then there exists a vertex cover set C. From Observation 2 and the definition of [formula] it follows that with Pr = 1 the evader passes on his way to the target through the set of edges in the original graph: [formula]. Therefore make Q = C and get that [formula], evader i will be interdicted with expected probability = 1. This a UME "YES" instance.
+
+Discussion
+
+The proof in this paper shows that UME is NP-hard even under fairly restrictive conditions: (1) only 2 evaders are needed, (2) the interdiction efficiencies [formula] are everywhere = 1, (3) the graph is unweighted and undirected, and (4) the evader has the non-retreating property [\cite=Gutfraind08markovian]. It remains to determine whether the result could be improved to the case of 1 evader or to find a polynomial-time solution. It is interesting that the color-based technique introduced in the proof could be used to solve other vertex cover problems, such as vertex cover for a bipartite graph (2-colorable, so only 1 evader is needed). Yet, on bipartite graphs vertex cover can be solved in polynomial time [\cite=Cormen01].
+
+This article is released under Los Alamos National Laboratory LA-UR-09-07611

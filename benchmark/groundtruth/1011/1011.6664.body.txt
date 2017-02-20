@@ -1,0 +1,253 @@
+plus .25ex minus .25ex
+
+Lemma Conjecture Proposition Definition Corollary Conclusion Example Problem Algorithm Remark
+
+Learning restricted Bayesian network structures
+
+Introduction
+
+Bayesian networks are basic graphical models, used widely both in statistics [\cite=bib:Lau96] and artificial intelligence [\cite=bib:Pea88]. These statistical models of conditional independence structure are described by acyclic directed graphs whose nodes correspond to (random) variables in consideration.
+
+A quite important topic is learning Bayesian network structures [\cite=bib:Nea04], which is determining the statistical model on the basis of given data. Although there are learning methods based on statistical conditional independence tests, contemporary methods are mainly based on maximization of a suitable quality criterion or score function Q(G,D) of the (acyclic directed) graph G and the (given = fixed) data D, evaluating how good the graph G explains the occurrence of the observed data D. This leads to a nonlinear combinatorial optimization problem that is NP-hard [\cite=bib:Chi96] [\cite=bib:CHM04]. Below we will consider learning restricted Bayesian network structures. Some of these problems remain NP-hard while others are polynomial-time solvable.
+
+It may happen that two different acyclic directed graphs describe the same statistical model, that is, they are Markov equivalent. A classic result [\cite=bib:Fry90] [\cite=bib:VerPea91] says that two acyclic directed graphs are Markov equivalent if and only if they have the same underlying undirected graph and the same set of immoralities (= special induced subgraphs a  →  c←b over three nodes {a,b,c} with no arc between a and b in either direction). In order to remove this ambiguity of Markov equivalent models/graphs, one is interested in having a unique representative for each Bayesian network structure (= statistical model). A classic unique graphical representative is the essential graph [\cite=bib:AMP97] of the corresponding Markov equivalence class of acyclic directed graphs, which is a special graph allowing both directed and undirected edges (see Section [\ref=Ssec.Learning] for more details).
+
+Any reasonable score function should be score-equivalent [\cite=bib:Bou95], that is, Q(G,D) = Q(H,D) for any two Markov equivalent graphs G and H. Another standard technical requirement is that the criterion has to be (additively) decomposable into contributions from the parent sets [formula] of each node i [\cite=bib:Chi02] (see Section [\ref=Ssec.Learning] for more details).
+
+In this paper, we deal with learning (restricted) decomposable models [\cite=bib:Lau96], interpreted as Bayesian network structures. Decomposable models are exactly those models whose essential graph is an undirected (and thus also necessarily chordal) graph. That is, decomposable models correspond to graphical models without immoralities. As input to our learning problem we assume that we are given an undirected graph K and an evaluation oracle for the score function Q(  ·  ,D). Note that we do not assume the actual data D being part of the input itself. Of course, the evaluation oracle uses the given data D in order to evaluate score function values. However, in our treatment, we remove the complexity of evaluating score function values from the overall complexity. In particular, this means that the (large or small) number of data vectors in D will be irrelevant for our complexity results.
+
+We show that learning spanning trees of K and learning forests in K are both polynomial-time solvable. For learning spanning trees of K, this observation has been already made in [\cite=bib:ChowLiu68] for specific score functions. Moreover, we show that if we impose degree bounds deg (v)  ≤  k on all nodes v∈N for some constant k  ≥  2, then both problems become NP-hard. We also show that learning chordal subgraphs of K is NP-hard. This result, however, has been already shown even for specific score functions and also for the case of fixed bounded size of possible cliques [\cite=bib:Sre01]. We include our short proof to emphasize the simplicity and usefulness of our approach to easily recover also hardness results.
+
+We will rewrite the nonlinear combinatorial optimization problem behind the learning problem into a linear integer optimization problem (in higher dimension) by using an algebraic approach to the description of conditional independence structures [\cite=bib:Stud05] that represents them by certain vectors with integer components, called imsets (short for "Integer Multi-SETs"). In the context of learning Bayesian networks this led to the proposal to represent each Bayesian network structure uniquely by a so-called standard imset. The advantage of this algebraic approach is that every reasonable score function (score equivalent and decomposable), becomes an affine function of the standard imset (see Chapter 8 in [\cite=bib:Stud05]). Moreover, it has recently been shown in [\cite=bib:StudVomHem10] that the standard imsets over a fixed set of variables are exactly the vertices of their convex hull, the standard imset polytope. These results allow one to apply the methods of polyhedral geometry in the area of learning Bayesian networks, because they transform this task to a linear programming problem.
+
+Instead of considering standard imsets, we introduce a different unique representative that is obtained from the standard imset by an invertible affine linear map that preserves lattice points in both directions. We call these new representatives characteristic imsets, as they are 0-1-vectors and as they also contain, for each acyclic directed graph, the characteristic vector of the underlying undirected graph. Although, mathematically, this map is simply a change in coordinates, the characteristic imset is much closer to the graphical description because it allows one to identify immediately both the underlying undirected graph and the immoralities. Our procedure for recovering the essential graph from the characteristic imset is much simpler than the reconstruction from the standard imset as presented in [\cite=bib:StudVom09].
+
+Moreover, due to the affine transformation, every reasonable score function is also an affine function of the characteristic imset. Thus, learning Bayesian network structures can be reduced to solving a linear optimization problem over a certain 0-1-polytope. Unfortunately, a complete facet description for this polytope (for general |N|) is still unknown. A conjectured list of all facets for the standard imset polytope (and consequently also for the characteristic imset polytope) is presented in [\cite=bib:StuVom11]. A complete facet description is also unknown for the convex hull of all characteristic imsets of undirected chordal graphs, although the characteristic imsets themselves are well-understood in this case (see Section [\ref=sec.characteristic]).
+
+To summarize, we offer a new method for analyzing the learning procedure through an algebraic way of representing statistical models. We believe that our approach via characteristic imsets brings a tremendous mathematical simplification that allows us to easily recover known results and to establish new complexity results. We also think that a better understanding of the polyhedral properties of the characteristic imset polytope (complete facet description or all edge directions) will lead to future applications of efficient (integer) linear programming methods and software in this area of learning Bayesian network structures.
+
+Basic concepts
+
+We tacitly assume that the reader is familiar with basic concepts from polyhedral geometry. We only recall briefly the definitions of concepts mentioned above, but skip their statistical motivation.
+
+Throughout the paper N is a finite non-empty set of variables; to avoid the trivial case we assume |N|  ≥  2. In statistical context, the elements of N correspond to random variables in consideration; in graphical context, they correspond to nodes.
+
+Graphical concepts
+
+Graphs considered here have a finite non-empty set of nodes N and two types of edges: directed edges, called arcs (or arrows in machine learning literature), denoted by i  →  j (or j←i), and undirected edges. No loops or multiple edges between two nodes are allowed.
+
+A set of nodes C  ⊆  N is a clique (or a complete set) in G if every pair of distinct nodes in C is connected by an undirected edge. An immorality in a graph G is an induced subgraph (of G) for three nodes {a,b,c} in which a  →  c←b and a and b are not adjacent. An undirected graph is called chordal, if every (undirected) cycle of length at least 4 has a chord, that is, an edge connecting two non-consecutive nodes in the cycle. A forest is an undirected graph without undirected cycles. A connected forest over N is called a spanning tree. By the degree deg G(i) of a node i∈N (in an undirected graph G), we mean the number of edges incident to i in G.
+
+Note that an undirected graph is chordal if and only if all its edges can be directed in such a way that the result is an acyclic directed graph without immoralities (see § 2.1 in [\cite=bib:Lau96]).
+
+Occasionally, we will use the (in the machine learning community) commonly used acronym "DAG" for "directed acyclic graph", although the grammatically correct phrase is "acyclic directed graph".
+
+Learning Bayesian network structures
+
+In statistical context, to each variable (= node) i∈N is assigned a finite (individual) sample space [formula] (= the set of possible values); to avoid technical problems assume [formula], for each i∈N. A Bayesian network structure defined by a DAG G (over N) is formally the class of discrete probability distributions P on the joint sample space [formula] that are Markovian with respect to G. Note that P is Markovian with respect to G if it satisfies conditional independence restrictions determined by the respective separation criterion (see [\cite=bib:Lau96] [\cite=bib:Pea88]).
+
+Different DAG s over N can be Markov equivalent, which means they define the same Bayesian network structure. The classic graphical characterization of (Markov) equivalent graphs is this: they are equivalent if and only if they have the same underlying undirected graph and the same immoralities (see [\cite=bib:AMP97]). The classic unique graphical representative of a Bayesian network structure is the essential graph G* of the respective (Markov) equivalence class G of acyclic directed graphs: one has a  →  b in G* if this arc occurs in every graph from G and it has an undirected edge between a and b in G* if one has a  →  b in one graph and b  →  a in another graph (from G). A less informative (unique) representative is the pattern [formula] (of any G in G): it is obtained from the underlying graph of G by directing (only) those edges that belong to immoralities (in G).
+
+Learning a Bayesian network structure means to determine it on the basis of an observed (complete) database D (of length [formula]), which is a sequence [formula] of elements of the joint sample space. D is called complete if all components of the elements [formula] are known. A quality criterion is a real function Q of two variables: of an acyclic directed graph G and of a database D. A learning procedure consists in maximizing the function G  ↦  Q(G,D) for given fixed D. Since the aim is to learn a Bayesian network structure, the criterion should be score equivalent, which means, Q(G,D) = Q(H,D) for any pair of Markov equivalent graphs G,H and for any database D. A standard technical requirement [\cite=bib:Chi02] is that the criterion has to be (additively) decomposable, which means, it can be written as follows:
+
+[formula]
+
+where DA denotes the projection of the database D to [formula] (for [formula]) and qi|B for i∈N, [formula] are real functions.
+
+Finally, let us remark that the essential graph G* of a DAG  G is an undirected graph if and only if G has no immoralities. Consequently, every cycle in the undirected graph underlying G (which must coincide with G*) of length at least 4 must contain a chord (otherwise there exists an immorality on this cycle in G). Therefore, if an essential graph is undirected it has to be chordal. Conversely, if G* is chordal, G cannot have an immorality. Therefore, learning decomposable models can be viewed as learning (special) Bayesian network structures corresponding to chordal undirected essential graphs [\cite=bib:AMP97b].
+
+Algebraic approach to learning
+
+An imset over N is a vector in [formula], whose components are indexed by subsets of N. Traditionally, all subsets of N are considered, although in Section [\ref=sec.characteristic] we also consider imsets with a restricted domain (components corresponding to the empty set and to singletons are dropped, since they linearly depend on the other components). Every vector in [formula] can be written as a (real) combination of basic vectors δA∈{0,1}2|N|:
+
+[formula]
+
+This allows us to give formulas for imsets. Given an acyclic directed graph G over N, the standard imset for G is given by
+
+[formula]
+
+where the basic vectors can cancel each other. It is a unique algebraic representative of the corresponding Bayesian network structure because uG = uH if and only if G and H are Markov equivalent (Corollary 7.1 in [\cite=bib:Stud05]). The convex hull of the set of all standard imsets over N is the standard imset polytope.
+
+An important result from the point of view of an algebraic approach to learning Bayesian network structures is that any score equivalent and decomposable quality criterion (= score function) Q has the form
+
+[formula]
+
+where [formula] denotes the scalar product, and both [formula] and [formula] only depend on the database D and the chosen quality criterion (see Lemmas 8.3 and 8.7 in [\cite=bib:Stud05]). In particular, the task to maximize Q is equivalent to finding the optimum of a linear function over the standard imset polytope.
+
+Characteristic imsets
+
+In this section we introduce the notion of a characteristic imset and prove some useful facts about it. For example, we show that this imset is always a 0-1 vector.
+
+Given an acyclic directed graph G over N, let uG be the standard imset for G. We introduce
+
+[formula]
+
+and call [formula] the upper portrait of uG or, simply, of G.
+
+Moreover, we will call
+
+[formula]
+
+the characteristic imset of G.
+
+Characteristic imsets are unique representatives of Markov equivalence classes. This is because the standard imset are unique representatives and because the upper portrait map is an affine linear map that is invertible. The inverse map is given by the well-known Mobius inversion formula [\cite=Bender+Goldman]. In fact, both maps assign lattice points to lattice points!
+
+Characteristic imsets have remarkable properties and, as we will show below, their entries directly encode the underlying undirected graph and the immoralities of the given acyclic directed graph.
+
+Let G be an acyclic directed graph over N. For any T  ⊆  N, |T| > 1 we have [formula] and [formula] iff there exists some i∈T with [formula]. In particular, [formula].
+
+Proof. Consider the defining formula ([\ref=eq.staim]) for the standard imset. For any T  ⊆  N, |T| > 1, the value [formula] can be computed as
+
+[formula]
+
+Hence, we get
+
+[formula]
+
+For fixed T, assume that there are two different elements i,j∈T with [formula] and [formula]. This implies both [formula] and [formula]. The simultaneous existence of the arcs i  →  j and j  →  i, however, contradicts the assumption that G is acyclic. Thus, for each T  ⊆  N, there is at most one i∈T with [formula]. Consequently,
+
+[formula]
+
+and thus [formula]. [formula]
+
+For any N, the only lattice points in the standard imset polytope and in the characteristic imset polytope are their vertices.
+
+Proof. The statement holds for any 0-1-polytope and thus in particular also for the characteristic imset polytope. Moreover, the portrait map and its inverse, the Mobius map, are affine linear maps between uG and [formula] that map lattice points to lattice points. Thus, the result holds also for the standard imset polytope. [formula]
+
+Remark. Corollary [\ref=Cor:_Vertices_are_the_only_lattice_points] (for standard imsets) has already been stated and proved in [\cite=bib:StuVom11]. The original proof of this result in the manuscript of [\cite=bib:StuVom11] was quite long and complicated. Later discussions among the authors of the present paper led to the much simpler proof using the portrait map which was then also used in the final version of [\cite=bib:StuVom11]. Corollary [\ref=Cor:_Vertices_are_the_only_lattice_points] also implies that the set of standard imsets is exactly the set of all vertices of the standard imset polytope, again simplifying the lengthy proof from [\cite=bib:StudVomHem10]. [formula]
+
+Given a chordal undirected graph G, the corresponding characteristic imset [formula] is defined as the characteristic imset of any DAG  [formula] Markov equivalent to G. The observation that characteristic imsets are unique representatives of Markov equivalence classes makes the definition correct.
+
+Let G be an undirected chordal graph over N. Then, for T  ⊆  N, |T| > 1, we have [formula] if and only if T is a clique in G.
+
+Proof. As G is the essential graph of an acyclic directed graph with no immoralities, we can direct the edges of G in such a way that we obtain an equivalent acyclic directed graph [formula] with no immoralities. To show the forward implication, let T  ⊆  N be given with [formula]. As [formula], there exists some i∈T such that [formula]. Assume now, for a contradiction, that there are two nodes [formula] that are not connected by an edge in [formula] (and hence j and k are not connected in G). Then, however, j  →  i←k is an immorality in [formula], a contradiction. Hence, all nodes in [formula] must be pairwise connected by an edge in G. As they are all connected in G by an edge to i, T is a clique in G. To show the converse implication, let T  ⊆  N be a clique in G. Note that in [formula], being an acyclic directed graph, the set T must contain a node i such that for all j∈T the edge {i,j}∈G is directed towards i in [formula]. But then [formula] and therefore, [formula] by Theorem [\ref=Theorem:_Characteristic_imsets_are_0-1]. [formula]
+
+Applying this observation to special undirected chordal graphs, namely to undirected forests, we obtain the following characterization.
+
+Let G be an undirected forest having N as the set of nodes. Then, for T  ⊆  N, |T| > 1, we have [formula] if and only if T is an edge of G, or, in other words,
+
+[formula]
+
+where χ(G) denotes the characteristic vector of the edge-set of G.
+
+Indeed, the only cliques of cardinality at least two in a forest are its edges. A similar result, in fact, holds for any acyclic directed graph G.
+
+Let G be a DAG  over N and [formula] its underlying undirected graph. Then for any two-element subset {a,b}  ⊆  N, we have [formula] if and only if a  →  b or b  →  a is an edge of G, or, in other words,
+
+[formula]
+
+where *   denotes the remaining components of [formula].
+
+Proof. This is an easy consequence of Theorem [\ref=Theorem:_Characteristic_imsets_are_0-1]. If [formula] for T = {a,b} then the only i∈T with [formula] are either a or b. [formula]
+
+Thus, [formula] is an extension of the characteristic vector χ() of the edge-set of [formula], which motivated our terminology. Let us now show how to convert [formula] back to the pattern graph [formula] of G.
+
+Let G be an acyclic directed graph over N and a,b∈N are distinct nodes. Then the following holds:
+
+a,b∈N are connected in G iff [formula], otherwise [formula].
+
+a  →  b belongs to an immorality in G iff there exists some [formula] with [formula] and [formula]. The latter condition implies [formula] and [formula].
+
+Proof. The condition (1) follows from Corollary [\ref=Corollary:_Characteristic_imset_always_contains_chi(G)] and Theorem [\ref=Theorem:_Characteristic_imsets_are_0-1].
+
+For (2) assume that a  →  b←i is an immorality in G. Then [formula] by Theorem [\ref=Theorem:_Characteristic_imsets_are_0-1] and the necessity of the other conditions follows from (1). Conversely, provided that [formula], one of the three options a  →  i←b, i  →  a←b and a  →  b←i (with possible additional edges) occurs. Now, [formula] implies that a and i are not adjacent in G, which excludes the first two options and implies a  →  b←i to be an immorality. [formula]
+
+Let G be a DAG over N. The characteristic imset [formula] is determined uniquely by its values for sets of cardinality 2 and 3.
+
+Proof. By Theorem [\ref=Theorem:_Reconstruction_of_pattern_graph_from_characteristic_imset] these values determine both the edges and immoralities in G. In particular, they determine the pattern [formula]. As explained in Section [\ref=Ssec.Learning], this uniquely determines the Bayesian network structure and, therefore, the respective standard and characteristic imsets. [formula]
+
+More specifically, the components of [formula] for |S|  ≥  4 can be derived iteratively from the components for |S|  ≤  3 on the basis of the following lemma. A further simple consequence of the lemma below is that the entries for |S|  ≥  4 are not linear functions of the entries for |S|  ≤  3.
+
+Let G be a DAG over N, and S  ⊆  N, |S|  ≥  4. Then the following conditions are equivalent.
+
+[formula],
+
+there exist |S| - 1 subsets T of S with |T| = |S| - 1 and [formula],
+
+there exist three subsets T of S with |T| = |S| - 1 and [formula].
+
+In the proof, by a terminal node within a set T  ⊆  N we mean i∈T such that there is no [formula] with i  →  j in G.
+
+Proof. The implication (a)  →  (b) simply follows from Theorem [\ref=Theorem:_Characteristic_imsets_are_0-1]; (b)  →  (c) is trivial. To show (c)  →  (a) we first fix a terminal node i within S. Now, (c) implies there exist at least two sets T  ⊆  S, |T| = |S| - 1 which contain i. Let T̃ be one of them. Since [formula] by Theorem [\ref=Theorem:_Characteristic_imsets_are_0-1], there exists k∈T̃ with j  →  k for every [formula]. If i  ≠  k, then i  →  k, which contradicts i to be terminal in S. Thus, i = k. Since, those two sets T cover S one has j  →  i for every [formula] and Theorem [\ref=Theorem:_Characteristic_imsets_are_0-1] implies [formula]. [formula]
+
+Theorem [\ref=Theorem:_Reconstruction_of_pattern_graph_from_characteristic_imset] allows us to reconstruct the essential graph for G. Indeed, the conditions (1) and (2) directly characterize the pattern graph [formula]. However, in general, there could be other arcs in the essential graph. Fortunately, there is a polynomial graphical algorithm transforming [formula] into the corresponding essential graph G*. More specifically, Theorem 3 in [\cite=bib:Meek95] says that provided [formula] is the pattern of an acyclic directed graph G the repeated (exhaustive) application of the orientation rules from Figure [\ref=fig.rules] gives the essential graph G*.
+
+Finally, we wish to point out that Theorems [\ref=Theorem:_Characteristic_imsets_are_0-1] and [\ref=Theorem:_Reconstruction_of_pattern_graph_from_characteristic_imset] directly lead to a procedure for testing whether a given vector [formula] is a characteristic imset for some (acyclic directed graph) G over N. Using both theorems, one first constructs a candidate pattern graph, then a candidate essential graph, and then from it a candidate acyclic directed graph G. It remains to check whether the characteristic imset of G coincides with the given vector [formula].
+
+Learning restricted Bayesian network structures
+
+A lot of research is devoted to the topic of finding complexity results of the general problem of learning Bayesian network structures analyzing different optimization strategies, scoring functions and representations of data. For example, Chickering, Heckerman and Meek show the large-sample learning problem to be NP-hard even when the distribution is perfectly Markovian [\cite=bib:CHM04]. On the other side Chickering [\cite=bib:Chi96] shows learning Bayesian network structures to be NP-complete when using a certain Bayesian score. This remains valid even if the number of parents is limited to a constant.
+
+A reduction in complexity could be achieved by limiting the possible structures the Bayesian network can have. In the following, we will restrict our attention to learning decomposable models, that is, learning the best DAG  among all DAG s whose essential graphs are undirected (and thus also chordal). In fact, we assume that we are given an undirected graph K over N with an edge-set E(K), not necessarily the complete graph, and we wish to learn a DAG G that maximizes the quality criterion and whose essential graph is an (undirected) subgraph of K of a certain type. In particular, we are interested in learning undirected forests and spanning trees with and without degree bounds and in learning undirected chordal graphs.
+
+We wish to point out here that we make minimal assumptions on the database D and on the quality criterion to be optimized. We only assume that the database D over N is complete, that is, no data entry has a missing/unknown component (see Section [\ref=Ssec.Learning]). For the quality criterion (= score function) we require that it is score equivalent and decomposable. In fact, instead of having D and an explicit score function available, we only assume that we are given an evaluation oracle (depending on D) that, when queried on G, returns the value Q(G,D). Clearly, especially for larger databases D, computing a single score function value Q(G,D) may be expensive. By assuming a given evaluation oracle, we give constant costs to score function evaluations in our complexity results below.
+
+Finally, we wish to remind the reader that under our assumptions learning the best DAG representing D becomes the problem of maximizing a certain linear functional (whose components depend on D) over the characteristic imsets (see Section [\ref=Subsection:_Algebraic_approach_to_learning]). However, as this linear problem is in (exponential) dimension 2|N| - |N| - 1, we cannot employ this transformation directly in our complexity treatment.
+
+Learning undirected forests and spanning trees
+
+By Corollary [\ref=Corollary:_Characteristic_imset_for_undirected_forests], we know that every DAG whose essential graph is an undirected forest G has [formula] as its characteristic imset. Thus, the problem of learning the best undirected forest is equivalent to maximizing a linear functional over such vectors [formula] which in turn is equivalent to finding a maximum weight forest G as a subgraph of K. The same argumentation holds for learning undirected spanning trees of K. These are two well-known combinatorial problems that can be solved in polynomial time via greedy-type algorithms (see e.g. § 40 in [\cite=bib:Sch03]). We conclude the following statement.
+
+Given a node set N, an undirected graph K = (N,E(K)) and an evaluation oracle for computing Q(G,D). The problems of finding a maximum score subgraph of K that is
+
+a forest,
+
+a spanning tree,
+
+can be solved in time polynomial in |N|.
+
+Although K is being part of the input, we need not state the complexity dependence with respect to the encoding length of K explicitly here, since the encoding length 〈K〉 of K is at least |N|. Moreover, we have 〈K〉∈O(|N|2).
+
+Chow and Liu [\cite=bib:ChowLiu68] provided a polynomial time procedure (in |N|) for maximizing the maximum log-likelihood criterion which finds an optimal dependence tree (= a spanning tree). The core of their algorithm is the greedy algorithm and they apply it to a non-negative objective function. For their result, the complexity of computing the probabilities from data (and hence the objective/score function) is also omitted. A similar result was obtained by Heckerman, Geiger and Chickering [\cite=bib:HGC95] for the Bayesian scoring criterion. Our result combines all of these previous results by only supposing a decomposable and score equivalent quality criterion.
+
+We wish to point out here that the well-known GES algorithm [\cite=bib:Chi02] [\cite=bib:Meek97], which was designed to learn general Bayesian network structures, could be modified in a straight-forward way to learn undirected forests (among the subgraphs of K). Then the first phase of this new GES-type algorithm coincides with the greedy algorithm to find a maximum weight forest and the second phase of the algorithm cannot remove any edge. Thus, the modified GES algorithm always finds a best undirected forest (among the subgraphs of K) in time polynomial in |N|.
+
+Learning undirected forests and spanning trees with degree bounds
+
+Although the problems of learning undirected forests and of learning undirected spanning trees are solvable in polynomial time, learning an undirected forest/spanning tree with a given degree bound deg G(i)  ≤  k < |N| - 1, [formula], is NP-hard. For k = 1 this problem is equal to the well-known problem of finding a maximum weight matching in K, which is in the general case polynomial time solvable (see § 30 in [\cite=bib:Sch03]).
+
+Given a node set N, an undirected graph K = (N,E(K)) and an evaluation oracle for computing Q(G,D). Moreover, let [formula] be a constant with 2  ≤  k < |N| - 1. Then the following statements hold.
+
+The problem of finding a maximum score subgraph of K that is a forest and that fulfils the degree bounds deg (i)  ≤  k, [formula], is NP-hard (in |N|) for any fixed (strictly) positive score function Q(.,D).
+
+The problem of finding a maximum score spanning tree of K that fulfils the degree bounds deg (i)  ≤  k, [formula], is NP-hard (in |N|) for any fixed score function Q(.,D).
+
+Remark. Again, we have removed the explicit dependence on 〈K〉, since 〈K〉∈O(|N|2).
+
+Proof. We deduce part (b) from the following feasibility problem. In § 3.2.1 of [\cite=bib:GarJohn79], it has been shown that the task:
+
+Bounded degree spanning tree Instance: An undirected graph K and a constant 2  ≤  k < |N| - 1 Question: "Is there a spanning tree for K in which no node has degree exceeding k?"
+
+is NP-complete by reduction onto the Hamiltonian path problem.
+
+Part (a) now follows by considering the subfamily of problems in which the linear objective takes only (strictly) positive values and, thus, every optimal forest (with the bounded degree) is a spanning tree. Hence, the problem of finding a maximum-weight forest (with a given degree bound) is equivalent to finding a maximum-weight spanning tree (with a given degree bound). As the feasibility problem for the latter is already NP-complete, part (a) follows. [formula]
+
+We wish to remark that Meek [\cite=bib:Meek01] shows a similar hardness result for learning paths, i.e. spanning trees with upper degree bound k = 2 for the maximum log-likelihood, the minimum description length and the Bayesian quality criteria.
+
+Learning chordal graphs
+
+Undirected chordal graph models are the intersection of DAG models and undirected graph models, known as Markov networks [\cite=bib:Stud05]. In this section, we show that learning these models is NP-hard.
+
+Given a node set N, an undirected graph K = (N,E(K)) and an evaluation oracle for computing Q(G,D). The problem of finding a maximum score chordal subgraph of K is NP-hard (in |N|).
+
+Proof. We show that we can polynomially transform the following NP-hard problem to learning undirected chordal graphs.
+
+Clique of given size Instance: An undirected graph K and a constant 2  ≤  k  ≤  |N| - 1 Question: "Is there a clique set in K of size at least k?"
+
+We define now a suitable learning problem that would solve this problem. By Corollary [\ref=Corollary:_Entries_of_1_for_chordal_graphs], we know that for any chordal graph G the entry [formula] is 1 if and only if T  ⊆  N, |T| > 1 is a clique (otherwise this entry is 0). Thus, the score function value for G is determined by the values of the linear objective function [formula] for the cliques T in G. In particular, we can define the values for the cliques in such a way that when transforming the learning problem to the problem of maximizing [formula] over the characteristic imset polytope (= the convex hull over all characteristic imsets) the entries [formula] are 0 when |T| < k and are positive when |T|  ≥  k. This implies that the maximum score among all chordal subgraphs of K is positive iff there exists a chordal subgraph in K containing a clique T of size |T|  ≥  k. This happens iff K has a clique of size at least k. [formula]
+
+Learning chordal graphs with bounded size of cliques
+
+Let us consider a variation of the previous task by introducing an upper bound k for the size of cliques. If k  ≤  2, we get the problems of learning undirected forests/matchings, which we already know are solvable in polynomial time (see Section [\ref=Ssec:forests] and Section [\ref=Ssec:forests-bounded]).
+
+For k > 2, the corresponding problem is NP-hard already for a fixed type of score function. This has been shown by Srebro [\cite=bib:Sre01] for the maximized log-likelihood criterion (as a generalization of the work by Chow and Liu [\cite=bib:ChowLiu68]).
+
+Conclusions
+
+Let us summarize the main contributions of the paper. We introduced characteristic imsets as new simple representatives of Bayesian network structures, which are much closer to the graphical description. Actually, there is an easy transformation from the characteristic imset into the (essential) graph. Last but not least, the insight brought by the use of characteristic imsets makes it possible to offer elegant combinatorial proofs of (known and new) complexity results. The proofs avoid special assumptions on the form of the quality criterion besides the standard assumptions of score equivalence and decomposability.
+
+In our future work, we plan to apply these tools in the linear programming approach to learning. For this purpose we would like to find a general linear (facet-) description of the corresponding characteristic imset polytope or, at least, of a suitable polyhedral relaxation containing exactly the characteristic imsets as lattice points. Finding suitable polyhedral descriptions is also interesting and important for learning restricted families of Bayesian network structures, for example, for learning undirected chordal graphs.
+
+Finally, let us remark that a polyhedral approach to learning Bayesian network structures (using integer programming techniques) has been also suggested by Jaakkola et.al. [\cite=bib:jaak10], but their way of representing DAG s is different from ours. Their representatives live in dimension |N|  ·  2|N| - 1 and correspond to individual DAG s, while ours live in dimension 2|N| - |N| - 1 and correspond to Markov equivalence classes (of DAG s).
+
+The results of Milan Studený have been supported by the grants GAR n. 201/08/0539 and GAAVR n. IAA100750603.

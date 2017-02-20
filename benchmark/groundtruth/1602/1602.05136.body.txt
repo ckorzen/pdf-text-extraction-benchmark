@@ -1,0 +1,225 @@
+Exploration of Faulty Hamiltonian Graphs
+
+Département d'informatique, Université du Québec en Outaouais, Gatineau, Québec J8X 3X7, Canada. E-mails: david.caissy@gmail.com, pelc@uqo.ca
+
+Research supported in part by the NSERC Discovery Grant 8136 - 2013 and by the Research Chair in Distributed Computing of the Université du Québec en Outaouais.
+
+Introduction
+
+Exploration of networks by visiting all of its nodes is one of the basic tasks performed by mobile agents in networks. In applications, a software agent may need to collect data residing at nodes of a network, or a mobile robot may need to collect samples of ground in a contaminated mine whose corridors form links of a network, with corridor crossings being nodes. In many situations, some links of the network may be faulty, preventing the mobile agent to traverse them. In a computer network a fault may be a malfunctioning link, and in a cave it may be an obstructed corridor. In this situation the agent may be unable to reach some nodes of the network, and the task is then to explore the accessible part, as efficiently as possible.
+
+The network is modeled as a simple connected undirected graph G = (V,E), called graph in the sequel. The agent is initially situated at a starting node v of the graph. It has a faithful labeled map of the graph with its starting position marked. Each node has a distinct label, and ports at each node of degree d are labeled by integers [formula]. Thus the agent knows which port at any node leads to which neighbor. However, some of the edges of the graph are faulty. The set of faulty edges F  ⊆  E is called a fault configuration. The agent does not know a priori the location of faults nor their number. When visiting a node for the first time, the agent discovers ports corresponding to faulty edges, if any, incident to this node. A faulty edge prevents the agent from traversing it. The fault-free subgraph G', resulting from the original graph G = (V,E) after removing all faulty edges, may be disconnected. Let C be the connected component of the subgraph G', containing the starting node v. We will call C the fault-free component corresponding to the fault configuration F and to the node v. The task of the agent is to explore C by visiting all of its nodes. Exploration is finished when the last node of C is visited (the agent does not have to go back to its starting node). For a given graph G, starting node v, and fault configuration F, the cost C(A,G,v,F) of an exploration algorithm A is the number of edge traversals it performs when exploring the connected component C containing v and corresponding to F.
+
+An agent that knows F, and hence knows the component C, has some algorithm exploring the component C at the minimum possible cost. Call this optimal cost opt(G,v,F). Note that this optimal algorithm and its cost might be difficult to find in many cases. Now consider an exploration algorithm A for a given graph G and starting node v, that does not know F, as supposed in our scenario. A natural measure of performance of such an algorithm, cf. [\cite=MaPe], is the worst-case ratio between its cost and the optimal cost opt(G,v,F), where the worst case is taken over all fault configurations F. This number [formula] is called the overhead of A, and is denoted OA,G,v. This measure is similar to the competitive ratio of on-line algorithms. It measures the penalty incurred by the algorithm, due to some kind of ignorance. In the case of on-line algorithms, they do not know future events, which are known to an off-line algorithm (serving as a benchmark). The exploration algorithms we want to design do not know the fault configuration, which is known to an optimal algorithm (serving as a benchmark).
+
+Given a graph G and a starting node v, an exploration algorithm (not knowing the fault configuration) is called perfectly competitive if it has the smallest overhead among all exploration algorithms working under this scenario. Our aim is to construct exploration algorithms with small overhead: either perfectly competitive algorithms or ones whose overhead only slightly exceeds the smallest possible overhead.
+
+In the sequel, when the graph G and the starting node v are fixed, we will write C(A,F) instead of C(A,G,v,F), opt(F) instead of opt(G,v,F), and OA instead of OA,G,v. If the link corresponding to port p at some node is faulty, we will say that port p at this node is faulty, otherwise we will say that port p is free.
+
+Related work
+
+The problem of exploration and navigation of mobile agents in an unknown environment has been extensively studied in the literature (cf. the survey [\cite=RKSI]). Our scenario falls in this category: in our case, the unknown ingredient of the environment is the fault configuration. The explored environment has been modeled in the literature in two distinct ways: either as a geometric terrain in the plane, e.g., an unknown terrain with convex obstacles [\cite=BRS], or a room with polygonal [\cite=DKP] or rectangular [\cite=BBFY] obstacles, or as we do, i.e., as a graph, assuming that the agent may only move along its edges. The graph model can be further specified in two different ways: either the graph is directed and strongly connected, in which case the agent can move only from tail to head of a directed edge [\cite=AH] [\cite=BFRSV] [\cite=BS] [\cite=DP], or the graph is undirected (as we assume) and the agent can traverse edges in both directions [\cite=ABRS] [\cite=BRS2] [\cite=DKK] [\cite=PaPe]. The efficiency measure adopted in most papers dealing with exploration of graphs is the cost of completing this task, measured by the number of edge traversals by the agent. In some papers, further restrictions on the moves of the agent are imposed. It is assumed that the robot has either a restricted tank [\cite=ABRS] [\cite=BRS2], and thus has to periodically return to the base for refueling, or that it is attached to the base by a rope or cable of restricted length [\cite=DKK].
+
+Another direction of research concerns exploration of anonymous graphs. In this case it is impossible to explore arbitrary graphs and stop after exploration, if no marking of nodes is allowed. Hence some authors [\cite=BFRSV] [\cite=BS] allow pebbles which the agent can drop on nodes to recognize already visited ones, and then remove them and drop them in other places. A more restrictive scenario assumes a stationary token that is fixed at the starting node of the agent [\cite=CDK] [\cite=PeTi]. Exploring anonymous graphs without the possibility of marking nodes (and thus possibly without stopping) is investigated, e.g., in [\cite=DFKP]. The authors concentrate attention not on the cost of exploration but on the minimum amount of memory sufficient to carry out this task. Exploration of anonymous graphs is also considered in [\cite=DM] [\cite=DJMW] [\cite=DW].
+
+A measure of performance of exploration algorithms, similar to the competitive ratio, and thus to our notion of overhead, has been used, e.g., in [\cite=DePe], to study exploration of unknown graphs and graphs for which only an unoriented map is available. In the above paper, the benchmark was the performance of an algorithm having full knowledge of the graph.
+
+Our problem belongs to the domain of fault-tolerant graph exploration whose other aspects were studied, e.g., in [\cite=CKR1] [\cite=CKR2] [\cite=CKMP] [\cite=DFKRPS] [\cite=DFPS1] [\cite=DFPS2] [\cite=FKMS] [\cite=KMRS1] [\cite=KMRS2], in the context of searching for a black hole in a network. A black hole is a process situated at an unknown node and destroying all agents visiting it. The goal is to locate a black hole using as few agents as possible, while keeping at least one agent surviving. Another aspect of fault-tolerant exploration was studied in [\cite=FPS]. It concerned the exploration of a line by a single agent, and faults involved directions chosen by the agent: for example, if the agent planned on going right and the fault occurred, it resulted in going left.
+
+The paper most closely related to the present work is [\cite=MaPe]. The authors used the same scenario and the goal was also to find exploration algorithms with the smallest possible overhead. However, they restricted attention to the class of trees. For the simplest case of the line they designed a perfectly competitive algorithm, and they proposed another algorithm, working for arbitrary trees, whose overhead is at most 9/8 times larger than that of a perfectly competitive algorithm.
+
+Our results
+
+We consider hamiltonian graphs, i.e., graphs that contain a simple cycle including all nodes. This is a large class containing such important examples as complete graphs, hypercubes, rings, and even-size tori. Our goal is to design exploration algorithms for hamiltonian graphs some of whose edges are faulty, with small overhead. We have two main results.
+
+For any ring, and any starting node, we design a perfectly competitive exploration algorithm. The algorithm and its overhead depend only on the size of the ring. This should be contrasted with the perfectly competitive exploration algorithm for the line, designed in [\cite=MaPe], whose behavior and overhead depend on the distance between the starting node and the closer endpoint of the line, and do not depend on the size of the line.
+
+For an arbitrary hamiltonian graph of size n  ≥  3 and an arbitrary starting node, we show that the overhead of any DFS exploration is at most (2n - 4) / (n - 1). We also show that this overhead is at most 10/9 times larger than that of a perfectly competitive algorithm, for any hamiltonian graph. Moreover, for hamiltonian graphs of size at least 24, this overhead turns out to be less than 6% larger than that of a perfectly competitive algorithm.
+
+The total computation time used by our exploration algorithms is linear in the number of edges of the explored graph. Our main contribution is in the analysis of overhead of these algorithms, showing that simple and natural exploration strategies perform very well in faulty hamiltonian graphs.
+
+Perfectly competitive exploration of rings
+
+In this section we design a perfectly competitive algorithm working for an arbitrary ring. A ring is a graph R  =  (V,E), where V  =  {v1,...,vn}, n  ≥  3 and [formula]. For any i > 1 we call vi - 1 the predecessor of vi and for any i < n we call vi + 1 the successor of vi. The predecessor of v1 is vn and the successor of vn is v1. At any node we denote by [formula] the port leading to the predecessor of v and by r the port leading to the successor of v.
+
+We fix a ring R and a starting node v. For a fixed non-empty fault configuration F, denote by x the distance between v and the first fault encountered when always taking the port [formula], and denote by y the distance between v and the first fault encountered when always taking the port r.
+
+An agent knowing the configuration F, and hence knowing x and y, has the following simple exploration algorithm which is optimal: go first to the closest fault and then go back until a fault is met. Hence opt(F) is 2x  +  y if x  ≤  y, and is 2y  +  x if x  >  y.
+
+The following procedure has two parameters: a positive integer s and a direction [formula]. It causes the agent to go at most s steps always taking port d, until a fault is met. It returns the boolean value b = false if a fault is met and b = true otherwise.
+
+The next procedure causes the agent to successively take port [formula] until a fault is met. It has a provision to avoid returning to the starting node v, if there are no faults.
+
+We now formulate our algorithm for ring exploration.
+
+Since the time of computation at each visit of a node is constant, the total computation time of Algorithm Ring is linear in the size of the ring. The following proposition gives the overhead of Algorithm Ring.
+
+The overhead of Algorithm Ring is:
+
+First observe that if the fault configuration F is empty, then Algorithm Ring has cost n - 1 if n  ≤  5, cost n if 6  ≤  n  ≤  19, and cost n + 1 if n  ≥  20. Hence, for the empty fault configuration F, [formula] if n  ≤  5, [formula] if 6  ≤  n  ≤  19, and [formula] if n  ≥  20. If F is non-empty then integers x and y are well defined. If x  =  0 or y  =  0, then [formula]. Otherwise consider the following cases.
+
+n  =  3. In this case [formula]. Hence in this case [formula].
+
+4  ≤  n  ≤  5. In this case, [formula]. If x  ≤  y, then [formula]. If x  >  y, then [formula] and this fraction is maximized for x  =  n  -  2, y  =  1, giving the value [formula]. Since [formula] for n  ≥  4, we get [formula] in this case.
+
+n  =  6. In this case, [formula]. If x  <  y, [formula] and this fraction is maximized for x  =  2, y  =  3, giving the value [formula]. If x  ≥  y, then [formula] and this fraction is maximized for x  =  2, y  =  1, giving the value [formula]. The ratio [formula] for the empty fault configuration is [formula] in this case. Since [formula] and [formula], we get [formula] in this case.
+
+n  =  7. In this case, [formula]. If x  ≤  y, then [formula] and this fraction is maximized for x  =  2, y  =  4, giving the value [formula]. If x  >  y, then [formula] and this fraction is maximized for x  =  2, y  =  1, giving the value [formula]. The ratio [formula] for the empty fault configuration is [formula] in this case. Since [formula], we get [formula] in this case.
+
+8  ≤  n  ≤  19. In this case, [formula]. If x  ≤  y, then [formula] and this fraction is maximized for x  =  2, y  =  n  -  3, giving the value [formula]. If x  >  y, then [formula] and this fraction is maximized for x  =  2, y  =  1, giving the value [formula]. The ratio [formula] for the empty fault configuration is [formula] in this case. Since [formula] and [formula] when n  ≥  8, we get [formula] in this case.
+
+20  ≤  n  ≤  23. In this case, [formula]. If x  ≤  y, then [formula] and this fraction is maximized for x  =  3, y  =  n  -  4, giving the value [formula]. If x  >  y, then [formula] and this fraction is maximized for x  =  3, y  =  1, giving the value [formula]. The ratio [formula] for the empty fault configuration is [formula] in this case. Since [formula] and [formula] when 20  ≤  n  ≤  23, we get [formula] in this case.
+
+n  ≥  24. In this case, [formula]. If x  ≤  y, then [formula] and this fraction is maximized for x  =  3, y  =  n  -  4, giving the value [formula]. If x  >  y, then [formula] and this fraction is maximized for x  =  3, y  =  1, giving the value [formula]. The ratio [formula] for the empty fault configuration is [formula] in this case. Since [formula] and [formula] when n  ≥  24, we get [formula] in this case.
+
+We now show that Algorithm Ring is perfectly competitive, i.e., has the smallest overhead among all exploration algorithms for the ring, not knowing the fault configuration. We adapt to the ring the following notions from [\cite=MaPe] (where they were defined for the line in a similar way). We denote by Ak the class of exploration algorithms for the ring which do initially k returns (i.e., changes of direction) assuming that no fault is encountered before the first k returns, then GO-FIRM, and in the case when a fault is met, return and GO-FIRM. An algorithm of class Ak is called an i-step algorithm, for 1  ≤  i  ≤  n - 2, if it goes i steps before the first return, unless a fault is encountered earlier. Note that A0 is the class of DFS algorithms (there are two such algorithms for the ring, depending on the initial direction chosen). Also, an i-step algorithm of class Ak, for k > 0 and i  ≥  n - 1 is in fact a DFS algorithm, i.e., it is of class A0. On the other hand, a 0-step algorithm of class Ak is an algorithm of a class Am, for some m < k, and hence it is enough to consider only i-step algorithms, for strictly positive i, in each class. Algorithm Ring is an algorithm of class A0 for n  ≤  5, it is a 1-step algorithm of class A1 for 6  ≤  n  ≤  19, and it is a 2-step algorithm of class A1 for n  ≥  20.
+
+The proof that Algorithm Ring is perfectly competitive is split into a series of lemmas.
+
+Every algorithm of class A0 has overhead at least [formula], for all n  ≥  3.
+
+Consider the fault configuration F consisting of a single fault situated at distance 1 from the starting node v, in the direction different from the one at which the algorithm A of class A0 starts. Then C(A,F) = 2n - 3 and opt(F) = n, which concludes the proof.
+
+Let n  ≥  3. Every (n - 2)-step algorithm of class A1 has overhead [formula], and every i-step algorithm of class A1, for 1  ≤  i  ≤  n - 3, has overhead [formula].
+
+First consider an (n - 2)-step algorithm A of class A1, and a fault configuration F. If F is empty, then C(A,F) = 2n - 3 and opt(F) = n - 1, giving the ratio [formula]. Otherwise, x and y are well defined. If x = 0 or y = 0, then C(A,F) = opt(F). Assume that x > 0 and y > 0. Without loss of generality we may assume that in the first step the algorithm takes port [formula]. We have x  ≤  n - 2, and hence [formula]. This fraction is maximized for x  =  n - 2 and y  =  1, and then its value is [formula]. Since [formula], we get [formula].
+
+In the rest of the proof we consider an i-step algorithm A of class A1, for 1  ≤  i  ≤  n - 3, and a fault configuration F. If F is empty, then C(A,F) = n + i - 1 and opt(F) = n - 1, giving the ratio of [formula]. Otherwise, x and y are well defined. If x = 0 or y = 0, then C(A,F) = opt(F). Assume that x > 0 and y > 0. Without loss of generality we may assume that in the first step the algorithm takes port [formula].
+
+If x  ≤  i then [formula], and this fraction is maximized for x  =  i and y  =  1. Hence the maximum value of [formula] is [formula] in this case.
+
+If x  >  i and x  ≥  y then [formula], and this fraction is maximized for x  =  i  +  1 and y  =  1. Hence the maximum value of [formula] is [formula] in this case.
+
+If x  >  i and x  <  y then [formula], and this fraction is maximized for x  =  i  +  1 and y  =  n  -  i  -  2. Hence the maximum value of [formula] is [formula] in this case.
+
+Since [formula], il follows that [formula].
+
+Lemma [\ref=class_1] gives the following corollary.
+
+Every 1-step algorithm of class A1 has overhead:
+
+Every 2-step algorithm of class A1 has overhead:
+
+Notice that for 3  ≤  i  ≤  n - 3, we have [formula]. Moreover, [formula] when 5  ≤  n  ≤  7, and [formula] when n  >  7 (i would be less than 3 for n  <  5). Hence it follows from Lemma [\ref=class_1] and from Corollary [\ref=cor] that the overhead of any i-step algorithm of class A1, for i  ≥  3, is larger than the overhead of a 1-step algorithm of class A1. Hence, when looking for perfectly competitive algorithms in class A1 we may restrict attention to i-step algorithms for i  ≤  2.
+
+It was observed in [\cite=MaPe] that if the agent, at some point of the exploration, is at node w, then moves along an already traversed edge incident to w, and immediately returns to w, then, for any fault configuration, an algorithm causing such a pair of moves has cost strictly larger than the algorithm that skips these two moves. Hence, while looking for a perfectly competitive algorithm, we may restrict attention to algorithms that do not perform such unnecessary moves. We call such algorithms regular. It is easy to see that any regular exploration algorithm on a ring falls in one of the classes Ak.
+
+The following lemma is proved similarly as Lemma 2.5 from [\cite=MaPe] which is its analog for the line; we include the proof for completeness. Together with the above remarks, it shows that when looking for perfectly competitive exploration algorithms on rings we may restrict attention to algorithms of class A0 and to 1-step and 2-step algorithms of class A1.
+
+For every exploration algorithm of class Ak, for k  ≥  2, there exists an algorithm of class A0 or an i-step algorithm of class A1, for i  ≤  2, with a smaller or equal overhead.
+
+Let A be any algorithm of class Ak, for k  ≥  2. Without loss of generality, assume that the agent starts by taking port [formula]. The behavior of A can be described as follows:
+
+traverse z1 edges going in one direction;
+
+return and traverse z1  +  z2 edges;
+
+return and traverse z2  +  z3 edges;
+
+...
+
+return and traverse zk  -  2  +  zk  -  1 edges;
+
+return and traverse zk  -  1  +  zk edges;
+
+return and GO-FIRM;
+
+return and GO-FIRM;
+
+for z1  <  z3  <  z5  <  ... and z2  <  z4  <  z6  <  ..., provided that the closest faults to the starting node v (if any) are at distance larger than zk  -  1 of v on the side where the agent has traversed zk  -  1 edges, and at distance larger than zk of v on the side where the agent has traversed zk edges. This implies that zk  -  1  +  zk ≤   n  -  2.
+
+First consider a non-empty fault configuration F for which the closest fault from v in one direction is at distance zk  -  1  +  1 from it, and the closest fault from v in the other direction is at distance zk  +  1 from it (this could be the same fault). We have C(A,F)  =  2(z1  +  ...  +  zk)  +  (2zk  -  1  +  2)  +  (zk  +  1)  =  2(z1  +  ...  +  zk)  +  2zk  -  1  +  zk  +  3.
+
+If zk  ≥  zk  -  1, we have opt(F)  =  2zk  -  1  +  zk  +  3. Hence [formula]. If additionally 2(z1  +  ...  +  zk)  -  2zk  -  1  -  zk  ≥  3, it follows that [formula] in this case.
+
+If zk  <  zk  -  1 then 2(z1  +  ...  +  zk  -  1)  ≥  zk  +  3 and opt(A) = 2zk  +  zk  -  1  +  3. Hence [formula] in this case.
+
+Since any algorithm [formula] of class A0 has an overhead [formula], we conclude that in any of the above cases, the algorithm [formula] has an overhead smaller than the algorithm A.
+
+If none of the above cases holds (i.e., if we have zk  ≥  zk  -  1 and 2(z1  +  ...  +  zk  -  2)  +  zk  <  3), then the only possibility is k = 2 and z2  ≤  2. In this case consider a z2-step algorithm [formula] of class A1. The overhead of algorithm [formula] is [formula] when z2  ≤  n - 3, and [formula] when z2  =  n - 2, by Lemma 2.2.
+
+We have [formula] [formula], because z2  ≤  2.
+
+Let F1 be the fault configuration consisting of one fault for which y  =  z2  +  1 and x  =  n  -  z2  -  2. We have C(A,F1) = 2z1 + 3z2 + 2x + 1 and opt(F1) =  min {2z2 + x + 2,2x + z2 + 1}. Hence C(A,F1)  ≥  z2 + 2n - 3 and opt(F1)  ≤  z2 + n, and thus [formula].
+
+Finally, consider the empty fault configuration [formula]. We have [formula] and [formula]. Hence [formula].
+
+It follows that in the case when zk  ≥  zk  -  1 and 2(z1  +  ...  +  zk  -  2)  +  zk  <  3, we have [formula]. This proves the lemma.
+
+Every exploration algorithm of the ring has overhead at least:
+
+[formula]
+
+By Lemma [\ref=old] we can restrict attention to algorithms of class A0 and i-step algorithms of class A1, for i  ≤  2.
+
+Let 4  ≤  n  ≤  5. By Lemma [\ref=class_0], every algorithm of class A0 has overhead at least [formula]. By Corollary [\ref=cor], every 1-step algorithm of class A1 has overhead at least [formula] and every 2-step algorithm of class A1 has overhead at least [formula]. Since [formula], the overhead of any exploration algorithm is at least [formula] in this case.
+
+Let 6  ≤  n  ≤  7. By Lemma [\ref=class_0], every algorithm of class A0 has overhead at least [formula]. By Corollary [\ref=cor], every 1-step algorithm of class A1 has overhead at least [formula] and every 2-step algorithm of class A1 has overhead at least [formula]. Since [formula], the overhead of any exploration algorithm is at least [formula] in this case.
+
+Let 8  ≤  n  ≤  19. By Lemma [\ref=class_0], every algorithm of class A0 has overhead at least [formula]. By Corollary [\ref=cor], every 1-step algorithm of class A1 has overhead at least [formula] and every 2-step algorithm of class A1 has overhead at least [formula]. Since [formula] for 8  ≤  n  ≤  15 and [formula] for 16  ≤  n  ≤  19, the overhead of any exploration algorithm is at least [formula] in this case.
+
+Let 20  ≤  n  ≤  23. By Lemma [\ref=class_0], every algorithm of class A0 has overhead at least [formula]. By Corollary [\ref=cor], every 1-step algorithm of class A1 has overhead at least [formula] and every 2-step algorithm of class A1 has overhead at least [formula]. Since [formula], the overhead of any exploration algorithm is at least [formula] in this case.
+
+Let n  ≥  24. By Lemma [\ref=class_0], every algorithm of class A0 has overhead at least [formula]. By Corollary [\ref=cor], every 1-step algorithm of class A1 has overhead at least [formula] and every 2-step algorithm of class A1 has overhead at least [formula]. Since [formula], the overhead of any exploration algorithm is at least [formula] in this case.
+
+Propositions [\ref=ring] and [\ref=lb] imply:
+
+Algorithm Ring is perfectly competitive for an arbitrary ring.
+
+Remark. It is interesting to compare our scenario of exploration of an n-node ring with possibly faulty links to the scenario from [\cite=DePe] of exploration of a line of known size n (without faults) by an agent starting in an unknown node of the line. (This scenario was called exploration with an unanchored map in [\cite=DePe]). Notice that the latter scenario is equivalent to our ring scenario with exactly one fault. In [\cite=DePe], an algorithm with optimal overhead was given and proved to have overhead [formula]. Since there were no faults in [\cite=DePe], the overhead involved a maximum ratio over all positions of the starting node. This algorithm, if applied in our case of rings with possibly many faulty links, would have a huge overhead: arbitrarily close to 3, for large n, and thus much worse than DFS. This is due to the fact that, in the scenario from [\cite=DePe], the adversary can only place the starting node arbitrarily, but has no power of changing the size of the line, as this is known to the agent. By contrast, in a ring with arbitrary fault configurations, the adversary can place arbitrarily the two faults that define the size of the connected component containing the starting node. This is what makes the optimal algorithm from [\cite=DePe] so bad in our present scenario.
+
+DFS exploration of hamiltonian graphs
+
+Since the agent has a faithful map of the graph, for most graphs there are many DFS (Depth-First-Search) exploration algorithms of the fault-free component of the graph, depending on the order in which free ports at each visited node are explored. Thus it is appropriate to speak of algorithms of the class [formula], each of whose members is specified by giving a permutation of ports at each node that determines this order. Hence we adopt the following definition.
+
+Fix an arbitrary graph G = (V,E) and any fault configuration F in G. Let v be the starting node of the agent. For any node w of G, let σw be a permutation of ports at w. Let α = (σw:w∈V). DFS(α) is the algorithm specified by calling the following recursive procedure at node v.
+
+The class [formula] is defined as the class of algorithms DFS(α), for all sequences of permutations α = (σw:w∈V). Note that for any algorithm of the class [formula], the route of the agent is a tour of some spanning tree of the fault-free component C of the graph, containing the starting node and corresponding to the fault configuration F, in which the agent stops as soon as the last node of the component is visited. Hence the edge of the tree corresponding to the leaf that is visited last is traversed only once. Consequently, for any α and any F, we have C(DFS(α),F)  ≤  2m - 3, where m is the size of the component C. The total computation time of any algorithm of the class [formula] is linear in the number of all ports, i.e., also linear in the number of edges of the explored graph.
+
+Our aim is to show that if the graph G is hamiltonian then any algorithm of the class [formula] has overhead not much larger than that of a perfectly competitive algorithm. Note that a hamiltonian graph must have at least three nodes, and hence we assume in the sequel that the size n of the graph is at least 3. We first prove the following lemma.
+
+Let G be any hamiltonian graph of size n  ≥  3. For any algorithm A of the class [formula] and any starting node, [formula].
+
+Consider any fault configuration F and any starting node v. Let C be the fault-free component, corresponding to the configuration F and to the node v. Let m be the size of C. Consider two cases.
+
+Case 1. There exists a hamiltonian path in C with v as an endpoint.
+
+Let [formula], where w1 = v, be a hamiltonian path in C. C contains all edges of this path and possibly some additional edges {wi,wj}. For m = 2, we have C(A,F)  =  opt(F)  =  1. Assume m  ≥  3; we have opt(F) = m - 1. Let T be the spanning tree of C, corresponding to the route of the agent executing algorithm A. T has m - 1 edges. As previously remarked, the last-traversed edge of T is traversed only once. We show that the first-traversed edge is also traversed only once. Let {w1,wj} be this edge. Suppose that this edge is traversed by the agent a second time. This traversal must be from wj to w1. This implies that at the time t of the visit of wj immediately preceding this traversal, there are still non-visited nodes. Let ws be the node non-visited at time t, with the largest index s < j or with the smallest index s > j. If s < j then ws + 1 was visited before time t and if s > j then ws - 1 was visited before time t. In the first case the port at ws + 1 corresponding to the edge {ws + 1,ws} is free, and in the second case the port at ws - 1 corresponding to the edge {ws - 1,ws} is free. This contradicts the fact that, according to algorithm A, the agent should visit ws before time t.
+
+Hence both the first-traversed edge and the last-traversed edge are traversed only once. This implies that the cost of algorithm A is at most 2m - 4, for m  ≥  3, in this case.
+
+Case 2. There is no hamiltonian path in C with v as an endpoint.
+
+In this case opt(F)  ≥  m and the cost of algorithm A is at most 2m - 3 because the last-traversed edge is traversed only once.
+
+Since [formula] for m  ≥  3, it follows that in both cases [formula], whenever the component C is of size m. Since [formula] is an increasing function of m, this value is largest for m = n, which concludes the proof.
+
+The following is the main result of this section.
+
+For any hamiltonian graph G = (V,E), any starting node v, and any algorithm A of the class DFS, the ratio between the overhead of A and the overhead of a perfectly competitive algorithm on G starting at v is at most 10/9. Moreover, for n  ≥  24, this ratio is less than 1.06.
+
+Let B be a perfectly competitive algorithm on G, starting at v. Let R be any hamiltonian cycle in G. By definition, R contains the starting node v. Let F* be the set of all edges in G except those in R. Let [formula]. By definition, OB,G,v  ≥  x. On the other hand, the execution of any algorithm for a fault configuration F containing F* can be considered as an execution of an algorithm on the ring R for the fault configuration [formula]. Since the family of fault configurations in G containing F* is equal to the family of fault configurations [formula], where F' is a fault configuration in R, we get [formula], for otherwise Algorithm Ring would not be perfectly competitive on R, contradicting Theorem [\ref=perfect]. It follows that [formula]. By Proposition [\ref=lb], OB,G,v is at least:
+
+[formula]
+
+By Lemma [\ref=dfs], the ratio [formula] is at most:
+
+[formula]
+
+Since [formula], the ratio between the overhead of A and the overhead of a perfectly competitive algorithm on G starting at v is at most 10/9. Moreover, for n  ≥  24, this ratio is less than 1.06.
+
+It is natural to ask if the bound [formula] on the overhead of any algorithm of the class DFS, obtained in Lemma [\ref=dfs], is tight. This is not the case for all hamiltonian graphs, as witnessed by the example of the ring. By Lemma [\ref=class_0], the overhead of any algorithm of the class DFS on the ring is [formula]. Hence a natural question is whether this bound is tight for some hamiltonian graphs. The next proposition shows that the answer to this question is positive.
+
+The overhead of any algorithm A of the class DFS is exactly [formula] for the complete graph of size n  ≥  3.
+
+Let A be any algorithm of the class DFS starting at a node v of the complete graph Kn. In view of Lemma [\ref=dfs], it is enough to show a fault configuration F, for which [formula]. This configuration depends on the set of permutations α = (σw:w∈V) for which A = DFS(α). Let [formula] and let w be the node corresponding to port i1. Let [formula] and let jk be the port number at w corresponding to the edge {w,v}. Let [formula] and let [formula]. Let u' be the node corresponding to port ja at node w and let u'' be the node corresponding to port jb at node w. We define v1 = v, vn - 2 = u', vn - 1 = w, vn = u'', and all nodes other than v,u',w,u'' are called arbitrarily [formula]. Let P be the set of edges [formula] (see Fig. 1).
+
+Consider the fault configuration F consisting of all edges of Kn except those in P. For this fault configuration the optimal cost is n - 1, corresponding to traveling the path [formula]. The agent executing algorithm A first takes port i1 going to node w, then takes port ja which is the first free port at w according to permutation σw, apart from the port jk by which the agent has just come to w. At this point the agent is at u' = vn - 2. Next the agent travels the path [formula], backtracks by the reverse path [formula] to u' = vn - 2, backtracks to w = vn - 1, and finally goes to u'' = vn. The total cost is 2n - 4. Hence [formula].
+
+Conclusion
+
+We designed a perfectly competitive exploration algorithm for rings, and we proved that, for all hamiltonian graphs, the overhead of every algorithm of the class DFS exceeds that of a perfectly competitive algorithm for the given graph by less than a factor of 10/9. The latter result does not hold for arbitrary graphs. This is best witnessed by the case of a line, for which the starting node is at distance 1 from one of the endpoints. In this case the perfectly competitive algorithm has overhead 1 (as shown in [\cite=MaPe]), and the "wrong" DFS (i.e., the one that goes first to the farther endpoint) has overhead [formula], for lines of length n, i.e., it is arbitrarily close to 2 for long lines. This still leaves the hope that the "best" member of the class DFS, i.e., the DFS algorithm with the smallest overhead, for any given graph, may have overhead similar to that of a perfectly competitive algorithm for this graph. This might be true, but finding this best DFS (a trivial task in the case of the line) may be very challenging for arbitrary graphs. We know neither if the "best" DFS for an arbitrary graph has an overhead similar to that of a a perfectly competitive algorithm for this graph, nor, even if this is the case, how to find this particular DFS, or any other of similar overhead.
+
+Going beyond the class DFS, the most important question seems to be, whether there exists a perfectly competitive algorithm for arbitrary graphs, whose total computation time is polynomial in the size of the graph. Unless such an algorithm is constructed, an important challenge would be finding, for an arbitrary graph, some exploration algorithm whose overhead exceeds that of a perfectly competitive algorithm for the given graph by a small factor. In view of the present paper and of [\cite=MaPe] the situation is the following. For the class of hamiltonian graphs and for the class of trees, such algorithms exist, and the ratio is at most 10/9 in the first case and at most 9/8 in the second case. For these two classes of graphs, the algorithms performing so well are very simple, and the total computation time used during exploration is linear in the number of edges of the explored graph. (Since any algorithm of the class DFS on hamiltonian graphs is good for our purpose, we can take, e.g., the one induced by the increasing permutation of ports at each node.) Is it possible to design, for an arbitrary graph, an exploration algorithm whose overhead exceeds that of a perfectly competitive algorithm for this graph by a factor of, say, at most 1.15, and for which the total computation time is polynomial in the size of the graph?
+
+Other interesting variants of the problem of exploration in the presence of faulty edges are when the agent knows the exact value of the number of faults, or some upper bound on this number.

@@ -1,0 +1,171 @@
+Continuous Learning: Engineering Super Features With Feature Algebras
+
+Introduction
+
+This paper proposes a method of finding a sequence of improving models for a given fixed data set that we call Continuous Learning. The method is based on iterative exploration of a space of models that have a specific limited number of parameters, which correspond to non-linear polynomial features of an input space. The feature set is evolving with each iteration, so the most important features are selected from the current feature set then the reduced feature set is expanded to include higher degree polynomials while the dimension of the expanded feature space is limited or fixed. Resulting features are computed recursively from iteration to iteration with different parameters of the recursions found for each execution of the iteration algorithm.
+
+The paper is organized as follows:
+
+To search a model space we need to compare different models and solutions. We use Bayesian framework that provides a natural way for model comparison [\cite=barberBRML2012]. Continuous Learning consists of a sequence of iteration cycles. Each iteration cycle has a number of steps. In first of these steps, we use bootstrap method to obtain a set of sampled solutions [\cite=hastie_09_elements-of.statistical-learning] and parameter-feature duality as a method for exploring the feature space. We construct a model of a solution distribution and use Principal Component Analysis to select a subspace of the most important solutions and reduce dimensions of the parameter space. Then we use non-linear expansion of the feature space by adding tensor-features that are products of the principal features selected in the previous step. That concludes a definition of one iteration cycle.
+
+Each iteration is recursively redefining features that become non-linear functions on the original feature space. We analyzed a stationary solution of the iteration cycle and found that, in a limit of the infinite number of iterations, features form a Feature Algebra. Different solutions of Feature Algebra define non-linear feature representations.
+
+For the purpose of this work, we will consider a prediction problem setup. The goal is to find a probability of a class label y for a given input x: Prob(y|x).
+
+The model class family is defined by a conditional probability function P(y|x,w), where w is a parameter vector. For a set of independent training data samples [formula], the probability of labels for given inputs is defined by the Bayesian integrals
+
+[formula]
+
+[formula]
+
+[formula]
+
+where P0(w|r) is a prior probability of parameters w that guarantees existence and convergence of the Bayesian integrals in Equations [\ref=eq:BayesianIntegral1] and [\ref=eq:BayesianIntegral2] and it is normalized as follows:
+
+[formula]
+
+Then the Bayesian integral in the Equation [\ref=eq:BayesianIntegral2] is equal to a probability of labels {yt} for the given input vectors {xt} of the training set.
+
+The prior distribution P0(w|r) itself depends on some parameters r (hyper-parameters or regularization parameters). Then the Bayesian integrals in the Equations [\ref=eq:BayesianIntegral1] and [\ref=eq:BayesianIntegral2] also depend on regularization parameters r. Optimal values of the regularization parameters could be found by maximizing the probability of the training data given by the Bayesian integral in Equation [\ref=eq:BayesianIntegral2]. This is possible because due to normalization of the prior probability in the Equation [\ref=eq:PriorProbNormalization], the Bayesian integrals include the contribution of the normalization factor that depends only on regularization parameters r. The regularization solution found by maximizing the probability of training data is equivalent to the solution for regularization parameters found by cross-validation.
+
+For the purpose of this paper, it is sufficient to estimate values of the Bayesian integrals in the Equations [\ref=eq:BayesianIntegral1] and [\ref=eq:BayesianIntegral2] using maximum likelihood approximation (MLA) by finding a solution wm that maximizes log-likelihood of the training set that includes the prior probability of parameters w:
+
+[formula]
+
+Then the Bayesian integral can be approximated by the maximum likelihood as follows
+
+[formula]
+
+Training and sampling noise
+
+The training data are always a limited-size set or a selection from a limited-size set. For that reason it contains a sampling noise. The sampling noise affects solutions. This is easy to see by sub-sampling the training data: for each sampled training set the MLA solution is different in the Equation [\ref=eq:MLAsolution] as well as the value of the Bayesian integral B in the Equation [\ref=eq:MLAintegral].
+
+Our goal is to find a solution that is the least dependent on the sampling noise and better represents an actual statistics of a source.
+
+To achieve that, we can sample the training data to create a set of the training sets [formula] and then find an MLA solution ws for each sampled training set [formula].
+
+[formula]
+
+Now we have a set of solutions [formula] which is a noisy representation of a source statistics. The probability of each solution is given by the value of the Bayesian integral on the solution and is equal to
+
+[formula]
+
+The solution distribution in the Equation [\ref=eq:SolutionProb] is based on sampling of the original training data set. It is a variant of a bootstrap technique [\cite=hastie_09_elements-of.statistical-learning]. This type of methods is actively used in different forms to improve training and to find a robust solution, that is less dependent on a sampling noise in the original training set. For example, see the dropout method that randomly omits hidden features during training [\cite=DBLP:journals/corr/abs-1207-0580] or the method of adding artificial noise or a corruption to a training data [\cite=DBLP:journals/corr/abs-1305-6663].
+
+Instead of trying to find a single best solution we use the bootstrap method here to obtain a distribution of solutions.
+
+Distribution of solutions
+
+Let's consider the set of solutions in the Equation [\ref=eq:MLAsolutionS] as samples from unknown distribution of solutions, where each solution ws has a weight [formula] and the probability of the solution is given by the Equation [\ref=eq:SolutionProb].
+
+Then we can model this distribution of solutions by proposing a probability function [formula] with parameters z, which we can find by maximizing by z the following log-likelihood
+
+[formula]
+
+Up until now we did not specify the model class distribution [formula]. For the following consideration, we will use logistic regression for model class distribution with binary label y  =  0,1 as follows
+
+[formula]
+
+where [formula] is a product of the parameter vector [formula] with the feature vector [formula] which includes a bias feature 1.
+
+The use of the logistic regression here is not a limitation on the possible models. It is selected only for certainty and to avoid an unnecessary complication of the consideration. As we will see the following approach is applicable to any model class distribution that is a function of a scalar product of a feature vector and a parameter vector. Also it could be used for a model class distribution that is a function of multiple products of a feature vector and parameter vectors.
+
+Using the Equation [\ref=eq:modelLogit] we will find a set of solutions defined in the Equation [\ref=eq:MLAsolutionS] for each corresponding training set Ts.
+
+To model the distribution of solutions we will start by considering Gaussian model for the distribution of solutions [formula].
+
+Then the model is defined by mean
+
+[formula]
+
+and covariance matrix
+
+[formula]
+
+[formula]
+
+We will use Principal Component Analysis (PCA) to separate important solutions from noise. That leads to the following representation of the parameter vector w:
+
+[formula]
+
+where [formula] and [formula] are selected eigenvectors of the covariance matrix [formula] indexed by α. The coordinates Vα1 span over the principal-component subspace that is defined by selected eigenvectors. The selected eigenvectors correspond to a high-variance subspace, where eigenvalues of the covariance matrix [formula] are larger than a certain threshold. The value of the threshold for selecting the principal components is a hyper-parameter that controls the dimension of the principal component space, which in practice is constrained by the available memory.
+
+Iterating over sequence of models
+
+The important property of the model class probability distribution is a parameter - feature duality: the parameters w for the model class distribution [formula] are used only in a product form
+
+[formula]
+
+where [formula] are the original features.
+
+By considering solutions that are limited to the principal component space we can find that the product is given by the following Equation
+
+[formula]
+
+We will have exactly the same product form here as in the Equation [\ref=eq:origProduct] when we will define new features F0(x),Fα(x) via original features [formula] as follows
+
+[formula]
+
+so the parameter-feature product will look like this
+
+[formula]
+
+where now V0 and Vα1 are new parameters for the model class distribution with re-defined super-features [formula] from the Equation [\ref=eq:reDefinedFeatures].
+
+The result of this step is that using PCA and redefining features we reduced the original parameter space to a new smaller space.
+
+Let's now extend the parameter-feature space by adding products of the super-features
+
+[formula]
+
+By extending the feature space in the Equation [\ref=eq:extendingFeatures], we increased the dimension of the parameter space by adding new parameters V2 and creating new features as non-linear (quadratic) functions of the previous features.
+
+Now we can repeat the iteration cycle, which consists of the steps in the Table [\ref=tab:iteration].
+
+It is important to emphasize that
+
+The expansions of the feature set by adding products of features were used in recently proposed sum-product networks [\cite=DBLP:journals/corr/abs-1202-3732] and Neural Tensor Networks [\cite=DBLP:journals/corr/abs-1301-3618].
+
+Feature Algebra
+
+To simplify notations, let's allow the feature indices α,β to include value 0. Then the Equation [\ref=eq:extendingFeatures] will look like this
+
+[formula]
+
+The iterations will converge when the product of super-features [formula] in the Equation [\ref=eq:extendingFeaturesNewAlpha] could be expressed only as a linear combination of the super-features
+
+[formula]
+
+where for α = 0 the super-feature Fα(x) is the bias super-feature F0(x).
+
+The Equation [\ref=eq:fAlgebra] defines a feature algebra with structure constants Cγαβ.
+
+The feature algebra has following important properties:
+
+It must be associative:
+
+[formula]
+
+that property leads to major equations for structure constants:
+
+[formula]
+
+The super-feature space with the feature algebra is a complete linear vector space: due to the algebra, any function g(F) on the super-feature space representable by power series is equal to a linear combination of the super-features with computable coefficients Aα:
+
+[formula]
+
+The feature algebra defined by the Equation [\ref=eq:fAlgebra] is not limited to polynomial functions, it could be any function set that satisfies the algebra Equation [\ref=eq:fAlgebra] with structure constants that are a solution of the Equation [\ref=eq:structureConstants].
+
+Simple examples of algebras that are defined by Equations [\ref=eq:fAlgebra] and [\ref=eq:structureConstants] are complex numbers and quaternions. Less trivial examples of such algebras are operator algebras that were successfully used in Statistical Physics of Phase Transitions and Quantum Field Theory.
+
+Conclusions
+
+We proposed an iterative procedure for generating non-linear features (super-features) that are high-degree polynomials on the original feature space after a finite number of iterations.
+
+For a finite number of iterations, the non-linear super-features are defined by sets of principal components selected at each iteration.
+
+By selecting a small set of principal components, the dimensionality of a feature space is limited at each iteration while resulting super-features are highly non-linear (as polynomials of exponentially high with number of iterations degree). That contrasts with an approach when high-degree polynomials are used as the original features - which requires to find a solution for an exponentially high-dimensional model.
+
+In the limit of infinite iterations, the super-features form a linear vector space with an associative algebra.
+
+I am grateful to my wife Yelena for support.

@@ -1,0 +1,327 @@
+Corollary Proposition
+
+Detection of objects in noisy images and site percolation on square lattices
+
+Introduction
+
+In this paper, we propose a new efficient technique for quick detection of objects in noisy images. Our approach uses mathematical percolation theory.
+
+Detection of objects in noisy images is the most basic problem of image analysis. Indeed, when one looks at a noisy image, the first question to ask is whether there is any object at all. This is also a primary question of interest in such diverse fields as, for example, cancer detection ([\cite=Cancer_Detection_1]), automated urban analysis ([\cite=Road_Detection_IEEE]), detection of cracks in buried pipes ([\cite=Sinha200658]), and other possible applications in astronomy, electron microscopy and neurology. Moreover, if there is just a random noise in the picture, it doesn't make sense to run computationally intensive procedures for image reconstruction for this particular picture. Surprisingly, the vast majority of image analysis methods, both in statistics and in engineering, skip this stage and start immediately with image reconstruction.
+
+The crucial difference of our method is that we do not impose any shape or smoothness assumptions on the boundary of the object. This permits the detection of nonsmooth, irregular or disconnected objects in noisy images, under very mild assumptions on the object's interior. This is especially suitable, for example, if one has to detect a highly irregular non-convex object in a noisy image. Although our detection procedure works for regular images as well, it is precisely the class of irregular images with unknown shape where our method can be very advantageous.
+
+Many modern methods of object detection, especially the ones that are used by practitioners in medical image analysis require to perform at least a preliminary reconstruction of the image in order for an object to be detected. This usually makes such methods difficult for a rigorous analysis of performance and for error control. Our approach is free from this drawback. Even though some papers work with a similar setup (see [\cite=Arias-Castro_etal]), both our approach and our results differ substantially from this and other studies of the subject. We also do not use any wavelet-based techniques in the present paper.
+
+We view the object detection problem as a nonparametric hypothesis testing problem within the class of discrete statistical inverse problems.
+
+In this paper, we propose an algorithmic solution for this nonparametric hypothesis testing problem. We prove that our algorithm has linear complexity in terms of the number of pixels on the screen, and this procedure is not only asymptotically consistent, but on top of that has accuracy that grows exponentially with the "number of pixels" in the object of detection. The algorithm has a built-in data-driven stopping rule, so there is no need in human assistance to stop the algorithm at an appropriate step.
+
+In this paper, we assume that the original image is black-and-white and that the noisy image is grayscale. While our focusing on grayscale images could have been a serious limitation in case of image reconstruction, it essentially does not affect the scope of applications in the case of object detection. Indeed, in the vast majority of problems, an object that has to be detected either has (on the picture under analysis) a color that differs from the background colours (for example, in roads detection), or has the same colour but of a very different intensity, or at least an object has a relatively thick boundary that differs in colour from the background. Moreover, in practical applications one often has some prior information about colours of both the object of interest and of the background. When this is the case, the method of the present paper is applicable after simple rescaling of colour values.
+
+The paper is organized as follows. In Section [\ref=Section_Model_Assumptions] we describe some general assumptions that one makes in statistical processing of digital images. The statistical model itself is described in details in Section [\ref=Section_Model]. Suitable thresholding for noisy images is crucial in our method and is developed in Section [\ref=Section_Thresholding]. Our algorithm for object detection is presented in Section [\ref=Section2]. Theorem [\ref=Theorem1] is the main result about consistency and computational complexity of the algorithm. Section [\ref=Section_Proofs] is devoted to the proof of the main theorem.
+
+Basic framework
+
+In this section we discuss some natural and very basic assumptions that we impose on our model.
+
+Suppose we have an analogous two-dimensional image. For numerical or graphical processing of images on computers, the image always has to be discretized. This is achieved via a pixelization procedure.
+
+A typical example of pixelization procedure is as follows. Consider an N  ×  N grid on the square containing the image, and color black those and only those pixels for whose the pixel's interior has common points with the original image. The result is called a pixelized picture.
+
+After certain procedure of pixelization, each pixel gets a real number attached to it. This assumption means that our only data available are given as an array of N2 real numbers {Yij}Ni,j = 1. In order to perform statistical image analysis, we will use only these N2 numbers plus our model assumptions. This leads us to the following basis assumption.
+
+〈〉   Assume that we have a square screen of N  ×  N pixels, where we
+
+observe pixelized images. We assume that we are getting our
+
+information about the image from this screen alone.
+
+In the present paper we are interested in detection of objects that have a known colour. And this colour is different from the colour of the background. Mathematically, this can be roughly formulated as follows.
+
+〈〉   The true (non-noisy) images are black-and-white.
+
+Indeed, we are free to assume that all the pixels that belong to the meaningful object within the digitalized image have the value 1 attached to them. We can call this value a black colour. Additionally, assume that the value 0 is attached to those and only those pixels that do not belong to the object in the true image. If the number 0 is attached to the pixel, we call this pixel white.
+
+In this paper we always assume that we observe a noisy image. The noise itself can be caused, for example, by channel defects or other transmission errors, distortions, etc. Medical scans provide a classic example of noisy images: the scan is always made indirectly, through the body. In astronomy, one also observes noisy images: there are optical and technological errors, atmosphere conditions, etc. The observed values on pixels could be different from 0 and 1. This means that we will actually always have a greyscale image in the beginning of our analysis.
+
+〈〉   On each pixel we have random noise that has the distribution function
+
+F, where F has mean 0 and known variance σ  >  0; the noise at
+
+each pixel is completely independent from noises on other pixels.
+
+An important special case is when the noise is normally distributed, i.e. F  =  N(0,σ), where N(0,σ) stands for the normal distribution with mean 0 and known variance σ  >  0. However, in general, the noise doesn't need to be smooth, symmetric or even continuous.
+
+We limit ourselves to two-dimensional images only. However, our method makes it possible to analyze also n - dimensional images, for each n  ≥  1.
+
+It doesn't really matter if the screen is square or rectangular. We consider a square screen only to simplify our notation.
+
+It is behind the scope of the present paper to discuss various ways to pixelize real-world analogous images. One possible method of pixelization is often used in literature (see [\cite=Arias-Castro_etal] and related references).
+
+The way of pixelization plays an important role mostly for those problems in image analysis where one needs to give asymptotic estimates for the boundary of the object. For example, consider pixelizing a plane curve. Then one can consider also colouring black those pixels that have at least 4 common points with the curve (not necessarily 4 interior points), etc. However, for simpler problems like image detection (or crude estimation of object's shape or interior) it is often not important how many pixels you colour at the boundary of your image.
+
+Our method works not only for normal or i.i.d. noise. We have chosen this type of noise in order to achieve relatively simple and explicit results. The method itself allows the treatment of more complicated situations, such as singular noise, discrete noise, pixel colour flipping, different noise in different screen areas, and dependent noise.
+
+Statistical Model
+
+Now we are able to formulate the model more formally. We have an N  ×  N array of observations, i.e. we observe N2 real numbers {Yij}Ni,j = 1. Denote the true value on the pixel (i,j), 1  ≤  i,j  ≤  N, by Imij, and the corresponding noise by σεij. Therefore, by our model assumptions,
+
+[formula]
+
+where 1  ≤  i,j  ≤  N, σ  >  0 and, in accordance with assumption 〈A2〉,
+
+[formula]
+
+To stress the dependence on the noise level σ, we write assumption 〈A3〉 in the following way:
+
+[formula]
+
+The noise here doesn't need to be smooth, symmetric or even continuous. Moreover, all the results below are easily transferred to the even more general case when the noise has arbitrary but known distribution function Fgen; it is not necessary that the noise has mean 0 and finite variance. The only adjustment to be made is to replace in all the statements quantities of the form [formula] by the quantities Fgen(    ·    ). The Algorithm 1 below and the main Theorem [\ref=Theorem1] are valid without any changes for a general noise distribution Fgen satisfying ([\ref=8]) and ([\ref=9]).
+
+Now we can proceed to preliminary quantitative estimates. If a pixel (i,j) is white in the original image, let us denote the corresponding probability distribution of Yij by P0. For a black pixel (i,j) we denote the corresponding distribution of Yij by P1. We are free to omit dependency of P0 and P1 on i and j in our notation, since all the noises are independent and identically distributed.
+
+Suppose pixel (i,j) has white colour in the original image. Then for all [formula]:
+
+[formula]
+
+where F is the distribution function of the standardized noise.
+
+(Lemma [\ref=Lemma1]): By ([\ref=2]),
+
+[formula]
+
+Suppose pixel (i,j) has black colour in the original image. Then for all [formula]:
+
+[formula]
+
+(Lemma [\ref=Lemma2]): By ([\ref=2]) again, we have
+
+[formula]
+
+Thresholding and Graphs of Images
+
+Now we are ready to describe one of the main ingredients of our method: the thresholding. The idea of the thresholding is as follows: in the noisy grayscale image {Yij}Ni,j = 1, we pick some pixels that look as if their real colour was black. Then we colour all those pixels black, irrespectively of the exact value of grey that was observed on them. We take into account the intensity of grey observed at those pixels only once, in the beginning of our procedures. The idea is to think that some pixel "seems to have a black colour" when it is not very likely to obtain the observed grey value when adding a "reasonable" noise to a white pixel.
+
+We colour white all the pixels that weren't coloured black at the previous step. At the end of this procedure, we would have a transformed vector of 0's and 1's, call it [formula]. We will be able to analyse this transformed picture by using certain results from the mathematical theory of percolation. This is the main goal of the present paper. But first we have to give more details about the thresholding procedure.
+
+Let us fix, for each N, a real number α0(N)  >  0, α0(N)  ≤  1, such that there exists [formula] satisfying the following condition:
+
+[formula]
+
+Assume that ([\ref=6]) is satisfied for some [formula]. Then for the smallest possible θ(N) satisfying ([\ref=6]) it holds that
+
+[formula]
+
+(Lemma [\ref=Lemma3]): Obvious by Lemma [\ref=Lemma1].
+
+In this paper we will always pick [formula] for all [formula], for some constant α0  >  0. But we will need to have varying α0(    ·  ) for our future research.
+
+We are prepared to describe our thresholding principle formally. Let psitec be the critical probability for site percolation on [formula] (see [\cite=Grimmett] for definitions).
+
+As a first step, we transform the observed noisy image {Yi,j}Ni,j = 1 in the following way: for all 1  ≤  i,j  ≤  N,
+
+1.    If Yij  ≥  θ(N), set [formula] (i.e., in the transformed picture the corresponding pixel is coloured black).
+
+2.    If Yij  <  θ(N), set [formula] (i.e., in the transformed picture the corresponding pixel is coloured white).
+
+The above transformation is called thresholding at the level θ(N). The resulting vector [formula] of N2 values (0's and 1's) is called a thresholded picture.
+
+Suppose for a moment that we are given the original black and white image without noise. One can think of pixels from the original picture as of vertices of a planar graph. Furthermore, let us colour these N2 vertices with the same colours as the corresponding pixels of the original image. We obtain a graph G with N2 black or white vertices and (so far) no edges.
+
+We add edges to G in the following way. If any two black vertices are neighbours (i.e. the corresponding pixels have a common side), we connect these two vertices with a black edge. If any two white vertices are neighbours, we connect them with a white edge. We will not add any edges between non-neighbouring points, and we will not connect vertices of different colours to each other.
+
+Finally, we see that it is possible to view our black and white pixelized picture as a collection of black and white "clusters" on the very specific planar graph (a square N  ×  N subset of the [formula] lattice).
+
+We call graph G the graph of the (pure) picture.
+
+This is a very special planar graph, so there are many efficient algorithms to work with black and white components of the graph. Potentially, they could be used to efficiently process the picture. However, the above representation of the image as a graph is lost when one considers noisy images: because of the presence of random noise, we get many gray pixels. So, the above construction doesn't make sense anymore. We overcome this obstacle with the help of the above thresholding procedure.
+
+We make θ(N) - thresholding of the noisy image {Yi,j}Ni,j = 1 as in Definition [\ref=Definition1], but with a very special value of θ(N). Our goal is to choose θ(N) (and corresponding α0(N), see ([\ref=6])) such that:
+
+[formula]
+
+where psitec is the critical probability for site percolation on [formula] (see [\cite=Grimmett], [\cite=Kesten]). In case if both ([\ref=8]) and ([\ref=9]) are satisfied, what do we get?
+
+After applying the θ(N) - thresholding on the noisy picture {Yi,j}Ni,j = 1, we obtained a (random) black-and-white image [formula]. Let [formula] be the graph of this image, as in Definition [\ref=Definition2].
+
+Since [formula] is a random, we actually observe the so-called site percolation on black vertices within the subset of [formula]. From this point, we can use results from percolation theory to predict formation of black and white clusters on [formula], as well as to estimate the number of clusters and their sizes and shapes. Relations ([\ref=8]) and ([\ref=9]) are crucial here.
+
+To explain this more formally, let us split the set of vertices [formula] of the graph [formula] into to groups: [formula], where [formula], and VimN consists of those and only those vertices that correspond to pixels belonging to the original object, while VoutN is left for the pixels from the background. Denote GimN the subgraph of [formula] with vertex set VimN, and denote GoutN the subgraph of [formula] with vertex set VoutN.
+
+If ([\ref=8]) and ([\ref=9]) are satisfied, we will observe a so-called supercritical percolation of black clusters on GimN, and a subcritical percolation of black clusters on GoutN. Without going into much details on percolation theory (the necessary introduction can be found in [\cite=Grimmett] or [\cite=Kesten]), we mention that there will be a high probability of forming relatively large black clusters on GimN, but there will be only little and scarce black clusters on GoutN. The difference between the two regions will be striking, and this is the main component in our image analysis method.
+
+In this paper, mathematical percolation theory will be used to derive quantitative results on behaviour of clusters for both cases. We will apply those results to build efficient randomized algorithms that will be able to detect and estimate the object {Imi,j}Ni,j = 1 using the difference in percolation phases on GimN and GoutN.
+
+If the noise level σ is not too large, then ([\ref=8]) and ([\ref=9]) are satisfied for some θ(N)∈(0,1). Indeed, one simply has to pick θ(N) close enough to 1. On the other hand, if σ is relatively large, it may happen that ([\ref=8]) and ([\ref=9]) cannot both be satisfied at the same time.
+
+In the framework defined by relations ([\ref=1])-([\ref=3]) and assumptions 〈A1〉 - 〈A3〉, we say that the noise level σ is small enough (or 1-small), if the system of inequalities ([\ref=8]) and ([\ref=9]) is satisfied for some [formula], for all [formula].
+
+A very important practical issue is that of choosing an optimal threshold value θ. From a purely theoretical point of view, this is not a big issue: once ([\ref=8]) and ([\ref=9]) holds for some θ, it is guaranteed that after θ  -  thresholding we will observe qualitatively different behaviour of black and white clusters in or outside of the true object. We will make use of this in what follows.
+
+However, for practical computations, especially for moderate values of N, the value of θ is important. Since the goal is to make percolations on VimN and VoutN look as different as possible, one has to make the corresponding percolation probabilities for black colour, namely,
+
+[formula]
+
+as different as possible both from each other and from the critical probability psitec. There can be several reasonable ways for choosing a suitable threshold. For example, we can propose to choose θ(N) as a maximizer of the following function:
+
+[formula]
+
+provided that ([\ref=8]) and ([\ref=9]) holds. Alternatively, we can propose to use a maximizer of
+
+[formula]
+
+Object detection
+
+We either observe a blank white screen with accidental noise or there is an actual object in the blurred picture. In this section, we propose an algorithm to make a decision on which of the two possibilities is true. This algorithm is a statistical testing procedure. It is designed to solve the question of testing H0:  Iij = 0        1  ≤  i,j  ≤  N versus H1:  Iij  =  1        i,j.
+
+Let us choose α(N)∈(0,1) - the probability of false detection of an object. More formally, α(N) is the maximal probability that the algorithm finishes its work with the decision that there was an object in the picture, while in fact there was just noise. In statistical terminology, α(N) is the probability of an error of the first kind.
+
+We allow α to depend on N; α(N) is connected with complexity (and expected working time) of our randomized algorithm.
+
+Since in our method it is crucial to observe some kind of percolation in the picture (at least within the image), the image has to be "not too small" in order to be detectable by the algorithm: one can't observe anything percolation-alike on just a few pixels. We will use percolation theory to determine how "large" precisely the object has to be in order to be detectable. Some size assumption has to be present in any detection problem: for example, it is hopeless to detect a single point object on a very large screen even in the case of a moderate noise.
+
+For an easy start, we make the following (way too strong) largeness assumptions about the image:
+
+〈〉   Assume that the image {  (i,j)  |  1  ≤  i,j  ≤  N,  Iij = 1  } contains a completely black square with the side of size at least φim(N) pixels, where
+
+[formula]
+
+[formula]
+
+Furthermore, we assume the obvious consistency assumption
+
+[formula]
+
+Assumptions 〈D1〉 and 〈D2〉 are sufficient conditions for our algorithm to work. They are way too strong for our purposes. It is possible to relax ([\ref=14]) and to replace a square in 〈D1〉 by a triangle-shaped figure.
+
+Although the above two conditions are of asymptotic character, most of our estimates below are valid for finite N as well. Nevertheless, it is important to remark here that asymptotic results for N  →    ∞   also have interesting practical consequences. More specifically, assume that physically we always have screens of a fixed size, but the resolution N2 of our cameras can grow unboundedly. When N tends to infinity, we see that the same physical object that has, say, 1mm in width and in length, contains more and more pixels on the pixelized image. Therefore, for high-resolution pictures, our algorithm could detect fine structures (like nerves etc.) that are not directly visible by a human eye.
+
+Now we are ready to formulate our Detection Algorithm. Fix the false detection rate α(N) before running the algorithm.
+
+Algorithm 1 (Detection).
+
+Step 0. Find an optimal θ(N).
+
+Step 1. Perform θ(N) - thresholding of the noisy picture {Yi,j}Ni,j = 1.
+
+Step 2. Until
+
+{{Black cluster of size φim(N) is found}
+
+or
+
+{all black clusters are found}},
+
+Run depth-first search ([\cite=Tarjan]) on the graph [formula] of
+
+the θ(N) - thresholded picture [formula]
+
+Step 3. If a black cluster of size φim(N) was found, report that
+
+an object was detected
+
+Step 4. If no black cluster was larger than φim(N), report that
+
+there is no object.
+
+At Step 2 our algorithm finds and stores not only sizes of black clusters, but also coordinates of pixels constituting each cluster. We remind that θ(N) is defined as in ([\ref=6]), [formula] and [formula] were defined in Section [\ref=Section1], and φim(N) is any function satisfying ([\ref=12]). The depth-first search algorithm is a standard procedure used for searching connected components on graphs. This procedure is a deterministic algorithm. The detailed description and rigorous complexity analysis can be found in [\cite=Tarjan], or in the classic book [\cite=Aho_Hopcroft_Ullman], Chapter 5.
+
+Let us prove that Algorithm 1 works, and determine its complexity.
+
+Let σ be 1-small. Suppose assumptions 〈D1〉 and 〈D2〉 are satisfied. Then
+
+Algorithm 1 finishes its work in O(N2) steps, i.e. is linear.
+
+If there was an object in the picture, Algorithm 1 detects it with probability at least (1  -   exp ( - C1(σ)φim(N))).
+
+The probability of false detection doesn't exceed min {α(N), exp ( - C2(σ)φim(N))} for all N  >  N(σ).
+
+The constants C1  >  0, C2  >  0 and [formula] depend only on σ.
+
+Dependence on σ implicitly means dependence on θ(N) as well, but this doesn't spoil Theorem [\ref=Theorem1]. Remember that we can consider θ(N) to be a function of σ in view of our comments before ([\ref=10]) and ([\ref=11]).
+
+Theorem [\ref=Theorem1] means that Algorithm 1 is of quickest possible order: it is linear in the input size. It is difficult to think of an algorithm working quicker in this problem. Indeed, if the image is very small and located in an unknown place on the screen, or if there is no image at all, then any algorithm solving the detection problem will have to at least upload information about O(N2) pixels, i.e. under general assumptions of Theorem [\ref=Theorem1], any detection algorithm will have at least linear complexity.
+
+Another important point is that Algorithm 1 is not only consistent, but that it has exponential rate of accuracy.
+
+Proofs
+
+This section is devoted to provide complete proofs of the above results. Some crucial estimates from percolation theory are also presented for the reader's convenience.
+
+(Theorem [\ref=Theorem1]):
+
+Part I. First we prove the complexity result. Finding a suitable (approximate, within a predefined error) θ from ([\ref=10]) or ([\ref=11]) takes a constant number of operations. See, for example, [\cite=Krylov_Bobkov_Monastyrnyi].
+
+The θ(N) - thresholding gives us [formula] and [formula] in O(N2) operations. This finishes the analysis of Step 1.
+
+As for Step 2, it is known (see, for example, [\cite=Aho_Hopcroft_Ullman], Chapter 5, or [\cite=Tarjan]) that the standard depth-first search finishes its work also in O(N2) steps. It takes not more than O(N2) operations to save positions of all pixels in all clusters to the memory, since one has no more than N2 positions and clusters. This completes analysis of Step 2 and shows that Algorithm 1 is linear in the size of input data.
+
+Part II. Now we prove the bound on the probability of false detection. Denote
+
+[formula]
+
+a probability of erroneously marking a white pixel outside of the image as black. Under assumptions of Theorem [\ref=Theorem1], pout(N)  <  psitec.
+
+We prove the following additional theorem:
+
+Suppose that 0  <  pout(N)  <  psitec. There exists a constant C3  =  C3(pout(N))  >  0 such that
+
+[formula]
+
+Here FN(n) is the event that there is an erroneously marked black cluster of size greater or equal n, lying in the square of size N  ×  N corresponding to the screen. (An erroneously marked black cluster is a black cluster on GN such that each of the pixels in the cluster was wrongly coloured black after the θ  -  thresholding.)
+
+Before proving this result, we state the following theorem about subcritical site percolation.
+
+(Aizenman-Newman) Consider site percolation with probability p0 on [formula]. There exists a constant λsite  =  λsite(p0)  >  0 such that
+
+[formula]
+
+Here C is the open cluster containing the origin.
+
+(Theorem [\ref=Theorem3]): See [\cite=Bollobas_Riordan].
+
+To conclude Theorem [\ref=Theorem2] from Theorem [\ref=Theorem3], we will use the celebrated FKG inequality (see [\cite=FKG], or [\cite=Grimmett], Theorem 2.4, p.34; see also Grimmett's book for some explanation of the terminology).
+
+If A and B are both increasing (or both decreasing) events on the same measurable pair (Ω,F), then [formula].
+
+(Theorem [\ref=Theorem2]): Denote by C(i,j) the largest cluster in the N  ×  N screen containing the pixel with coordinates (i,j), and by C(0) the largest black cluster on the N  ×  N screen containing 0. By Theorem [\ref=Theorem3], for all i, j: 1  ≤  i,j  ≤  N:
+
+[formula]
+
+Obviously, it only helped to inequalities ([\ref=17]) and ([\ref=19]) that we have limited our clusters to only a finite subset instead of the whole lattice [formula]. On a side note, there is no symmetry anymore between arbitrary points of the N  ×  N finite square; luckily, this doesn't affect the present proof.
+
+Since {  |C(0)|  ≥  n  } and {  |C(i,j)|  ≥  n  } are increasing events (on the measurable pair corresponding to the standard random-graph model on GN), we have that {  |C(0)|  <  n  } and {  |C(i,j)|  <  n  } are decreasing events for all i, j. By FKG inequality for decreasing events,
+
+[formula]
+
+We denote below by Cab the "a out of b" binomial coefficient. It follows that
+
+[formula]
+
+because we assumed in ([\ref=16]) that n  ≥  φim(N), and log N  =  o(φim(N)). Moreover, we see immediately that Theorem [\ref=Theorem2] follows now with some C3 such that 0  <  C3(pout(N))  <  λsite(pout(N)).
+
+The exponential bound on the probability of false detection follows from Theorem [\ref=Theorem2].
+
+Part III. It remains to prove the lower bound on the probability of true detection. First we prove the following theorem:
+
+Consider site percolation on [formula] lattice with percolation probability p  >  psitec. Let An be the event that there is an open path in the rectangle   ×  [0,n] joining some vertex on its left side to some vertex on its right side. Let Mn be the maximal number of vertex-disjoint open left-right crossings of the rectangle   ×  [0,n]. Then there exist constants C4  =  C4(p)  >  0, C5  =  C5(p)  >  0, C6  =  C6(p)  >  0 such that
+
+[formula]
+
+[formula]
+
+and both inequalities holds for all n  ≥  1.
+
+(Theorem [\ref=Theorem4]): One proves this by a slight modification of the corresponding result for bond percolation on the square lattice. See proof of Lemma 11.22 and pp. 294-295 in [\cite=Grimmett].
+
+Now suppose that we have an object in the picture that satisfies assumptions of Theorem [\ref=Theorem1]. Consider any φim(N)  ×  φim(N) square in this image. After θ  -  thresholding of the picture by Algorithm 1, we observe on the selected square site percolation with probability
+
+[formula]
+
+Then, by ([\ref=20]) of Theorem [\ref=Theorem4], there exists C4  =  C4(pim(N)) such that there will be at least one cluster of size not less than φim(N) (for example, one could take any of the existing left-right crossings as a part of such cluster), provided that N is bigger than certain N(pim(N))  =  N(σ); and all that happens with probability at least
+
+[formula]
+
+for some C3: 0  <  C3  <  C4. Theorem [\ref=Theorem1] is proved.
+
+Acknowledgments. The authors would like to thank Laurie Davies, Remco van der Hofstad, Artem Sapozhnikov, Shota Gugushvili and Geurt Jongbloed for helpful discussions.

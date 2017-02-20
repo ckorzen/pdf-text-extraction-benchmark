@@ -1,0 +1,87 @@
+=1
+
+Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps
+
+Visual Geometry Group, University of Oxford !karen,vedaldi,az
+
+Introduction
+
+With the deep Convolutional Networks (ConvNets) [\cite=LeCun98] now being the architecture of choice for large-scale image recognition [\cite=Krizhevsky12] [\cite=Ciresan12], the problem of understanding the aspects of visual appearance, captured inside a deep model, has become particularly relevant and is the subject of this paper.
+
+In previous work, Erhan et al. [\cite=Erhan09] visualised deep models by finding an input image which maximises the neuron activity of interest by carrying out an optimisation using gradient ascent in the image space. The method was used to visualise the hidden feature layers of unsupervised deep architectures, such as the Deep Belief Network (DBN) [\cite=Hinton06], and it was later employed by Le et al. [\cite=Le12] to visualise the class models, captured by a deep unsupervised auto-encoder. Recently, the problem of ConvNet visualisation was addressed by Zeiler et al. [\cite=Zeiler13]. For convolutional layer visualisation, they proposed the Deconvolutional Network (DeconvNet) architecture, which aims to approximately reconstruct the input of each layer from its output.
+
+In this paper, we address the visualisation of deep image classification ConvNets, trained on the large-scale ImageNet challenge dataset [\cite=Berg10a]. To this end, we make the following three contributions. First, we demonstrate that understandable visualisations of ConvNet classification models can be obtained using the numerical optimisation of the input image [\cite=Erhan09] (Sect. [\ref=sec:class_model]). Note, in our case, unlike [\cite=Erhan09], the net is trained in a supervised manner, so we know which neuron in the final fully-connected classification layer should be maximised to visualise the class of interest (in the unsupervised case, [\cite=Le12] had to use a separate annotated image set to find out the neuron responsible for a particular class). To the best of our knowledge, we are the first to apply the method of [\cite=Erhan09] to the visualisation of ImageNet classification ConvNets [\cite=Krizhevsky12]. Second, we propose a method for computing the spatial support of a given class in a given image (image-specific class saliency map) using a single back-propagation pass through a classification ConvNet (Sect. [\ref=sec:class_saliency]). As discussed in Sect. [\ref=sec:graph_cut], such saliency maps can be used for weakly supervised object localisation. Finally, we show in Sect. [\ref=sec:comp_deconv] that the gradient-based visualisation methods generalise the deconvolutional network reconstruction procedure [\cite=Zeiler13].
+
+ConvNet implementation details.
+
+Our visualisation experiments were carried out using a single deep ConvNet, trained on the ILSVRC-2013 dataset [\cite=Berg10a], which includes 1.2M training images, labelled into 1000 classes. Our ConvNet is similar to that of [\cite=Krizhevsky12] and is implemented using their !cuda-convnet! toolbox, although our net is less wide, and we used additional image jittering, based on zeroing-out random parts of an image. Our weight layer configuration is: conv64-conv256-conv256-conv256-conv256-full4096-full4096-full1000, where convN denotes a convolutional layer with N filters, fullM - a fully-connected layer with M outputs. On ILSVRC-2013 validation set, the network achieves the top-1/top-5 classification error of 39.7% / 17.7%, which is slightly better than 40.7%/18.2%, reported in [\cite=Krizhevsky12] for a single ConvNet.
+
+Class Model Visualisation
+
+In this section we describe a technique for visualising the class models, learnt by the image classification ConvNets. Given a learnt classification ConvNet and a class of interest, the visualisation method consists in numerically generating an image [\cite=Erhan09], which is representative of the class in terms of the ConvNet class scoring model.
+
+More formally, let Sc(I) be the score of the class c, computed by the classification layer of the ConvNet for an image I. We would like to find an L2-regularised image, such that the score Sc is high:
+
+[formula]
+
+where λ is the regularisation parameter. A locally-optimal I can be found by the back-propagation method. The procedure is related to the ConvNet training procedure, where the back-propagation is used to optimise the layer weights. The difference is that in our case the optimisation is performed with respect to the input image, while the weights are fixed to those found during the training stage. We initialised the optimisation with the zero image (in our case, the ConvNet was trained on the zero-centred image data), and then added the training set mean image to the result. The class model visualisations for several classes are shown in Fig. [\ref=fig:class_model].
+
+It should be noted that we used the (unnormalised) class scores Sc, rather than the class posteriors, returned by the soft-max layer: [formula]. The reason is that the maximisation of the class posterior can be achieved by minimising the scores of other classes. Therefore, we optimise Sc to ensure that the optimisation concentrates only on the class in question c. We also experimented with optimising the posterior Pc, but the results were not visually prominent, thus confirming our intuition.
+
+Image-Specific Class Saliency Visualisation
+
+In this section we describe how a classification ConvNet can be queried about the spatial support of a particular class in a given image. Given an image I0, a class c, and a classification ConvNet with the class score function Sc(I), we would like to rank the pixels of I0 based on their influence on the score Sc(I0).
+
+We start with a motivational example. Consider the linear score model for the class c:
+
+[formula]
+
+where the image I is represented in the vectorised (one-dimensional) form, and wc and bc are respectively the weight vector and the bias of the model. In this case, it is easy to see that the magnitude of elements of w defines the importance of the corresponding pixels of I for the class c.
+
+In the case of deep ConvNets, the class score Sc(I) is a highly non-linear function of I, so the reasoning of the previous paragraph can not be immediately applied. However, given an image I0, we can approximate Sc(I) with a linear function in the neighbourhood of I0 by computing the first-order Taylor expansion:
+
+[formula]
+
+where w is the derivative of Sc with respect to the image I at the point (image) I0:
+
+[formula]
+
+Another interpretation of computing the image-specific class saliency using the class score derivative [\eqref=eq:deriv_img] is that the magnitude of the derivative indicates which pixels need to be changed the least to affect the class score the most. One can expect that such pixels correspond to the object location in the image. We note that a similar technique has been previously applied by [\cite=Baehrens10] in the context of Bayesian classification.
+
+Class Saliency Extraction
+
+Given an image I0 (with m rows and n columns) and a class c, the class saliency map [formula] is computed as follows. First, the derivative w [\eqref=eq:deriv_img] is found by back-propagation. After that, the saliency map is obtained by rearranging the elements of the vector w. In the case of a grey-scale image, the number of elements in w is equal to the number of pixels in I0, so the map can be computed as Mij  =  |wh(i,j)|, where h(i,j) is the index of the element of w, corresponding to the image pixel in the i-th row and j-th column. In the case of the multi-channel (e.g. RGB) image, let us assume that the colour channel c of the pixel (i,j) of image I corresponds to the element of w with the index h(i,j,c). To derive a single class saliency value for each pixel (i,j), we took the maximum magnitude of w across all colour channels: Mij  =   max c|wh(i,j,c)|.
+
+It is important to note that the saliency maps are extracted using a classification ConvNet trained on the image labels, so no additional annotation is required (such as object bounding boxes or segmentation masks). The computation of the image-specific saliency map for a single class is extremely quick, since it only requires a single back-propagation pass.
+
+We visualise the saliency maps for the highest-scoring class (top-1 class prediction) on randomly selected ILSVRC-2013 test set images in Fig. [\ref=fig:sal_map]. Similarly to the ConvNet classification procedure [\cite=Krizhevsky12], where the class predictions are computed on 10 cropped and reflected sub-images, we computed 10 saliency maps on the 10 sub-images, and then averaged them.
+
+Weakly Supervised Object Localisation
+
+The weakly supervised class saliency maps (Sect. [\ref=sec:sal_extraction]) encode the location of the object of the given class in the given image, and thus can be used for object localisation (in spite of being trained on image labels only). Here we briefly describe a simple object localisation procedure, which we used for the localisation task of the ILSVRC-2013 challenge [\cite=Simonyan13d].
+
+Given an image and the corresponding class saliency map, we compute the object segmentation mask using the GraphCut colour segmentation [\cite=Boykov01]. The use of the colour segmentation is motivated by the fact that the saliency map might capture only the most discriminative part of an object, so saliency thresholding might not be able to highlight the whole object. Therefore, it is important to be able to propagate the thresholded map to other parts of the object, which we aim to achieve here using the colour continuity cues. Foreground and background colour models were set to be the Gaussian Mixture Models. The foreground model was estimated from the pixels with the saliency higher than a threshold, set to the 95% quantile of the saliency distribution in the image; the background model was estimated from the pixels with the saliency smaller than the 30% quantile (Fig. [\ref=fig:seg], right-middle). The GraphCut segmentation [\cite=Boykov01] was then performed using the publicly available implementation. Once the image pixel labelling into foreground and background is computed, the object segmentation mask is set to the largest connected component of the foreground pixels (Fig. [\ref=fig:seg], right).
+
+We entered our object localisation method into the ILSVRC-2013 localisation challenge. Considering that the challenge requires the object bounding boxes to be reported, we computed them as the bounding boxes of the object segmentation masks. The procedure was repeated for each of the top-5 predicted classes. The method achieved 46.4% top-5 error on the test set of ILSVRC-2013. It should be noted that the method is weakly supervised (unlike the challenge winner with 29.9% error), and the object localisation task was not taken into account during training. In spite of its simplicity, the method still outperformed our submission to ILSVRC-2012 challenge (which used the same dataset), which achieved 50.0% localisation error using a fully-supervised algorithm based on the part-based models [\cite=Felzenswalb08] and Fisher vector feature encoding [\cite=Perronnin10a].
+
+Relation to Deconvolutional Networks
+
+In this section we establish the connection between the gradient-based visualisation and the DeconvNet architecture of [\cite=Zeiler13]. As we show below, DeconvNet-based reconstruction of the n-th layer input Xn is either equivalent or similar to computing the gradient of the visualised neuron activity f with respect to Xn, so DeconvNet effectively corresponds to the gradient back-propagation through a ConvNet.
+
+For the convolutional layer [formula], the gradient is computed as [formula], where Kn and [formula] are the convolution kernel and its flipped version, respectively. The convolution with the flipped kernel exactly corresponds to computing the n-th layer reconstruction Rn in a DeconvNet: [formula].
+
+For the RELU rectification layer Xn + 1  =   max (Xn,0), the sub-gradient takes the form: [formula], where [formula] is the element-wise indicator function. This is slightly different from the DeconvNet RELU reconstruction: [formula], where the sign indicator is computed on the output reconstruction Rn + 1 instead of the layer input Xn.
+
+Finally, consider a max-pooling layer Xn + 1(p)  =   max q∈Ω(p)Xn(q), where the element p of the output feature map is computed by pooling over the corresponding spatial neighbourhood Ω(p) of the input. The sub-gradient is computed as [formula]. Here, arg  max  corresponds to the max-pooling "switch" in a DeconvNet.
+
+We can conclude that apart from the RELU layer, computing the approximate feature map reconstruction Rn using a DeconvNet is equivalent to computing the derivative ∂f  /  ∂Xn using back-propagation, which is a part of our visualisation algorithms. Thus, gradient-based visualisation can be seen as the generalisation of that of [\cite=Zeiler13], since the gradient-based techniques can be applied to the visualisation of activities in any layer, not just a convolutional one. In particular, in this paper we visualised the class score neurons in the final fully-connected layer.
+
+It should be noted that our class model visualisation (Sect. [\ref=sec:class_model]) depicts the notion of a class, memorised by a ConvNet, and is not specific to any particular image. At the same time, the class saliency visualisation (Sect. [\ref=sec:class_saliency]) is image-specific, and in this sense is related to the image-specific convolutional layer visualisation of [\cite=Zeiler13] (the main difference being that we visualise a neuron in a fully connected layer rather than a convolutional layer).
+
+Conclusion
+
+In this paper, we presented two visualisation techniques for deep classification ConvNets. The first generates an artificial image, which is representative of a class of interest. The second computes an image-specific class saliency map, highlighting the areas of the given image, discriminative with respect to the given class. We showed that such saliency map can be used to initialise GraphCut-based object segmentation without the need to train dedicated segmentation or detection models. Finally, we demonstrated that gradient-based visualisation techniques generalise the DeconvNet reconstruction procedure [\cite=Zeiler13]. In our future research, we are planning to incorporate the image-specific saliency maps into learning formulations in a more principled manner.
+
+Acknowledgements
+
+This work was supported by ERC grant VisRec no. 228180. We gratefully acknowledge the support of NVIDIA Corporation with the donation of the Tesla K40 GPU used for this research.

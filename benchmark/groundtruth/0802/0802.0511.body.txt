@@ -1,0 +1,417 @@
+=1
+
+Microstructure-based modeling of elastic functionally graded materials: One dimensional case
+
+Introduction
+
+Generally speaking, the ultimate goal of every design is a product which fully utilizes properties of materials used in its construction. This philosophy, in its vast context, naturally leads to an appearance of multi-phase composites with microstructure adapted to operation conditions; e.g. [\cite=Petrtyl:1996:SOHB] [\cite=Bendsoe:2004:TO] [\cite=Ray:2005:BFG]. Functionally graded materials (FGMs) present one important man-made class of such material systems. Since their introduction in 1984 in Japan as barrier materials for high-temperature components, FGMs have proved to be an attractive choice for numerous applications such as wear resistant coatings, optical fibers, electrical razor blades and biomedical tools [\cite=Neubrand:1997:GM] [\cite=Uemura:2003:AFGM]. To provide a concrete example, consider a microstructure of Al2O3/Y-ZrO2 ceramics () engineered for the production of all-ceramic hip bearings. In this case, controlled composition and porosity allow to achieve better long-term performance and hence lower clinical risks when compared to traditional metallic materials [\cite=Lukas:2005:NDS].
+
+As typical of all composites, the analysis of functionally graded materials is complicated by the fact that the explicit discrete modeling of the material microstructure results in a problem which is intractable due to huge number of degrees of freedom and/or its intrinsic randomness. As the most straightforward answer to this obstacle, models with a given smoothly varying material data are often employed. When the spatial non-homogeneity is assumed to follow a sufficiently simple form, this premise opens the route to very efficient numerical schemes, such as specialized finite elements [\cite=Santare:2000:USFEM], boundary element techniques [\cite=Sutradhar:2004:SBEM], meshless methods [\cite=Ching:2007:TSA] or local integral equations [\cite=Sladek:2005:DEL]. Thanks to their simplicity, these methods can be rather easily generalized to more complex issues such as coupled thermal-mechanical problems [\cite=Noda:1999:TSFG] or crack propagation [\cite=Sekhar:2005:CMDF]. Although this approach is very appealing from the computational point of view, its validity remains rather questionable as it contains no direct link with the underlying heterogeneous microstructure.
+
+One possibility of establishing such a connection is to assert that the FGM locally behaves as a homogeneous composite characterized by a given volume fraction distribution and use well-established local effective media theories; see, reviews by [\cite=Milton:2002:TC] [\cite=Bohm:2005:SIBA] for more details. Local averaging techniques have acquired a considerable attention due to their simplicity comparable with the previous class of models; see, e.g. [\cite=Markworth:1995:MSA] [\cite=Cho:2001:AFEM] for an overview and comparison of various local micro-mechanical models in the context of FGMs. An exemplar illustration of capabilities of this modeling paradigm is the work [\cite=Goupee:2006:TDO] which provides an efficient algorithm for FGMs composition optimization when taking into account coupled thermo-mechanical effects. Still, despite a substantial improvement in physical relevance of the model, local averaging methods may lead to inaccurate results. This was demonstrated by systematic studies of [\cite=Reiter:1997:MMI] and [\cite=Reiter:1998:MMII], which clearly show that the local averaging technique needs to be adapted to detailed character of the microstructure in a neighborhood of the analyzed material point. When considering the local averaging techniques, however, such information is evidently not available as all the microstructural data has been lumped to volume fractions only.
+
+Another appealing approach to FGM modeling is an adaptive discrete modeling of the structure. In order to avoid the fully detailed problem, a simplified model based on, e.g., local averaging techniques is solved first. Then, in regions where the influence of the discreteness of the microstructure is most pronounced, the microstructure with all details is recovered to obtain an accurate solution. Such a modeling strategy has been, e.g., adopted in [\cite=Grujicic:1998:DEEP] when using the Voronoi cell finite element method introduced by [\cite=Ghosh:1995:MSA] or recently in [\cite=Vemaganti:2006:AGL] in the framework of goal-oriented modeling. Without a doubt, this approach yields the most accurate results for a given distribution of phases. However, its extension to include inevitable randomness of the microstructure seems to be an open problem.
+
+The systematic treatment of FGMs as random, statistically non-homogeneous composites offers, on the other hand, a possibility to apply the machinery of statistical continuum mechanics [\cite=Beran:1968:SCT] [\cite=Torquato:2002:RHM]. In this framework, overall response of the media is interpreted using the ensemble, rather then spatial, averages of the involved quantities. The first class of methods stems from the description of the material composition by a non-stationary random field. This approach was pioneered by [\cite=Ferrante:2005:SSN] and further refined in [\cite=Rahman:2007:SMM], where the random field description was applied to the volume fractions of the involved phases and the overall statistics was obtained using the local averaging methods. Such a strategy, however, inevitably leads to the same difficulties as in the case of deterministic analysis with a given variation of volume fractions. Alternative methods exploit the tools of mechanics of heterogeneous media. This gives rise to a correct treatment of non-local effects when combined with appropriate techniques for estimating statistics of local fields. Examples of FGMs-oriented studies include the work of [\cite=Buryachenko:2001:LET] who employ the multi-particle effective field method or the study by [\cite=Luciano:2004:NLCE] based on the Hashin-Shtrikman energy principles; see also [\cite=Buryachenko:2007:MHM] for a comprehensive list of references in this field. Both works, however, being analytically based, concentrate on deriving explicit constitutive equations for FGMs and therefore work with infinite bodies neglecting the finite size of the microstructure.
+
+The goal of this paper is to make the first step in formulating a numerical model which is free of the above discussed limitations. The microstructural description is systematically derived from a fully penetrable sphere model introduced by [\cite=Quintanilla:1997:MFI], which is briefly reviewed in . The statistics of local fields then follow from re-formulation of the Hashin-Shtrikman (H-S) variational principles introduced, e.g., in [\cite=Willis:1977:BSC] [\cite=Willis:1981:VRM] and summarized in the current context in  together with the Galerkin scheme allowing to treat general bodies proposed by [\cite=Luciano:2005:FE] or [\cite=Prochazka:2003:BEM]. covers the application of the Finite Element Method (FEM) following [\cite=Luciano:2005:FE] [\cite=Luciano:2006:HSB] and the Boundary Element Method (BEM) in the spirit of [\cite=Prochazka:2003:BEM]. Finally, based on results of a parametric study executed in , the comparison of both numerical scheme when applied to FGMs modeling is performed in  together with a discussion of future improvements of the model. In order to make the presentation self-contained and to minimize technicalities, the attention is restricted to an one-dimensional elasticity problem (or, equivalently, to a simple laminate subject to body forces varying in one direction; cf. [\cite=Luciano:2001:NCR]).
+
+In the following text, we adopt the matrix notation commonly used in the finite element literature. Hence, a, [formula] and [formula] denote a scalar quantity, a vector (column matrix) and a general matrix, respectively. Other symbols and abbreviations are introduced in the text as needed.
+
+Microstructural model
+
+As already indicated in the introductory part, the morphological description adopted in this work is the one-dimensional case of a microstructural model studied in [\cite=Quintanilla:1997:MFI]. A particular realization can be depicted as a collection on [formula] rods of length [formula] distributed within a structure of length [formula], see . The position of the i-th rod is specified by the x coordinate of its reference point xi, which in our case coincides with the midpoint of a rod.
+
+The microstructure gradation is prescribed by an intensity function [formula], with the product [formula] giving the expected number of reference points in an infinitesimal neighborhood around x. Using the theory of general Poisson processes, the probability of finding exactly m points located in a finite-sized interval I is given by [\cite=Quintanilla:1997:MFI]
+
+[formula]
+
+Further, to provide a suitable framework for the description of microstructure related to the model, we attach a symbol [formula] to a particular microstructure realization (e.g., ) from a sample space [formula] endowed with a probability measure [formula]. Then, the ensemble average of a random function [formula] is defined as
+
+[formula]
+
+Now, interpret  as a distribution of "white" and "black" phases. For a given configuration [formula], the distribution of a phase r is described by the characteristic function [formula]
+
+[formula]
+
+where r = 1 is reserved for the white phase (matrix) while r = 2 denotes the black phase (rod). The elementary statistical characterization of the model is provided by the one-point probability function [formula]
+
+[formula]
+
+giving the probability of finding a point x included in the phase r. Recognizing that the probability of locating x in the white phase coincides with the probability that the interval
+
+[formula]
+
+will not be occupied by any reference point and using [\eqref=prob_poisson], we obtain
+
+[formula]
+
+The one-point probability function [formula] follows from the identity
+
+[formula]
+
+which is a direct consequence of the adopted definition of the characteristic function; recall [\eqref=char_f].
+
+By analogy, we can introduce the two-point probability function [formula]
+
+[formula]
+
+quantifying the probability that a point x will be located in phase r while y stays in the phase s. For r  =  s  =  1, the descriptor coincides with the probability that the union of intervals I(x) and I(y) will not be occupied by a reference point, yielding
+
+[formula]
+
+The remaining functions [formula] can be directly expressed from [formula] using relations summarized in Appendix [\ref=app:S_rs].
+
+Finally, to provide a concrete example, consider a piecewise linear intensity function
+
+[formula]
+
+where kρ  =  (ρb  -  ρa)  /  (b  -  a). The corresponding one- and two-point probability functions, evaluated using an adaptive Simpson quadrature [\cite=Gander:2000:AQR], are shown in . Obviously, the shape of one-point probability function directly follows from the intensity profile (up to some boundary effects due to extension of ρ by zero outside of [formula] and smoothing phenomena with lengthscale [formula] demonstrating the "geometrical" size effect present in the model). The two-point probability function then contains further details of the distribution of individual constituents.
+
+Hashin-Shtrikman variational principles
+
+The introduced geometrical description provides a solid basis for the formulation of a stochastic model of one-dimensional binary functionally graded bodies. In the sequel, we concentrate on the simplest case of linear elasticity with deterministic properties of single components.
+
+Problem statement
+
+Consider a bar of unit cross-section area, represented by the interval [formula] with the boundary [formula], fixed at [formula], subject to a body force [formula] and tractions [formula] at [formula], see . For a given realization [formula], the displacement field [formula] follows from the energy minimization problem
+
+[formula]
+
+where arg  min x∈Xf(x) denotes the minimizer of f on X, [formula] is the realization-independent set of kinematically admissible displacements, [formula] is a test displacement field and the energy functional [formula] is defined as
+
+[formula]
+
+with the strain field [formula] and the Young modulus E in the form
+
+[formula]
+
+where [formula] denotes the deterministic Young modulus of the i-th phase.
+
+Now, given the probability distribution [formula], the ensemble average of displacement fields follows from the variational problem [\cite=Luciano:2005:FE]:
+
+[formula]
+
+In theory, the previous relation fully specifies the distribution of displacement fields. The exact specification of the set [formula] is, however, very complex and the probability distribution [formula] is generally not known. Therefore, the solution needs to be based on partial geometrical data such as the one- and two-point probability functions introduced in .
+
+Hashin-Shtrikman decomposition
+
+Following the seminal ideas of [\cite=Hashin:1962:OSV] and [\cite=Willis:1977:BSC], the solution of the stochastic problem is sought as a superposition of two auxiliary problems, each characterized by constant material data [formula].
+
+In the first "reference" case, see (a), the homogeneous structure is subject to the body force [formula] and the boundary tractions [formula]. The second "polarization problem", shown in (b), corresponds to a homogeneous body loaded by polarization stress [formula] arising from the stress equivalence conditions:
+
+[formula]
+
+The unknown polarization stress now becomes a new variable to be determined as the stationary point of the two-field Hashin-Shtrikman-Willis functional; e.g. [\cite=Willis:1977:BSC] [\cite=Prochazka:2004:EHS] and [\cite=Bittnar:1996:NMM]
+
+[formula]
+
+where [formula] denotes an admissible polarization stress from the realization-dependent set [formula], [formula] stands for a stationary point of f on X and a new energy functional [formula] is defined as
+
+[formula]
+
+The minimization with respect to [formula] in [\eqref=min_hs] can be efficiently performed using Green's function technique. To that end, we introduce a decomposition of the displacement field
+
+[formula]
+
+where [formula] solves the reference problem, while [formula] denotes the displacement field due to a test stress polarization field [formula]. Note that the determination of [formula] is a standard task, which can be generally solved by a suitable numerical technique (cf. ). By introducing the Green function of the reference problem satisfying
+
+[formula]
+
+with boundary conditions ([formula] denotes the outer normal, recall )
+
+[formula]
+
+we relate the [formula] component and the associated strain field [formula] to the polarization stresses [formula] via, cf. [\cite=Luciano:2005:FE],
+
+[formula]
+
+By exploiting the optimality properties of the minimizing displacement [formula] and upon exchanging the order of optimization, [\eqref=HS] can be, after some steps described in, e.g. [\cite=Willis:1981:VRM] [\cite=Luciano:2005:FE], recast solely in terms of the polarizations:
+
+[formula]
+
+where the "condensed" energy functional is defined as
+
+[formula]
+
+with [formula] denoting the total energy of the reference structure.
+
+With the Hashin-Shtrikman machinery at hand, the stochastic problem introduced by [\eqref=ens_efunc_def] can be solved by repeating the previous arguments in the probabilistic framework. In particular, taking the ensemble average of  yields
+
+[formula]
+
+where the expectation [formula] is a solution of the variational problem
+
+[formula]
+
+Again, due to limited knowledge of detailed statistical characterization of phase distribution, the previous variational problem can only be solved approximately. In particular, we postulate the following form of polarization stresses:
+
+[formula]
+
+where [formula] and [formula] are now the realization-independent polarization stresses related to the r-th phase. Plugging the approximation into [\eqref=stoch_HS] leads, after some manipulations detailed in e.g. [\cite=Willis:1981:VRM] [\cite=Sejnoha:2000:MARC], to the variational principle
+
+[formula]
+
+i.e. the "true" phase polarization stresses [formula] satisfy the optimality conditions (r = 1,2)
+
+[formula]
+
+for arbitrary [formula].
+
+Discretization
+
+Two ingredients are generally needed to convert conditions ([\ref=eq:final_opt_cond]) to the finite-dimensional system: (i) representation of the reference strain field and the Green function-related quantities and (ii) discretization of the phase polarization stresses. The first step is dealt with in detail in ; now it suffices to consider the approximations
+
+[formula]
+
+where [formula] denotes a parameter related to the discretization of the reference problem.
+
+Next, we reduce [\eqref=final_opt_cond] to a finite-dimensional format using the standard Galerkin procedure. To that end, we introduce the following discretization of the phase polarization stresses
+
+[formula]
+
+where [formula] is the matrix of (possibly discontinuous) shape functions controlled by the discretization parameter [formula]; [formula] and [formula] denote the degrees-of-freedom (DOFs) of trial and true polarization stresses, the latter related to the discrete Green function. Introducing the approximations ([\ref=eq:polarization_approx]) into the variational statement ([\ref=eq:final_opt_cond]) and using the arbitrariness of [formula] leads to a system of linear equations
+
+[formula]
+
+with the individual terms given by (r,s = 1,2)
+
+[formula]
+
+Finally, once the approximate values of phase polarization stresses are available, the elementary statistics of the displacement field follow from the discretized form of [\eqref=EX_disp_EX_pstress]
+
+[formula]
+
+Note that additional information such as conditional statistics can be extracted from the polarization fields in post-processing steps similar to [\eqref=discr_EX_u]; see [\cite=Luciano:2005:FE] [\cite=Luciano:2006:HSB] for more details.
+
+Reference problem and Green's function-related quantities
+
+Finite element method
+
+The solution of the reference problem follows the standard Finite Element procedures, see e.g. [\cite=Bittnar:1996:NMM] [\cite=Krysl:2006:PIF]. Nevertheless, we briefly repeat the basic steps of the method for the sake of clarity. The reference displacement [formula] follows from the identity
+
+[formula]
+
+which should hold for any test function [formula]. Within the conforming finite element approach, the unknown displacement [formula] and the test function [formula] together with the associated strain field are sought in a finite-dimensional subspace [formula]
+
+[formula]
+
+where [formula] is the displacement interpolation matrix and [formula] denotes the displacement-to-strain matrix. Using the discretized fields, [\eqref=FEM_weak_form] reduces to the system
+
+[formula]
+
+where
+
+[formula]
+
+Solving the system for [formula] enables us to obtain the [formula] approximation using [\eqref=Bmatrx]1.
+
+The discretized version of the Green function follows from  [\eqref=FEM_weak_form] with [formula] and b = δ(y - x), cf. ,
+
+[formula]
+
+The remaining Green function-related quantities can now be expressed directly from , leading to
+
+[formula]
+
+Boundary element discretization
+
+Following the standard Boundary Element Method procedures (e.g. [\cite=Bittnar:1996:NMM] [\cite=Duddeck:2002:FBEM]), we start from the Betti identity written for the reference problem:
+
+[formula]
+
+and apply the test displacement in the form
+
+[formula]
+
+where [formula] is the infinite body Green's function defined as the solution of
+
+[formula]
+
+In the one-dimensional setting, this quantity is provided by e.g. [\cite=Luciano:2001:NCR]
+
+[formula]
+
+and the integral identity ([\ref=eq:BEM:BettiIdentity]), written for any [formula], receives the form:
+
+[formula]
+
+where the tractions [formula] are defined analogously to [\eqref=HS:BoundaryCond]2:
+
+[formula]
+
+and H denotes the Heaviside function. Imposing the consistency with boundary data for x  →  0+ and x  →  L- yields the system of two linear equations
+
+[formula]
+
+Since one component of the pair [formula] is always specified on [formula] and [formula], the previous system uniquely determines the unknown boundary data (i.e. [formula] on [formula] and [formula] on [formula]), needed to evaluate [\eqref=BEM:InterPoint].
+
+Making use of the identity [formula], the associated strain field can be expressed as
+
+[formula]
+
+Analogously to the Finite Element treatment, the expression for the finite-body Green function starts from [\eqref=BEM:BettiIdentity] with b  =  δ(y  -  ξ) and boundary data ([\ref=eq:HS:BoundaryCond]). Following the specific form of [\eqref=BEM:InterPoint] (and allowing for a slight inconsistency in notation), we introduce a decomposition of the Green function into the discretization-independent infinite-body part and the discretization-dependent boundary contribution:
+
+[formula]
+
+where the boundary part, written for [formula] and [formula], assumes the form
+
+[formula]
+
+with the boundary displacements [formula] and tractions [formula] at [formula] due to a unit impulse at y determined from a linear system (compare with )
+
+[formula]
+
+Expression for [formula] is derived following an analogous procedure. We exploit the infinite-body-boundary split
+
+[formula]
+
+and obtain the first part directly from the definition ([\ref=eq:gfun_u])
+
+[formula]
+
+The boundary-dependent part now follows from
+
+[formula]
+
+with the y-sensitivities of boundary data evaluated from ([\ref=eq:BEM:BoundaryIE1])-([\ref=eq:BEM:BoundaryIE2]):
+
+[formula]
+
+The BEM-based approach is completed by approximating [formula] function. In particular, we get
+
+[formula]
+
+Finally note that the previous procedure can be directly translated to multi-dimensional and/or vectorial cases; see [\cite=Prochazka:2003:BEM] for more details.
+
+Numerical examples
+
+Before getting to the heart of the matter, we start with converting the relations ([\ref=eq:system_start])-([\ref=eq:discr_EX_u]) into the fully discrete format by replacing the integrals by a numerical quadrature and selecting a specific form of shape functions [formula]. To that end, we introduce a set of integration points [formula] as well as associated integration weights [formula] and evaluate the components of the system matrix and right-hand side vector as
+
+[formula]
+
+with the convention [formula] for the FEM-based approximation of the polarization problem. The basis functions and integration schemes employed in the sequel, based on a uniform partitioning of [formula] into [formula] cells [formula] of length [formula], are defined by . In particular, the specification of the polarization stress in terms of [formula] shape functions requires [formula] DOFs (i.e. one DOF per cell and phase), while [formula] and [formula] discretizations are parametrized using [formula] or [formula] values, respectively.
+
+Note that the BEM-related infinite-body contributions appearing in  are still kept explicit, as they are available in the closed form and can be treated separately. In the present case, action of the [formula] operator is local (recall [\eqref=BEM_Gamma_inf]), while the quantities related to [formula] are evaluated at cell nodal points and linearly interpolated to the interior of a cell to account for the discontinuity of the integrand.
+
+To summarize, the following factors significantly influence the accuracy of the discrete Hashin-Shtrikman scheme:
+
+approximation of the Green function of the comparison body,
+
+basis functions and numerical quadrature used to discretize the polarization problem,
+
+Young's modulus of the reference body [formula],
+
+contrast of the Young moduli of individual phases ([formula]),
+
+characteristic size of microstructure with respect to the analyzed domain ([formula]).
+
+All these aspects are studied in detail in the rest of this Section. Two representative examples of structures subject to a uniform body force [formula] and homogeneous mixed and Dirichlet boundary data are considered, see :
+
+[formula]
+
+In both cases, the heterogeneity distribution is quantified according to the model introduced in  with the one- and two-point probability functions plotted in . Moreover, taking advantage of the one-dimensional setting, we systematically compare the obtained numerical results against reliable reference values determined by extensive Monte-Carlo (MC) simulations introduced next.
+
+Direct simulation results
+
+For the purpose of the following discussion, the reference values of the average displacement fields [formula] together with the 99.9% interval estimates [formula] are understood as the piecewise linear interpolants of discrete data sampled by MC procedure described in detail in . In addition, the homogenized displacement field [formula], corresponding to a deterministic structure with the position-dependent elastic modulus
+
+[formula]
+
+is introduced to asses the performance of the local averaging approach. stores several representative results plotted using dimensionless quantities.
+
+As apparent from , the obtained statistics of overall response exhibits rather narrow confidence intervals, implying the reliability and accuracy of the MC estimates. For the statically determinate structure, the locally homogenized solution coincides with the ensemble average of the displacement fields, as demonstrated by the overlap of simulation results with homogenized data. The converse is true (with the 99.9% confidence) for the statically indeterminate case, where these two results can be visually distinguished from each other. The mismatch (which increases with increasing [formula] or [formula]) clearly demonstrates that even in the one-dimensional setting the local averaging may lead to incorrect values when treating non-homogeneous random media. These results are consistent with the fact that in the statically determinate case, the stress field [formula] is independent of α as follows from the the one-dimensional equilibrium equations [formula] and the deterministic value of traction at [formula] due to boundary condition provided by [\eqref=stat_det]2. In the latter case, however, the traction value as well as stress field become configuration-dependent. Such effect does not appear in the classical homogenization setting, where for [formula] the harmonic average is known to represent the homogenized solution exactly, cf. [\cite=Murat:1997:CVH]. This result naturally justifies the application of approaches based on higher-order statistics to FGMs, with the H-S method being the most prominent example.
+
+Effect of the Green function approximation
+
+In order to illustrate the effect of approximate Green's function, we restrict our attention to the statistically determinate structure and employ the standard piecewise linear basis functions [formula] to evaluate [formula] function in the FEM setting using [\eqref=GammafunApp]. allows us to perform the qualitative assessment of the results for different choices of basis functions, the integration scheme and the discretization parameter [formula].
+
+Evidently, a suitable choice of discretization parameter [formula] is far from being straightforward. From all the possibilities presented in (a), only the combinations [formula] with [formula] discretization of the polarization problem and [formula] with [formula] scheme are capable of reproducing the homogenized solution, while all the remaining possibilities lead to inaccurate results often accompanied by an oscillatory response. On the other hand, the [formula]-independent BEM-based solutions show correct response for all discretizations of the polarization problem (and are virtually independent of the scheme used due to sufficiently low value of [formula] parameter, cf. ).
+
+To shed a light on such phenomenon, consider the FEM approximation of [formula] function plotted in (a). The piecewise linear basis functions used to express the reference displacements imply the piecewise constant values of [formula] approximating the exact expression [formula], cf. [\eqref=GF_BEM_decomp]. As pointed out by [\cite=Luciano:2006:HSB], however, the accuracy of the HS scheme is governed by the correct reproduction of the action of the [formula] operator rather than the local values. In the present context, it follows from [\eqref=Krs_app_discrete] that such requirement is equivalent to the accurate representation of the [formula] operator action for x coinciding with the integration points related to the selected numerical quadrature. It can be verified that this condition is satisfied only for the two aforementioned discretizations of the reference problem. In particular, for the [formula] combination we obtain (see Figures [\ref=fig:FEM_BEM_convergence](a) and [\ref=fig:FEM_Green_valid](a))
+
+[formula]
+
+i.e. the numerical scheme reproduces the action of [formula] exactly.
+
+Using Figures [\ref=fig:FEM_BEM_convergence](a) and [\ref=fig:FEM_Green_valid](b), we find the analysis of the [formula] discretization completely analogous:
+
+[formula]
+
+which explains the good performance of the particular discretization scheme.
+
+To allow for the quantitative comparison, we exploit the fact that the exact solution is available for the statically determinate case and introduce a relative L2 error measure
+
+[formula]
+
+The resulting convergence rates of the FEM- and BEM-based approach are shown in (b) with integrals in [\eqref=rel_L2_errH] evaluated using an adaptive Simpson quadrature [\cite=Gander:2000:AQR] with the relative accuracy of 10- 6. Clearly, the performance of the BEM-based scheme is slightly superior to the (properly "tuned") FEM approach. By a sufficient resolution of the reference problem, however, both approaches become comparable. Moreover, the results confirm good performance of [formula] and [formula] schemes when compared to the [formula] discretization, which requires about twice the number of DOFs of former schemes for the same cell dimensions [formula] (recall ). Similar conclusions can also be drawn for the statically indeterminate case. Therefore, in view of the above comments, we concentrate on the BEM approach in the sequel and limit the choice of basis functions to [formula] and [formula] only.
+
+Influence of the integration scheme and basis functions
+
+Thus far, we have investigated the combination of the "polarization" numerical quadratures and shape functions, for which the location of integration points coincides with the position of DOFs. shows the convergence plots for the relevant basis function/integration scheme pairs. To address also the statically determinate case, the relative error is now related to MC data, leading to the definition
+
+[formula]
+
+In addition, two comparative values are introduced: the relative error of the homogenized solution [formula] (determined by [\eqref=error_MC] with [formula] replaced by [formula]) and the relative error associated with [formula] or [formula] function, appearing as the Interval Estimate (IE) line.
+
+For the statistically determinate structure, the observed behavior is rather similar to the one reported in . In particular, (a) confirms that the H-S solution quickly reaches the accuracy comparable with the confidence intervals (indicated by the grey area) and eventually converges to the homogenized solution, with the exception of [formula] combination resulting in a singular system matrix ([\ref=eq:system_start]). Moreover, the superiority of the [formula] quadrature over lower-order scheme is evident; the proper representation of spatial statistics seems to be more important than smoothness of the polarization shape functions.
+
+(b) shows the results for the statically indeterminate case. With 99.9% confidence, the results quantitatively demonstrate that the homogenized solution differs from the MC data. The H-S solution gives the error about 50% of the value of the homogenized solution, but ceases to attain the accuracy set by the confidence interval. It should be kept in mind that the H-S result actually delivers an estimate pertinent to the fixed value of parameter [formula] and all random one-dimensional media characterized by the two-point statistics ([\ref=eq:S11]).
+
+Influence of the reference media and phase contrast
+
+Having identified the intrinsic limitation of the H-S approach, we proceed with the last free parameter of the method: the choice of the reference medium. To that end, we introduce the following parameterization of the Young modulus
+
+[formula]
+
+Note that for the phases indexed such that [formula], [formula] and [formula] correspond to the rigorous lower and upper bounds on the ensemble average of the energy stored in the structure and, consequently, to the positive- or negative-definite system matrix [\cite=Prochazka:2004:EHS] [\cite=Luciano:2005:FE]. The intermediate values lead to energetic variational estimates and to a symmetric indefinite system matrix. illuminates the effect of [formula], plotted for two representative contrasts of phase moduli and [formula] ratios.
+
+In the first case, see (a), the choice of the reference media has almost negligible effect on the H-S solution error; the slight influence observed for the coarse discretization completely disappears upon cell refinement. This is not very surprising as the homogenized solution depends on the first-order statistics only, recall [\eqref=EH], and as such can be retained by the discrete H-S method (up to controllable errors) for any choice of [formula]. Results for the statically indeterminate structure, on the other hand, show a significant sensitivity to the value of [formula]. By a proper adjustment of the reference medium, the error can be reduced by an order of magnitude and eventually reach the accuracy of extensive MC sampling. With increasing phase moduli contrast, however, the range of such [formula] values rapidly decreases; for [formula] one needs to satisfy [formula] in order to recover the MC results. It is noteworthy that these values agree rather well with the particular choice of reference media used by [\cite=Matous:2003:DEP] when modeling composites with a high phase contrast using the methodology proposed by [\cite=Dvorak:1999:NEOP].
+
+Influence of microstructure size
+
+Eventually, we investigate the influence of the microstructure size. summarizes the obtained results for a moderate phase contrast and the optimal setting of the H-S method identified in the previous sections. A similar conclusion can be reached for the both case studies: for all three [formula] values, the H-S method is capable of reaching the accuracy of MC confidence intervals for the cell length [formula] approximately equal to a half of the microscopic lengthscale [formula]. In other words, keeping the same number of DOFs as used to discretize the polarization problem, the accuracy of the method increases with the increasing [formula] ratio, which is exactly an opposite trend to that of the classical deterministic homogenization.
+
+Conclusions
+
+In the present work, the predictive capacities of numerical methods based on the Hashin-Shtrikman-Willis variational principles, when applied to a specific model of functionally graded materials, have been systematically assessed. By restricting attention to the one-dimensional setting, an extensive parametric study has been executed and the results of numerical schemes have been verified against reliable large-scale Monte-Carlo simulations. On the basis of obtained data, we are justified to state that:
+
+The Hashin-Shtrikman based numerical method, when set up properly, is capable of delivering results with the accuracy comparable to detailed Monte Carlo simulations and, consequently, of outperforming the local averaging schemes.
+
+When applying the Finite Element method to the solution of reference problem, the employed discretization has to be compatible with the numerics used to solve the polarization problem. If this condition is satisfied, the additional FEM-induced errors quickly become irrelevant.
+
+For the discretization of the reference problem, it appears to be advantageous to combine low order (discontinuous) approximation of the polarization stresses with higher order quadrature scheme to concisely capture the heterogeneity distribution.
+
+The correct choice of the reference medium has the potential to substantially decrease the error. Unfortunately, apart from [\cite=Dvorak:1999:NEOP], we fail to give any a-priory estimates of the optimal value for statistically non-homogeneous structures.
+
+For accurate results, the characteristic cell size should be around 2-5 times smaller than the typical dimensions of the constituents.
+
+The bottleneck of the current implementation is the solution of system ([\ref=eq:system_start]), since it leads to a fully populated system matrix. Fortunately, as illustrated by , the conditioning of the polarization problem seems to be dominated by the phase contrast rather than the discretization of the reference problem, which opens the way to efficient iterative techniques.
+
+The next extension of the method would involve the generalization to the multi-dimensional setting. For the FEM-based treatment, the key aspect remains a more rigorous analysis of the combined effect of discretized [formula] operator, basis functions and integration scheme employed for the polarization problem. The multi-dimensional BEM approach, on the other hand, requires a careful treatment of singularities of the Green function-related quantities, cf. [\cite=Prochazka:2003:BEM], which are suppressed in the current one-dimensional setting. Such work will be reported separately in our future publications.
+
+Acknowledgments
+
+We would like to thank Ji ejnoha, Michal ejnoha, Jan Novák and Milan Jirásek for numerous discussions on the topic of this work. The first authoress acknowledges the support from project No. 103/07/0304 (GA R), the work of the second author was supported from the research project MSM 6840770003 (MMT R).
+
+Two-point probability functions
+
+The remaining two-point probability functions can be easily related to [formula] by exploiting the identity ([\ref=eq:oppF_identity]). In particular, we obtain
+
+[formula]
+
+Overview of the simulation procedure
+
+A crude Monte-Carlo method is employed to estimate the statistics of the local fields. In particular, given a number of simulations [formula], sampling points [formula] and an upper bound on the intensity [formula], the following steps are repeated for [formula]:
+
+After completing the sampling phase, the first and second-order local statistics are assessed using the unbiased values
+
+[formula]
+
+to arrive at the [formula]-confidence interval estimates, cf. [\cite=Rektorys:1994:SOM]:
+
+[formula]
+
+where tβ,n denotes the inverse of the Student t distribution function for value β and n degrees of freedom.
+
+The reference results reported in  correspond to the values obtained for [formula] simulations, the confidence level [formula], 101 equidistant sampling points and the integral ([\ref=eq:app_rec_integ]) evaluated with an adaptive Simpson quadrature [\cite=Gander:2000:AQR] with the relative tolerance set to 10- 6.

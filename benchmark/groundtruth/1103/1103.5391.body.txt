@@ -1,0 +1,223 @@
+Time Evolution with the DMRG Algorithm: A Generic Implementation for Strongly Correlated Electronic Systems
+
+Introduction
+
+The accurate calculation of time-dependent quantum observables in correlated electron systems is crucial to achieve further progress in this field of research, where the vast majority of the computational efforts in the past have mainly focused on time-independent quantities. This issue lies at the core of the study of a broad array of physical phenomena in transition metal oxides and nanostructures such as electronic transport, optical excitations, and nonequilibrium dynamics in general. Accurate studies of time-dependent properties will advance the fields of spintronics, low dimensional correlated systems, and possibly quantum computing as well. For a list of recent efforts on these topics by our group, and concomitant set of references for the benefit of the readers, see [\cite=re:heidrich-meisner10] [\cite=re:diasdasilva09] [\cite=re:heidrich-meisner09] [\cite=re:heidrich-meisner09b] [\cite=re:heidrich-meisner09c] and references therein.
+
+The purpose of this paper is to present an explicit implementation of the time evolution within the density matrix renormalization group (DMRG) method [\cite=re:white92] [\cite=re:white93]. Knowledge of the widely discussed DMRG algorithm to compute static observables is here assumed. Readers not familiar with the method are referred to published reviews [\cite=re:schollwock10] [\cite=re:schollwock05] [\cite=re:hallberg06] [\cite=re:rodriguez02], and to the original publications [\cite=re:white92] [\cite=re:white93] for further information. Our main focus here is to provide a detailed description of the implementation of the time-step targetting [\cite=re:feiguin05] algorithm, and the discussion of a few applications. We also provide full open-source codes and additional documentation to use those codes.
+
+The present work builds upon considerable previous efforts by other groups. In particular, we will mainly follow Manmana et al. in Ref. [\cite=re:manmana05]. The time-step targetting procedure was also reviewed in Ref. [\cite=re:batrouni06]. Since it would not be practical to describe in a short paragraph the considerable progress achieved in this field of research in recent years, the interested reader is encouraged to consult the aforementioned reviews along with, e.g., Ref. [\cite=re:schollwock05b], for a historical account of the development of the methods used in the present publication.
+
+Since our aim is to discuss a generic method applicable to any Hamiltonian and lattice geometry, here we do not discuss or implement the Suzuki-Trotter method [\cite=re:daley04] [\cite=re:white04], but focus instead only on the Krylov method [\cite=re:krylov31] for the time evolution, as described in Ref. [\cite=re:manmana05]. Because its implementation can be isolated, the Krylov method can be applied in a generic way to most models and geometries without changes, which is not the case for other methods, such as the Suzuki-Trotter method. The readers interested in the Suzuki-Trotter method should consult the ALPS project [\cite=re:bauer11], where the time evolving block decimation is implemented [\cite=re:daley04].
+
+Our goal is to compute observables of the form
+
+[formula]
+
+where |φ1〉 and |φ2〉 denote generic quantum many-body states. This category of observables is sufficiently broad to encompass most time-dependent correlations, as represented by a number a of local operators A0,π(0) A1,π(1) [formula] Aa - 1,π(a - 1) acting on sites π(0), π(1), π(a - 1) of a finite lattice, where π(i) denotes the lattice site on which the operator Ai,π(i) acts, and the extra index i indicates that the operator can be different at each site.
+
+An immediate application of this formalism and code is the study of the evolution of a system that is brought out of equilibrium by a sudden excitation. This sudden excitation can be simulated by the state of the system given by the vectors |φ1〉 and |φ2〉. Depending on the problem, sometimes it is more convenient to assume that the states remain unchanged but that it is the Hamiltonian H(t) that changes with time. Another application entails the computation of time-dependent properties of systems in equilibrium, such as the Green's function Gij(t). The organization of this paper is the following. Section [\ref=sec:method] explains in detail the Krylov method for time evolution within the DMRG algorithm, focusing on its implementation. Section [\ref=sec:onesiteexciton] applies the method to the case of one-site excitations, showing a simple picture of the accuracy of the method. Section [\ref=sec:holondoublon] extends to two-leg ladder geometries the results obtained using tight-binding chains, employing holon-doublon excitations for the specific study. Performance issues are studied in Sec. [\ref=sec:performance], while Sec. [\ref=sec:summary] summarizes our results. The first two appendices contain derivations of exact results used in the paper. The last appendix explains briefly the use of the code, and points to its documentation.
+
+Method and Implementation
+
+Lanczos Computation of the Unitary Evolution
+
+To carry out the previously described program  of computing observables of the type given by Eq. ([\ref=eq:generalcorrelation]), the first goal is to calculate [formula]. The Lanczos technique [\cite=re:lanczos50] provides a method to tridiagonalize H into [formula], where T is tridiagonal and V is the matrix of Lanczos vectors. If the number of those Lanczos vectors is nl, and the Hilbert space for |φ〉 has size n, then T is a square matrix of size nl  ×  nl, and V is, in general, a rectangular matrix of size nl  ×  n.
+
+[formula] cannot be used everywhere as a substitution for H, without inducing large errors. But if we start the Lanczos procedure [\cite=re:dagotto94] with the vector |φ〉 (instead of using a random vector as is most frequently done), then we can use that substitution accurately in the multiplication H|φ〉. However, this is not enough here, because we need to compute the exponential of H. For this purpose, it has been shown [\cite=re:hochbruck99] [\cite=re:hochbruck97] [\cite=re:saad03] that [formula] with an accuracy that increases as time t decreases for fixed nl. We will assume that we have taken t small enough such that we can regard the expression above to have the accuracy of the Lanczos technique, which is usually high. In other words, if t is small enough, we will assume that using [formula] as a replacement for exp (iHt)|φ〉 is not worse than using [formula] as a replacement for H|φ〉. This will be enough for our purposes, but for details on the scaling and bounds of the errors made in each case as a function of t and nl, see, e.g., Refs. [\cite=re:hochbruck99] [\cite=re:hochbruck97].
+
+Since we started the Lanczos recursive procedure with the vector |φ〉, then [formula]. Finally, we need to diagonalize [formula] into a nl  ×  nl diagonal matrix D with diagonal elements dl'. This last step is not computationally expensive, since T is a nl  ×  nl matrix, as was noted before.
+
+Putting it all together, we arrive to
+
+[formula]
+
+for small times t, where the equal sign should be understood to be valid within the accuracy of the Lanczos technique [\cite=re:saad03]. How to deal with larger times t will be explained in section [\ref=sec:timeevolution].
+
+Targetting States with the DMRG Algorithm
+
+It appears that now we could use Eq. ([\ref=eq:lanczosevolution]) to compute |φ1(t)〉 from some vector |φ1〉, and likewise |φ2(t)〉 starting from some vector |φ2〉. Then we would just apply the operators A0,π(0) A1,π(1) [formula] Aa - 1,π(a - 1) to those states within a DMRG procedure, to achieve our aim of computing Eq. ([\ref=eq:generalcorrelation]). But the DMRG algorithm is not immediately applicable to arbitrary states, such as |φ1(t)〉, and was originally developed to compute the ground state of the Hamiltonian instead.
+
+This difficulty has been successfully overcome (see [\cite=re:schollwock05] and references therein) by redefining the reduced density matrix of the left block L as:
+
+[formula]
+
+where α and α' label states in the left block L, β those of the right block R, and {Φ(l)}l is a set of, as of yet, unspecified states of the superblock [formula]. The states Φ(l) are said to be targetted by the DMRG algorithm. Because of their inclusion in the reduced density matrix, these states will be obtained with a precision that scales similarly to the precision of the ground state in the static formulation of the DMRG. The relevance of the weights ωl appearing in Eq. ([\ref=eq:rdensitymatrix]) will be discussed in section [\ref=sec:timeevolution].
+
+Which are the states Φ(l) that need to be included in Eq. ([\ref=eq:rdensitymatrix]) to compute Eq. ([\ref=eq:generalcorrelation])? |φ1(t)〉 and |φ2(t)〉 are certainly needed. Since observables that include the ground state are ubiquitous, the ground state of the Hamiltonian needs to be targetted as well in most cases. But additional states need to be included in order to evolve to larger times, as we will now explain.
+
+Our implementation follows the time-step targetting procedure of Ref. [\cite=re:batrouni06]. We now introduce a small time τ such that, for all t  ≤  τ, Eq. ([\ref=eq:lanczosevolution]) is accurate in the sense defined in, e.g., Ref. [\cite=re:hochbruck99]. We consider a set of nv times {tx}x, [formula], such that tx < tx + 1, t0 = 0, and tnv - 1  =  τ. For simplicity, we assume from now on that [formula] in Eq. ([\ref=eq:generalcorrelation]). The state |φ〉 is defined by the particular physics problem under investigation and we will consider particular examples in section [\ref=sec:casestudies]. States |φ(tx)〉 for each 0  ≤  x < nv can be obtained accurately from |φ〉 by using Eq. ([\ref=eq:lanczosevolution]) since tx  ≤  τ. To compute Eq. ([\ref=eq:generalcorrelation]) for all t  ≤  τ, we target the nv states |φ(tx)〉 and the ground state |ψ〉 as well.
+
+At this point it is instructive to consider a concrete class of states |φ〉. In a large class of problems these states are related to the ground state |ψ〉 of the Hamiltonian by
+
+[formula]
+
+for b local operators B0,π'(0), B1,π'(1), [formula], Bb - 1,π'(b - 1) acting on sites [formula] of the superblock, where π'(i) denotes the lattice site on which the operator Bi,π'(i) acts, as explained below. The extra index i indicates that the operators B can be different on different sites. Physical examples of the operators B will be given in section [\ref=sec:casestudies].
+
+The sites π'(0), π'(1), [formula], π'(b - 1) in Eq. ([\ref=eq:b]) (as well as sites π(0), π(1), [formula], π(a - 1) in Eq. ([\ref=eq:generalcorrelation])) will be considered ordered in the way in which they appear as central sites [\cite=re:schollwock05] for the DMRG finite algorithm, as illustrated in Fig. [\ref=fig:DMRG_blocks]. At a given stage of the computational procedure, if the central site of the DMRG algorithm is π'(0), then [formula] can be obtained. Next, we proceed to the following site, and so on, until we reach site π'(1), and apply B1,π'(1), i.e., [formula], eventually reaching site π'(b - 1), to complete the computation of |φ〉, given by Eq. ([\ref=eq:b]). Since in cases of physical interest the operators B are either bosons or fermions, a reordering is always possible due to their commutativity or anti-commutativity, yielding at most a minus sign.
+
+As the DMRG algorithm sweeps the entire lattice, the central sites change, leading to modified Hilbert spaces. Therefore, a procedure is required to "transport" the states |φ〉 from one space to another. It is known [\cite=re:manmana05] that the transformation needed to "transport" these states is the so-called wave-function transformation, that was proposed by White [\cite=re:white96] first in the context of providing a guess for the initial Lanczos vector to speed up the algorithm, but later found to be of applicability for other sub-algorithms.
+
+After the state |φ〉 in Eq. ([\ref=eq:b]) is computed, the DMRG algorithm operates for a few extra steps to better converge all states |ψ(tx)〉, [formula]. These states and all DMRG transformations can be saved to disk, and later be used to compute the observables Eq. ([\ref=eq:generalcorrelation]).
+
+Evolution to Arbitrary Times
+
+What happens to Eq. ([\ref=eq:generalcorrelation]) for larger times, i.e., for times t > τ? Noting that |φ(τ  +  τ)〉  =   exp (iHτ)|φ(τ)〉 we can apply Eq. ([\ref=eq:lanczosevolution]) to |φ(τ)〉, which in general reads [\cite=re:manmana05]:
+
+[formula]
+
+Then, we proceed by targetting the states {|φ(tx  +  τ)〉}x for some time until they are converged. By applying this procedure recursively, we reach arbitrary times t as we sweep the finite lattice back and forth, and target {|φ(tx + t)〉}x in the general case.
+
+The speed of time advancement in the algorithm is controlled by two opposing computational constraints. If we advance times too fast by applying Eq. ([\ref=eq:lanczosevolution2]) too often, then convergence might not be achieved, or we might not have had the chance to visit all sites π(0), π(1), , π(a - 1) to compute Eq. ([\ref=eq:generalcorrelation]). Conversely, advancing too slowly would increase computational cost but produce no additional data. Remember that when not advancing in time, states |φ(t  +  tx)〉x are wave-function-transformed, as explained in the previous section.
+
+We now explain the choice of the weights [\cite=re:batrouni06] that appear in Eq. ([\ref=eq:rdensitymatrix]). Assume n to be the total number of states to be targetted, including the ground state. To give them more prominence, we have chosen a weight of 2Ω for the ground state, and also for the Φ(l) vectors at the beginning and end of the τ interval. We have chosen a weight of Ω for the rest. Then 2Ω  ×  3  +  Ω(n - 3)  =  1 implies Ω  =  1 / (n + 3). The algorithm does not appear much dependent on the choice of weights. However, irrespective of what the choice actually is, all mentioned states must have non-zero weights to avoid loss of precision for one or more states.
+
+Overview of the Implementation
+
+The DMRG++ code was introduced in Refs. [\cite=re:alvarez09] [\cite=re:alvarez11]. The extension of the code to handle the time evolution and computation of observables of the type represented by Eq. ([\ref=eq:generalcorrelation]) was carried out with minimal refactoring. A Targetting interface was introduced, with two concrete classes, =GroundStateTargetting=, and =TimeStepTargetting=. The first handles the usual case, and is used even in the presence of time evolution during the so-called "infinite" DMRG algorithm, and during the finite algorithm before encountering the first site π'(0) in Eq. ([\ref=eq:b]).
+
+A call to =target.evolve(...)= handles (i) the computation of the vectors {|φ(t + tx)〉}x as needed, and (ii) their time evolution or, depending on the stage of the algorithm, their wave-function-transformation. When the =target= object belongs to the =TimeStepTargetting= class, the actual implementation of these tasks is performed by the member function =evolve(...)=. When the =target= object is of class =GroundStateTargetting= the =evolve(...)= function is empty. The call to this function is always done immediately after obtaining the ground state |ψ〉 for that particular step of the DMRG algorithm.
+
+File =TimeStepTargetting.h= is documented in place using literate programming [\cite=re:knuth92]. Further details about how to run the DMRG++ code, and how to specify its input file are given in Appendix [\ref=app:computercode].
+
+Examples
+
+One-site Excitations
+
+To test the accuracy of the time-dependent DMRG approach explained in the previous section, we consider first the following problem. Consider the tight-binding model [formula], with tij a symmetric matrix, and with the observable we wish to calculate being
+
+[formula]
+
+where |ψ〉 is the ground state of H0. (We keep the usual notation tij for the matrix of hopping integrals in the context of a tight binding model [\cite=re:slater54], even though t is also used to denote time here.)
+
+This is equivalent to taking b = 1, [formula], and π'(0) = i in Eq. ([\ref=eq:b]); and a = 1, π(0) = j, and [formula] in Eq. ([\ref=eq:generalcorrelation]). The physical interpretation for [formula] is then clear: it provides the time-dependent expectation value of the charge density [formula] at site j over a state that, at time t = 0, is defined by creating a "hole-like" excitation in state |ψ〉 at site i. We assume that site i has been specified and is kept fixed throughtout this discussion.
+
+Xij(t) can be expressed in terms of the eigenvectors and eigenvalues of tij. For a half-filled lattice we have Xij(t)  =  RiRj  -  |Tij(t)|2, where Ri and Tij are given in Appendix [\ref=app:easyexciton]. Then, Xij(t) can be calculated numerically, and compared to DMRG results for this model on a 16-site chain, and on a 8×  2 ladder, see Fig. [\ref=fig:easyexciton].
+
+On the chain, the number of states kept for the DMRG algorithm was set to m = 200, which was found to give good accuracy for the ground state energy. On the ladder, m = 400 was used, which is a typical [\cite=re:landau94] m value to achieve good accuracy for the ground state energy, and static properties. For instance, in both cases, DMRG gives Xii(t = 0) = 0 and Xij(t = 0) = 1 / 4 for i  ≠  j, as expected. As shown in Fig. [\ref=fig:easyexciton], the use of these values of m yields an accurate time evolution.
+
+Holon-Doublon
+
+Currently there is considerable interest in studying the feasibility of a new class of materials--the Mott insulators-- for their possible use in photovoltaic devices and oxide-electronics in general. The crucial question under study is whether charge excitations in the Mott insulator will be able to properly transfer the charge into the metallic contacts, thus establishing a steady-state photocurrent. Answering this question will require computation of the out-of-equilibrium dynamics and the time evolution of the excitonic excitations produced by the absorption of light by the material.
+
+The electron and hole created by light absorption are modeled by the state [\cite=re:al-hassanieh08]
+
+[formula]
+
+where |ψ〉 is the ground state, σ and σ' are spin indices, and  = 1 - σ denotes the spin opposite to σ. A sum over σ and σ' is assumed in the equation above. This is equivalent to taking b = 2, [formula], [formula], π'(0) = j, and π'(1) = i in Eq. ([\ref=eq:b]). We assume that the sites i and j of the lattice have been specified and will remain fixed throughout this discussion.
+
+To model a Mott insulator we consider the Hubbard Hamiltonian [\cite=re:hubbard63] [\cite=re:hubbard64a] [\cite=re:hubbard64b]
+
+[formula]
+
+where the notation is as in Ref. [\cite=re:al-hassanieh08], and we will drop the hat from the operators from now on. The hopping matrix t corresponds either to an open chain or to a two-leg ladder in the studies below.
+
+Density
+
+The time-dependent density at site p of state Eq. ([\ref=eq:holondoublon]) is
+
+[formula]
+
+which amounts to taking a = 1, [formula], and π(0) = p in Eq. ([\ref=eq:generalcorrelation]). Consider [formula]. In the case of U = 0 and half-filling we have (details are in Appendix [\ref=app:holondoublon]):
+
+[formula]
+
+The observable we test in this section is 〈Ψe|np|Ψe〉, which has a similar physical interpretation as Xij(t) (Eq. ([\ref=eq:xij])) in the holon-doublon case. Results for U = 0 and U = 10 are shown in Fig. [\ref=fig:holonDoublonDensity]. At t = 0, the values of 〈Ψe|np|Ψe〉 given by Eq. ([\ref=eq:nd]) hold true in the [formula] case at half-filling. The time-evolution for interacting and non-interacting cases are, however, quite distinct, as in the case of the chain (see, e.g., Ref. [\cite=re:diasdasilva10]).
+
+Readers might want to know why we emphasize the non-interacting U = 0 case. One obvious advantage of the U = 0 case is that we can test the Krylov method, and indirectly the accuracy of the DMRG, against exact results. In addition, the U term, at least when on-site, is not a major source of efficiency problems for the DMRG algorithm.
+
+To test our results for [formula] we have compared them to the Suzuki-Trotter method (not shown). We have also computed the small time expansion, and this is shown in Fig. [\ref=fig:smalltime].
+
+Double-occupation
+
+The double-occupation of state Eq. ([\ref=eq:holondoublon]) is [\cite=re:al-hassanieh08]
+
+[formula]
+
+and amounts to taking a = 1, [formula], and π(0) = p in Eq. ([\ref=eq:generalcorrelation]).
+
+Summarizing the operator equations obtained in section [\ref=sec:hd-dens], [formula], and [formula], where Aij is the operator defined in Eq. ([\ref=eq:a]), n̄ = 1 - n, and these equations also hold if we replace [formula] by [formula]. Then [formula], and
+
+[formula]
+
+DMRG results for U = 0 and U = 10 are shown in Fig. [\ref=fig:holonDoublonNd]. Also shown are exact results for U = 0. At t = 0, the double occupation at the doublon (p = j) and holon (p = i) sites are, respectively, Nd(j,i,p = j,t = 0) = 1 and Nd(j,i,p = i,t = 0) = 0 for both interacting and noninteracting cases. At the doublon site, the double occupation has a characteristic oscillating decay caused by the dynamics of the holon-doublon pair within the system, also observed for the chain case [\cite=re:diasdasilva10].
+
+Computational Efficiency and Concurrency
+
+As in the static DMRG algorithm, the most computationally intensive task of the time-step targetting DMRG algorithm is the computation of Hamiltonian connections between the system and environment blocks. The difference is that now the lattice needs to be swept painstakenly to advance to larger and larger times. The scaling, however, is linear with the number of finite sweeps, as long as the truncation m remains constant.
+
+This expensive task of building Hamiltonian connections between system and environment blocks can be parallelized [\cite=re:hager04] [\cite=re:chan04] [\cite=re:kurashige09] [\cite=re:yamada09] [\cite=re:rincon10]. Our implementation uses pthreads, a shared memory approach . In percentage, the computation speed-up is similar to the static DMRG case, and a discussion of the strong scaling can be found in Ref. [\cite=re:alvarez11]. In terms of wall-clock time, the speed-up is larger due to the time-step targetting DMRG algorithm taking more time than the static version.
+
+The computation of target states could be parallelized easily, but whether serial or parallel, it is too fast to have substantial impact on the CPU times of production runs.
+
+The measurement of observables is a different matter. DMRG++ computes observables post-processing, i.e., the main code saves all DMRG transformations, permutations, and quantum states to disk, and a second observer code reads the data from disk and computes observables as needed. We argue that post-processing is more advantageous than in-situ processing, whether for the static or for the time-dependent DMRG algorithm.
+
+First, a single run of the main code enables computation of all observables. If, instead, one needed to make a decision on what observables to compute when running the main code, one would risk computing too much or too little. In the former case, computational resources and wall clock time would be wasted. In the latter case, the main run would have to be repeated, leading to vast redunduncies because the observations are not computationally intensive compared to the main code.
+
+Moreover, by computing observables post-processing, we decouple the code, and enable scalable parallel computations. For example, one-point observables of the form 〈φ1(t)|Ai|φ2(t)〉 are parallelized over i, and two-point correlations, such as 〈φ1(t)|AiBj|φ2(t)〉, are parallelized over j, and cached over i. If N is the number of sites of the lattice, the parallelization scales linearly up to almost N; the scaling is good but not perfect due to initialization costs [\cite=re:amdahl67].
+
+Summary
+
+This paper explained in detail the implementation of the Krylov method for the real time evolution within the DMRG algorithm, using time-step targetting [\cite=re:batrouni06] [\cite=re:manmana05]. We applied the method to a simple case of one-site excitations and found the method to be accurate. For the case of the holon-doublon excitation, we have extended to two-leg ladders the previous results obtained in chains. Our analysis has shown that the method is accurate as long as the underlying DMRG algorithm is accurate. Since Mott insulators are under study for its possible applicability to solar cells, the present results pave the way for their continued study, now on more complex (but still quasi-one dimensional) geometries, such as ladders.
+
+We described computational tricks that can help decrease the runtime. For example, we mentioned that shared memory parallelization with a few CPU cores can cut times by a factor of 2 or more. Parallelization works in the same way for time-dependent DMRG as it does for static DMRG, but helps more in the former case, due to runs taking longer. We also argued in favor of the post-processing of observables to speed-up production runs, and increase computational efficiency.
+
+Our implementation, DMRG++, is free and open source. It emphasizes generic programming using C++ templates, a friendly user-interface, and as few software dependencies as possible. DMRG++ makes writing new models and geometries easy and fast, by using a generic DMRG engine.
+
+One-site Excitation in the Non-Interacting Case
+
+Let U be the matrix that diagonalizes H0, so that [formula], and [formula] the diagonal operators. Let Eλ be the eigenvalues of H0.
+
+For the rest of this appendix we omit [formula]. After some algebra, and omitting the sums over duplicated indices:
+
+[formula]
+
+The ground state of H0 is made up of [formula] filled levels, up to the Fermi energy, and particle-hole excitations are eigenstates of H (or, conversely, the excited states of H0 are particle-hole excitations). Then, the λ' - th level of |φ〉 is occupied and uλ'|φ〉 is an eigenstate of H with a hole at λ'. Applying this reasoning multiple times, the final result is Xij(t)  =  RiRj  -  |Tij(t)|2, where [formula], and [formula], where the prime over the sumation means sum only over occupied states λ.
+
+Holon-Doublon for a Non-Interacting System
+
+The goal of this appendix is to compute Eq. ([\ref=eq:nholondoublon]) when U = 0 and i  ≠  j. Let N be the number of sites, let N be even, and let there be [formula] electrons. Then [formula], [formula].
+
+Let [formula] be an equation between real numbers, and [formula] be an operator equation. From [formula], it follows that [formula]. Another straightforward result is [formula].
+
+For an operator A let us define [formula], and let
+
+[formula]
+
+then after some algebra:
+
+[formula]
+
+where [formula].
+
+By writing [formula], one gets [formula]. It is straightforward to prove that the second term vanishes and thus: [formula].
+
+Now consider p  ≠  i and p  ≠  j. If we expand in the basis that diagonalizes the Hamiltonian we arrive to:
+
+[formula]
+
+where the sum in n is over excited states. The second term is non-negative. This follows because [formula] and [formula] commute, admiting a common basis where both are diagonal. Moreover, all eigenvalues of [formula] are non-negative, as are all those of [formula]. Then, the second term in Eq. ([\ref=eq:ojip]) is non-negative.
+
+Also, the first term of Eq. ([\ref=eq:ojip]) is [formula]. Then [formula] [formula], where rijp  ≥  0.
+
+If we sum over all sites,
+
+[formula]
+
+There are N - 2 sites p such that p  ≠  i,j. Putting it all together we get:
+
+[formula]
+
+which, according to Eq. ([\ref=eq:oijpsum]) has to be equal to [formula]. It follows that [formula], implying rijp = 0 [formula] since we knew the rs were non-negative. Hence [formula], [formula]
+
+The DMRG++ Code
+
+The required software to build DMRG++ is: (i) GNU C++, and (ii) the LAPACK and BLAS libraries [\cite=laug]. These libraries are available for most platforms. The configure.pl script will ask for the =LDFLAGS= variable to pass to the compiler/linker. If the Linux platform was chosen the default/suggested =LDFLAGS= will include =-llapack=. If the OSX platform was chosen the default/suggested =LDFLAGS= will include =-framework Accelerate=. For other platforms the appropriate linker flags must be given. More information on =LAPACK= is here: http://netlib.org/lapack/.
+
+Optionally, make or gmake is needed to use the Makefile, and perl is only needed to run the =configure.pl= script.
+
+To build and run DMRG++:
+
+The perl script =configure.pl= will create the files =main.cpp=, =Makefile= and =observe.cpp=. Example input files for one-site excitations are in =TestSuite/inputs/input8.inp=, and for holon-doublon excitations in =TestSuite/inputs/input10.inp=. These files can be modified and used as input to run the DMRG++ program. Further details can be found in the file README in the code.
+
+The =FreeFermions= code found at can be used to compute properties of non-interactive systems.

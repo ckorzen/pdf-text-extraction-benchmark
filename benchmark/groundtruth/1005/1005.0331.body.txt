@@ -1,0 +1,205 @@
+Quantum Monte Carlo for minimum energy structures
+
+First principles electronic structure methods have been used to describe and explain a wide range of properties for different condensed matter systems. A critical step is the accurate determination of the ground state atomic structure, since many important properties of a material can change dramatically depending on the structure. Because of the balance between accuracy and computational cost, density functional theory (DFT) has become a commonly used method to find equilibrium geometries of both molecules and extended systems. The primary reason for this is the availablility of forces with little extra computational cost over the energy calculation. Using a typical quasi-Newton minimization algorithm, the local minimum of a potential energy surface can be found in O(NDOF), where NDOF is the number of degrees of freedom to be optimized. This favorable scaling has made it possible to find minima for many systems of interest. However, in many situations, including transition metals, excited states, and weak binding, current density functional theories may not be accurate enough even for structures, and more accurate post-Hartree-Fock methods that scale as O(N5 - 7e), where Ne is the number of electrons, can often be too computationally expensive.
+
+Quantum Monte Carlo (QMC), a stochastic approach to solving the many-body Schrödinger equation, offers favorable scaling to obtain the total energy, O(N2 - 3e), and has been shown to provide near chemical accuracy in many different systems[\cite=jindra_feo] [\cite=jeff_benchmark]. However, there are two major challenges in using QMC methods to obtain high precision minimum energy structures. The first is that the techniques so far proposed to calculate forces in diffusion Monte Carlo all have large variances and error terms that depend on the quality of the trial wave function, which is often poor in systems where DFT fails and one would like to apply QMC methods. In fact, despite much work in recent years[\cite=chiesa_force] [\cite=assaraf_force] [\cite=mella_force] [\cite=badinski_force1] [\cite=badinski_force2] [\cite=filippi_correlated], QMC forces using the highly accurate diffusion Monte Carlo method have not been applied to more than a few degrees of freedom, although the simpler variational Monte Carlo technique has been applied to more[\cite=attaccalite_md]. The second challenge is the stochastic nature of Monte Carlo algorithms, which provides uncertainty in any estimator that only decreases as the square root of the computer time. Reducing the uncertainty enough to resolve the minimum structure accurately using forces or total energies is often prohibitively expensive computationally. Methods such as the stochastic gradient approximation[\cite=monro] [\cite=harju_sga] that are able to operate in the presence of noise suffer from this large uncertainty in the forces. As a result, there are no geometry optimizations of more than three[\cite=lester_fit] degrees of freedom, to our knowledge.
+
+In this article, we describe an algorithm that uses the already-accurate total energies from QMC to obtain minimum energy geometries with well-defined stochastic uncertainties with multiple degrees of freedom. The algorithm consists of two major parts. One is a sequence of minimizations along one dimensional lines. The use of 1D minimizations allows us to use efficient fits to determine the minimum precisely. The second part is a quadratic fit of the many-dimensional energy surface to determine the new search directions. Both of these parts are completely aware of the stochastic uncertainty present in the evaluations of the energy, an important feature obtained by the use of Bayesian inference. We apply this approach to the hydrogen-transfer model of H2O-OH- and show that our method can help clarify challenging problems that require accurate calculation of the electronic ground state.
+
+DFT and Hartree-Fock calculations were performed using the GAMESS[\cite=gamess] package. We used soft pseudopotentials[\cite=Dolg_psp_qmc] to remove the core electrons and a TZP-quality contracted gaussian basis to represent the one-particle orbitals. All-electron calculations were performed using the aug-cc-pVQZ[\cite=dunning_basis] basis to check the basis set and pseudopotential errors. All QMC calculations were performed using the QWalk[\cite=qwalk] program. For energies, we used fixed node diffusion Monte Carlo (DMC) with a time step of 0.02-0.05 Hartrees- 1, converged for the properties of interest. The trial function was a Slater-Jastrow function with hybrid PBE0[\cite=pbe0] orbitals, one and two body terms in the Jastrow, and further checks of the localization error with a three-body Jastrow factor. Further details can be found in e.g. Refs [\cite=Foulkes_review] [\cite=qwalk].
+
+Our minimization algorithm is similar in spirit to many successful minimization algorithms in that it is based on minimizing along directions and updating an estimate of the Hessian matrix to find the diagonal directions. However, in our approach the Hessian matrix is inferred using the Bayesian interpretation of probability, which has the effect of making the algorithm very robust to stochastic uncertainty. Here we present the case when only the value can be calculated, but gradients of the objective function can be included easily if they are available, increasing the efficiency. By using inference, we are able to make very efficient use of the available data to find the Hessian matrix without having to reduce the stochastic uncertainties to small values that cost large amounts of computational time to achieve.
+
+The kernel of the algorithm is a sequence of line minimizations. We show that a sequence of uncertain line minimizations will obtain the true minimum on average. Such a sequence can then be viewed as a generator of random variables whose expectation value is the true minimum. Suppose on the first step, we start with the approximate minimum [formula]. We then define [formula], where [formula] is the vector of the unknown true minima. We wish to design our process such that the expectation value of [formula] equals zero as n  →    ∞  . Within the quadratic region around the minimum, the potential energy surface is given by
+
+[formula]
+
+where H is the symmetric Hessian matrix and E0 is the minimum total energy. On minimizing along each direction i, there are two components of the distance from the true minimum. The first is deterministic and comes about from non-zero δxj for j  ≠  i. The second is the stochastic error from the uncertainty in the line minimization, which we can estimate using the Bayesian techniques above. We find that
+
+[formula]
+
+where χ(1)i is a random number. For the nth iteration,
+
+[formula]
+
+The minimum along each line is found using line fitting, as described in the EPAPS document. This allows for a very efficient determination of the minimum.
+
+One can see from Eqn [\ref=eqn:avg] that the smaller the off-diagonal matrix elements of the Hessian are, the less interference directions have on each other-for a diagonal Hessian, only one minimization in each direction is necessary once we are in the quadratic regime. We can use the information from the line minimizations to estimate the Hessian as the minimization proceeds. We parameterize the quadratic region with a set of parameters [formula], including the elements of the Hessian matrix, the minima, and the minimum energy. After performing the line fits, we have distributions of line fit parameters, each given by [formula] for line [formula]. Using Bayes' theorem, the likelihood function of the quadratic parameters L is given by
+
+[formula]
+
+where D is the set of function evaluations and stochastic uncertainties given by e.g. QMC and each [formula] is the subset of function evaluations used to minimize along a given line [formula]. Since [formula] is not based on stochastic data, it is a delta function that forces [formula] to be consistent with [formula] as follows. Since in the quadratic region, [formula], minimizing along a direction [formula] from a starting position [formula] gives the one-dimensional function of t, the position along the line:
+
+[formula]
+
+This gives the following constraints on each set of line parameters for the minimum, curvature, and minimum function value [formula]:
+
+[formula]
+
+[formula]
+
+[formula]
+
+The net result of this transformation is a set of parameters that includes the Hessian matrix, the location of the minimum, the objective function at the minimum, and the parameters used for the line fits above the three constraints implied by the [formula]'s. We examine the properties of this probability distribution function in the EPAPS material. It turns out that the maximum likelihood estimator is typically accurate enough to determine the Hessian, which is then diagonalized to obtain new search directions.
+
+We outline a single iteration of the algorithm in Fig [\ref=fig:algorithm]. This step operates in two principle regimes. The first is far away from the minimum. In this regime, the Hessian inference method behaves similarly to a deterministic direction set method, with the directions being determined by the Hessian inference. The second regime is when the calculation has mostly converged and the deterministic error in Eqn [\ref=eqn:minimization_error] is small compared to the stochastic error. In this regime, deterministic direction choices are particularly useless, but the inferred Hessian method is able to automatically account for the stochastic error. Once in this "stochastic regime," we can use Eqn [\ref=eqn:avg] to justify averaging the [formula]'s to obtain a more precise estimate of the minimum. For stochastic functions, the performance of the Hessian inference is much higher than traditional methods such as Powell's method[\cite=powell], which we compare in Fig [\ref=fig:performance]. Since Powell's method uses the concept of conjugate directions to find the search directions, the uncertain minimizations cause the algorithm to fail quickly. Even when the directions are reset every sweep, they can become linearly dependent within a single sweep, causing a high failure rate for even moderate dimensionality.
+
+To show the value of optimizing geometries within QMC, we apply the method to the H2O-OH- complex (Fig [\ref=fig:pes_scan]), which is present in liquid water and important in many systems in condensed matter, biology, and chemistry. The shape of this potential energy surface is crucial to understanding hydrogen transfer in water. In this case, we use our knowledge of the system to choose fixed search directions for efficiency reasons, omitting the Hessian inference method. For systems that are not as easily decomposed, the Hessian inference is invaluable. It has been noted[\cite=perdew_h3o2] that current DFT functionals disagree on the ground state structure of this complex. The potential minima are the non-centrosymmetric structure (A) and the centrosymmetric structure (B).
+
+Hartree-Fock and second order Møller-Plesset perturbation theory (MP2) find that structure A is lower in energy, with a barrier to transfer the proton. This is the traditional picture of this structure. The local density approximation and generalized gradient approximation (PBE[\cite=pbe]) of DFT find that structure B is lower in energy. Using our QMC line minimization method without constraints (seven degrees of freedom) we find structure A to be the minimum energy. The results are summarized in Table [\ref=table:geom]. DMC differs qualitatively from the DFT results in that structure A is the minimum, and quantitatively with MP2, since the oxygen-oxygen distance in MP2 is much smaller than in DMC for structure A.
+
+In Fig [\ref=fig:pes_scan], we present the DMC energies of several minima. Without the geometry optimization algorithm, we would use minima from some other methods, for example, PBE and MP2 to obtain structures B and A respectively, then evaluate the total energy using DMC. In this case, since the MP2 approximation obtains a poor O-O distance, DMC predicts a much higher energy for structure A and thus favors the centrosymmetric geometry. However, this is qualitatively incorrect, as we can see from the DMC-optimized structures, which predict structure B to be about 0.015 eV higher in energy than structure A. It is notable that 0.015 eV is a very small energy difference on the scale of chemical bonding, which is why a small error in the geometry by using a lower level theory is enough to reverse the ordering. This energy difference is an upper bound to the barrier to transfer the hydrogen, and thus at room temperature the hydrogen is free to transfer between the oxygen atoms. This may have important implications for the development of effective solvent models for water.
+
+In this work, we have viewed the DMC potential energy surface as a given without attempting to improve the accuracy over a simple Slater-Jastrow form; however, our method can also be used to optimize the nodal surface directly and thus further improve the accuracy of the DMC calculation. Similarly, any Monte Carlo method that depends on continuous parameters could put the stochastic line minimization algorithm to use. Stochastic line minimization may find application in experiments whose objective is to obtain a precise minimum in many-dimensional space, but the experiments are difficult to perform precisely. If it is instead easier to perform many iterations of the experiment, then the minimization method that we have outlined may be applicable. The scaling for a quadratic potential is O(N2DOF) if only values are used; if even approximate gradients are available, the scaling can be reduced to approximately O(NDOF), as discussed in the EPAPS document.
+
+The algorithm is quite general, requiring only evaluations of the objective function with a known distribution, and can thus be applied to many minimization problems. At its core, it is a method for converting noisy value calculations into precise minima with rigorous error bounds, so it can be applied in any of the many problems where that is necessary. In electronic structure, diffusion Monte Carlo is accurate and applicable to many systems beyond the ground state of molecules, including solid structures and excited states[\cite=schautz_excited]. The scaling for DMC geometry optimization is then O(N1 - 2DOFN2 - 3e), depending on the size of the system and whether gradients are available. This favorable scaling combined with the already known high accuracy of quantum Monte Carlo could open up new levels of accuracy in structure determination in condensed matter and chemical physics.
+
+This work was supported by the Department of Energy under grant No. DE-SC0002623 and the NSF under grant No. 0425914. We wish to thank NERSC and Teragrid as well for providing computational resources. We would also like to acknowledge Yosuke Kanai for useful discussions.
+
+Details of the minimization algorithm
+
+In this EPAPS document, we step through the minimization process in detail. Note that some of the details are not necessarily perfectly optimal, but they do work robustly and efficiently. We thus provide this description only as a reference implementation that could potentially be improved significantly.
+
+Line minimization
+
+Suppose we wish to minimize a function along a line using the values. For a deterministic function, a good method is the golden ratio method. However, for a non-deterministic function, locating the minimum by comparing the value is bound to be inefficient, since the objective function f(x) scales as [formula], and the work to resolve energy differences scales as the inverse square root of the difference. Therefore, near the minimum, the effort to resolve position differences scales as the inverse quartic root of the difference. The computational cost using fitting (and gradients) on the other hand, scales as the inverse square root. Whether fitting using the value of the function or the gradient of the function is more accurate will depend on their relative variances and the specific problem. In this work, we use exclusively values since they are easily attainable in quantum Monte Carlo methods.
+
+We developed a reliable strategy to bracket the minimum. Given a starting position (t0) and a trust radius rt, the algorithm works with three points, initialized as follows: t1 = t0 - rt, t2 = t0, t3 = t0 + rt. Let fi = f(ti) + χ be the function evaluated at ti with a normal random error χ with standard deviation σ, which can be controlled by performing longer calculations. Define S(fi,fj) as being true when fi is significantly different from fj, i.e., about four standard deviations away. A basic algorithm as follows:
+
+Evaluate f1, f2, and f3 at uncertainty σ
+
+If S(f1,f2) and S(f2,f3) :
+
+If f2  <  f3 and f2  <  f1 stop. We have bracketed the minimum.
+
+If f2  <  f3 and f2  >  f1, then set ti = ti - rt for i = 1,2,3, return to 1.
+
+If f2  >  f3 and f2  <  f1, then set ti = ti + rt for i = 1,2,3, return to 1.
+
+Else σ  =  σ / 2 and return to 1.
+
+This algorithm occasionally gets stuck when two points are roughly the same distance from the minimum and thus have nearly the same value. This can be ameliorated by searching between points when only two are insignificantly different.
+
+Once the minimum is bracketed to within the trust region, we can then fill in points along the line and fit. The distribution of points is not very critical, so long as there are a few points far away from the minimum to determine the curvature and higher order parameters accurately. We typically use a four parameter cubic form: f(x) = c0 + c2(x - c1)2 + c3(x - c1)3, which gives a good balance between being accurate, easy to fit, and few parameters. A quadratic form requires trust radii that are very small, reducing the efficiency of the algorithm. We perform the fit using Bayesian inference given the set of data D = {ti,fi,σi}. The likelihood function is given by
+
+[formula]
+
+where
+
+[formula]
+
+is the probability that we would have obtained the data given a set of parameters. The distribution of a given parameter ci can be found by taking the marginal distribution of [formula], or for more speed at the cost of not knowing the uncertainty well, simply using the maximum likelihood estimator.
+
+Hessian estimation
+
+One begins by noting that near the minimum, the energy is described by a quadratic function:
+
+[formula]
+
+Far away from the minimum, this is an approximation to speed up the minimum search. Near the minimum, we used this property to prove the average properties of the stochastic sequence of line minimizations. Recall that only the minimum of the line minimization must be in the quadratic region. With no further assumptions, we can estimate the Hessian (and full quadratic surface) given a collection of line minimizations, even in the presence of stochastic noise.
+
+Let [formula] be the collection of all parameters for the quadratic region, [formula] the collection of line parameters for line [formula]. We wish to find [formula], where D is the set of function evaluations, arranged in lines. By Bayes' theorem, we know that
+
+[formula]
+
+Since [formula] is not based on stochastic data, it is a delta function that forces [formula] to be consistent with [formula] as follows. In the quadratic region, [formula], minimizing along a direction [formula] from a starting position [formula] gives the one-dimensional function
+
+[formula]
+
+This gives the following constraints on each set of line parameters [formula]:
+
+[formula]
+
+[formula]
+
+[formula]
+
+We thus only need to integrate over the variables in each line that are not specified by the above equations. We can replace the [formula] by the reduced line parameters [formula]. Since there are three constraints per line, the dimensionality of [formula] is three less than the dimensionality of [formula]. We can recover the full set of line parameters as a function of the quadratic parameters and the reduced line parameters; i.e., [formula]
+
+We eventually want the likelihood function for the quadratic parameters and the reduced line parameters: [formula], where D is the data. This is given by
+
+[formula]
+
+where [formula] is given by Eqn [\ref=eqn:line_likelihood].
+
+The first estimate of the Hessian matrix is achieved by minimizing the violation of Eqn [\ref=eqn:curve_constraint] from the line fits. The minimum of the quadratic model is estimated as the last minimum found in a line minimization, and the minimum energy similarly. The parameters are then optimized for maximum likelihood using a conjugate gradient optimization method. Finally, the parameters are randomized and reoptimized to get out of local maxima. We find that the maximum likelihood estimator is typically quite sufficient for determining search directions; it is not necessary to sample to find distributions.
+
+Note that each line minimization places three constraints on [formula] and [formula] has a dimensionality of 1 + NDOF + NDOF(NDOF + 1) / 2, so to make this a fully determined problem, 1 / 6 + NDOF / 3  +  NDOF(NDOF + 1) / 6 line minimizations are needed. This is always smaller than the N2DOF line minimizations necessary in Powell's method, the standard in gradient-free minimization, with the additional benefit that the Hessian inference method is uncertainty-aware, which allows much higher efficiency when uncertainty can be traded for computational time.
+
+If gradient information is available, then they can be integrated directly into the likelihood function from Eqn [\ref=eqn:quadratic_likelihood] as a simple product:
+
+[formula]
+
+where the likelihood function can be approximated as
+
+[formula]
+
+and Ci is the covariance matrix between all the gradient components. The Hessian inference then becomes essentially a quasi-Newton algorithm that is uncertainty aware. Approximate gradients are also useful, since minima can be determined by using only the value to perform the line fits. In some instances, one can imagine elaborations of this where DFT or other approximations to the gradient are used to accelerate the minimum search.
+
+A detailed look as the algorithm proceeds
+
+Start a line minimization sweep, for each direction
+
+Bracket the minimum
+
+Fill in data points within the trust region from the minimum
+
+Fit the data points with a function
+
+Update the minimum
+
+Add fit to list of fits
+
+Prune list of fits to contain only the last Nhistory sweeps
+
+Fit N-dimensional quadratic model to lines, find maximum likelihood
+
+Diagonalize Hessian
+
+Update directions
+
+Return to 1.
+
+In Fig [\ref=fig:converge], we show the convergence of the eigenvalues from the Hessian estimation to the exact ones, and the minima from the line minimizations.
+
+Proofs of the properties of the stochastic sequence
+
+We have the following equations:
+
+[formula]
+
+[formula]
+
+Suppose that [formula] for some 0  <  x  <  1. Then [formula], [formula], and so on.
+
+The average is equal to the true minimum
+
+Suppose that [formula]. Then
+
+[formula]
+
+This goes to zero exponentially in n, so we can obtain an average arbitrarily close to zero by starting the average at high enough n.
+
+The average has finite variance
+
+Assume [formula]. Then
+
+[formula]
+
+for large n.
+
+The sequence has a finite correlation time
+
+Suppose that
+
+[formula]
+
+for some variance σ2. Then the correlation between elements n and j in the sequence is
+
+[formula]
+
+where we reversed the sum indices. As n and j become large while keeping the difference finite, we can then find that
+
+[formula]
+
+This goes to zero exponentially with n - j, and since the variance is finite, the correlation coefficient also goes to zero exponentially.

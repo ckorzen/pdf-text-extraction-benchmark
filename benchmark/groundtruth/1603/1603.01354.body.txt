@@ -1,0 +1,141 @@
+End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF
+
+Introduction
+
+Linguistic sequence labeling, such as part-of-speech (POS) tagging and named entity recognition (NER), is one of the first stages in deep language understanding and its importance has been well recognized in the natural language processing community. Natural language processing (NLP) systems, like syntactic parsing [\cite=Nivre:2004] [\cite=McDonald:2005] [\cite=Koo:2010] [\cite=ma-zhao:2012:POSTERS] [\cite=ma2015probabilistic] [\cite=chen-manning:2014:EMNLP2014] [\cite=ma-hovy:2015:EMNLP] and entity coreference resolution [\cite=ng:2010:ACL] [\cite=ma-hovy:2016:NAACL], are becoming more sophisticated, in part because of utilizing output information of POS tagging or NER systems.
+
+Most traditional high performance sequence labeling models are linear statistical models, including Hidden Markov Models (HMM) and Conditional Random Fields (CRF) [\cite=ratinov2009design] [\cite=passos-kumar-mccallum:2014:W14-16] [\cite=luo-EtAl:2015:EMNLP2], which rely heavily on hand-crafted features and task-specific resources. For example, English POS taggers benefit from carefully designed word spelling features; orthographic features and external resources such as gazetteers are widely used in NER. However, such task-specific knowledge is costly to develop [\cite=ma-xia:2014:P14-1], making sequence labeling models difficult to adapt to new tasks or new domains.
+
+In the past few years, non-linear neural networks with as input distributed word representations, also known as word embeddings, have been broadly applied to NLP problems with great success. proposed a simple but effective feed-forward neutral network that independently classifies labels for each word by using contexts within a window with fixed size. Recently, recurrent neural networks (RNN) [\cite=goller1996learning], together with its variants such as long-short term memory (LSTM) [\cite=hochreiter1997long] [\cite=gers2000learning] and gated recurrent unit (GRU) [\cite=cho2014properties], have shown great success in modeling sequential data. Several RNN-based neural network models have been proposed to solve sequence labeling tasks like speech recognition [\cite=graves2013speech], POS tagging [\cite=huang2015bidirectional] and NER [\cite=chiu2015named] [\cite=lample:2016:NAACL], achieving competitive performance against traditional models. However, even systems that have utilized distributed representations as inputs have used these to augment, rather than replace, hand-crafted features (e.g. word spelling and capitalization patterns). Their performance drops rapidly when the models solely depend on neural embeddings.
+
+In this paper, we propose a neural network architecture for sequence labeling. It is a truly end-to-end model requiring no task-specific resources, feature engineering, or data pre-processing beyond pre-trained word embeddings on unlabeled corpora. Thus, our model can be easily applied to a wide range of sequence labeling tasks on different languages and domains. We first use convolutional neural networks (CNNs) [\cite=lecun1989backpropagation] to encode character-level information of a word into its character-level representation. Then we combine character- and word-level representations and feed them into bi-directional LSTM (BLSTM) to model context information of each word. On top of BLSTM, we use a sequential CRF to jointly decode labels for the whole sentence. We evaluate our model on two linguistic sequence labeling tasks -- POS tagging on Penn Treebank WSJ [\cite=Marcus:1993], and NER on English data from the CoNLL 2003 shared task [\cite=TjongKimSang:2003]. Our end-to-end model outperforms previous state-of-the-art systems, obtaining 97.55% accuracy for POS tagging and 91.21% F1 for NER. The contributions of this work are (i) proposing a novel neural network architecture for linguistic sequence labeling. (ii) giving empirical evaluations of this model on benchmark data sets for two classic NLP tasks. (iii) achieving state-of-the-art performance with this truly end-to-end system.
+
+Neural Network Architecture
+
+In this section, we describe the components (layers) of our neural network architecture. We introduce the neural layers in our neural network one-by-one from bottom to top.
+
+CNN for Character-level Representation
+
+Previous studies [\cite=santos2014learning] [\cite=chiu2015named] have shown that CNN is an effective approach to extract morphological information (like the prefix or suffix of a word) from characters of words and encode it into neural representations. Figure [\ref=fig:cnn] shows the CNN we use to extract character-level representation of a given word. The CNN is similar to the one in , except that we use only character embeddings as the inputs to CNN, without character type features. A dropout layer [\cite=srivastava2014dropout] is applied before character embeddings are input to CNN.
+
+Bi-directional LSTM
+
+LSTM Unit
+
+Recurrent neural networks (RNNs) are a powerful family of connectionist models that capture time dynamics via cycles in the graph. Though, in theory, RNNs are capable to capturing long-distance dependencies, in practice, they fail due to the gradient varnishing/exploding problems [\cite=bengio1994] [\cite=pascanu2012].
+
+LSTMs [\cite=hochreiter1997long] are a variant of RNNs designed to cope with these gradient varnishing problems. Basically, a LSTM unit is composed of three multiplicative gates which control the proportions of information to forget and to pass on to the next time step. Figure [\ref=fig:lstm] gives the basic structure of an LSTM unit.
+
+Formally, the formulas to update an LSTM unit at time t are: where σ is the element-wise sigmoid function and [formula] is the element-wise product. [formula] is the input vector (e.g. word embedding) at time t, and [formula] is the hidden state (also called output) vector storing all the useful information at (and before) time t. [formula] denote the weight matrices of different gates for input [formula], and [formula] are the weight matrices for hidden state [formula]. [formula] denote the bias vectors. It should be noted that we do not include peephole connections [\cite=gers2003learning] in the our LSTM formulation.
+
+BLSTM
+
+For many sequence labeling tasks it is beneficial to have access to both past (left) and future (right) contexts. However, the LSTM's hidden state [formula] takes information only from past, knowing nothing about the future. An elegant solution whose effectiveness has been proven by previous work [\cite=dyer-EtAl:2015:ACL-IJCNLP] is bi-directional LSTM (BLSTM). The basic idea is to present each sequence forwards and backwards to two separate hidden states to capture past and future information, respectively. Then the two hidden states are concatenated to form the final output.
+
+CRF
+
+For sequence labeling (or general structured prediction) tasks, it is beneficial to consider the correlations between labels in neighborhoods and jointly decode the best chain of labels for a given input sentence. For example, in POS tagging an adjective is more likely to be followed by a noun than a verb, and in NER with standard BIO2 annotation [\cite=tksveenstra99eacl] I-ORG cannot follow I-PER. Therefore, we model label sequence jointly using a conditional random field (CRF) [\cite=lafferty2001], instead of decoding each label independently.
+
+Formally, we use [formula] to represent a generic input sequence where [formula] is the input vector of the ith word. [formula] represents a generic sequence of labels for [formula]. [formula] denotes the set of possible label sequences for [formula]. The probabilistic model for sequence CRF defines a family of conditional probability [formula] over all possible label sequences [formula] given [formula] with the following form: where [formula] are potential functions, and [formula] and [formula] are the weight vector and bias corresponding to label pair (y',y), respectively.
+
+For CRF training, we use the maximum conditional likelihood estimation. For a training set [formula], the logarithm of the likelihood (a.k.a. the log-likelihood) is given by: Maximum likelihood training chooses parameters such that the log-likelihood [formula] is maximized.
+
+Decoding is to search for the label sequence [formula] with the highest conditional probability: For a sequence CRF model (only interactions between two successive labels are considered), training and decoding can be solved efficiently by adopting the Viterbi algorithm.
+
+BLSTM-CNNs-CRF
+
+Finally, we construct our neural network model by feeding the output vectors of BLSTM into a CRF layer. Figure [\ref=fig:architec] illustrates the architecture of our network in detail.
+
+For each word, the character-level representation is computed by the CNN in Figure [\ref=fig:cnn] with character embeddings as inputs. Then the character-level representation vector is concatenated with the word embedding vector to feed into the BLSTM network. Finally, the output vectors of BLSTM are fed to the CRF layer to jointly decode the best label sequence. As shown in Figure [\ref=fig:architec], dropout layers are applied on both the input and output vectors of BLSTM. Experimental results show that using dropout significantly improve the performance of our model (see Section [\ref=subsec:dropout] for details).
+
+Network Training
+
+In this section, we provide details about training the neural network. We implement the neural network using the Theano library [\cite=bergstra2010theano]. The computations for a single model are run on a GeForce GTX TITAN X GPU. Using the settings discussed in this section, the model training requires about 12 hours for POS tagging and 8 hours for NER.
+
+Parameter Initialization
+
+Word Embeddings. We use Stanford's publicly available GloVe 100-dimensional embeddings trained on 6 billion words from Wikipedia and web text [\cite=pennington:EMNLP2014]
+
+We also run experiments on two other sets of published embeddings, namely Senna 50-dimensional embeddings trained on Wikipedia and Reuters RCV-1 corpus [\cite=collobert2011natural], and Google's Word2Vec 300-dimensional embeddings trained on 100 billion words from Google News [\cite=mikolov2013]. To test the effectiveness of pretrained word embeddings, we experimented with randomly initialized embeddings with 100 dimensions, where embeddings are uniformly sampled from range
+
+[formula]
+
+, where we set dim = 30.
+
+Weight Matrices and Bias Vectors. Matrix parameters are randomly initialized with uniform samples from
+
+[formula]
+
+Optimization Algorithm
+
+Parameter optimization is performed with mini-batch stochastic gradient descent (SGD) with batch size 10 and momentum 0.9. We choose an initial learning rate of η0 (η0  =  0.01 for POS tagging, and 0.015 for NER, see Section [\ref=subsec:hyper-params].), and the learning rate is updated on each epoch of training as ηt  =  η0 / (1  +  ρt), with decay rate ρ  =  0.05 and t is the number of epoch completed. To reduce the effects of "gradient exploding", we use a gradient clipping of 5.0 [\cite=pascanu2012]. We explored other more sophisticated optimization algorithms such as AdaDelta [\cite=zeiler2012adadelta], Adam [\cite=kingma2014adam] or RMSProp [\cite=dauphin2015rmsprop], but none of them meaningfully improve upon SGD with momentum and gradient clipping in our preliminary experiments.
+
+Early Stopping. We use early stopping [\cite=giles2001] [\cite=graves2013speech] based on performance on validation sets. The "best" parameters appear at around 50 epochs, according to our experiments.
+
+Fine Tuning. For each of the embeddings, we fine-tune initial embeddings, modifying them during gradient updates of the neural network model by back-propagating gradients. The effectiveness of this method has been previously explored in sequential and structured prediction problems [\cite=collobert2011natural] [\cite=peng-dredze:2015:EMNLP].
+
+Dropout Training. To mitigate overfitting, we apply the dropout method [\cite=srivastava2014dropout] to regularize our model. As shown in Figure [\ref=fig:cnn] and [\ref=fig:architec], we apply dropout on character embeddings before inputting to CNN, and on both the input and output vectors of BLSTM. We fix dropout rate at 0.5 for all dropout layers through all the experiments. We obtain significant improvements on model performance after using dropout (see Section [\ref=subsec:dropout]).
+
+Tuning Hyper-Parameters
+
+Table [\ref=tab:hyper-params] summarizes the chosen hyper-parameters for all experiments. We tune the hyper-parameters on the development sets by random search. Due to time constrains it is infeasible to do a random search across the full hyper-parameter space. Thus, for the tasks of POS tagging and NER we try to share as many hyper-parameters as possible. Note that the final hyper-parameters for these two tasks are almost the same, except the initial learning rate. We set the state size of LSTM to 200. Tuning this parameter did not significantly impact the performance of our model. For CNN, we use 30 filters with window length 3.
+
+Experiments
+
+Data Sets
+
+As mentioned before, we evaluate our neural network model on two sequence labeling tasks: POS tagging and NER.
+
+POS Tagging. For English POS tagging, we use the Wall Street Journal (WSJ) portion of Penn Treebank (PTB) [\cite=Marcus:1993], which contains 45 different POS tags. In order to compare with previous work, we adopt the standard splits -- section 0-18 as training data, section 19-21 as development data and section 22-24 as test data [\cite=manning2011part] [\cite=sogaard:2011:ACL-HLT20111].
+
+NER. For NER, We perform experiments on the English data from CoNLL 2003 shared task [\cite=TjongKimSang:2003]. This data set contains four different types of named entities: PERSON, LOCATION, ORGANIZATION, and MISC. We use the BIOES tagging scheme instead of standard BIO2, as previous studies have reported meaningful improvement with this scheme [\cite=ratinov2009design] [\cite=dai2015enhancing] [\cite=lample:2016:NAACL].
+
+The corpora statistics are shown in Table [\ref=tab:corpus]. We did not perform any pre-processing for data sets, leaving our system truly end-to-end.
+
+Main Results
+
+We first run experiments to dissect the effectiveness of each component (layer) of our neural network architecture by ablation studies. We compare the performance with three baseline systems -- BRNN, the bi-direction RNN; BLSTM, the bi-direction LSTM, and BLSTM-CNNs, the combination of BLSTM with CNN to model character-level information. All these models are run using Stanford's GloVe 100 dimensional word embeddings and the same hyper-parameters as shown in Table [\ref=tab:hyper-params]. According to the results shown in Table [\ref=tab:result], BLSTM obtains better performance than BRNN on all evaluation metrics of both the two tasks. BLSTM-CNN models significantly outperform the BLSTM model, showing that character-level representations are important for linguistic sequence labeling tasks. This is consistent with results reported by previous work [\cite=santos2014learning] [\cite=chiu2015named]. Finally, by adding CRF layer for joint decoding we achieve significant improvements over BLSTM-CNN models for both POS tagging and NER on all metrics. This demonstrates that jointly decoding label sequences can significantly benefit the final performance of neural network models.
+
+Comparison with Previous Work
+
+POS Tagging
+
+Table [\ref=tab:pos] illustrates the results of our model for POS tagging, together with seven previous top-performance systems for comparison. Our model significantly outperform Senna [\cite=collobert2011natural], which is a feed-forward neural network model using capitalization and discrete suffix features, and data pre-processing. Moreover, our model achieves 0.23% improvements on accuracy over the "CharWNN" [\cite=santos2014learning], which is a neural network model based on Senna and also uses CNNs to model character-level representations. This demonstrates the effectiveness of BLSTM for modeling sequential data and the importance of joint decoding with structured prediction model.
+
+Comparing with traditional statistical models, our system achieves state-of-the-art accuracy, obtaining 0.05% improvement over the previously best reported results by . It should be noted that also evaluated their BLSTM-CRF model for POS tagging on WSJ corpus. But they used a different splitting of the training/dev/test data sets. Thus, their results are not directly comparable with ours.
+
+NER
+
+Table [\ref=tab:ner] shows the F1 scores of previous models for NER on the test data set from CoNLL-2003 shared task. For the purpose of comparison, we list their results together with ours. Similar to the observations of POS tagging, our model achieves significant improvements over Senna and the other three neural models, namely the LSTM-CRF proposed by , LSTM-CNNs proposed by , and the LSTM-CRF by . utilized discrete spelling, POS and context features, used character-type, capitalization, and lexicon features, and all the three model used some task-specific data pre-processing, while our model does not require any carefully designed features or data pre-processing. We have to point out that the result (90.77%) reported by is incomparable with ours, because their final model was trained on the combination of the training and development data sets.
+
+To our knowledge, the previous best F1 score (91.20) reported on CoNLL 2003 data set is by the joint NER and entity linking model [\cite=luo-EtAl:2015:EMNLP2]. This model used many hand-crafted features including stemming and spelling features, POS and chunks tags, WordNet clusters, Brown Clusters, as well as external knowledge bases such as Freebase and Wikipedia. Our end-to-end model slightly improves this model by 0.01%, yielding a state-of-the-art performance.
+
+Word Embeddings
+
+As mentioned in Section [\ref=subsec:init], in order to test the importance of pretrained word embeddings, we performed experiments with different sets of publicly published word embeddings, as well as a random sampling method, to initialize our model. Table [\ref=tab:embedding] gives the performance of three different word embeddings, as well as the randomly sampled one. According to the results in Table [\ref=tab:embedding], models using pretrained word embeddings obtain a significant improvement as opposed to the ones using random embeddings. Comparing the two tasks, NER relies more heavily on pretrained embeddings than POS tagging. This is consistent with results reported by previous work [\cite=collobert2011natural] [\cite=huang2015bidirectional] [\cite=chiu2015named].
+
+For different pretrained embeddings, Stanford's GloVe 100 dimensional embeddings achieve best results on both tasks, about 0.1% better on POS accuracy and 0.9% better on NER F1 score than the Senna 50 dimensional one. This is different from the results reported by , where Senna achieved slightly better performance on NER than other embeddings. Google's Word2Vec 300 dimensional embeddings obtain similar performance with Senna on POS tagging, still slightly behind GloVe. But for NER, the performance on Word2Vec is far behind GloVe and Senna. One possible reason that Word2Vec is not as good as the other two embeddings on NER is because of vocabulary mismatch -- Word2Vec embeddings were trained in case-sensitive manner, excluding many common symbols such as punctuations and digits. Since we do not use any data pre-processing to deal with such common symbols or rare words, it might be an issue for using Word2Vec.
+
+Effect of Dropout
+
+Table [\ref=tab:dropout] compares the results with and without dropout layers for each data set. All other hyper-parameters remain the same as in Table [\ref=tab:hyper-params]. We observe a essential improvement for both the two tasks. It demonstrates the effectiveness of dropout in reducing overfitting.
+
+OOV Error Analysis
+
+To better understand the behavior of our model, we perform error analysis on Out-of-Vocabulary words (OOV). Specifically, we partition each data set into four subsets -- in-vocabulary words (IV), out-of-training-vocabulary words (OOTV), out-of-embedding-vocabulary words (OOEV) and out-of-both-vocabulary words (OOBV). A word is considered IV if it appears in both the training and embedding vocabulary, while OOBV if neither. OOTV words are the ones do not appear in training set but in embedding vocabulary, while OOEV are the ones do not appear in embedding vocabulary but in training set. For NER, an entity is considered as OOBV if there exists at lease one word not in training set and at least one word not in embedding vocabulary, and the other three subsets can be done in similar manner. Table [\ref=tab:part:oov] informs the statistics of the partition on each corpus. The embedding we used is Stanford's GloVe with dimension 100, the same as Section [\ref=subsec:results].
+
+Table [\ref=tab:oov] illustrates the performance of our model on different subsets of words, together with the baseline LSTM-CNN model for comparison. The largest improvements appear on the OOBV subsets of both the two corpora. This demonstrates that by adding CRF for joint decoding, our model is more powerful on words that are out of both the training and embedding sets.
+
+Related Work
+
+In recent years, several different neural network architectures have been proposed and successfully applied to linguistic sequence labeling such as POS tagging, chunking and NER. Among these neural architectures, the three approaches most similar to our model are the BLSTM-CRF model proposed by , the LSTM-CNNs model by and the BLSTM-CRF by .
+
+used BLSTM for word-level representations and CRF for jointly label decoding, which is similar to our model. But there are two main differences between their model and ours. First, they did not employ CNNs to model character-level information. Second, they combined their neural network model with hand-crafted features to improve their performance, making their model not an end-to-end system. proposed a hybrid of BLSTM and CNNs to model both character- and word-level representations, which is similar to the first two layers in our model. They evaluated their model on NER and achieved competitive performance. Our model mainly differ from this model by using CRF for joint decoding. Moreover, their model is not truly end-to-end, either, as it utilizes external knowledge such as character-type, capitalization and lexicon features, and some data pre-processing specifically for NER (e.g. replacing all sequences of digits 0-9 with a single "0"). Recently, proposed a BLSTM-CRF model for NER, which utilized BLSTM to model both the character- and word-level information, and use data pre-processing the same as . Instead, we use CNN to model character-level information, achieving better NER performance without using any data pre-processing.
+
+There are several other neural networks previously proposed for sequence labeling. proposed a RNN-CNNs model for German POS tagging. This model is similar to the LSTM-CNNs model in , with the difference of using vanila RNN instead of LSTM. Another neural architecture employing CNN to model character-level information is the "CharWNN" architecture [\cite=santos2014learning] which is inspired by the feed-forward network [\cite=collobert2011natural]. CharWNN obtained near state-of-the-art accuracy on English POS tagging (see Section [\ref=subsec:compare] for details). A similar model has also been applied to Spanish and Portuguese NER [\cite=dos2015boosting]
+
+Conclusion
+
+In this paper, we proposed a neural network architecture for sequence labeling. It is a truly end-to-end model relying on no task-specific resources, feature engineering or data pre-processing. We achieved state-of-the-art performance on two linguistic sequence labeling tasks, comparing with previously state-of-the-art systems.
+
+There are several potential directions for future work. First, our model can be further improved by exploring multi-task learning approaches to combine more useful and correlated information. For example, we can jointly train a neural network model with both the POS and NER tags to improve the intermediate representations learned in our network. Another interesting direction is to apply our model to data from other domains such as social media (Twitter and Weibo). Since our model does not require any domain- or task-specific knowledge, it might be effortless to apply it to these domains.

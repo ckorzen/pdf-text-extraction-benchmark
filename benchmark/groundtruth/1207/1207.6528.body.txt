@@ -1,0 +1,625 @@
+=1
+
+Theorem Corollary Proposition Conjecture Definition Example
+
+Fast matrix multiplication using coherent configurations
+
+Christopher Umans
+
+Introduction
+
+Determining the exponent of matrix multiplication is one of the most fundamental unsolved problems in algebraic complexity. This quantity is the smallest number ω such that n  ×  n matrix multiplication can be carried out using nω + o(1) arithmetic operations as n tends to infinity. Clearly ω  ≥  2, and it is widely believed that ω = 2, but the best upper bound known is ω  ≤  2.3727 (due to Vassilevska Williams [\cite=W]). The importance of ω is by no means limited to matrix multiplication, as ω also describes the asymptotic complexity of many other problems in linear algebra and graph theory (see Chapter 16 of [\cite=BCS]).
+
+In the 43 years since Strassen's original paper [\cite=S] gave the first improvement on the obvious exponent bound ω  ≤  3, there have been several major conceptual advances in the effort to obtain upper bounds on ω, each of which can informally be understood as relaxing the "rules of the game." For example, Bini [\cite=B] showed that an upper bound on the border rank of a tensor implies an upper bound on its asymptotic rank. Indeed, there are useful examples of tensors with border rank strictly smaller than their rank, which led to improvements over Strassen's original algorithm. Schönhage [\cite=Sch] showed how to convert upper bounds on the rank of the direct sum of several matrix multiplication tensors into an upper bound on ω, and his asymptotic sum inequality has played a crucial role in nearly all further advances. Strassen's laser method [\cite=S87] gave a way to convert non-matrix multiplication tensors (whose coarse structure contains a large diagonal, and whose components are all isomorphic to matrix multiplication tensors) into upper bounds on ω, and this method was used by Coppersmith and Winograd [\cite=CW] as well as in the recent improvements of Davie and Stothers [\cite=St] [\cite=DS] and Vassilevska Williams [\cite=W].
+
+Here we introduce a further relaxation of the rules of the game, by studying a weighted version of matrix multiplication. Instead of computing the product AB of two matrices via
+
+[formula]
+
+we use
+
+[formula]
+
+where the coefficients λi,j,k are nonzero complex numbers. Of course, in certain cases weighted matrix multiplication is trivially equivalent to ordinary matrix multiplication. For example, if λi,j,k can be written as αi,jβj,kγk,i, then weighted matrix multiplication amounts to ordinary multiplication of matrices whose entries have been rescaled. However, rescaling does not yield an efficient equivalence for arbitrary weights.
+
+We capture the complexity of weighted matrix multiplication via a new exponent ωs, satisfying 2  ≤  ωs  ≤  ω. It is the smallest real number for which there exist weights (depending on the dimensions of the matrices) such that weighted n  ×  n matrix multiplication can be carried out in nωs + o(1) arithmetic operations. The "s" stands for "support," because we are dealing with tensors that have the same support as the matrix multiplication tensors.
+
+In [\cite=CU], we showed how to embed matrix multiplication into group algebra multiplication, and this methodology was used in [\cite=CKSU] to prove strong bounds on ω. Replacing group algebras with more general algebras has always been an appealing generalization, and indeed the same approach works, except that it yields an embedding of weighted matrix multiplication. Thus, it gives an upper bound on ωs, rather than ω. Prior to this paper, an upper bound on ωs was of interest only by analogy with ω, and it was not known to imply anything about ω itself. Here, we overcome this obstacle by bounding ω in terms of ωs, and we develop this embedding approach for a promising class of algebras.
+
+Our main results are:
+
+We prove that ω  ≤  (3ωs - 2) / 2. In particular, if ωs  ≤  2 + ε, then ω  ≤  2 + (3 / 2)ε, so bounds for ωs can be translated into bounds for ω with just a 50% penalty. Of course, that penalty is significant when ε is large, but our bound makes weighted matrix multiplication a viable approach for proving that ω = 2 (as then ε = 0). This inequality between ω and ωs can be proved using the laser method, but it does not seem to have been observed previously. We give a direct and self-contained proof in Section [\ref=section:bounds] as well as an explanation via the laser method. We also show that Boolean matrix multiplication has a randomized algebraic algorithm with running time nωs  +  o(1), which avoids the 50% penalty.
+
+We identify adjacency algebras of coherent configurations as a promising family of algebras. Coherent configurations are combinatorial objects that generalize groups and group actions; adjacency algebras are the analogue of group algebras and retain many of their important features. In particular, each adjacency algebra possesses a basis corresponding to an underlying geometry, and weighted matrix multiplication can be embedded when the coherent configuration satisfies a combinatorial condition involving triangles of points.
+
+We prove a fundamental closure property of this class of algebras: any bound on ωs obtained by applying the asymptotic sum inequality to independent embeddings of several weighted matrix multiplications can also be proved using a single embedding into a symmetric power of the algebra. Symmetric powers of adjacency algebras are themselves adjacency algebras, and this operation also preserves commutativity. Our results open the possibility of achieving ω = 2 using commutative adjacency algebras, and we conjecture that commutative adjacency algebras suffice. In fact, that would follow from either of the two conjectures in [\cite=CKSU].
+
+A simple pigeonhole principle argument (Lemma 3.1 in [\cite=CU]) shows that one cannot nontrivially embed a single matrix multiplication problem into a commutative group algebra. One might expect a similar barrier for commutative adjacency algebras, but the pigeonhole argument breaks down in this setting. Indeed, in this paper we prove nontrivial bounds on ω using commutative adjacency algebras in Theorem [\ref=thm:cksu-bounds-on-omega], by applying our machinery to the constructions from [\cite=CKSU] (although we do not improve on the best known bounds). We should note that the simultaneous triple product property from [\cite=CKSU] previously showed that one could avoid noncommutativity at the cost of having to deal with several independent embeddings. One could return to the setting of a single embedding using the wreath product construction (Theorem 7.1 in [\cite=CKSU]), but this reintroduced noncommutativity, whereas working with coherent configurations rather than groups, as we do in this paper, avoids it completely.
+
+The advantage of commutativity is that obtaining exponent bounds then amounts to a familiar type of task: embed as large an object as possible (here, a matrix multiplication instance) into as small an object as possible (here, a coherent configuration, with "size" measured by rank). By contrast, the noncommutative case involves a third quantity, namely the dimensions of the irreducible representations of the algebra.
+
+Preliminaries and background
+
+We define [formula].
+
+Tensors
+
+Our results will all be stated in terms of tensors. Recall that tensors are a generalization of vectors and matrices to higher orders. Tensor products of vector spaces form an elegant algebraic setting for the theory of tensors, but we will adopt the more concrete approach of representing tensors as multilinear forms. For example, the matrix with entries Ai,j corresponds to the bilinear form [formula], where x̂i and ŷj are formal variables, and we can represent a third-order tensor as [formula]. We will use hats to make it clear which symbols denote formal variables. Applying invertible linear transformations to the sets of variables (here, {x̂i}, {ŷj}, and {ẑk}) yields an isomorphic tensor, but we cannot mix variables from different sets.
+
+The direct sum [formula] of two tensors is simply their sum, if they have no variables in common (otherwise, first change variables to remove any overlap). For the tensor product [formula], if [formula] and [formula], then
+
+[formula]
+
+with new variables [formula], j,m, and k,n. In other words, we simply take the product of T and T' but combine the variables as illustrated above (e.g., [formula] becomes [formula]). The direct sum and tensor product are defined only for tensors of the same order, and they preserve that order.
+
+The rank R(T) of a tensor T is one of its most important invariants. A nonzero tensor has rank 1 if it is the product of linear forms, and rank r if it is the sum of r rank 1 tensors but no fewer. In other words, [formula] has rank at most r if there are linear forms [formula], [formula], and [formula] such that
+
+[formula]
+
+Tensor rank generalizes the concept of matrix rank, but it is more subtle. While matrices can be brought into a simple canonical form (row echelon form) in which their rank is visible, tensors cannot, because the symmetry group acting on them has far too low a dimension compared with the dimension of the space of tensors itself. Indeed, computing tensor rank is NP-hard [\cite=H].
+
+Matrix multiplication in terms of tensors
+
+The matrix multiplication tensor [formula] is the tensor
+
+[formula]
+
+Note that the coefficient of ẑk,i singles out the x̂i,jŷj,k terms that occur in the (i,k) entry of the matrix product. It is easy to check that [formula], which amounts to the assertion that block matrix multiplication computes the matrix product.
+
+A low-rank expression for [formula] specifies an efficient bilinear algorithm for computing the product of [formula] and m  ×  n matrices. In particular, it follows that [formula] (Proposition 15.5 in [\cite=BCS]).
+
+In fact, although we have defined ω in terms of arbitrary algebraic algorithms, it is completely characterized by rank via
+
+[formula]
+
+(Proposition 15.1 in [\cite=BCS]). In other words, bilinear algorithms have the same exponent as arbitrary algebraic algorithms. Thus, the entire subject of fast matrix multiplication can be reduced to bounding the rank of matrix multiplication tensors.
+
+Schönhage's asymptotic sum inequality [\cite=Sch] states that
+
+[formula]
+
+and furthermore that the same holds for border rank (a relaxation of the notion of rank which will not play an important role in this paper). Thus, an unexpectedly efficient method for carrying out several independent matrix multiplications yields a bound on ω.
+
+See [\cite=BCS] for further background on tensors, matrix multiplication, and algebraic complexity in general. It is important to keep in mind that the tensor manipulations all have implicit algorithms behind them. In principle one could dispense with the tensor formalism completely, but it plays a valuable role in focusing attention on the central issues.
+
+Matrix multiplication exponent bounds via s-rank
+
+In this section, we show that an upper bound on what we call the "support rank"--or s-rank--of a matrix multiplication tensor implies an upper bound on ω. The support [formula] of a tensor T is the set of monomials that have nonzero coefficients. Of course this depends on the choice of basis and is therefore not an isomorphism invariant, and the same is true for concepts like s-rank that are defined in terms of it. However, basis dependence is not a difficulty in algebraic complexity. After all, any computational problem must specify a choice of basis for use in input and output, and writing a tensor as a multilinear form already involves an implicit choice of basis (the choice of variables).
+
+The s-rank Rs(T) of a tensor T is the minimum rank of a tensor T' for which [formula].
+
+Clearly s-rank can be no larger than rank. Here is a simple example that shows that s-rank can be dramatically smaller than both rank and border rank:
+
+The n  ×  n matrix J  -  I, where J is the all ones matrix and I is the identity matrix, has rank n and border rank n, but s-rank equal to 2.
+
+Rank and border rank coincide for matrices (the matrices of rank at most r are characterized by determinantal conditions and thus form a closed set), and J - I has rank n. However, consider the rank 1 matrix M defined by Mi,j  =  ζi - j, where ζ is a primitive n-th root of unity. Then M  -  J has the same support as J - I. Because M and J are both rank 1 matrices, the s-rank of J - I is at most 2. It is also easy to see that no matrix with the same support as J - I has rank 1, so the s-rank is exactly 2.
+
+On the other hand, border rank can be smaller than s-rank, so these two relaxations of rank are incomparable:
+
+The tensor T  =  x̂0ŷ0ẑ0  +  x̂0ŷ1ẑ1  +  x̂1ŷ0ẑ1 has border rank 2 and s-rank 3.
+
+We refer to Bläser's notes [\cite=Blaser] for the simple proof that the border rank is 2. To show that the s-rank is at least 3, we mimic his proof via the substitution method that the (ordinary) rank is 3. In a decomposition of any tensor T' with the same support as T into the sum of rank one tensors, one of the rank one tensors must depend on x̂1. We can make this tensor zero by substituting a scalar multiple of x̂0 for x̂1. After this substitution, T' still depends on ŷ1, so there is another rank one tensor in the decomposition that depends on ŷ1. We can make this tensor zero by substituting a scalar multiple of ŷ0 for ŷ1. After both substitutions, T' still depends on ẑ0, so there must be at least one more rank one tensor in the decomposition. The corresponding s-rank upper bound of 3 is trivial.
+
+Like ordinary rank, s-rank is subadditive and submultiplicative in the sense that for tensors T and T', we have [formula] and [formula]. For matrix multiplication tensors, we have [formula] for every permutation [formula] of [formula]. In analogy to the exponent of matrix multiplication ω, we define ωs, the s-rank exponent of matrix multiplication, as follows:
+
+The s-rank exponent of matrix multiplication, denoted ωs, is defined by
+
+[formula]
+
+By comparison, the exponent ω can be defined in the same way, with ordinary rank replacing s-rank in the above expression. Since every tensor having the same support as 〈n,n,n〉 has n2 linearly independent slices, Rs(〈n,n,n〉)  ≥  n2, and thus 2  ≤  ωs  ≤  ω.
+
+As one would expect, an s-rank upper bound implies an upper bound on ωs. Here is the s-rank version of the standard proof:
+
+For all [formula], we have
+
+[formula]
+
+Let [formula] and [formula]. By symmetrizing, we have Rs(〈M,M,M〉)  ≤  r3, and then for all N  ≥  1, by padding to the next largest power Mi of M,
+
+[formula]
+
+Thus, ωs  ≤  3 log Mr, from which the theorem follows.
+
+We note that one can define the border s-rank of T to be the minimum border rank of tensors with the same support as T, and then by using Bini's argument [\cite=B], the above proposition holds with border s-rank in place of s-rank.
+
+Whereas an upper bound on the rank of a matrix multiplication tensor implies a bilinear algorithm for matrix multiplication, an upper bound on the s-rank implies a bilinear algorithm for a weighted version of matrix multiplication: given matrices A and B, the algorithm computes values
+
+[formula]
+
+where the weights λi,j,k are certain nonzero scalars (depending on the construction used to attain a low s-rank). In other words, each entry of the result matrix C is a weighted inner product, with different weightings for the different inner products. There seems to be no obvious transformation to remove these weights.
+
+As noted above, 2  ≤  ωs  ≤  ω, so upper bounds on ω imply upper bounds on ωs (and ω  =  2 implies ωs  =  2). Theorem [\ref=thm:remove-weights] below shows that upper bounds on ωs imply upper bounds on ω, and indeed ωs  =  2 implies ω  =  2. Thus s-rank is a useful relaxation of rank, when trying to bound the exponent of matrix multiplication.
+
+The exponents ω and ωs satisfy
+
+[formula]
+
+In other words, ωs  ≤  2  +  ε implies ω  ≤  2  +  (3 / 2)ε.
+
+By the definition of ωs, we have Rs(〈n,n,n〉)  =  nωs + o(1). For a given value of n, let T be the trilinear form corresponding to this (weighted) n  ×  n matrix multiplication:
+
+[formula]
+
+with [formula] for all a,b,c. Let
+
+[formula]
+
+be a triangle-free set, as defined in Section 6.2 of [\cite=CKSU]. Such a set has the property that if s,t,u∈S satisfy s1  =  t1, t2  =  u2, and u3  =  s3 then s  =  t  =  u. In [\cite=CKSU] we gave a simple construction of triangle-free sets S with |S|  =  n2  -  o(1). Let T' be the trilinear form corresponding to |S| independent n2  ×  n2 matrix multiplications; i.e.,
+
+[formula]
+
+We will show that T' is a restriction of the tensor power [formula], which is given by
+
+[formula]
+
+In other words, we will show that T' can be obtained by substituting variables in [formula], which implies that [formula]. To do so, define (for s,t,u∈S and i,i',j,j',k,k'∈[n]2)
+
+[formula]
+
+and set the x̂,ŷ,ẑ variables not mentioned in these equations equal to zero. Under this change of variables, we will see that [formula] becomes exactly the tensor T'. To check this, we must verify that upon substituting the û,,ŵ variables for the x̂,ŷ,ẑ variables in [formula] according to the above formulas, the coefficient of ûs,i,j't,j,k'ŵu,k,i' is 1 if s = t = u, i = i', j = j', and k = k', and it is 0 otherwise. Since the support of [formula] is the same as the support of 〈n3,n3,n3〉, the monomial
+
+[formula]
+
+in [formula] has a nonzero coefficient if and only if
+
+[formula]
+
+This happens if and only if i = i', j = j', k = k', s1  =  t1, t2  =  u2, and u3  =  s3, and by the definition of a triangle-free set the last three conditions imply s = t = u. The coefficient in [formula] of
+
+[formula]
+
+is λi1,s1,k1λi2,j1,s2λs3,j2,k2, which exactly corresponds to the λi2,j1',s2λt3,j2,k2'λi1',u1,k1 factor from the definition of û,,ŵ, so the coefficient of ûs,i,js,j,kŵs,k,i after the substitution is 1.
+
+Thus the ordinary rank of the direct sum of |S|  =  n2  -  o(1) independent n2  ×  n2 matrix multiplications is at most [formula], and applying the asymptotic sum inequality [\eqref=eqn:asi], we get
+
+[formula]
+
+Taking logarithms and letting n go to infinity, we get 2  +  2ω  ≤  3ωs, as desired.
+
+Theorem [\ref=thm:remove-weights] can also be proved using the laser method, in particular using Proposition 7.3 from [\cite=S87] (Proposition 15.32 in [\cite=BCS]), although this consequences does not seem to have been observed in the literature. Here is a sketch of the proof. By definition, there exist tensors having the same support as 〈n,n,n〉, with rank nωs  +  o(1). Adopting the language of [\cite=BCS], such a tensor has a direct sum decomposition D whose D-support is isomorphic to 〈1,n,1〉 and whose D-components are each isomorphic to 〈n,1,n〉 (it is a special feature of an outer-product tensor, which has only a single 1 in each slice, that all tensors with the same support are isomorphic). Proposition 15.32 in [\cite=BCS] then implies that [formula], which yields the same bound as Theorem [\ref=thm:remove-weights].
+
+It is an interesting open problem to improve the conclusion of Theorem [\ref=thm:remove-weights] to ω  ≤  ωs. In the preceding paragraph, the D-component isomorphism being used is very special (it corresponds to a diagonal change of basis), so one might hope to avoid the loss coming from machinery that handles arbitrary isomorphisms.
+
+In fact, this loss can be avoided entirely when one is interested in the simpler problem of Boolean matrix multiplication, i.e., matrix multiplication over the Boolean semiring with "and" as multiplication and "or" as addition. The next theorem describes how to use weighted multiplication directly to obtain an algebraic algorithm for Boolean matrix multiplication.
+
+Given n  ×  n Boolean matrices A and B, let A' be the obvious lift of A to a 0 / 1 complex matrix, and define B' the same way but with a random choice of 1 or 2 for each nonzero entry.
+
+There is an algebraic algorithm running in nωs  +  o(1) operations that computes from A',B' an n  ×  n matrix C with the following property: the (i,j) entry of C is 0 if the (i,j) entry of the Boolean matrix product of A and B is 0; otherwise it is nonzero with probability at least 1 / 2.
+
+The procedure may be repeated O( log n) times to obtain all entries of the Boolean product of A and B with high probability.
+
+Using a bilinear algorithm, one can compute a suitably weighted product of A' and B' in nωs  +  o(1) operations. We get a result matrix whose (i,j) entry is
+
+[formula]
+
+where [formula]. When the (i,j) entry of the Boolean matrix product of A and B is zero, this value is clearly also zero; otherwise, it equals [formula] for a nonempty set L and each [formula] chosen randomly from {1,2}. For a given [formula], there is a unique value of [formula] making this sum zero, so the probability that it vanishes is at most 1 / 2.
+
+If the weights arising in the above proof are all positive (as they are for all the s-rank bounds we derive in this paper), then no randomness is needed, as A' and B' can both be taken to be the obvious lifts of A and B to 0 / 1 matrices.
+
+Finally, we note that all of the manipulations used in the matrix multiplication literature for converting bounds on the rank of certain "basic" tensors into bounds on the rank of the matrix multiplication tensor also work with s-rank in place of rank. So, for example, s-rank bounds on the partial matrix multiplication tensor of Bini, Capovani, Lotti, and Romani [\cite=BCLR], the basic tensor used by Schönhage [\cite=Sch], the basic tensor in Strassen's laser method paper [\cite=S87], or any of the basic tensors introduced by Coppersmith and Winograd [\cite=CW] eventually yield an s-rank bound on a matrix multiplication tensor by simply following the known proofs. However, for most of these basic tensors with explicit tensor decompositions, there are matching lower bounds on the rank via the substitution method (e.g., the proof of Proposition [\ref=prop:border-rank-smaller-than-s-rank]). Substitution method lower bounds also prove lower bounds on s-rank, so there does not seem to be an opportunity for an easy improvement from switching to s-rank. However, an improvement by switching to border s-rank might be possible. As a concrete example, we do not know whether the border s-rank, or even just the s-rank, of 〈2,2,2〉 is 6 or 7.
+
+Matrix multiplication via coherent configurations
+
+In this section, we describe how to embed matrix multiplication into algebra multiplication. To do so, it is helpful to have a basis with considerable combinatorial structure. As mentioned in the introduction, adjacency algebras of coherent configurations are a promising family of algebras to use here. In Subsections [\ref=subsec:coherent] and [\ref=subsec:adjacency], we review the basic theory of coherent configurations and their adjacency algebras, and in Subsection [\ref=subsec:embedadj] we specialize our general theory to this setting.
+
+Realizing matrix multiplication in algebras
+
+We can bound the s-rank of matrix multiplication by restricting the structural tensor of an algebra. Let A be a finite-dimensional complex algebra, and let [formula] be a basis for A. Then there are coefficients λi,j,k such that
+
+[formula]
+
+they are called the structure constants of A with respect to this basis. The structural tensor is the trilinear form
+
+[formula]
+
+It is isomorphic to the multiplication tensor (i.e., the element of [formula] corresponding to the multiplication map from [formula] to A). More generally, if we use any three bases [formula], [formula], and [formula] for A and define the coefficients by
+
+[formula]
+
+then the corresponding tensor is isomorphic to the structural tensor.
+
+Let A be an r-dimensional complex algebra with structure constants λi,j,k corresponding to some choice of bases. We say A realizes [formula] if there exist three injective functions
+
+[formula]
+
+such that
+
+[formula]
+
+if and only if a  =  a', b = b', and c  =  c'.
+
+Note that this definition depends on the choice of basis. We will typically suppress the choice of basis in the notation, because the algebras we deal with later in the paper will always come with a standard basis.
+
+One might reasonably use the term "s-realize" instead of "realize" in Definition [\ref=definition:realize]. We have chosen to use the simpler term, rather than reserving it for strict realization involving only structure constants that are 0 or 1, because we know of few interesting examples of strict realization beyond group algebras (where the notions coincide).
+
+If an algebra A realizes [formula], then the s-rank of [formula] is at most the rank of the structural tensor for A.
+
+Suppose A realizes [formula] via α,β,γ, and consider the structural tensor
+
+[formula]
+
+Define ûa,b'  =  x̂α(a,b'), b,c'  =  ŷβ(b,c'), and ŵc,a'  =  ẑγ(c,a'); furthermore, set x̂i = 0 when i is not in the image of α, ŷj = 0 when j is not in the image of β, and ẑk = 0 when k is not in the image of γ. Under this change of variables, the structural tensor becomes
+
+[formula]
+
+and by assumption the terms vanish unless a = a', b = b', and c = c'. Thus,
+
+[formula]
+
+has rank at most that of the structural tensor. This new tensor is a weighting of the matrix multiplication tensor [formula], so the s-rank of [formula] is at most the rank of the structural tensor.
+
+Note that this proof in fact gives a very simple algorithm for reducing a weighted matrix multiplication to an algebra multiplication, along the lines of the reduction in [\cite=CU].
+
+Recall that an algebra is semisimple if it is a product of matrix algebras. In other words, it is semisimple if there are character degrees [formula] so that
+
+[formula]
+
+In that case, the structural tensor is isomorphic to [formula].
+
+If a semisimple algebra A with character degrees [formula] realizes [formula], then
+
+[formula]
+
+This proposition also involves a natural algorithm, which reduces a weighted matrix multiplication to a collection of unweighted matrix multiplications.
+
+For each ε > 0, there is a constant C such that R(〈d,d,d〉)  ≤  Cdω  +  ε for all d. It follows that
+
+[formula]
+
+but the C and ε are problematic. To remove them, we will use the trick of computing the asymptotic rank for high tensor powers. The algebra [formula] realizes a weighted version of [formula], and it has character degrees given by N-fold products [formula]. Thus,
+
+[formula]
+
+Now taking N-th roots and letting N tend to infinity yields
+
+[formula]
+
+and because this holds for all ε > 0 it also holds for ε = 0 by continuity.
+
+Definition [\ref=definition:realize] generalizes the triple product property from [\cite=CU]. Recall that three subsets S,T,U of a group satisfy the triple product property if holds for s,s'∈S, t,t'∈T, and u,u'∈U. To see why Definition [\ref=definition:realize] is a generalization, suppose A is the group algebra of a finite group, and choose the group elements themselves as a basis. Then α(a,b'), β(b,c'), and γ(c,a') correspond to group elements ga,b', hb,c' and ka',c such that
+
+[formula]
+
+if and only if a = a', b = b', and c = c'. We wish to find group elements sa,tb,uc such that ga,b  =  sat- 1b, hb,c  =  tbu- 1c, and ka,c  =  sau- 1c; then {sa},{tb},{uc} satisfy the triple product property. To find these group elements, fix b0, and let sa  =  ga,b0 and uc  =  h- 1b0,c. Then sau- 1c  =  ka,c automatically. Furthermore, [\eqref=eq:defeq] implies that g- 1a,bga,b0  =  hb0,ch- 1b,c, with this group element being independent of a and c. Calling it tb completes the construction.
+
+Coherent configurations
+
+Coherent configurations are remarkable structures that unify much of group theory and algebraic combinatorics [\cite=Hig1] [\cite=Hig2] [\cite=Hig3]. A coherent configuration of rank r is a finite set C, whose elements are called points, with a partition of C2 into subsets [formula] called classes such that
+
+the diagonal {(x,x):x∈C} is the union of some of the classes,
+
+for each i∈[r] there exists i*∈[r] such that R*i  =  Ri*, where
+
+[formula]
+
+and
+
+there exist integers pki,j for i,j,k∈[r] such that for all x,y∈C with (x,y)∈Rk,
+
+[formula]
+
+We say C is symmetric if R*i = Ri for all i and commutative if pki,j  =  pkj,i for all i,j,k. (Symmetry implies commutativity, but not vice versa.) The numbers pki,j are called the intersection numbers of the configuration. The configuration is an association scheme if the diagonal is itself one of the classes. It is easily proved that a commutative coherent configuration must be an association scheme [\cite=Hig3].
+
+Every finite group G defines an association scheme, with G as its set of points and G2 partitioned into subsets Rg  =  {(h,hg):h∈G} with g∈G. Then for g,h,k∈G,
+
+[formula]
+
+The intersection numbers encode the multiplication table of the group, so the group and the corresponding association scheme are fully equivalent structures. Note that this association scheme is commutative iff G is, while it is symmetric iff g  =  g- 1 for all g∈G. One can show that an association scheme comes from a group in this way if and only if all its intersection numbers are at most 1.
+
+More generally, suppose G acts on a finite set X. Then partitioning X2 into the orbits of G under the diagonal action defines a coherent configuration, called a Schurian coherent configuration. It is an association scheme iff G acts transitively on X.
+
+Many important examples in combinatorics fit into this framework. For example, the Hamming scheme consists of the points in {0,1}n with classes defined by Hamming distance. From a group-theoretic perspective, it is the Schurian association scheme defined by the action of the semidirect product [formula] on {0,1}n, although this formulation is excessive for most purposes.
+
+If G acts transitively on X, then we can identify X with G / H, where H is the stabilizer of a point in X. Note that G / H is not a group unless H is a normal subgroup, but it is always an association scheme. In certain cases, called Gelfand pairs (G,H), the quotient G / H is a commutative association scheme (although the groups G and H will typically not be commutative). For example, this occurs for the Hamming scheme.
+
+There are also numerous combinatorial examples of association schemes and coherent configurations that do not come from symmetry groups. For example, strongly regular graphs are the same thing as symmetric association schemes of rank 3. More generally, every distance-regular graph is an association scheme when the classes are defined by the graph metric. Some of these graphs are Schurian association schemes, but many are not.
+
+A fusion of a coherent configuration C is a configuration C' with the same set of points and with the classes of C' all given by unions of classes of C. (Note that this must be done carefully, since taking arbitrary unions will generally not yield a coherent configuration.) Another important construction is the direct product: given two coherent configurations C and C', their product C  ×  C' has the direct product of their point sets as its point set, with the class of (c1,c1') and (c2,c2') determined by the class of (c1,c2) in C and that of (c1',c2') in C'. The symmetric power [formula] is the fusion scheme formed by fusing the classes of the direct power Ck under the action of the symmetric group Sk on the factors.
+
+The adjacency algebra
+
+Every coherent configuration has an associated algebra, which plays the same role as the group algebra of a group. Let [formula] be the adjacency matrices of the relations [formula]. In other words, Ai is indexed by C, with
+
+[formula]
+
+for x,y∈C. The adjacency algebra [formula] of C is the complex algebra generated by these adjacency matrices. (Note that it contains the identity because the diagonal is a union of classes.) An easy calculation shows that
+
+[formula]
+
+so [formula] is spanned by [formula]. It is a commutative algebra if and only if C is commutative.
+
+The adjacency algebra is closed under the conjugate transpose, so it is a semisimple algebra (see, for example, Theorem 3.2 in [\cite=Cameron]). Thus, there exist character degrees [formula] such that
+
+[formula]
+
+Of course, [formula] must equal the dimension of [formula], which is the rank of C. The adjacency algebra of a commutative coherent configuration of rank r is isomorphic to [formula].
+
+The structural tensor of [formula] is
+
+[formula]
+
+but (as we will see shortly) it is often convenient to use
+
+[formula]
+
+instead. This isomorphic tensor simply amounts to reordering the variables ẑk. Note that the rank r of the coherent configuration is not necessarily the same as the rank of the structural tensor: they are equal if and only if the configuration is commutative.
+
+Embedding matrix multiplication into an adjacency algebra
+
+Let C be a coherent configuration of rank r, with notation as in the previous subsection.
+
+Three classes i,j,k form a triangle if there exist points x,y,z such that (x,y)∈Ri, (y,z)∈Rj, and (z,x)∈Rk.
+
+In terms of intersection numbers, classes i,j,k form a triangle iff pk*i,j  >  0. (Note that we use k* instead of k to switch the order of x and z.) This is why we prefer to use k* instead of k in the structural tensor: otherwise, the cyclic symmetry among x,y,z is broken.
+
+A coherent configuration C of rank r realizes [formula] if there exist three injective functions
+
+[formula]
+
+such that α(a,b'),β(b,c'),γ(c,a') form a triangle iff a  =  a', b = b', and c  =  c'.
+
+Of course this definition assumes a fixed numbering of the classes in C. It amounts to the general definition of realization in an algebra, specialized to our choice of structural tensor.
+
+As a simple example, let C be the coherent configuration on n points for which every pair of points defines a distinct class. If we index the classes with pairs of points, then (a,b'), (b,c'), and (c,a') form a triangle if and only if a = a', b = b', and c = c', so [formula] trivially realizes 〈n,n,n〉. As one might expect from such a trivial example, the embedding yields no benefit for matrix multiplication, because in fact [formula].
+
+In the next section we will construct less trivial examples. In the meantime, we note the following proposition, which works out the conditions for a coherent configuration arising from a group action to realize matrix multiplication.
+
+Let G be a finite group acting on a set X, and let C be the corresponding Schurian coherent configuration. Suppose there exist subsets A,B,C  ⊆  X such that for all f,g,h∈G and all a∈A, b∈B, and c∈C,
+
+[formula]
+
+Then C realizes 〈|A|,|B|,|C|〉.
+
+Recall that the classes of C are the orbits of G on X2. If we identify A with
+
+[formula]
+
+If we let G act on itself by left translation, then the hypothesis of Proposition [\ref=proposition:action] simply asserts that A, B, and C satisfy the triple product property from [\cite=CU]. Thus, the proposition gives a natural generalization of the triple product property from groups to group actions.
+
+Simultaneous embeddings and symmetric powers
+
+Our best construction techniques so far are all based on realizing several independent matrix multiplications simultaneously; this was called the simultaneous triple product property in [\cite=CKSU]. In a coherent configuration, the definition amounts to the following (and of course one can give an analogous definition in any algebra):
+
+A coherent configuration C of rank r realizes [formula] if there exist injective functions
+
+[formula]
+
+such that αi(a,b'),βj(b,c'),γk(c,a') form a triangle iff i  =  j  =  k and a  =  a', b = b', and c  =  c'.
+
+If C realizes [formula] and T is its structural tensor, then
+
+[formula]
+
+One can imitate the proof of the asymptotic sum inequality to show that
+
+[formula]
+
+from which one can deduce bounds on ωs. Instead, in this section we will develop an efficient algebraic method to combine these independent matrix multiplication realizations into one. It will yield the same bound, but also show that this bound is achieved by realizing a single matrix multiplication in a coherent configuration. First, we give an example. This example is extremal, because it realizes the direct sum of n1 - o(1) copies of 〈n,n,n〉 via a coherent configuration of rank n3, and this cannot be done with rank less than n3 - o(1) (because the images of the embeddings must be disjoint). If the coherent configuration were commutative, then we could conclude that ω = 2, but it is far from commutative.
+
+Let C be the coherent configuration corresponding to the diagonal action of [formula] on [formula], and let [formula] be a set of size |S| = n1 - o(1) containing no three-term arithmetic progression [\cite=SS]. We can index the classes in C as
+
+[formula]
+
+with [formula]. Then C realizes [formula] via maps αi,βi,γi defined for i∈S by
+
+[formula]
+
+Specifically, it is not hard to check that (x,i - x,y'),(y,j - y,z'),(z, - 2k - z,x') form a triangle if and only if x = x', y = y', z = z', and i + j = 2k (in which case i = j = k because S contains no three-term arithmetic progressions). However, this example does not prove any nontrivial bound on ω, because in fact the character degrees of C are all equal to n (repeated n times).
+
+As promised, we now give a constructive proof of [\eqref=eqn:s-rank-asi]. The proof converts a coherent configuration that realizes several independent matrix multiplications into a single coherent configuration that realizes a single matrix multiplication. Moreover, the resulting coherent configuration is commutative if the original one was. Because the proof actually constructs a coherent configuration rather than just deducing the bound on ωs, we can use it to obtain commutative coherent configurations that prove nontrivial bounds on ω. This establishes one of the main points of the paper: that the noncommutativity that was necessary in the group-theoretic approach can be avoided in the generalization to coherent configurations.
+
+We also find that a consequence of either of the two main conjectures of [\cite=CKSU] is that commutative coherent configurations suffice to prove ω = 2. This raises our hope that one could find commutative coherent configurations of rank n2 + o(1) that realize 〈n,n,n〉 and thus prove ω = 2.
+
+The main idea of the proof is to take symmetric powers, as described next:
+
+Let C be a coherent configuration of rank r that realizes [formula]. Then the symmetric power [formula] realizes [formula] and has rank [formula].
+
+The classes RI of the k-fold direct product of C are indexed by vectors I∈[r]k. The symmetric group Sk acts on k by permuting the k coordinates, and the orbits of this action naturally correspond to the k-multisubsets of
+
+[formula]
+
+), which is [formula].
+
+Set [formula], [formula], and [formula]. Now, Ck realizes 〈L,M,N〉, so there exist injective functions
+
+[formula]
+
+satisfying the conditions of Definition [\ref=definition:realize]; specifically,
+
+[formula]
+
+where C realizes [formula] via αi,βi,γi.
+
+We claim that in fact α,β,γ are injective even in the fusion configuration, where we collapse the orbits. For suppose that α(A,B) = πα(A',B') for some π∈Sk. Then π must be the identity since the maps αi have disjoint images in
+
+[formula]
+
+Let C be a commutative coherent configuration of rank r that realizes [formula]. Then symmetric powers of direct powers of C prove the bound
+
+[formula]
+
+More precisely, they come arbitrarily close to this bound.
+
+By taking direct powers, Ct realizes
+
+[formula]
+
+Setting [formula], [formula] and [formula], we have by Theorem [\ref=thm:symmetrized-subalgebra] that [formula] realizes
+
+[formula]
+
+and has rank [formula]. By Proposition [\ref=prop:s-rank-omega-bound] we have
+
+[formula]
+
+where the last inequality uses the fact that k  ≤  r. Taking tkt-th roots and letting t go to infinity, we obtain the bound (LMN)ωs / (3k)  ≤  r / k.
+
+By weighting the independent matrix multiplications appropriately, we find that the geometric mean can be replaced by the arithmetic mean, to obtain a bound on ωs identical to the asymptotic sum inequality [\eqref=eqn:asi]:
+
+Let C be a commutative coherent configuration of rank r that realizes [formula]. Then symmetric powers of direct powers of C prove the bound [formula].
+
+Fix an integer N and [formula] satisfying μi  ≥  0 and [formula]. Then the direct product CN realizes [formula] independent copies of [formula] (the key is that now these are all the same size). Applying Corollary [\ref=cor:asi-geometric-mean-version], we find that symmetric powers of direct powers of C prove the bound
+
+[formula]
+
+Summing this inequality over all μ gives
+
+[formula]
+
+and the theorem follows by taking N-th roots and letting N go to infinity. Note that for each N, by an averaging argument, there must be a particular distribution μ for which the left hand side of [\eqref=eq:asi-for-given-distribution] is at least [formula] and this is a concrete sequence of coherent configurations that prove the same bound in the limit.
+
+The results of this section are not specific to coherent configurations. Given any algebra A, the analogous construction is to look at the subalgebra of [formula] invariant under the action of Sn.
+
+Before using Theorem [\ref=theorem:asi] to obtain bounds on ω, we briefly contrast other proofs of the asymptotic sum inequality with the above proof, which seems structurally different as we now explain. The standard proof of the asymptotic sum inequality takes a tensor T realizing [formula] and finds k! independent copies of [formula] in [formula]. By performing block matrix multiplication, these are capable of realizing the larger matrix multiplication instance [formula] (where K  ≈  k!1 / ω), and the general bound follows after some manipulations analogous to our Corollary [\ref=cor:asi-geometric-mean-version] and Theorem [\ref=theorem:asi]. In contrast, our proof finds a single copy of [formula] in [formula], and then uses the fact that T has special structure--it is the structural tensor of an algebra--to argue that the same matrix multiplication instance survives after symmetrizing the k-th power. Symmetrizing reduces the rank, and thus the s-rank actually shrinks enough to obtain the same bound. We know of no other proof that works by shrinking the rank (including the proof in [\cite=CKSU] for independent matrix multiplications realized in group algebras).
+
+Nontrivial bounds on ω
+
+Using Theorem [\ref=theorem:asi], we can convert all of the results of [\cite=CKSU] into realizations of a single matrix multiplication tensor in a commutative coherent configuration, namely a symmetric power of an abelian group. While the starting constructions are not new, the final algorithms are (they use machinery introduced in this paper). They establish that commutative coherent configurations suffice to prove nontrivial bounds on ω, and even point to a specific family of commutative coherent configurations that we conjecture is capable of proving ω  =  2.
+
+There exist commutative coherent configurations that prove s-rank exponent bounds ωs  ≤  2.48, ωs  ≤  2.41, and ωs  ≤  2.376, and thus corresponding exponent bounds ω  ≤  2.72, ω  ≤  2.62, and ω  ≤  2.564, respectively.
+
+Apply Theorem [\ref=theorem:asi] to the abelian group constructions of Proposition 3.8 in [\cite=CKSU], Theorems 3.3 and 6.6 in [\cite=CKSU], and the generalization matching [\cite=CW] (as stated in [\cite=CKSU] but not described in detail), respectively. Each of these constructions from [\cite=CKSU], when viewing groups as coherent configurations and adopting the language of this paper, gives coherent configurations satisfying Definition [\ref=definition:simultaneous]. Apply Theorem [\ref=thm:remove-weights] to the resulting s-rank exponent bounds to obtain the claimed bounds on ω.
+
+The specific exponent bounds cited above of course all suffer from the 50% penalty introduced by Theorem [\ref=thm:remove-weights]. But the numbers themselves should not obscure the main point, which is that matrix multiplication via coherent configurations is a viable approach to proving ω  =  2. Indeed, we conjecture that commutative coherent configurations are sufficient to prove ω = 2:
+
+There exist commutative coherent configurations Cn realizing 〈n,n,n〉 and of rank n2  +  o(1).
+
+Such a family of commutative coherent configurations would prove ω  =  2. If Conjecture 3.4 or 4.7 from [\cite=CKSU] hold, then Conjecture [\ref=conj:new-conjecture] holds via Theorem [\ref=theorem:asi]. We note that recent work of Alon, Shpilka, and Umans [\cite=ASU] shows that Conjecture 3.4 from [\cite=CKSU] contradicts a sunflower conjecture, although there is no strong consensus that this particular sunflower conjecture is true. Among the various combinatorial/algebraic conjectures implying ω  =  2, Conjecture [\ref=conj:new-conjecture] is the weakest (it is implied by the others), which makes it the "easiest" among these potential routes to proving ω = 2.
+
+Families of coherent configurations
+
+In this section we discuss the suitability of broad classes of coherent configurations for proving bounds on ω.
+
+Coherent configurations with many fibers
+
+By property (1) in the definition of a coherent configuration, there is a subset of the classes that form a partition of the diagonal, and we call these classes the fibers of the coherent configuration. We noted in Section [\ref=subsec:coherent] that coherent configurations with more than one fiber are noncommutative. More interestingly for our application, we will see shortly that n fibers suffice to embed n  ×  n matrix multiplication. This observation generalizes Example [\ref=example:trivial].
+
+The fibers of a coherent configuration C correspond to a partition of the points into subsets [formula]. Then it follows from property (3) in the definition that the classes of C form a refinement of the subsets Ci  ×  Cj.
+
+Every coherent configuration with n fibers realizes 〈n,n,n〉.
+
+Let C be a coherent configuration with n fibers and corresponding partition [formula], and let [formula] be a system of distinct representatives for [formula]. Define α(a,b) to be the class of C containing (xa,xb), β(b,c) to be the class containing (xb,xc) and γ(c,a) to be the class containing (xc,xa). It is easy to verify that these functions satisfy Definition [\ref=definition:realize].
+
+However, this generic embedding does not lead to nontrivial bounds on ωs, because a similar argument shows that one of the character degrees must be at least n. Let C' be the coherent configuration with the same points as C and Ci  ×  Cj as its classes. Then the adjacency algebra of C' is a subalgebra of that of C (the adjacency matrix for Ci  ×  Cj is the sum of the adjacency matrices for the classes of C contained in Ci  ×  Cj), and it is not hard to check that the adjacency algebra of C' is isomorphic to [formula]. However, [formula] cannot be isomorphic to a subalgebra of a semisimple algebra [formula] unless di  ≥  n for some i. To see why, note that projection onto the factors in the semisimple algebra would yield representations of dimension di for [formula]. Because [formula] is a simple algebra, these projections must vanish unless di  ≥  n.
+
+Schurian coherent configurations
+
+Recall that the Schurian coherent configurations are those obtained from actions of groups on sets, and that such a coherent configuration is an association scheme iff the action is transitive.
+
+In the special case of a finite group acting on itself by right multiplication, our framework is equivalent to the triple product property from [\cite=CU]. Thus, the conjectures of [\cite=CKSU], which all imply ω  =  2 via the triple product property in groups, imply that Schurian coherent configurations are sufficient to achieve ωs  =  2.
+
+More interestingly, observe that the coherent configurations arising in Theorem [\ref=thm:cksu-bounds-on-omega] and Conjecture [\ref=conj:new-conjecture] are in fact commutative Schurian coherent configurations. This is because symmetric powers of coherent configurations arising from abelian groups, which are commutative, are Schurian via a wreath product action: if G is a group and C is the associated coherent configuration, then [formula] is the Schurian coherent configuration arising from [formula] acting on Gk.
+
+Thus commutative Schurian coherent configurations, which arise from transitive group actions, already prove nontrivial bounds on ωs (and ω), and if either of the two conjectures in [\cite=CKSU] is true, then they suffice to prove ωs  =  2.
+
+Group association schemes
+
+Another generic way to obtain a Schurian coherent configuration is to consider G  ×  G acting on G via (x,y)  ·  g  =  xgy- 1. This gives rise to a commutative coherent configuration (regardless of whether G is commutative or not, which is attractive for our application) called the group association scheme, whose classes are identified with conjugacy classes of G (i.e., class Ri  =  {(g,h):gh- 1∈Ci}, where Ci is the i-th conjugacy class). Here we show that group association schemes suffice to prove nontrivial bounds on ωs, and that if either of the two conjectures in [\cite=CKSU] is true, then group association schemes suffice to prove ωs  =  2.
+
+We need the following definition from [\cite=CKSU] (Definition 5.1):
+
+We say that n triples of subsets Ai,Bi,Ci of a group H satisfy the simultaneous triple product property if holds for all i,j,k and ai∈Ai, aj'∈Aj, bj∈Bj, bk'∈Bk, ck∈Ck, ci'∈Ci.
+
+When this holds, the coherent configuration associated with the right action of H on itself realizes [formula] via functions αi, βi, and γi defined on Ai  ×  Bi, Bi  ×  Ci, and Ci  ×  Ai, respectively. Specifically, αi(a,b) is the class containing the pair (a,b), etc. Then Definition [\ref=definition:simultaneous] amounts to the simultaneous triple product property.
+
+The paper [\cite=CKSU] describes the following constructions, among others:
+
+It follows from Theorem 3.3 and Section 6.3 in [\cite=CKSU] that for all m  >  2, and [formula] sufficiently large, there are n triples Ai,Bi,Ci of subsets of [formula] satisfying the simultaneous triple product property with [formula] and [formula] for all i. Applying Theorem [\ref=theorem:asi] and taking the limit as [formula] yields
+
+[formula]
+
+which is optimized by m = 10 (giving ωs  ≤  2.41).
+
+Either of the two conjectures in [\cite=CKSU] implies the existence of subsets satisfying the simultaneous triple product property in an abelian group H with
+
+[formula]
+
+for 1  ≤  i  ≤  n and |H|  =  (t2n)1  +  o(1) (as n  →    ∞   with ε > 0 fixed), which would prove ω = 2.
+
+Let H be an abelian group, and suppose n triples of subsets Ai,Bi,Ci in H satisfy the simultaneous triple product property. Let [formula], and define viewed as subsets of G via the natural embedding of Hn in G. Let C be the group association scheme of G. Then the subsets A,B,C satisfy the requirements of Proposition [\ref=proposition:action] with respect to C (i.e., for the action of G  ×  G on G), so C realizes 〈|A|,|B|,|C|〉.
+
+We will write elements of G as hπ, with h∈Hn,π∈Sn, and we will use π  ·  h to denote the permutation action of Sn on Hn. The semidirect product satisfies πh  =  (π  ·  h)π for π∈Sn and h∈Hn.
+
+Suppose we have f  =  (f1,f2), g  =  (g1,g2), h  =  (h1,h2) in G  ×  G and a,a'∈A, b,b'∈B, c,c'∈C for which
+
+[formula]
+
+We wish to conclude that a  =  a',b  =  b',c  =  c'. From the latter three equations in [\eqref=eq:simul1], we see that f1  =  x1π, f2  =  x2π for some x1,x2∈Hn and π∈Sn. Similarly, g1  =  y1ρ, g2  =  y2ρ and h1  =  z1τ, h2  =  z2τ. Now, using the commutativity of H, the three equations become
+
+[formula]
+
+From fgh = 1 we have f1g1h1  =  1, which implies
+
+[formula]
+
+Similarly, from fgh = 1 we have f2g2h2  =  1 and hence
+
+[formula]
+
+Using the commutativity of H, we obtain from these two equations
+
+[formula]
+
+which combined with [\eqref=eq:simul2] yields
+
+[formula]
+
+Now, fgh = 1 implies πρτ  =  1, so we obtain
+
+[formula]
+
+This implies via the simultaneous triple product property that π  =  πρ  =  1. We conclude that π  =  ρ  =  τ  =  1, and then that a  =  a', b  =  b', c  =  c' as desired.
+
+To determine what bounds on ωs can be expected, we need to know the rank of this group association scheme, i.e., the number of conjugacy classes in [formula]:
+
+There is a constant C such that for every abelian group H, if n  ≤  |H| then the number of conjugacy classes of [formula] is at most Cn|H|n / nn.
+
+This is a crude bound, but it will suffice for our purposes.
+
+It is not difficult to prove the following description of the conjugacy classes in the group [formula]. Each element of this group can be written as hπ with h∈Hn and π∈Sn. The cycle type of π is preserved under conjugation, and the sum of the elements of H in the coordinates of h corresponding to each cycle of π is also preserved. Furthermore, these invariants completely specify the conjugacy class. Thus, each conjugacy class is specified by a multiset of pairs consisting of a cycle length and an element of H, where the cycle lengths must sum to n.
+
+The possible cycle types correspond to partitions of n, and the number of them grows subexponentially as n  →    ∞  . More elementarily, there are 2n - 1 compositions of n (ways of writing n as an ordered sum of positive integers), and therefore at most 2n - 1 partitions of n.
+
+Suppose the permutation has ci cycles of length i, with [formula]. Then there are
+
+[formula]
+
+ways to choose the elements of H corresponding to these cycles. Thus, bounding the number of conjugacy classes in G amounts to bounding how large this product can be.
+
+We have
+
+[formula]
+
+If we set xi  =  ci / n, then
+
+[formula]
+
+where log  denotes the natural logarithm. Thus, to complete the proof we must show that [formula] is bounded independently of n, whenever xi  ≥  0 and [formula]. The maximum can be found using Lagrange multipliers. One must deal with the boundary cases when xi = 0 for some i, and we provide the details below.
+
+Suppose [formula] maximize [formula] subject to [formula] and xi  ≥  0. The desired result is trivial when only one of [formula] is nonzero. Otherwise, let [formula] be the nonzero elements among [formula]. The equation [formula]. becomes [formula], where [formula] are positive integers. Then there is a Lagrange multiplier λ such that - 1 -  log zi  =  λyi for all i, and hence
+
+[formula]
+
+To bound λ, note that zi  =  e- 1 - λyi and hence
+
+[formula]
+
+while for λ > 1 we have
+
+[formula]
+
+Thus, λ  ≤  1 and so [formula]. Combining the estimates so far shows that we can take C  =  4e3 in the lemma statement. (The best possible constant is of course much smaller.)
+
+This bound on the rank of these group association schemes is precisely what is needed to recover the desired bounds from the simultaneous triple product property constructions listed earlier in this section. E.g., applying Theorem [\ref=thm:grp-as] and Lemma [\ref=lemma:countconjugacy] to the second example yields
+
+[formula]
+
+which is equivalent to
+
+[formula]
+
+Because t  ≥  nε, we get ωs = 2 in the limit as n  →    ∞  .
+
+There exist group association schemes that prove ωs  ≤  2.41 (and hence [formula]). If either of the conjectures in [\cite=CKSU] is true, then there are group association schemes that prove ωs = 2 (and hence ω = 2).
+
+More generally, one can imitate the transition from Corollary [\ref=cor:asi-geometric-mean-version] (which is analogous to Theorem [\ref=thm:grp-as]) to Theorem [\ref=theorem:asi] to give a proof of Theorem 5.5 from [\cite=CKSU] using group association schemes.

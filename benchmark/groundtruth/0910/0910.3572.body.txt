@@ -1,0 +1,55 @@
+Background
+
+ChIP-chip is a technique for identifying Protein-DNA interactions. For this purpose, the chromatin is immunoprecipitated with an antibody to the protein of interest and the fragmented, protein-bound DNA is analyzed with tiling arrays [\cite=chipchip]. Before the results can be analyzed, some bioinformatics methods must be applied to ensure the quality of the experiments and preprocess the data.
+
+Here we present the open-source software package Starr , which is available as part of the opensource bioconductor project [\cite=bioconductor]. It is an extension package for the programming language and statistical environment R [\cite=R]. Starr facilitates the analysis of ChIP-chip data, in particular it supports experiments that have been performed on the Affymetrix platform. Its functionality includes data acquisition, quality assessment and data visualization. Starr provides new functions for high level data analysis, e.g., association of ChIP signals with annotated features, gene filtering, and the combined analysis of the ChIP signals and other data like gene expression measurements. It uses the standard data structures for microarray analyses in Bioconductor, building on and fully exploiting the package Ringo [\cite=ringopackage]. The latter implements algorithms for smoothing and peak-finding, as well as low level analysis functions for microarray platforms such as Nimblegen and Agilent.
+
+Results and discussion
+
+We demonstrate the utility of Starr by applying it to a yeast RNA-Polymerase II (PolII for short) ChIP experiment. We discuss the question whether constitutive mRNA expression is mainly determined by the PolII recruitment rate to the promoter.
+
+Data acquisition, quality assessment and normalization
+
+We facilitated data import as much as possible, since in our experience, this is a major obstacle for the widespread use of R packages in the field of ChIP-chip analysis. The import of data from the microarray manufacturers Nimblegen and Agilent has already been implemented in Ringo , the common array platform Affymetrix is covered by Starr . There are two kinds of files that must be known to Starr : the .bpmap file which contains the mapping of the reporter sequences to its physical position on the array and the .cel files which contain the actual measurement values. All data, no matter from which platform, are stored in the common Bioconductor object ExpressionSet, which makes them accessible to a number of algorithms operating on that data structure. An R script reproducing the entire results of this paper, together with the data stored as RData objects can be found in the supplements. ChIP-chip data of yeast PolII binding was published by Venters and Pugh in 2009 [\cite=chipchipdata] and is available on array express under the accession number E-MEXP-1676. The gene expression data used here is available under accession number E-MEXP-2123. Transcription start and termination sites were obtained from David et al. [\cite=transcripts].
+
+The obligatory second step in the analysis protocol is quality control. The complex experimental procedures of a ChIP-chip assay make errors almost inevitable. A special issue of Affymetrix oligo arrays is the bias caused by the GC-content of the oligomer probes [\cite=sequenceDependent]. Starr displays the average expression of probes as a function of their GC-content, and it calculates a position-specific bias of every nucleotide in each of the 25 positions within the probe (see Figure 1). Moreover, Starr provides many other quality control plots like an in silico reconstruction of the physical array image to identify flawed regions on the array, or pairwise MA-plots, boxplots and heat-scatter plots to visualize pairwise dependencies within the dataset.
+
+For the purpose of bias removal (normalization), Starr interfaces the packages limma and rMAT, the latter of which implements the MAT algorithm [\cite=MAT]. But it also contains proper normalization methods like the median-rank-percentile normalization, which was originally proposed by Buck and Lieb in 2004 [\cite=rankpercentile].
+
+Visualization and high-level analysis
+
+Starr provides functions for the visualization of a set of "profiles" (e.g. time series, signal levels along genomic positions). Figure 2 shows the ChIP profile of PolII along the transcription start site of genes whose mRNA expression according to [\cite=expressiondata] ranges in the least 20% resp. the top 10% of all yeast genes (the cutoffs were chosen such that within both groups, the number of genes having an annotated transcription start site was roughly the same). The common way of looking at the intensity profiles is to calculate and plot the mean intensity at each available position along the region of concern. Such an illustration however may hide more than it reveals, since it fails to capture the variability at each position. It is desirable to display this variability in order to assess whether a seemingly obvious alteration in DNA binding is significant or not. Accordingly, our profileplot function relates to the conventional mean value plot like a box plot relates to an individual sample mean: Let the profiles be given as the rows of a samples ×   positions matrix that contains the respective signal of a sample at a given position. Instead of plotting a line for each profile (e.g. column of the row), the q-quantiles for each position (e.g. column of the matrix) are calculated, where q runs through a set of representative quantiles. Then for each q, the profile line of the q-quantiles is plotted. Color coding of the quantile profiles aids the interpretation of the plot: There is a color gradient from the median profile to the 0 (=min) resp. 1 (=max) quantile. Another useful high-level plot in Starr is the correlationPlot, which displays the correlation of a gene-related binding signal to its corresponding gene expression. Figure 3 shows a plot in which the mean PolII occupancy in various transcript regions of 2526 genes is compared to the corresponding mRNA expression. Each region is defined by its begin and end position relative to the transcription start site (start sites are taken from [\cite=transcripts]). The regions are plotted in the lower panel of Figure 3. For each region, the correlation between the vector of mean occupancies and the vector of gene expression values is calculated and shown in the upper panel.
+
+Results interpretation
+
+Figs 2 and 3 supply ambiguous evidence for the role of PolII recruitment in basal transcription: The profile plots suggest that a high PolII occupancy at the initiation region of a gene is a necessary prerequisite for a high mRNA expression level. As opposed to this, the correlation plot reveals that PolII occcupancy at the transcription start is not a good predictor of mRNA expression, but the mean occupancy of PolII in the elongation phase (region 4 in Fig.3) is. Nevertheless, a more detailed analysis of particular gene groups, and a comparison of PolII profiles under different environmental conditions might yield valuable new insights.
+
+Conclusion
+
+Starr is a Bioconductor package for the analysis of ChIP-chip experiments, in particular of Affymetrix tiling arrays. It exploits the full functionality of Ringo for the analysis of Affymetrix tiling arrays. These include functions like peak finding, smoothing or plotting genomic regions. Starr adds new analysis and visualization methods, which can also be applied to two-color technologies. It utilizes standard Bioconductor object classes and can thus easily interface other Bioconductor packages. All functions and methods in the package are well documented in help pages and in a vignette, which illustrates a workflow by means of some example data. Support is provided by the bioconductor mailing list and the package maintainer. Altogehter, Starr in conjunction with Ringo constitute a powerful and comprehensive tool for the analysis of tiling arrays across established one- and two-color technologies like Affymetrix, Agilent and Nimblegen.
+
+Availability and requirements
+
+The R-package Starr is available from the Bioconductor web site at http://www.bioconductor.org and runs on Linux, Mac OS and MS-Windows. It requires an installed version of R (version >  =  2.10.0), which is freely available from the Comprehensive R Archive Network (CRAN) at http://cran.r-project.org, and other Bioconductor packages, namely Ringo, affy, affxparser, rMAT and vsn plus the CRAN package pspline and MASS. The easiest way to obtain the most recent version of the software, with all its dependencies, is to follow the instructions at http:// www.bioconductor.org/download. Starr is distributed under the terms of the Artistic License 2.0.
+
+Authors' contributions
+
+BZ implemented the Starr package and did the analysis. AT initiated and supervised the project. Both authors wrote the manuscript and approved of its final version.
+
+Acknowledgements
+
+We thank Michael Lidschreiber, Andreas Mayer, Matthias Siebert, Johannes Soeding and Kemal Akman for useful comments on the package, Joern Toedling for help on Ringo , and Anna Ratcliffe for proofreading.
+
+Figures
+
+Figure 1 - Hybridization bias
+
+Sequence-specific dependency of raw reporter intensities. (A) Boxplots of probe intensity distributions. Probes are grouped according to the C/C content in their sequence. The median intensity increases with rising G/C-content. (B) Position-dependent mean probe intensity. Each letter corresponds the mean intensity of all probes that contain the corresponding nucleotide in the respective position.
+
+Figure 2 - PolII along the transcriptional start site
+
+Profiles of PolII occupancy of genes with low (least 20%) resp high (top 10%) transcription rates (cluster 1 resp. cluster 2). The upper graphs show the mean occupancy calculated over each position along the transcription start site. The lower plots illustrate the variance in the two clusters. The black line indicates the median profile of all features. The color gradient corresponds to quantiles (from 0.05 to 0.95), and the first and third quartiles are shown as grey lines. The light grey lines in the background show the profiles of individual "outlier" features.
+
+Figure 3 - Correlation of PolII occupancy to gene expression
+
+Starr enables the systematic investigation of gene expression related to DNA binding. Figure 2 shows the correlation of the mean PolII occupancy within different regions along the transcript to gene expression. The lower panel shows the regions of interest relative to the transcription start site (TSS) and the transcription termination site (TTS). The upper panel shows the correlation of PolII occupancy to the gene expression of the corresponding regions.

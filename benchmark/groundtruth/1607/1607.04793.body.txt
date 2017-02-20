@@ -1,0 +1,89 @@
+Learning to Decode Linear Codes Using Deep Learning
+
+INTRODUCTION
+
+In recent years deep learning methods have demonstrated significant improvements in various tasks. These methods outperform human-level object detection in some tasks [\cite=resnet], and achieve state-of-the-art results in machine translation [\cite=nmt] and speech processing [\cite=graves2013speech]. Additionally, deep learning combined with reinforcement learning techniques was able to beat human champions in challenging games such as Go [\cite=d_silver]. There are three different reasons for the outstanding results of Deep Learning models:
+
+Powerful computing resources such as fast GPUs.
+
+Utilizing efficiently large collections of datasets, e.g. ImageNet [\cite=imagenet] for image processing.
+
+Advanced academic research on training methods and network architectures [\cite=batch_norm], [\cite=alexnet], [\cite=adadelta], [\cite=dropout].
+
+Error correcting codes for channel coding are used in order to enable reliable communications at rates close to the Shannon capacity. A well-known family of linear error correcting codes are the low-density parity-check (LDPC) codes [\cite=galmono]. LDPC codes achieve near Shannon channel capacity with the belief propagation (BP) decoding algorithm, but can typically do so for relatively large block lengths. For high density parity check (HDPC) codes [\cite=jiang2006iterative], [\cite=dimnik2009improved], [\cite=yufit2011efficient], [\cite=zhang2012adaptive], such as common powerful algebraic codes, the BP algorithm obtains poor results compared to the maximum likelihood decoder [\cite=helmling2014efficient]. In this work we focus on HDPC codes and demonstrate how the BP algorithm can be improved. The naive approach to the problem is to assume a neural network type decoder without restrictions, and train its weights using a dataset that contains a large amount of codewords. The training goal is to reconstruct the transmitted codeword from a noisy version after transmitting over the communication channel. Unfortunately, when using this approach our decoder is not given any side information regarding the structure of the code. In fact it is even not aware of the fact that the code is linear. Hence we are required to train the decoder using a huge collection of codewords from the code, and due to the exponential nature of the problem, this is infeasible, e.g., for a BCH(63,45) code we need a dataset of 245 codewords. On top of that, the database needs to reflect the variability due to the noisy channel. In order to overcome this issue, our proposed approach is to assign weights to the edges of the Tanner graph that represent the given linear code, thus yielding a "soft" Tanner graph. These edges are trained using deep learning techniques. A well-known property of the BP algorithm is the independence of the performance on the transmitted codeword. A major ingredient in our new method is that this property is preserved by our decoder. Thus it is sufficient to use a single codeword for training the parameters of our decoder. We demonstrate improvements over BP for various high density parity check codes, including BCH(63,36), BCH(63,45), and BCH(127,106) .
+
+THE BELIEF PROPAGATION ALGORITHM
+
+The renowned BP decoder [\cite=galmono], [\cite=ru_book] can be constructed from the Tanner graph, which is a graphical representation of some parity check matrix that describes the code. In this algorithm, messages are transmitted over edges. Each edge calculates its outgoing message based on all incoming messages it receives over all its edges, except for the message received on the transmitting edge. We start by providing an alternative graphical representation to the BP algorithm with L full iterations when using parallel (flooding) scheduling. Our alternative representation is a trellis in which the nodes in the hidden layers correspond to edges in the Tanner graph. Denote by N, the code block length (i.e., the number of variable nodes in the Tanner graph), and by E, the number of edges in the Tanner graph. Then the input layer of our trellis representation of the BP decoder is a vector of size N, that consists of the log-likelihood ratios (LLRs) of the channel outputs. The LLR value of variable node v, [formula], is given by
+
+[formula]
+
+where yv is the channel output corresponding to the vth codebit, Cv.
+
+All the following layers in the trellis, except for the last one (i.e., all the hidden layers), have size E. For each hidden layer, each processing element in that layer is associated with the message transmitted over some edge in the Tanner graph. The last (output) layer of the trellis consists of N processing elements that output the final decoded codeword. Consider the ith hidden layer, [formula]. For odd (even, respectively) values of i, each processing element in this layer outputs the message transmitted by the BP decoder over the corresponding edge in the graph, from the associated variable (check) node to the associated check (variable) node. A processing element in the first hidden layer (i = 1), corresponding to the edge e = (v,c), is connected to a single input node in the input layer: It is the variable node, v, associated with that edge. Now consider the ith (i > 1) hidden layer. For odd (even, respectively) values of i, the processing node corresponding to the edge e = (v,c) is connected to all processing elements in layer i - 1 associated with the edges e' = (v,c') for c'  ≠  c (e' = (v',c) for v'  ≠  v, respectively). For odd i, a processing node in layer i, corresponding to the edge e = (v,c), is also connected to the vth input node.
+
+The BP messages transmitted over the trellis graph are the following. Consider hidden layer i, [formula], and let e = (v,c) be the index of some processing element in that layer. We denote by xi,e, the output message of this processing element. For odd (even, respectively), i, this is the message produced by the BP algorithm after ⌊(i - 1) / 2⌋ iterations, from variable to check (check to variable) node.
+
+For odd i and e = (v,c) we have (recall that the self LLR message of v is lv),
+
+[formula]
+
+under the initialization, x0,e' = 0 for all edges e' (in the beginning there is no information at the parity check nodes). The summation in [\eqref=eq:x_ie_RB] is over all edges e' = (v,c') with variable node v except for the target edge e = (v,c). Recall that this is a fundamental property of message passing algorithms [\cite=ru_book].
+
+Similarly, for even i and e = (v,c) we have,
+
+[formula]
+
+The final vth output of the network is given by
+
+[formula]
+
+which is the final marginalization of the BP algorithm.
+
+THE PROPOSED DEEP NEURAL NETWORK DECODER
+
+Neural Network Architecture
+
+We suggest the following parameterized deep neural network decoder that generalizes the BP decoder of the previous section. We use the same trellis representation for the decoder as in the previous section. The difference is that now we assign weights to the edges in the Tanner graph. These weights will be trained using stochastic gradient descent which is the standard method for training neural networks. More precisely, our decoder has the same trellis architecture as the one defined in the previous section. However, Equations [\eqref=eq:x_ie_RB], [\eqref=eq:x_ie_LB] and [\eqref=eq:ov] are replaced by
+
+[formula]
+
+for odd i,
+
+[formula]
+
+for even i, and
+
+[formula]
+
+where [formula] is a sigmoid function. The sigmoid is added so that the final network output is in the range
+
+[formula]
+
+EXPERIMENTS
+
+Neural Network Training
+
+We built our neural network on top of the TensorFlow framework [\cite=abadi2015tensorflow] and used an NVIDIA Tesla K40c GPU for accelerated training. We applied cross entropy as our loss function,
+
+[formula]
+
+where ov, yv are the deep neural network output and the actual vth component of the transmitted codeword (if the all-zero codeword is transmitted then yv = 0 for all v). Training was conducted using stochastic gradient descent with mini-batches. The mini-batch size was 120 examples. We applied the RMSPROP [\cite=rmsprop] rule with a learning rate equal to 0.001. The neural network has 10 hidden layers, which correspond to 5 full iterations of the BP algorithm. Each processing element in an odd (even, respectively) indexed hidden layer is described by Equation [\eqref=eq:x_ie_RB_NN] (Equation [\eqref=eq:x_ie_LB_NN], respectively). At test time, we inject noisy codewords after transmitting through an AWGN channel and measure the bit error rate (BER) in the decoded codeword at the network output. Our experiments have shown that the network fails to learn unless we fix the weights of the last layer (i.e., they are not trained). We believe that this is due to the fact that the network can improve the loss by changing the weights of the last layer without improving its decoding capabilities. When computing [\eqref=eq:x_ie_RB_NN], we also clip the output such that its absolute value is always smaller than some positive constant A  <  10. This is also required for practical (finite block length) implementations of the BP algorithm, in order to stabilize the operation of the decoder. We trained our decoding network on few different linear codes, including BCH(15,11), BCH(63,36), BCH(63,45) and BCH(127,106).
+
+Dataset
+
+The training data is created by transmitting the zero codeword through an AWGN channel with varying SNRs ranging from 1dB to 6dB. Each mini batch has 20 codewords for each SNR (a total of 120 examples in the mini batch). For the test data we use codewords with the same SNR range as in the training dataset. Parity check matrices were taken from  [\cite=ParityCheckMatrix].
+
+Results
+
+In this section we present the results of the deep neural decoding networks for various BCH block codes. In each code we observed an improvement compared to the BP algorithm. Note that when we applied our algorithm to the BCH(15,11) code, we obtained close to maximum likelihood results with the deep neural network. For larger BCH codes, the BP algorithm and the deep neural network still have a significant gap from maximum likelihood. The BER figures [\ref=fig:BCH_63_36_ber], [\ref=fig:BCH_63_45_ber] and [\ref=fig:BCH_127_106_ber] show an improvement of up to 0.75dB in the high SNR region. Furthermore, the deep neural network BER is consistently smaller or equal to the BER of the BP algorithm. This result is in agreement with the observation that our network cannot perforem worse than the BP algorithm.
+
+We compared the weights of the BP algorithm and the weights of the trained deep neural network for a BCH(63,45) code. We observed that the deep neural network produces weights in the range from - 0.8 to 2.2, in contrast to the BP algorithm which has binary “1” or “0” weights. Figure [\ref=fig:weight_hist] shows the weights histogram for the last layer. Interestingly, the distribution of the weights is close to a normal distribution. In a similar way, every hidden layer in the trained deep neural network has a close to normal distribution. Note that Glorot and Bengio [\cite=glorot] showed that normal distribution initialization results in a better gradient flow which lead to better performance. This agrees with the better performance that we saw in our deep neural network that has weights with normal distribution compare to the BP algorithm which has binary weights. In Figures [\ref=fig:layer4_bp] and [\ref=fig:layer4_dl] we plot the weights of the last hidden layer. Each column in the figure corresponds to a neuron described by Equation  [\eqref=eq:x_ie_RB_NN]. It can be observed that most of the weights are zeros except the Tanner graph weights which have value of 1 in Figure [\ref=fig:layer4_bp] (BP algorithm) and some real number in Figure [\ref=fig:layer4_dl] for the neural network. In Figure [\ref=fig:layer4_bp] and  [\ref=fig:layer4_dl] we plot a quarter of the weights matrix for better illustration.
+
+CONCLUSIONS
+
+In this work we applied deep learning techniques to improve the performance of the BP algorithm. We showed that a "soft" Tanner graph can produce improvements when used in the BP algorithm instead of the standard Tanner graph. A notable property of our neural network decoder is that once we have trained its parameters, we can improve performance compared to plain BP without increasing the required computational complexity. We regard this work as a first step in the implementation of deep learning techniques for the design of improved decoders. Our future work include possible improvements in the error rate results by exploring new neural network architectures and combining other decoding methods. Furthermore, we plan to investigate the connection between the parity check matrix and the deep neural network decoding capabilities.
+
+ACKNOWLEDGMENT
+
+This research was supported by the Israel Science Foundation, grant no. 1082/13. The Tesla K40c used for this research was donated by the NVIDIA Corporation.

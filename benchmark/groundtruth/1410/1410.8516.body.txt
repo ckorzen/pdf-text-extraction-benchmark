@@ -1,0 +1,215 @@
+NICE: Non-linear Independent Components Estimation
+
+Département d'informatique et de recherche opérationnelle Université de Montréal Montréal, QC H3C 3J7
+
+Introduction
+
+One of the central questions in unsupervised learning is how to capture complex data distributions that have unknown structure. Deep learning approaches [\citep=Bengio-2009-book] rely on the learning of a representation of the data that would capture its most important factors of variation. This raises the question: what is a good representation? Like in recent work [\citep=Kingma+Welling-ICLR2014] [\citep=Rezende-et-al-arxiv2014] [\citep=Ozair+Bengio-arxiv2014], we take the view that a good representation is one in which the distribution of the data is easy to model. In this paper, we consider the special case where we ask the learner to find a transformation h = f(x) of the data into a new space such that the resulting distribution factorizes, i.e., the components hd are independent:
+
+[formula]
+
+The proposed training criterion is directly derived from the log-likelihood. More specifically, we consider a change of variables h = f(x), which assumes that f is invertible and the dimension of h is the same as the dimension of x, in order to fit a distribution pH. The change of variable rule gives us:
+
+[formula]
+
+where [formula] is the Jacobian matrix of function f at x. In this paper, we choose f such that the determinant of the Jacobian is trivially obtained. Moreover, its inverse f- 1 is also trivially obtained, allowing us to sample from pX(x) easily as follows:
+
+[formula]
+
+A key novelty of this paper is the design of such a transformation f that yields these two properties of "easy determinant of the Jacobian" and "easy inverse", while allowing us to have as much capacity as needed in order to learn complex transformations. The core idea behind this is that we can split x into two blocks (x1,x2) and apply as building block a transformation from (x1,x2) to (y1,y2) of the form:
+
+[formula]
+
+where m is an arbitrarily complex function (a ReLU MLP in our experiments). This building block has a unit Jacobian determinant for any m and is trivially invertible since:
+
+[formula]
+
+The details, surrounding discussion, and experimental results are developed below.
+
+Learning bijective transformations of continuous probabilities
+
+We consider the problem of learning a probability density from a parametric family of densities {pθ,θ∈Θ} over finite dataset D of N examples, each living in a space X; typically [formula].
+
+Our particular approach consists of learning a continuous, differentiable almost everywhere non-linear transformation f of the data distribution into a simpler distribution via maximum likelihood using the following change of variables formula:
+
+[formula]
+
+where pH(h), the prior distribution, will be a predefined density function , for example a standard isotropic Gaussian. If the prior distribution is factorial (i.e. with independent dimensions), then we obtain the following non-linear independent components estimation (NICE) criterion, which is simply maximum likelihood under our generative model of the data as a deterministic transform of a factorial distribution:
+
+[formula]
+
+where f(x)  =  (fd(x))d  ≤  D.
+
+We can view NICE as learning an invertible preprocessing transform of the dataset. Invertible preprocessings can increase likelihood arbitrarily simply by contracting the data. We use the change of variables formula (Eq. [\ref=eq:change-var]) to exactly counteract this phenomenon and use the factorized structure of the prior pH to encourage the model to discover meaningful structures in the dataset. In this formula, the determinant of the Jacobian matrix of the transform f penalizes contraction and encourages expansion in regions of high density (i.e., at the data points), as desired. As discussed in [\citet=Bengio-et-al-ICML2013], representation learning tends to expand the volume of representation space associated with more "interesting" regions of the input (e.g., high density regions, in the unsupervised learning case).
+
+In line with previous work with auto-encoders and in particular the variational auto-encoder [\citep=Kingma+Welling-ICLR2014] [\citep=Rezende-et-al-arxiv2014] [\citep=Mnih+Gregor-ICML2014] [\citep=Gregor-et-al-ICML2014], we call f the encoder and its inverse f- 1 the decoder. With f- 1 given, sampling from the model can proceed very easily by ancestral sampling in the directed graphical model H  →  X, i.e., as described in Eq. [\ref=eq:sampling].
+
+Architecture
+
+Triangular structure
+
+The architecture of the model is crucial to obtain a family of bijections whose Jacobian determinant is tractable and whose computation is straightforward, both forwards (the encoder f) and backwards (the decoder f- 1). If we use a layered or composed transformation [formula], the forward and backward computations are the composition of its layers' computations (in the suited order), and its Jacobian determinant is the product of its layers' Jacobian determinants. Therefore we will first aim at defining those more elementary components.
+
+First we consider affine transformations. [\citep=Rezende-et-al-arxiv2014] and [\citep=Kingma+Welling-ICLR2014] provide formulas for the inverse and determinant when using diagonal matrices, or diagonal matrices with rank-1 correction, as transformation matrices. Another family of matrices with tractable determinant are triangular matrices, whose determinants are simply the product of their diagonal elements. Inverting triangular matrices at test time is reasonable in terms of computation. Many square matrices M can also be expressed as a product M  =  LU of upper and lower triangular matrices. Since such transformations can be composed, we see that useful components of these compositions include ones whose Jacobian is diagonal, lower triangular or upper triangular.
+
+One way to use this observation would be to build a neural network with triangular weight matrices and bijective activation functions, but this highly constrains the architecture, limiting design choices to depth and selection of non-linearities. Alternatively, we can consider a family of functions with triangular Jacobian. By ensuring that the diagonal elements of the Jacobian are easy to compute, the determinant of the Jacobian is also made easy to compute.
+
+Coupling layer
+
+In this subsection we describe a family of bijective transformation with triangular Jacobian therefore tractable Jacobian determinant. That will serve a building block for the transformation f.
+
+General coupling layer
+
+Let x∈X, I1,I2 a partition of [formula] such that [formula] and m a function defined on [formula], we can define y  =  (yI1,yI2) where:
+
+[formula]
+
+where [formula] is the coupling law, an invertible map with respect to its first argument given the second. The corresponding computational graph is shown Fig [\ref=fig:coupling]. If we consider [formula] and [formula], the Jacobian of this function is:
+
+[formula]
+
+Where Id is the identity matrix of size d. That means that [formula]. Also, we observe we can invert the mapping using:
+
+[formula]
+
+We call such a transformation a coupling layer with coupling function m.
+
+Additive coupling layer
+
+For simplicity, we choose as coupling law an additive coupling law g(a;b)  =  a  +  b so that by taking a  =  xI2 and b  =  m(xI1):
+
+[formula]
+
+and thus computing the inverse of this transformation is only as expensive as computing the transformation itself. We emphasize that there is no restriction placed on the choice of coupling function m (besides having the proper domain and codomain). For example, m can be a neural network with d input units and D  -  d output units.
+
+Moreover, since [formula], an additive coupling layer transformation has a unit Jacobian determinant in addition to its trivial inverse. One could also choose other types of coupling, such as a multiplicative coupling law [formula] or an affine coupling law [formula] if [formula]. We chose the additive coupling layer for numerical stability reason as the transformation become piece-wise linear when the coupling function, m, is a rectified neural network.
+
+Combining coupling layers
+
+We can compose several coupling layers to obtain a more complex layered transformation. Since a coupling layer leaves part of its input unchanged, we need to exchange the role of the two subsets in the partition in alternating layers, so that the composition of two coupling layers modifies every dimension. Examining the Jacobian, we observe that at least three coupling layers are necessary to allow all dimensions to influence one another. We generally use four.
+
+Allowing rescaling
+
+As each additive coupling layers has unit Jacobian determinant (i.e. is volume preserving), their composition will necessarily have unit Jacobian determinant too. In order to adress this issue, we include a diagonal scaling matrix S as the top layer, which multiplies the i-th ouput value by Sii: (xi)i  ≤  D  →  (Siixi)i  ≤  D. This allows the learner to give more weight (i.e. model more variation) on some dimensions and less in others.
+
+In the limit where Sii goes to +    ∞   for some i, the effective dimensionality of the data has been reduced by 1. This is possible so long as f remains invertible around the data point. With such a scaled diagonal last stage along with lower triangular or upper triangular stages for the rest (with the identity in their diagonal), the NICE criterion has the following form:
+
+[formula]
+
+We can relate these scaling factors to the eigenspectrum of a PCA, showing how much variation is present in each of the latent dimensions (the larger Sii is, the less important the dimension i is). The important dimensions of the spectrum can be viewed as a manifold learned by the algorithm. The prior term encourages Sii to be small, while the determinant term log Sii prevents Sii from ever reaching 0.
+
+Prior distribution
+
+As mentioned previously, we choose the prior distribution to be factorial, i.e.:
+
+[formula]
+
+We generally pick this distribution in the family of standard distribution, e.g. gaussian distribution:
+
+[formula]
+
+or logistic distribution:
+
+[formula]
+
+We tend to use the logistic distribution as it tends to provide a better behaved gradient.
+
+Related methods
+
+Significant advances have been made in generative models. Undirected graphical models like deep Boltzmann machines (DBM) [\citep=SalHinton09] have been very successful and an intense subject of research, due to efficient approximate inference and learning techniques that these models allowed. However, these models require Markov chain Monte Carlo (MCMC) sampling procedure for training and sampling and these chains are generally slowly mixing when the target distribution has sharp modes. In addition, the log-likelihood is intractable, and the best known estimation procedure, annealed importance sampling (AIS) [\citep=Salakhutdinov+Murray-2008], might yield an overly optimistic evaluation [\citep=Grosse-et-al-ICML2013].
+
+Directed graphical models lack the conditional independence structure that allows DBMs efficient inference. Recently, however, the development of variational auto-encoders (VAE) [\citep=Kingma+Welling-ICLR2014] [\citep=Rezende-et-al-arxiv2014] [\citep=Mnih+Gregor-ICML2014] [\citep=Gregor-et-al-ICML2014] - allowed effective approximate inference during training. In constrast with the NICE model, these approaches use a stochastic encoder q(h|x) and an imperfect decoder p(x|h), requiring a reconstruction term in the cost, ensuring that the decoder approximately inverts the encoder. This injects noise into the auto-encoder loop, since h is sampled from q(h|x), which is a variational approximation to the true posterior p(h|x). The resulting training criterion is the variational lower bound on the log-likelihood of the data. The generally fast ancestral sampling technique that directed graphical models provide make these models appealing. Moreover, the importance sampling estimator of the log-likelihood is guaranteed not to be optimistic in expectation. But using a lower bound criterion might yield a suboptimal solution with respect to the true log-likelihood. Such suboptimal solutions might for example inject a significant amount of unstructured noise in the generation process resulting in unnatural-looking samples. In practice, we can output a statistic of p(x|h), like the expectation or the median, instead of an actual sample. The use of a deterministic decoder can be motivated by the objective of eliminating low-level noise, which gets automatically added at the last stage of generation in models such as the VAE and Boltzmann machines (the visible are considered independent, given the hidden).
+
+The NICE criterion is very similar to the criterion of the variational auto-encoder. More specifically, as the transformation and its inverse can be seen as a perfect auto-encoder pair [\citep=Bengio-arxiv2014], the reconstruction term is a constant that can be ignored. This leaves the Kullback-Leibler divergence term of the variational criterion: log(pH(f(x))) can be seen as the prior term, which forces the code h = f(x) to be likely with respect to the prior distribution, and [formula] can be seen as the entropy term. This entropy term reflects the local volume expansion around the data (for the encoder), which translates into contraction in the decoder f- 1. In a similar fashion, the entropy term in the variational criterion encourages the approximate posterior distribution to occupy volume, which also translates into contraction from the decoder. The consequence of perfect reconstruction is that we also have to model the noise at the top level, h, whereas it is generally handled by the conditional model p(x|h) in these other graphical models.
+
+We also observe that by combining the variational criterion with the reparametrization trick, [\citep=Kingma+Welling-ICLR2014] is effectively maximizing the joint log-likelihood of the pair (x,ε) in a NICE model with two affine coupling layers (where ε is the auxiliary noise variable) and gaussian prior, see Appendix [\ref=appendix:vae].
+
+The change of variable formula for probability density functions is prominently used in inverse transform sampling (which is effectively the procedure used for sampling here). Independent component analysis (ICA) [\citep=hyvarinen2000independent], and more specifically its maximum likelihood formulation, learns an orthogonal transformation of the data, requiring a costly orthogonalization procedure between parameter updates. Learning a richer family of transformations was proposed in [\citep=Bengio91], but the proposed class of transformations, neural networks, lacks in general the structure to make the inference and optimization practical. [\citep=chen2000gaussianization] learns a layered transformation into a gaussian distribution but in a greedy fashion and it fails to deliver a tractable sampling procedure.
+
+[\citep=rippel2013high] reintroduces this idea of learning those transformations but is forced into a regularized auto-encoder setting as a proxy of log-likelihood maximization due to the lack of bijectivity constraint. A more principled proxy of log-likelihood, the variational lower bound, is used more successfully in nonlinear independent components analysis [\citep=hyvarinen1999nonlinear] via ensemble learning [\citep=roberts2001independent] [\citep=lappalainen2000nonlinear] and in [\citep=Kingma+Welling-ICLR2014] [\citep=Rezende-et-al-arxiv2014] using a type of Helmholtz machine [\citep=Dayan95]. Generative adversarial networks (GAN) [\citep=Goodfellow-et-al-ARXIV2014] also train a generative model to transform a simple (e.g. factorial) distribution into the data distribution, but do not require an encoder that goes in the other direction. GAN sidesteps the difficulties of inference by learning a secondary deep network that discriminates between GAN samples and data. This classifier network provides a training signal to the GAN generative model, telling it how to make its output less distinguishable from the training data.
+
+Like the variational auto-encoders, the NICE model uses an encoder to avoid the difficulties of inference, but its encoding is deterministic. The log-likelihood is tractable and the training procedure does not require any sampling (apart from dequantizing the data). The triangular structure used in NICE to obtain tractability is also present in another family of tractable density models, the neural autoregressive networks [\citep=Bengio+Bengio-NIPS99], which include as a recent and succesful example the neural autoregressive density estimator (NADE) [\citep=Larochelle+Murray-2011]. Indeed, the adjacency matrix in the NADE directed graphical model is strictly triangular. However the element-by-element autoregressive schemes make the ancestral sampling procedure computationally expensive and unparallelizable for generative tasks on high-dimensional data, such as image data. A NICE model using one coupling layer can be seen as a block version of NADE with two blocks.
+
+Experiments
+
+Log-likelihood and generation
+
+We train NICE on MNIST [\citep=lecun1998mnist], the Toronto Face Dataset (TFD) [\citep=Susskind2010], the Street View House Numbers dataset (SVHN) [\citep=Netzer-wkshp-2011] and CIFAR-10 [\citep=Krizhevsky2010tr]. As prescribed in [\citep=Benigno-et-al-NIPS2013-small], we use a dequantized version of the data: we add a uniform noise of [formula] to the data and rescale it to be in D after dequantization. We add a uniform noise of [formula] and rescale the data to be in D for CIFAR-10.
+
+The architecture used is a stack of four coupling layers with a diagonal positive scaling (parametrized exponentially) exp (s) for the last stage, and with an approximate whitening for TFD and exact ZCA on SVHN and CIFAR-10. We partition the input space between by separating odd (I1) and even (I2) components, so the equation is:
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+The coupling functions m(1),m(2),m(3) and m(4) used for the coupling layers are all deep rectified networks with linear output units. We use the same network architecture for each coupling function: five hidden layers of 1000 units for MNIST, four of 5000 for TFD, and four of 2000 for SVHN and CIFAR-10.
+
+A standard logistic distribution is used as prior for MNIST, SVHN and CIFAR-10. A standard normal distribution is used as prior for TFD.
+
+The models are trained by maximizing the log-likelihood [formula] with AdaM [\citep=kingma2014adam] with learning rate 10- 3, momentum 0.9, β2  =  0.01, λ  =  1, and ε  =  10- 4. We select the best model in terms of validation log-likelihood after 1500 epochs.
+
+We obtained a test log-likelihood of 1980.50 on MNIST, 5514.71 on TFD, 11496.55 for SVHN and 5371.78 for CIFAR-10. This compares to the best results that we know of in terms of log-likelihood: 5250 on TFD and 3622 on CIFAR-10 with deep mixtures of factor analysers [\citep=tang2012deep] (although it is still a lower bound), see Table [\ref=fig:mfa-results]. As generative models on continuous MNIST are generally evaluated with Parzen window estimation, no fair comparison can be made. Samples generated by the trained models are shown in Fig. [\ref=fig:samples].
+
+Inpainting
+
+Here we consider a naive iterative procedure to implement inpainting with the trained generative models. For inpainting we clamp the observed dimensions (xO) to their values and maximize log-likelihood with respect to the hidden dimensions (XH) using projected gradient ascent (to keep the input in its original interval of values) with gaussian noise with step size [formula], where i is the iteration, following the stochastic gradient update:
+
+[formula]
+
+where xH,i are the values of the hidden dimensions at iteration i. The result is shown on test examples of MNIST, in Fig [\ref=fig:mnist-inpainting]. Although the model is not trained for this task, the inpainting procedure seems to yield reasonable qualitative performance, but note the occasional presence of spurious modes.
+
+Conclusion
+
+In this work we presented a new flexible architecture for learning a highly non-linear bijective transformation that maps the training data to a space where its distribution is factorized, and a framework to achieve this by directly maximizing log-likelihood. The NICE model features efficient unbiased ancestral sampling and achieves competitive results in terms of log-likelihood.
+
+Note that the architecture of our model could be trained using other inductive principles capable of exploiting its advantages, like toroidal subspace analysis (TSA) [\citep=cohen2014learning].
+
+We also briefly made a connection with variational auto-encoders. We also note that NICE can enable more powerful approximate inference allowing a more complex family of approximate posterior distributions in those models, or a richer family of priors.
+
+Acknowledgements
+
+We would like to thank Yann Dauphin, Vincent Dumoulin, Aaron Courville, Kyle Kastner, Dustin Webb, Li Yao and Aaron Van den Oord for discussions and feedback. Vincent Dumoulin provided code for visualization. We are grateful towards the developers of Theano [\citep=bergstra+all-Theano-NIPS2011] [\citep=Bastien-Theano-2012] and Pylearn2 [\citep=pylearn2_arxiv_2013], and for the computational resources provided by Compute Canada and Calcul Québec, and for the research funding provided by NSERC, CIFAR, and Canada Research Chairs.
+
+Further Visualizations
+
+Manifold visualization
+
+To illustrate the learned manifold, we also take a random rotation R of a 3D sphere S in latent space and transform it to data space, the result f- 1(R(S)) is shown in Fig [\ref=fig:map].
+
+Spectrum
+
+We also examined the last diagonal scaling layer and looked at its coefficients (Sdd)d  ≤  D. If we consider jointly the prior distribution and the diagonal scaling layer, σd  =  S- 1dd can be considered as the scale parameter of each independent component. This shows us the importance that the model has given to each component and ultimately how successful the model was at learning manifolds. We sort (σd)d  ≤  D and plot it in Fig [\ref=fig:decay].
+
+Approximate whitening
+
+The procedure for learning the approximate whitening is using the NICE framework, with an affine function and a standard gaussian prior. We have:
+
+[formula]
+
+with L lower triangular and b a bias vector. This is equivalent to learning a gaussian distribution. The optimization procedure is the same as NICE: RMSProp with early stopping and momentum.
+
+Variational auto-encoder as NICE
+
+We assert here that the stochastic gradient variational Bayes (SGVB) algorithm maximizes the log-likelihood on the pair (x,ε).[\citep=Kingma+Welling-ICLR2014] define a recognition network:
+
+[formula]
+
+For a standard gaussian prior p(z) and conditional p(x|z), we can define:
+
+[formula]
+
+If we define a standard gaussian prior on h  =  (z,ξ). The resulting cost function is:
+
+[formula]
+
+with DX  =  dim(X). This is equivalent to:
+
+[formula]
+
+This is the Monte Carlo estimate of the SGVB cost function proposed in [\citep=Kingma+Welling-ICLR2014].

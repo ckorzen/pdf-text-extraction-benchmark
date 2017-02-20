@@ -1,0 +1,357 @@
+Solving the Likelihood Equations
+
+Algorithm Lemma Proposition Corollary Conjecture
+
+Definition Example Remark Problem
+
+Introduction
+
+A model in algebraic statistics is specified by a polynomial map from the space of model parameters to the space of the joint probability distributions of the observed discrete random variables. Maximum likelihood estimation is concerned with finding those model parameters that best explain a given sequence of observations. This is done by maximizing the likelihood function. The likelihood function is usually not convex, it can have many local maxima, and the problem of finding and certifying a global maximum is difficult.
+
+Here we consider the problem of finding all critical points of the likelihood function, with the aim of identifying all local maxima. The defining equations of the critical points are the likelihood equations. The number of complex solutions to the likelihood equations (for generic data) is called the maximum likelihood (ML) degree of the model. A geometric study of the ML degree was undertaken in our joint work with Fabrizio Catanese [\cite=CHKS]. The present paper offers algebraic algorithms for deriving and solving the likelihood equations.
+
+We begin by illustrating the problem and our solution for a simple example. In a certain game of chance, a gambler tosses the same coin four times in a row, and the number of times heads come up are recorded. Hence the possible outcomes are 0, 1, 2, 3, or 4. We observe 1000 rounds of this game, and we record the outcomes in the data vector [formula], where ui is the number of trials that had i heads. Hence u0 + u1 + u2 + u3 + u4  =  1000. Suppose we are led to suspect that the gambler uses two biased coins, one in each of his sleeves, and he picks the coin to be used at random (with probabilities π and 1 - π) prior to each round. We wish to test this hypothesis using the data u.
+
+Our model is the mixture of a pair of four-times repeated Bernoulli trials. The mixing parameter π is the probability that the gambler picks the coin in his left sleeve. The bias of the left coin is s, and the bias of the right coin is t. Our model stipulates that the probabilities of the five outcomes are
+
+[formula]
+
+The polynomial pi represents the probability of seeing i heads in a round. The likelihood of observing the data u when 1000 trials are made equals
+
+[formula]
+
+Maximum likelihood estimation means maximizing ([\ref=likelihoodfct]) subject to 0  <  π,s,t  <  1. The critical equations for this unconstrained optimization problem have infinitely many solutions: there is a curve of critical points in the s = t plane.
+
+In order to avoid such non-identifiability, we reformulate our maximum likelihood computation as the following constrained optimization problem:
+
+[formula]
+
+[formula]
+
+The image of the map (π,s,t)  ↦  (p0,p1,p2,p3,p4) over the complex numbers is the hypersurface [formula] in projective 4-space. Using Algorithm [\ref=implicit], we find that the ML degree of this model is 12, i.e., the solution of problem ([\ref=constrainedprob]) leads to an algebraic equation of degree 12. See Examples [\ref=mixBern] and [\ref=Bernoulli1].
+
+This paper is organized as follows. In Section 2 we introduce the likelihood equations associated with an arbitrary projective variety V. The ML degree of V is defined as the number of complex solutions to the likelihood equations.
+
+Section 3 contains an algebraic geometry result. An explicit formula is given for the ML degree of a generic complete intersection. This formula is an upper bound for the ML degree of more special complete intersections.
+
+In Section 4 we present an algorithm whose input is an arbitrary homogeneous ideal in a polynomial ring, representing a projective variety V. The algorithm uses linear algebra over the coordinate ring [formula] to find the likelihood ideal. This ideal typically has finitely many complex solutions. We also discuss our test implementation in Singular [\cite=GPS01]. It computes all solutions numerically and identifies the local maxima in the probability simplex.
+
+Section 5 comprises an experimental study of the ML degree and number of local maxima for various determinantal models, including the one discussed above. It is important to note that, in the context of algebraic statistics, every variety V comes with a fixed coordinate system. We demonstrate that the ML degree is extremely sensitive to changes of coordinates, even just scaling of the coordinates. The good news is that in each case the ML degree appears to be smallest for the statistically meaningful coordinate system.
+
+In Section 6 we apply our results to a class of models widely used in computational biology: Jukes-Cantor models for phylogenetic trees [\cite=CHS] [\cite=CHPH] [\cite=CKS].
+
+The setup of Sections 2-4 assumes that the defining ideal of the model V is known. If this ideal is not known and impossible to compute, then we are confined to use the (generally less efficient) parametric version of the likelihood equations which are discussed in Section 7. In that section we also prove that the parametric ML degree (which is the quantity emphasized in [\cite=CHKS]) equals the implicit ML degree times the cardinality of a generic fiber.
+
+Likelihood Locus on a Projective Variety
+
+We consider a statistical model which is a subset of the probability simplex
+
+[formula]
+
+and we assume that the model is presented as the solution set in Δn of a system of homogeneous polynomial equations in the unknowns [formula]. Such polynomials are known as model invariants in the literature on phylogenetics and algebraic statistics [\cite=StSu]. We write V for the Zariski closure of the model in complex projective space [formula]. Equivalently, V is the set of all complex solutions to the given homogeneous polynomial equations. The maximum likelihood problem is to find a point [formula] in the model
+
+[formula]
+
+which "best explains" a given data vector [formula]. As in ([\ref=constrainedprob]) above, this means solving the following constrained optimization problem:
+
+[formula]
+
+Our approach is to compute all complex critical points of the likelihood function L and to extract the positive real solutions that are local maxima. While the optimization problem ([\ref=mleproblem]) requires the pi to be real and positive, we shall compute all the critical points on the complex projective variety V. Let Vsing denote the singular locus of the variety V and set [formula]. Let P be the homogeneous ideal in the polynomial ring [formula] generated by the defining polynomials of V. All computations in the coordinate ring
+
+[formula]
+
+will be made using standard techniques of Gröbner basis theory [\cite=CLO] [\cite=GP].
+
+We note that this definition differs from the one given in [\cite=CHKS] where we also included the critical points in [formula] and we counted them with multiplities.
+
+Let [formula] be a set of homogeneous polynomials generating the ideal P. We consider the Jacobian matrix augmented by a row of ones:
+
+[formula]
+
+We multiply J by the diagonal matrix whose entries are the unknowns to get
+
+[formula]
+
+A point p∈U is in the likelihood locus Zu if and only if the data vector [formula] is in the image of the transpose matrix [formula].
+
+Let Vaff be the affine subvariety of [formula] defined by [formula]. The Jacobian of Vaff is the matrix J. The likelihood function L has no poles or zeros on U, so the critical points of L are the same as the critical points of [formula] on Vaff. A point p∈U is a critical point of log (L) if and only if [formula] is in the image of JT(p). As pi  ≠  0 on U, this is equivalent to [formula] being in the image of [formula].
+
+Our algorithm for computing the likelihood ideal Iu will be derived from Proposition [\ref=jc]. First, however, let us show that Iu is always artinian for generic u. Hence the colength of Iu is constant for almost all data u. This number is the maximum likelihood (ML) degree of the projective variety V.
+
+Let [formula] be the incidence variety consisting of pairs (p,u) where p∈Zu. Then I is the projectivization of a vector bundle over U and dim I  =  n. In particular, Zu is either empty or finite for generic u.
+
+Let c be the codimension of V. For every p∈U the matrix J(p) and hence the matrix [formula] with their first rows removed have rank c. Multiplying [formula] by the vector of ones yields [formula]. In particular, for any p∈U, the first row is linearly independent of the remaining rows, and [formula] has rank c + 1. Thus the set of all u in the image of [formula] is a vector space of dimension c + 1, and hence I is the projectivization of a vector bundle of rank c + 1 over U. It follows that dim I  =   dim U  +  c  =  n. Projecting onto the second factor, the generic fiber must either be empty or of dimension 0.
+
+Let n  =  2 and   P  =  〈p20  +  p21  +  p22  -  2p0p1  -  2p0p2  -  2p1p2〉. The model V is a circle in the triangle Δ2 which is tangent to the three edges of ∂Δ2. The critical ideal [formula] contains the cubic polynomial
+
+[formula]
+
+If u0,u1,u2 are distinct, then this cubic curve intersects the circle in six points, but only three of them lie in   U, which is the part of the circle in the interior of the triangle Δ2. The ML degree of the circle V is three. Hence our problem ([\ref=mleproblem]) can be solved in terms of radicals: use Cardano's formula to express each of the three points in Zu as a function of the data u0,u1,u2.
+
+In Example [\ref=circle], the incidence variety I is the surface in [formula] defined by (), which is regarded as a bihomogeneous equation of degree (3,1) in (p,u).
+
+Complete Intersections
+
+Here we consider the case when our model [formula] is a complete intersection. This means that the codimension c of V coincides with the number r of generators of the ideal P. As before, we write [formula]. Let di be the degree of the homogeneous polynomial gi. Let D denote the sum of all monomials of degree at most n - r in r unknowns evaluated at [formula]:
+
+[formula]
+
+The ML degree of the model   V is bounded above by [formula]. Equality holds when   V is a generic complete intersection, that is, when the coefficients of the defining polynomials [formula] are chosen at random.
+
+To illustrate this formula, let us consider some special cases. First, suppose that our model V is a hypersurface (r = 1) defined by one homogeneous polynomial g  =  g1 of degree d  =  d1. Then the ML degree of V is at most
+
+[formula]
+
+In Example [\ref=circle], we considered the case of a quadric in the plane (d = n = 2) having ML degree three. The upper bound ([\ref=hypersurface]) equals six, and this is indeed the ML degree of a general quadric. Two special quadrics of statistical interest are the Hardy-Weinberg curve   p21  =  4p0p2   and its cousin   p21  =  p0p2. The ML degrees of these two special models are one and two respectively.
+
+Another noteworthy special case arises when V is a linear space of codimension r in [formula], i.e., [formula]. Here the open set U is the (complexified) complement of an arrangement of n + 1 hyperplanes in [formula], and the ML degree equals the number of bounded regions of the (real) arrangement [\cite=CHKS]. If V is generic then the number of bounded regions equals
+
+[formula]
+
+An important statistical application of such linear models is discussed in [\cite=BR].
+
+We first consider the case when the gi are generic forms and u is generic. By Bertini's Theorem, the generic complete intersection V is smooth. All critical points of the likelihood function L on V lie in the dense open subset U, and the set Zu of critical points is finite, by Proposition [\ref=genfin].
+
+Consider the following (r + 2)  ×  (n + 1)-matrix with entries in [formula]:
+
+[formula]
+
+Let W denote the determinantal variety in [formula] given by the vanishing of its (r + 2)  ×  (r + 2) minors. The codimension of W is at most n - r, which is a general upper bound for ideals of maximal minors, and hence the dimension of W is at most r. Our genericity assumptions ensure that the matrix (p) has maximal row rank r + 1 for all p∈V. Hence a point p∈V lies in W if and only if the vector u is in the row span of (p). Proposition [\ref=jc] implies
+
+[formula]
+
+Since Zu is finite and V has dimension n - r, we conclude that W has the maximum possible codimension, namely n - r, and that the intersection of V with the determinantal variety W is transversal. We note that W is Cohen-Macaulay, since W has maximal codimension n - r, and ideals of minors of generic matrices are Cohen-Macaulay. Bézout's Theorem [\cite=Ful] implies
+
+[formula]
+
+The degree of the determinantal variety W equals the degree of the determinantal variety given by generic forms of the same row degrees. A special case of the Thom-Porteous-Giambelli formula [\cite=Ful] states that this degree is the complete homogeneous symmetric function of degree   codim(W)  =  n - r   evaluated at the row degrees of the matrix. Here, the row degrees are [formula], and the value of that symmetric function is precisely D. We conclude that degree(W)  =  D. This completes the proof that the ML degree of the generic complete intersection [formula] equals [formula].
+
+Suppose now that the gi are no longer generic. The ML degree of [formula] remains finite by Proposition [\ref=genfin]. The deformation argument in [\cite=CHKS] implies that the ML degree of V is at most [formula].
+
+Algorithms and Implementation
+
+We propose the following algorithm for deriving the likelihood equations.
+
+By Proposition [\ref=jc], a point p∈U lies in Zu if and only if u  ·  φ(p)  =  0 for every φ(p) in the kernel of [formula]. Since [formula] has constant rank for all p∈U, generators of the vector space [formula] are gotten by specializing generators of the module [formula]. This shows that the ideal I'u vanishes on Zu. Now, let f be a polynomial in the saturation of Step 4, i.e. [formula] for some g∈Q and [formula]. Since this product vanishes on Zu, the polynomial f vanishes on Zu, and hence f∈Iu.
+
+Conversely, for any g∈Q, the module M has a free basis over the localization [formula]. Any element f of Iu is a linear combination of the dot product of u with these free generators with coefficients in [formula]. By clearing denominators we get a polynomial which is a polynomial linear combination of the generators of I'u. This shows that f is in the saturation.
+
+The ML degree of V is computed by running Algorithm [\ref=implicit] for a generic vector [formula]. We simply output the colength of Iu after Step 4.
+
+A key feature of Algorithm [\ref=implicit] is that Step 1 and Step 2 are independent of the data u, so they need to be run only once per model. Moreover, these preprocessing steps can be enhanced by doing the saturation of Step 4 already once at the level of the module M, i.e., after Step 2 one can replace M by
+
+[formula]
+
+For any particular data vector [formula], one can then use either M or [formula] in Step 3 to define I'u. The remaining saturation in Step 4 requires some tricks in order to run efficiently. We found that, for many models and most data, it suffices to saturate only once with respect to a single polynomial, as follows:
+
+Step 4': Pick a random (c + 1)  ×  (c + 1)-submatrix of [formula] and let h be its determinant. With some luck, the likelihood ideal Iu will be equal to (I'u:h).
+
+Here is one more useful variant. When V is a complete intersection, one can jump directly to Step 3 and replace I'u by the determinantal variety W in the proof of Theorem [\ref=CI]. Thus, instead of I'u we simply take the ideal of (r + 2)  ×  (r + 2) minors of the matrix [formula]. This variant is usually slower than Algorithm [\ref=implicit], but it is sometimes faster when the codimension r is small.
+
+Here is one more comment concerning Step 2. Suppose our computer algebra system does not support linear algebra over quotient rings (such as [formula]). Then we can implement Step 2 over the polynomial ring [formula] as follows. Instead of computing the kernel of the (r + 1)  ×  (n + 1)-matrix [formula], we compute the kernel of the (r   +   1)  ×  (n + 1 + r  +  r2)-matrix
+
+[formula]
+
+G   =   g g 0 0 0 0 0 0 g g 0 0 0 0 0 0 g g
+
+[formula]
+
+. These vectors generate the module M, so they can be used in Step 3.
+
+Recall that our objective is to compute maximum likelihood estimates.
+
+We implemented Algorithms [\ref=implicit] and [\ref=numerical] in the computer algebra package Singular [\cite=GPS01]. The input is a homogeneous ideal P in a polynomial ring and a data vector u. The output is the ML degree and a list of all positive local maxima p* and their certificates, namely the (negative) eigenvalues of the Hessian H(p*). Step 4 of Algorithm [\ref=numerical] uses the well-known second order optimality conditions in nonlinear optimization, see for instance [\cite=NW].
+
+All computational results to be reported in the following sections were obtained using this implementation. We also implemented Algorithm [\ref=implicit] in Macaulay 2  [\cite=M2]. This independently confirmed the reported ML degrees.
+
+Small Matrix Models
+
+Determinantal varieties are natural objects both in algebraic geometry and in statistics. In this section we discuss likelihood equations, ML degree, and local maxima for some models specified by rank conditions on 3  ×  3 matrices.
+
+Consider the mixture model for Bernoulli random variables discussed in the Introduction. This model is given by the determinant of
+
+[formula]
+
+The ML degree of this model is twelve, and all twelve solutions to the critical equations can be real. In our experiments we found that at most six of these solutions are real and positive, and three of those can be local maxima. A data vector for which the function ([\ref=likelihoodfct]) has three positive local maxima is
+
+[formula]
+
+Consider the general 3  ×  3-matrix with indeterminate entries
+
+[formula]
+
+The prime ideal of 2  ×  2 minors of this matrix represents two independent ternary random variables. This model has ML degree one. In other words, the critical equations have a unique (positive) solution for a given 3  ×  3 data matrix U. This maximum likelihood estimate is a rational function in U, namely, it is the unique matrix of rank one with the same row and column sums as U. This example is an instance of a decomposable graphical model and it is known that the ML degree of such a model is always one [\cite=GMS].
+
+Continuing with our example, let P be the principal ideal generated by the 3  ×  3 determinant of [formula]. This is the mixture model for two pairs of independent ternary random variables. The ML degree of this mixture model equals 10. For a concrete numerical example consider the following data:
+
+[formula]
+
+The likelihood ideal IU has four imaginary zeros and six real zeros, all of which lie in the positive orthant. Three of these six matrices are local maxima of the likelihood function. We list the three local maxima together with the values of the likelihood function. The third matrix is the global maximum:
+
+[formula]
+
+[formula]
+
+[formula]
+
+As was mentioned in the Introduction, the ML degree is very sensitive to even slight perturbations to the "natural" coordinates of the model. To illustrate this, let us scale the unknowns and consider the new matrix
+
+[formula]
+
+where the αij are random real numbers. It turns out that the ML degree of the ideal of 2  ×  2 minors of [formula] jumps to six. The ML degree of the ideal generated by the determinant of [formula] jumps from 10 to 39 after this change.
+
+Consider the following symmetric 3  ×  3-matrix:
+
+[formula]
+
+The ideal of 2  ×  2 minors of this matrix represents two independent identically distributed ternary random variables. This model has ML degree 1. Again, the mixture model for two copies of the previous model is specified by the determinant of [formula]. The ML degree of this mixture model equals 6.
+
+Note how these ML degrees change if we replace [formula] by the scaled matrix
+
+[formula]
+
+The ideal of 2  ×  2 minors of [formula] has ML degree 4, which is the degree of the corresponding Veronese surface. The first secant variety of the Veronese surface is given by the determinant of [formula]. That model has ML degree 16.
+
+We close this section with a table of ML degrees for seven determinantal varieties. The first and second columns are Examples [\ref=SweetThirteen] and [\ref=gen3x3] respectively. The first row indicates the original ideal in the statistically natural coordinates. The second row refers to the ("scaled") ideal gotten from the first ("unscaled") ideal by generically scaling the coordinates. The column "3  ×  4" refers to the maximal minors of a 3  ×  4-matrix, "3   ×   3coin" is Example [\ref=mixBern], and "3   ×   4coin" is a similar problem where the coin is tossed five times in a row instead of four, and P is the ideal of the 3  ×  3 minors of the matrix
+
+[formula]
+
+Finally, G(m,n) is the Plücker ideal of the Grassmannian of m-planes in [formula].
+
+[formula]
+
+We close with two open problems, aimed at experts in enumerative geometry.
+
+Jukes-Cantor Models in Phylogenetics
+
+The study of "analytic solutions" for maximum likelihood estimation has a long tradition in phylogenetics [\cite=Fel], where one considers evolution models for DNA sequence data, and maximum likelihood is used to find the best phylogenetic tree that explains the evolution of the taxa under consideration. Maximum likelihood is also used to estimate the branch lengths of the reconstructed trees. Here we examine the widely used Jukes-Cantor models, with emphasis on the cases studied by Chor et al. [\cite=CHS] [\cite=CHPH] [\cite=CKS] and Sainudiin [\cite=Sai].
+
+We use the notation of Sturmfels and Sullivant [\cite=StSu], first for binary data and later (in Example [\ref=jcdna]) for DNA data. Let us start out with Example 3 in [\cite=StSu]. We consider any tree T with three leaves and the Jukes-Cantor model with unknown root distribution. This is equivalent to considering trees with four leaves and uniform root distribution. Each tree topology T specifies a model for three binary random variables. The joint probabilities are represented by unknowns pijk, for i,j,k∈{0,1}. The data is given as a 2  ×  2  ×  2-table u  =  (uijk) whose entries record the number of occurrences of any particular column pattern among three aligned binary sequences. We perform the linear change of coordinates given by the Fourier transform:
+
+[formula]
+
+The advantage of this transformation is that the defining ideal P of any Jukes-Cantor model becomes a toric ideal in the Fourier coordinates qijk.
+
+Let T  =  K1,3 be the claw tree with three edges attached to the root. Then our model is a complete intersection of codimension 3 in [formula]:
+
+[formula]
+
+Our problem is to solve the following constrained optimization problem:
+
+[formula]
+
+Algorithm [\ref=implicit] easily derives the likelihood equations, and it reports that, for random data u, the equations have 92 distinct complex solutions. In short, the Jukes-Cantor binary model on the claw tree K1,3 has ML degree 92.
+
+Suppose that T is one of the three trivalent trees, for instance, the one where the leaves 1 and 2 are split from the leaf 3. This model is a complete intersection of codimension two. The ideal of model invariants is
+
+[formula]
+
+This model has dimension 5 and ML degree 14. We found many instances where two of the 14 complex solutions to the likelihood equations are local maxima in the probability simplex Δ7, thus confirming the results of [\cite=CHPH].
+
+The authors of [\cite=CKS] studied the three-dimensional submodels gotten by assuming the molecular clock hypothesis. There are two combinatorial types:
+
+[formula]
+
+The ideal Pfork has ML degree one, and the ideal Pcomb has ML degree nine. It was shown in [\cite=CKS] that the local maximum in Δ7 is unique for Pcomb.
+
+Each rooted tree with leaves {1,2,3} is specified by its split system, which is a collection Σ of splits of the set {0,1,2,3} into two non-empty parts. Here 0 represents the root. The number of splits equals the dimension of the model. The split systems representing the trees in Example [\ref=claw] and Example [\ref=nonclaw] are
+
+[formula]
+
+David Bryant [\cite=Bry] proposed to generalize phylogenetic models from trees to arbitrary splits graphs. Jukes-Cantor models for splits graphs are likely to become important for applications. Here is the simplest non-tree example:
+
+We add one more split to [formula] to get the split system
+
+[formula]
+
+The resulting Jukes-Cantor model is a hypersurface of degree four in [formula]:
+
+[formula]
+
+If we rewrite this quartic in terms of the probabilities pijk then we get a polynomial with 40 terms. The ML degree of this model equals 326. Note that this is still a lot smaller than the upper bound 21,844 given by ([\ref=hypersurface]).
+
+All of the phylogenetic models whose likelihood equations have been analyzed so far assumed binary characters. For applications in biology, models on four character states (A, C, G and T) are more important. We next present a detailed analysis of the smallest non-trivial Jukes-Cantor DNA model.
+
+Consider the Jukes-Cantor DNA model on a tree with three leaves and uniform root distribution. The number of observable states is 43  =  64 but it turns out that there are only five distinct probabilities.
+
+We may assume that the tree is the claw tree K1,3. The model parameters π1,π2,π3 are the probabilities of changing from any letter (A,C,G or T) to any other letter when passing from the root to the leaves 1,2,3. We write   θi  =  1  -  3πi for the probability of not changing the letter. Let p123 be the probability of observing the same letter at all three leaves, pij the probability of observing the same letter at all leaves i,j and a different one at the third leaf, and pdis the probability of seeing three distinct letters. Then
+
+[formula]
+
+Here we can either set θi  =  1  -  3πi, or we can also regard (θi:πi) as homogeneous coordinates for [formula]. The above formulas define a map [formula], and our model V is the image of this map. Its defining ideal equals
+
+[formula]
+
+Here the qijk are the Fourier coordinates which are specified by
+
+[formula]
+
+Algorithm [\ref=implicit] reveals that the ML degree of this model equals 23. Using Algorithm [\ref=numerical] we were able to confirm the global maximum reported in [\cite=Sai] on DNA sequence data for Chimpanzee, Gorilla, and Orangutan. The data used in this example is
+
+[formula]
+
+where there is a second local maximum present. Out of the 23 solutions to the critical equations 17 are real, and 7 are positive. Our experiments show that there are data for which as many as four positive local maxima exist.
+
+The authors of [\cite=CHS] study the two-dimensional submodel gotten by assuming the molecular clock hypothesis. This is the surface in [formula] defined by
+
+[formula]
+
+The ML degree of Pclock is 11, confirming the maple computation in [\cite=CHS].
+
+Likelihood Equations from Parametrization
+
+Consider a statistical model which is given parametrically as the image of a polynomial map [formula]. Each coordinate fi of f is a polynomial in model parameters [formula], and we have [formula]. This is usually the natural presentation coming from statistics, and it is the setting of [\cite=CHKS]. The parametric version of ([\ref=mleproblem]) is the following optimization problem:
+
+[formula]
+
+where [formula] is a vector of positive integers and θ runs over an open subset of [formula]. The critical equations for this optimization problem are
+
+[formula]
+
+In this section we show how to solve these equations directly. In our experience, the algorithms of Section 4 are generally preferable if the ideal P of algebraic relations among the fi is known. But sometimes the parametric algorithm presented below is quite useful as well. Theorem [\ref=thesame] says that (under reasonable assumptions) both methods produce the same answer.
+
+We consider the Zariski open set Uf in [formula] where none of the fi are zero. The critical locus Zu is defined in Uf by the vanishing of the equations [\eqref=critical]. Let Ju be the ideal in [formula] whose variety is the Zariski closure of Zu in all of [formula]. We call Ju the parametric likelihood ideal for ([\ref=paramax]).
+
+Of course we can obtain Ju by computing the ideal of the numerators of the equations [\eqref=critical] and then saturating by the product of the fi. This has the disadvantages of being quite slow in practice and requiring a separate computation for each choice of u. We propose the following method instead.
+
+The proof of correctness for Algorithm [\ref=para] is straightforward using the setup of [\cite=CHKS]. The kernel of the matrix M is the module of logarithmic vector fields along the hypersurface in [formula] defined by [formula]. It was shown in [\cite=CHKS] that J'u  =  Ju holds under certain geometric hypotheses (namely, the map f factors through a smooth variety on which the fi represent global normal crossing divisors). In general, we may still have to saturate by [formula], but the generators of J'u are much closer to the ideal Ju than the numerators of ([\ref=critical]).
+
+Unlike the implicit setting of Section 4, the ideal Ju need not be artinian even if u is generic. There can be positive-dimensional components of critical points at the locus in θ-space where the parameterization fails to be smooth.
+
+Let d = 3,n = 4 and consider the example in the Introduction:
+
+[formula]
+
+The kernel of the 5  ×  8-matrix M in ([\ref=modelmatrix]) is minimally generated by 27 vectors in [formula]. We compute the parametric likelihood ideal Ju for generic u using Steps 2 and 3 of Algorithm [\ref=para]. It turns out that Ju is not artinian and it has four associated primes. The first is a one-dimensional component:
+
+[formula]
+
+This component does not depend on π at all: This is the unique solution of the maximum likelihood problem for the unmixed Bernoulli random variable. Next there are two components each of which contributes three critical points:
+
+[formula]
+
+where the αi are certain rational expressions in the uj. These critical points are extraneous. They can be explained by noticing that the parameterization is singular when either s = t or the mixing parameter π equals 0 or 1.
+
+After saturating out these three extraneous components we are left with an ideal Ku which is prime over [formula]. It is artinian and has 24 complex zeros. These critical points come in pairs (π,s,t) and (1 - π,t,s). Removing this extra symmetry confirms that the true ML degree of this model is 12.
+
+This example suggests that we add one more step to Algorithm [\ref=para]:
+
+Step 4: Let Q be the ideal generated by the d  ×  d minors of the (n + 1)  ×  d Jacobian matrix [formula]. Compute and output the saturation
+
+[formula]
+
+The variety V(Q) is the singular locus of the map f, and the saturation ([\ref=removesing]) removes all components of the ideal Ju that lie in this singular locus. We close by relating the ideal Ku to the ideal Iu from Sections 2-4.
+
+Let [formula] be a polynomial map whose image is defined by a homogeneous ideal P as in Section 2. Suppose that f is generically finite of degree δ, and the image of [formula] lies in the smooth locus of V  =  V(P). For generic [formula], the variety V(Ku) equals the preimage of V(Iu). In particular, Ku is artinian and its colength is δ times the ML degree of V.
+
+Let [formula] be the generators of P. Then we have [formula]. The Chain Rule implies   J  ·  Df  =  0, where J is the Jacobian of Vaff as in ([\ref=augmented]). The smoothness hypotheses guarantee that the rank of J is n + 1 - d, while the rank of Df is d, for all points p  =  f(θ) where [formula]. The dimension count shows that the image of JT equals the kernel of DfT. More precisely, a vector u lies in the kernel of Df(θ)T if and only if it lies in the image of J(p)T with p  =  f(θ). In light of Propositions [\ref=jc] and [\ref=genfin], this implies that, for u generic, every point p∈V(Iu) pulls back to δ points θ∈V(Ku).
+
+Acknowledgements: We are grateful to the Park City Mathematics Institute (PCMI, July 2004) for providing us with the opportunity to work on this project in the mountains of Utah. Amit Khetan was supported by an NSF postdoctoral fellowship (DMS-0303292). Bernd Sturmfels was supported by the Clay Mathematics Institute and in part by the NSF (DMS-0200729).
+
+Authors' addresses:
+
+Serkan Ho sten, Department of Mathematics, San Francisco State University, San Francisco, CA 94132, USA,   serkan@math.sfsu.edu
+
+Amit Khetan, Department of Mathematics, University of Massachusetts, Amherst, MA 01002, USA,   khetan@math.umass.edu
+
+Bernd Sturmfels, Department of Mathematics, University of California, Berkeley, CA 94720, USA,   bernd@math.berkeley.edu

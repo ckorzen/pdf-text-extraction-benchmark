@@ -1,0 +1,109 @@
+=1
+
+=4
+
+BIG DATA ROBOTICS 2016
+
+Shape Completion Enabled Robotic Grasping
+
+INTRODUCTION
+
+Grasp planning based on raw sensory data is difficult due to occlusion and incomplete information regarding scene geometry. This work utilizes 3D convolutional neural networks (CNNs)[\cite=lecun] to enable stable robotic grasp planning via shape completion. The 3D CNN is trained to do shape completion from a single pointcloud of a target object, essentially filling in the occluded portions of objects. This ability to infer occluded geometries can be applied to a multitude of robotic tasks. It can assist with path planning for both arm motion and robot navigation where an accurate understanding of whether occluded scene regions are occupied or not results in better trajectories. It also allows a traditional grasp planner to generate stable grasps via the completed shape.
+
+The proposed framework consists of two stages: a training stage and a runtime stage. During the training stage, the CNN is shown occupancy grids created from thousands of synthetically rendered depth images of different mesh models. Each of these occupancy grids is captured from a single point of view, and occluded portions of the volume are marked as empty. For each training example, the ground truth occupancy grid (the occupancy grid for the entire 3D volume) is also generated for the given mesh. From these pairs of occupancy grids the CNN learns to quickly complete mesh models at runtime using only information from a single point of view. Several example completions are shown in Fig. [\ref=fig:completion_montage]. This setup is beneficial for robotics applications as the majority of the computation time takes place during offline training, so that at runtime an object's pointcloud can be run through the CNN in under a tenth of a second on average and then quickly meshed.
+
+During the runtime stage, a pointcloud is captured using a depth sensor. A segmentation algorithm is run, and regions of the pointcloud corresponding to graspable objects are extracted from the scene. Occupancy grids of these regions are created, where all occluded regions are incorrectly labeled as empty. These maps are passed separately through the trained CNN. The outputs from the CNN are occupancy grids, where the CNN has labeled all the occluded regions of the input as either occupied or empty for each object. These new occupancy grids are either run through a fast marching cubes algorithm[\cite=lorensen1987marching], or further post-processed if they are to be grasped. Whether the object is completed or completed and post-processed results in either 1) fast completions suitable for path planning and scene understanding or 2) refined meshes suitable for grasp planning. This framework is extensible to crowded scenes with multiple objects as each object is completed individually. It is also applicable to different domains because it can learn to reproduce objects from whatever dataset it is trained on, and further shows the ability to generalize to unseen views of objects or even entirely novel objects. This applicability to multiple domains is complemented by the thousands of 3D models available from datasets such as ModelNet[\cite=wu20153d] and the rapidly increasing power of GPU processors.
+
+The contributions of this work include: 1) a novel CNN architecture for shape completion; 2) Complementary completion methods, one resulting in meshes to quickly fill the planning scene, and the second creating smoothed meshes that are combined with the observed pointcloud for grasp planning; 3) A large open-source dataset of over 440,000 403 voxel grid pairs used for training. This dataset and the related code are freely available at http://shapecompletiongrasping.cs.columbia.edu. In addition, the website makes it easy to browse and explore the thousands of completions and grasps related to this work; 4) Results from both simulated and live experiments comparing our method to other approaches and demonstrating its performance in grasping tasks.
+
+Related Work
+
+There is a significant body of prior work relating to the various intersections of shape completion, deep learning, and grasp planning. But this is the first work that the authors are aware of that integrates all three.
+
+This framework makes heavy use of both the YCB[\cite=calli2015ycb] and Grasp Database[\cite=kappler2015leveraging] mesh model datasets. We augmented the YCB set with models from the Grasp Database which contains 590 mesh models.
+
+Prior work for shape completion includes [\cite=wu20143d][\cite=wu20153d]'s use of a deep belief network and Gibbs sampling for 3D shape reconstruction. In addition, work by [\cite=rock2015completing] uses an exemplar based approach for the same task. [\cite=bohg2011mind][\cite=quispe2015exploiting] have explored shape completion for robotic grasping, but use symmetry and extrusion based completion approaches which work well for objects well represented by geometric primitives.
+
+Other related approaches to grasping include [\cite=mahler2015gp] which uses Gaussian processes to plan under uncertainty rather than explicitly completing the target object. In addition [\cite=varley2015generating][\cite=lenz2013deep] where deep learning has been used to find optimal manipulator configurations based on prior training grasps. These works have attempted to plan using only the visible portions of the scene paired with affordances produced as output by a deep network. These approaches differ from our work where the deep network is used to reconstruct a scene and then a planner is run on the reconstructed scene. It is plausible that these approaches could be used concurrently.
+
+Training
+
+Data Generation
+
+In order to train a network to reconstruct a diverse range of objects, meshes were collected from the YCB and Grasp Database. The models were run through binvox[\cite=min2004binvox] in order to generate 256x256x256 occupancy grids. In these occupancy grids, both the surface and interior of the meshes are marked as occupied. In addition, all the meshes were placed in Gazebo[\cite=koenig2004design], and 726 depth images were generated for each object subject to different rotations uniformly sampled (in roll-pitch-yaw space, 11*6*11) around the mesh. The depth images are used to create occupancy grids for the portions of the mesh visible to the simulated camera, and then all the occupancy grids generated by binvox are transformed to correctly overlay the depth image occupancy grids. Both sets of occupancy grids are then down-sampled to 40x40x40 to create a large number of training examples. The input set (X) contains occupancy grids that are filled only with the regions of the object visible to the camera, and the output set (Y) contains the ground truth occupancy grids for the space occupied by the entire model. An illustration of this process is shown in Fig. [\ref=fig:data_generation].
+
+Model Architecture and Training
+
+The architecture of the CNN is shown in Fig. [\ref=fig:model_architecture]. The model was implemented using Keras[\cite=Keras2015], a Theano[\cite=bergstra2010theano][\cite=bastien2012theano] based deep learning library. Each layer used rectified linear units as nonlinearities except the final fully connected (output) layer which used a sigmoid activation to restrict the output to the range
+
+[formula]
+
+E(y,y)=-( y log(y) + (1 - y) log(1 - y) )
+
+[formula]
+
+=
+
+[formula]
+
+=
+
+[formula]
+
+=
+
+[formula]
+
+J(A,B)=
+
+[formula]
+
+Training Results
+
+Fig. [\ref=fig:jaccard_plots] shows how the Jaccard similarity measures vary as the networks' training progresses. In order to explore how the quality of the reconstruction changes as the number of models in the training set is adjusted, we trained two networks with identical architectures using variable numbers of mesh models. One was trained with partial views from 14 YCB models, and the other was trained with the same 14 YCB models in addition to 472 Grasp Database mesh models. The remaining 4 YCB and 118 Grasp Dataset models were kept as a holdout set. Results are shown in Fig. [\ref=fig:jaccard_plots]. We note that the networks trained with fewer models perform better shape completion when they are tested on views of objects they have seen during training than networks trained on a larger number of models. This suggests that the network is able to memorize the training data for the smaller number of models but struggles to do so when trained on larger numbers. Conversely, the models trained on a larger number of objects perform better than those trained on a smaller number when asked to complete novel objects. Because, as we have seen, the networks trained on larger numbers of objects are unable to memorize all of the models seen in training, they may be forced to learn a more general completion strategy that will work for a wide variety of objects, allowing them to better generalize to objects not seen in training.
+
+Fig. [\ref=fig:jaccard_plots](a) shows the performance of the two CNNs on trained views. In this case, the fewer the mesh models used during training, the better the completion results. Fig. [\ref=fig:jaccard_plots](b) shows how the CNNs performed on novel views of the mesh objects used during training. The fact that there is very little difference in performance on holdout views compared to training views leads us to believe that the objects have been sampled densely enough that the specific viewpoint no longer has much bearing on completion quality for the objects used in training. Fig. [\ref=fig:jaccard_plots](c) shows the completion quality of the two CNNs on objects they have not seen before. In this case, as the number of mesh models used during training increases, performance improves as the system has learned to generalize a wider variety of inputs. The model trained on only the YCB dataset peaked at .707 Jaccard Similarity, while the model trained on the YCB + Grasp Dataset peaked with a Jaccard Similarity of .869.
+
+Runtime
+
+At runtime the pointcloud for the target object is acquired from a 3D sensor, scaled, voxelized and then passed through the CNN. The output of the CNN, a completed voxel grid of the object, goes through a post processing algorithm that returns a mesh model of the completed object. Finally, a grasp can be planned and executed based on the completed mesh model. Fig. [\ref=fig:runtime_pipeline] demonstrates the full runtime pipeline on a novel object never seen before.
+
+1) Acquire Target Pointcloud: First, a pointcloud is captured using a Microsoft Kinect, then segmented using Euclidean cluster extraction. A segment is selected either manually or automatically[\cite=Rusu_ICRA2011_PCL] corresponding to the object to be completed and passes it to the shape completion module. 2) Complete via CNN: The selected pointcloud is then used to create an occupancy grid with resolution 40x40x40. This occupancy grid is used as input to the CNN whose output is an equivalently sized occupancy grid for the completed shape. In order to fit the pointcloud to the 40x40x40 grid, it is scaled down uniformly so that the bounding box of the pointcloud fits in a 32x32x32 voxel cube, and then centered in the 40x40x40 grid such that the center of the bounding box of the pointcloud is at point (20, 20, 18) in the zero-indexed voxel grid. Finally, an element-wise floor function is applied to the point cloud point coordinates in order to snap points to voxels, and the corresponding voxels are marked as occupied. Placing the pointcloud slightly off-center in the z dimension leaves more space in the back half of the grid for the network to fill. 3a) Create Mesh: At this point, if the object being completed is not going to be grasped, then the voxel grid output by the CNN is run through the marching cubes algorithm to turn it into a mesh, and the resulting mesh is added to the planning scene, filling in the occluded regions. 3b) Create Smoothed Mesh: Alternatively, if this object is going to be grasped, then post-processing occurs. The output of the CNN is converted to a point cloud and its density is compared to the density of the partial view point cloud. The densities are computed by randomly sampling points and averaging the distances to the nearest neighbors. In general, the density of the CNN output is much lower than that of the partial view. The CNN output is up-sampled by an appropriate integral value to match the density of the partial view. The combined point cloud is then voxelized at the new higher resolution.
+
+This voxel grid is smoothed using [\cite=lempitsky2010surface], as described in Alg. [\ref=alg:reconstruction], which weights the voxels, minimizing the Laplacian on the boundary. The weighted voxel grid is run through either standard marching cubes, or a variant that detects edge and corner features, and estimates new feature points with linear approximations [\cite=kobbelt2001feature]. In this case, the features are detected pre-smoothing and the weights of the feature points are reset post-smoothing. This feature preserving variant was used because the sharp features can have a significant impact on grasp planning. 4) Grasp completed mesh: The reconstructed mesh is then loaded into GraspIt![\cite=miller2004graspit] where the simulated annealing grasp planner is run using a Barrett Hand model, The reachability of the planned grasps are checked using MoveIt![\cite=sucan2013moveit], and the highest quality reachable grasp is then executed.
+
+Experimental Results
+
+To compare our framework to other approaches, meshes were generated using four completion methods: smoothed marching cubes of the partial view (Partial), mirroring completion[\cite=bohg2011mind] (Mirror), our CNN completion with smoothing and feature detection (Ours-Feature), and our CNN completion with only smoothing (Ours-Smooth). The CNN was trained on the YCB + Grasp Dataset. 10 Randomly sampled views for each of 18 YCB objects were completed using the different completion methods. This resulted in 720 (18 object * 4 methods * 10 views) different completions. These meshes were evaluated by comparing them to the ground truth meshes using three metrics: Hausdorff distance, geodesic divergence, and the distance between planned and realized grasps in simulation.
+
+Hausdorff Distance
+
+The Hausdorff distance is a one-directional metric computed by sampling points on one mesh and computing the L2 distance of each sample point to its closest point on the other mesh. The mean value of a completion is the average distance from the sample points on the completion to their respective closest points on the ground truth mesh, and the max value is the single largest such distance. The symmetric Hausdorff distance was computed by running Meshlab's[\cite=cignoni2008meshlab] Hausdorff distance filter in both directions. Fig. [\ref=fig:hausdorff] shows the mean and standard deviation of the mean and max values of the symmetric Hausdorff distance for each completion method. In this metric, the CNN completions are significantly closer to the ground truth than both the partial and the mirrored completion. The feature detection has little effect because the number of feature points and the difference in error at those points is small. The mirrored completion's accuracy has a high variance as the quality is dependent on its ability to accurately capture a useful plane of symmetry.
+
+Geodesic Divergence
+
+The completions are also compared using a measure of Geodesic Divergence[\cite=hamza2003geodesic]. A geodesic shape descriptor is computed for each mesh. Then, a probability density function is computed for each mesh by considering the shape descriptor as a random distribution and approximating the distribution using a Gaussian Mixture Model. The probability density functions for each completion are compared with that of the ground truth mesh using the Jenson-Shannon probabilistic divergence. Fig. [\ref=fig:geodesic] shows the mean and standard deviation of the divergences for each completion method. The CNN completions show an improvement over both the partial views and the mirrored completions.
+
+Simulation Based Grasp Comparison
+
+In order to evaluate our framework's ability to enable grasp planning, the system was tested in simulation. While there are clear limitations in the ability of simulators to correctly mirror the real world, simulation does allow us to plan and evaluate thousands of grasps quickly. GraspIt!'s Multi-threaded planner was used with default settings to plan grasps on all of the completions of the objects. These grasps were then executed on the ground truth meshes in GraspIt!. In order to simulate a grasp execution, the completion was removed from GraspIt! and the ground truth object was inserted in its place using the original camera transform. Then the hand was placed 20cm backed off from the ground truth object along the approach direction of the grasp. The spread angle of the fingers was set, and the hand was moved along the approach direction of the planned grasp either until contact was made, or the grasp pose was reached. At this point, the fingers closed to the planned joint values. Then each finger continued to close until either contact was made with the object, or until the joint limits were reached. Fig. [\ref=fig:sim_example] shows several grasps and their realized executions for different completion methods. Visualizations of the simulation results for the entire YCB and Grasp Datasets are available at http://shapecompletiongrasping.cs.columbia.edu
+
+Fig. [\ref=fig:grasp_joints] and Fig. [\ref=fig:grasp_pose] show the differences between the planned and realized joint states as well as the difference in pose of the base of the end effector between the planned and realized grasps. Both of these figures demonstrate that our completion method works better for enabling grasp planning than the partial and mirrored completions. Using our method caused the end effector to end up closer to where it intended to be in terms of both joint space and the palm's cartesian position. We found that the partial is not unreasonable in this metric given that the planner only interacts with regions of the object which are observed, of which we know the geometry. This does limit the approach direction of the grasps planned using the partial as the majority come from the same direction that the partial mesh was capture from, while our method and the mirroring tended to produce grasps whose approach directions were less dependent on viewing angle.
+
+Performance on Real Hardware
+
+In order to further evaluate our framework, the system was used in an end-to-end manner using actual robotic hardware to execute grasps planned via the shape completion method described above. The object used are shown in Fig. [\ref=fig:experimental_setup]. They were selected because they were sized to work well with the Barrett Hand. In this experiment, for each object, shape completions were generated and grasps were planned and attempted. The results are shown in Table [\ref=tab:real_world_results]. One failure case involved the wooden doll which is a non-rigid object. The other two involved the detergent bottle and joystick, where the planned grasps enveloped small portions of the objects giving them good scores from the planner, despite not being stable in reality. Examples can be seen in the video attachment as well as at http://shapecompletiongrasping.cs.columbia.edu.
+
+Crowded Scene Completion
+
+Often objects in the scene are not going to be manipulated, and only require shape completion without smoothing and grasp planning in order to be successfully avoided. In this case, the output of the CNN can be run directly through marching cubes rather than our post processing to quickly create a mesh of the object. Fig. [\ref=fig:hand_collision](a) shows a grasp planned using only the partial mesh for the object near the grasp target. Fig. [\ref=fig:hand_collision](b)(c) show the robotic hand crashing into one of the nearby objects when attempting to execute the grasp. The failure is caused by an incomplete planning scene. Fig. [\ref=fig:hand_collision](d) shows the scene with the nearby objects completed, though without smoothing. With this fuller picture, the planner accurately flags this grasp as unreachable. The time requirement for the scene completion process is given by:
+
+[formula]
+
+with Segmentation Time (Tsegment), Target Completion Time (Ttarget), Non Target Completion Time(Tnon_target) and Number of Non Target Objects (n). The system has the ability to both quickly fill in occluded regions of the scene, and selectively spend more time generating smoothed completions optimized for grasping on selected objects of interest. Several crowded scene configurations were created and each scene completion step was run 5 times. Average completion times are shown in Table. [\ref=tab:crowded_completion_times]
+
+Conclusion
+
+This work presents a framework to train and utilize a CNN to complete and mesh an object observed from a single point of view, and then plan grasps on the completed object. The completion system is fast, with completions available in a matter of milliseconds, and post processed completions suitable for grasp planning available in several seconds. The dataset and code are open source and available for other researchers to use. It has also been demonstrated that our completions are better than more naive approaches in terms of Hausdorff and Geodesic Distances. In addition, grasps planned on completions generated using the proposed framework result in executed grasps closer to the intended hand configuration than grasps planned on completions from the other methods.
+
+Acknowledgements: This work is supported by NSF Grant IIS-1208153. Thanks to the NVIDIA Corporation for the Titan X GPU grant.

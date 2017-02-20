@@ -1,0 +1,283 @@
+Deep Multimodal Feature Analysis for Action Recognition in RGB+D Videos(Technical Report)
+
+Introduction
+
+Gang Wang is the corresponding author. Recent development of range sensors had an indisputable impact on research and applications of machine vision. Range sensors provide depth information of the scene and objects, which helps in solving problems that are considered hard for RGB inputs [\cite=kinectSurvey2013].
+
+Human activity recognition is one of the active fields in computer vision and has been explored extensively. Recent advances in hand-crafted [\cite=idt_ICCV2013] [\cite=peng2014bag] and convnet-based [\cite=twostreamCNN] feature extraction and analysis of RGB action videos achieved impressive performance. They generally recognize action classes based on appearance and motion patterns in videos. The major limitation of RGB sequences is the absence of 3D structure from the scene. Although some works are done towards this direction [\cite=eigen2014depth], recovering depth from RGB in general is an underdetermined problem. As a result, depth sequences provide an exclusive modality of information about the 3D structure of the scene, which suits the problem of activity analysis [\cite=HON4D] [\cite=HOPC] [\cite=VemulapalliCVPR14] [\cite=actionletPAMI] [\cite=MMTW] [\cite=xiaCVPR13spatio] [\cite=Orderlet]. This complements the textural and appearance information from RGB. Our goal in this work is to analyze the multimodal RGB+D signals for identifying the strengths of respective modalities through teasing out their shared and modality-specific components and to utilize them for improving the classification of human actions.
+
+Having multiple sources of information, one can find a new space of common components which can be more robust than any of the input features. Through linear projections, canonical correlation analysis (CCA) [\cite=CCASurvey] [\cite=hotelling1936relations] gives us the correlated form of input modalities which in essence is a robust representation of multimodal signals. However, the downside of CCA is the linearity limitation. Kernel canonical correlation analysis (KCCA) [\cite=KCCA2000] extended this idea into nonlinear kernel-based projections, which is still limited to the representation capacity of the kernel's space and is not able to disentangle the high-level nonlinear complexities between the input modalities. Further, the traditional solutions of CCA and KCCA are to solve the maximization of correlation between the projected vectors analytically, which does not scale well with the size of the data.
+
+To overcome these limitations, a new deep autoencoder-based nonlinear common component analysis network is proposed to discover the shared and informative components of input RGB+D signals.
+
+Besides the shared components, each input modality has specific features which carry discriminative information for the recognition task. In this respect, we can enhance the representation by incorporating the modality-specific components of respective modalities [\cite=MVSV_CVPR14] [\cite=salzmann2010factorized]. Based on this intuition, at each layer our deep network factorizes the multimodal input features into their shared and modality-specific components. By stacking such layers, we further decode the complex and highly nonlinear representations of the input modalities in a nonlinear fashion. Across the layers, our deep multimodality analysis extracts a set of structured features which consist of hierarchically factorized multimodal components. The common components are robust against noise and missing information between the modalities, and the modality-specific components carry the remaining informative features which are irrelevant to the other modality. To effectively perform recognition tasks on our structured features, we design a structured sparsity-based learning framework. With different mixed norms, features of each component can be grouped together and group selection can be applied to learn a better classifier. We also show that the advantage of our learning framework is more significant as network gets deeper.
+
+The contributions of this work are two-fold: first we introduce a new deep learning network for hierarchical shared-specific factorization of RGB+D features. Second, a structured sparsity learning machine is proposed to explore the structure of hierarchical factorized representations for effective action classification.
+
+The rest of this paper is organized as follows. Section [\ref=sec:relatedwork] explores the related work. Section [\ref=sec:approach] introduces the proposed deep component factorization network. Section [\ref=sec:classifier] describes our classification framework for factorized components. Section [\ref=sec:exp] provides our experimental results, and section [\ref=sec:conclusion] concludes the paper.
+
+Related work
+
+There are other works which applied deep networks to multimodal learning. The work in [\cite=ngiam2011multimodal] [\cite=JMLR:v15:srivastava14b] used DBM for finding a common space representation for two input modalities, and predict one modality from the other. Andrew [\cite=DCCA] proposed a deep canonical correlation analysis network with two stacks of deep embedding followed by a CCA on top layer. Our method is different from these works in two major aspects. First, the previous work performed the multimodal analysis in just one layer of the deep network, but our proposed method performs the common component analysis in every single layer. Second, we incorporate modality-specific components in each layer to maintain all the informative features, at each layer.
+
+Jia [\cite=jia2010factorized] factorized the input features to shared and private components by applying structured sparsity, for the task of multi-view learning on human pose estimation, with linearity assumption. Cai [\cite=MVSV_CVPR14] proposed a nonlinear factorization of the features into common and individual components, towards a better representation of features for action recognition. They utilized mixture models to add nonlinearity to linear probabilistic CCA [\cite=bach2005probabilistic]. Our proposed technique stacks layers of nonlinear shared component analysis to progressively disentangle highly nonlinear correlations between the input features.
+
+While learning frameworks in [\cite=Wang_2013_ICCV] [\cite=icml2013_wang13c] [\cite=wang2013robust] [\cite=6619242] applied structured sparsity for other similar tasks, our structured sparsity learning machine extends the sparse selection into two levels of concurrent component and layer selection, which is more suited to the hierarchical outputs from our deep factorization network.
+
+Recent single modality action recognition methods on depth signals can be divided into two major groups: depth map analysis methods [\cite=RangeSample] [\cite=HON4D] [\cite=HOPC_PAMI] [\cite=xiaCVPR13spatio] and skeleton based methods [\cite=Luo_2013_ICCV] [\cite=VemulapalliCVPR14] [\cite=skeletalQuads] [\cite=actionletPAMI] [\cite=MMTW]. The first group extract the action descriptors directly from depth map sequences. The idea of spatio-temporal interest points [\cite=STIP] was applied in depth videos by [\cite=xiaCVPR13spatio]. They also proposed depth cuboid similarity features to represent local patches. HON4D [\cite=HON4D] represents depth sequences as histograms of 4D oriented normals of local patches, quantized on the vertices of a regular polychoron. Rahmani [\cite=HOPC_PAMI] achieved higher levels of robustness against viewpoint variations by using histograms of oriented principle components. Lu [\cite=RangeSample] proposed binary range-sample descriptors based on τ tests on depth patches. The work of [\cite=cnn_for_depth_action_THMS] applied convolutional networks for learning action classes on depth maps.
+
+The second group of methods represent actions based on the 3D positions of major body joints, which are available for most of depth based action datasets. Luo [\cite=Luo_2013_ICCV] proposed a novel skeleton-based discriminative dictionary learning method, utilizing group sparsity and geometry constraints. Vemulapalli [\cite=VemulapalliCVPR14] represented skeletons as points and actions as curves in a Lie group using the 3D relative geometry between body parts. Evangelidis [\cite=skeletalQuads] proposed a compact and view-invariant representation of body poses calculated from joint positions. Wang [\cite=7008115] introduced a mining technique to find part-based mid-level patterns (frequent local parts) and aggregated the local representations as bag-of-FLPs to be classified by a SVM. Veeriah [\cite=diffRNN] extended the structure of the long short-term memory (LSTM) units [\cite=lstm] to learn differential patterns in skeleton locations. The work of [\cite=rnnskeleton_cvpr15] introduced a hierarchy of recurrent networks to learn part-based motion patterns and combine them for action classification. Zhu [\cite=cooccurrance] proposed a new regularization term for learning co-occurrences of motion patterns among different joint groups. The work of [\cite=Amir-Dataset-CVPR] introduced a new part-aware LSTM structure to discover the long-term motion patterns of skeleton-based body parts separately and learn the action classes based on these representations. In [\cite=actionletPAMI], motion and local depth based appearance of each body joint was encoded using Fourier transform over a temporal pyramid. They also proposed a mining method to find the set of most representative body joints for each action class. Shahroudy [\cite=MMMP_PAMI] formulated the discriminative joint selection by introducing a hierarchical mixed norm. The work of [\cite=6836044] combined different spatio-temporal depth and skeleton based gradient features and applied a random decision forest for action classification. Meng [\cite=7284883] proposed a real-time action recognition method by applying random forest classifier on a set of distance values between the body joints and interacted objects. Wang and Wu [\cite=MMTW] applied max-margin time warping to match the descriptors of skeletons over the temporal axis and learn phantom templates for each action class. An extensive review of different approaches and techniques on 3D skeletal data is done by [\cite=2016arXiv160101006H]. The fusion of various depth based features is also studied by [\cite=Yu_DepthFusion_ACM].
+
+Multimodality analysis of RGB+D action videos is studied by [\cite=rgbdhudaact] [\cite=RGGP] [\cite=6918467] [\cite=jianfang_CVPR15] [\cite=Kong_2015_CVPR] [\cite=6411953] [\cite=depthinduced] [\cite=Liu201579] [\cite=6696669] [\cite=Kosmopoulos2013] [\cite=AmirAthens] [\cite=RGGP]. Ni [\cite=rgbdhudaact] introduced a RGB+D fusion method by concatenating depth descriptors to RGB based representations of STIP points. Liu and Shao [\cite=RGGP] introduced a genetic programming framework to improve the RGB and depth descriptors and their fusion simultaneously through an iterative evolution. The work of [\cite=6918467] solved the problem of RGB+D action recognition by utilizing RGB information for better tracking of interest point trajectories and describe them by depth-base local surface patches. Hu [\cite=jianfang_CVPR15] proposed a heterogeneous multitask feature learning framework to mine shared and modality-specific RGB+D features. The work of [\cite=Kong_2015_CVPR] applied projection matrices to the common and independent spaces between RGB and depth modalities. They learned their model by minimizing the rank of their proposed low-rank bilinear classifier.
+
+The work of [\cite=6411953] also extracted STIPs from RGB and combined their HOG and HOF descriptors from RGB channel with local depth patterns (LDP) features from depth channel to fuse the two modalities. Depth-induced multiple channel STIPs [\cite=depthinduced], also added depth distances into GMM-based STIP representations. In [\cite=Liu201579] the STIP detection is done separately on RGB and depth and the HOGHOF descriptors are fused by combining the BOW representations of LLC codes of local features. Tsai [\cite=6696669] used depth channel to segment the human body into known parts. STIPs with descriptors on RGB and depth channels are aggregated for each part by BOF representation over temporal pyramids. They assigned higher weights to non-occluded body parts to achieve a more robust global representations for action recognition. Multistream fused hidden Markov model was utilized to fuse pixel change history feature from RGB with MHI feature from depth channel by [\cite=Kosmopoulos2013]. The work of [\cite=AmirAthens] proposed a structured sparsity based fusion for RGB+D local descriptors. An evolutionary programming RGB+D fusion method was proposed by [\cite=RGGP]. The proposed RGB+D analysis frameworks, are different from these methods, since our focus is on studying the correlation between the two modalities in the local level features and factorizing them to their correlated and independent components.
+
+Different from other methods, the proposed framework analyzes the components between the two modalities in a deep network, and factorizes the input RGB+D features into their shared and specific components in a hierarchy of nonlinear layers. Our solution is general and can be applied on any type of multimodal features to analyze their cross-modality components.
+
+Deep shared-specific component analysis
+
+We have two sets of features extracted from different modalities of data (RGB and depth signals) as our input for the task of action classification. State-of-the-art RGB based features [\cite=dense_trajectories_IJCV] [\cite=idt_ICCV2013] include 2D motion patterns and appearance information of objects and scenes. On the other hand, various depth-based features [\cite=HON4D] [\cite=HOPC] [\cite=actionletPAMI] [\cite=xiaCVPR13spatio] encode 3D shape and motion information, without appearance and texture details. Consequently, it is beneficial to fuse the complementary RGB and depth-based features for better performance in action analysis.
+
+There are different techniques for feature fusion. The choice of fusion strategy should rely on dependency of features. When features have very high dependency, descriptor-level fusion gives the best outcome, and when multiple groups of features have very low interdependency, kernel-level fusion performs better [\cite=salzmann2010factorized]. Since RGB and depth based features encode an entangled combination of common and modality-specific information of the observed action, they are neither independent nor fully correlated. Therefore, it is reasonable to embed the input data into a space of factorized common and modality-specific components. The combination of the shared and specific components in input features can be very complex and highly nonlinear. To disentangle them, we stack layers of nonlinear autoencoder-based component factorization to form a deep shared-specific analysis network.
+
+In this section, we first introduce our basic framework of shared-specific analysis for multimodal signal factorization, then describe the deep network of stacked layers, where each layer performs factorization analysis and collectively produce a hierarchical set of shared and modality-specific components.
+
+Single layer shared-specific analysis
+
+Let us notate input RGB features by [formula] and depth features by [formula]. We propose to factorize each input feature pattern into two spaces: first, common component space which corresponds to the highest correlation with the other modality [formula], and second, its modality-specific feature component space [formula]:
+
+[formula]
+
+where Ω is the set of model parameters that will be learned from the training data. We propose a sparse autoencoder-based network as the g(.) function, as illustrated in .
+
+Feature vectors of each modality are factorized into [formula] and [formula] which represent shared and individual components of each modality respectively. Each component is derived from a linear projection of the input features followed by a nonlinear activation. Mathematically:
+
+[formula]
+
+in which f(.) is a nonlinear activation function. We use sigmoid scaling in our implementation. [formula] and [formula] are bias terms. Similarly, for the depth based input, we have:
+
+[formula]
+
+To prevent output degeneration, we expect the original features to be reconstructible from their factorized components [\cite=RICA_NIPS11]:
+
+[formula]
+
+Now we can formulate the desired component factorization into an optimization problem with the cost function:
+
+[formula]
+
+where [formula] is the set of all parameters, and [formula] are hyper-parameters of trade-off between terms.
+
+The first term in ([\ref=eqn:cost]) forces the shared components of the two modalities ([formula] and [formula]) to be as close as possible. We formulate this term as the Frobenius norm of the difference between two matrices:
+
+[formula]
+
+The second term is the general weight regularization term, applied on the projection weights to prevent networks from overfitting training data.
+
+The reconstruction costs are represented as [formula] and [formula] to prevent the model from degeneration. Here, we use Frobenius norm (the same as ([\ref=eqn:corrterm])) of the reconstruction error for the reconstruction cost term.
+
+Last four terms of ([\ref=eqn:cost]) are sparsity penalty terms over [formula] and [formula] outputs. It has been shown in [\cite=sparseAutoEncoder] [\cite=marc2007efficient] that applying sparsity on the features of [formula] and [formula] will help to improve the learning capability, especially when components are overcomplete. As our sparsity penalty, we use KL-divergence term, applied between [formula] components the sparsity parameters ρY, and between [formula] components and ρZ .
+
+It is worth pointing out, since the proposed framework is built on a sparse autoencoder-like scheme and has sigmoid scaling nonlinearity, it is necessary to apply PCA whitening on the input matrices [formula] and [formula] and scale their elements into the range of [formula].
+
+In this formulation, the disparity between d and r components is applied implicitly. The similarity inducing norm pushes the common components of the two modalities to move inside [formula] components. Therefore, we expect the remaining features in each of [formula] components to be highly different across the modalities.
+
+Deep shared-specific component analysis
+
+State-of-the-art RGB and depth based features for action recognition, are extracted by multiple linear and nonlinear layers of projection, embedding, spatial and temporal pooling, or statistical distribution encodings, BOvW [\cite=BOVW] and FV  [\cite=FV] or Fourier temporal pyramids in [\cite=actionletPAMI]. Hence the common components between modalities can lie on highly complex and nonlinear subspaces of input data, and one layer of the proposed shared-specific analysis cannot decode these complexities between the components.
+
+By cascading multiple shared-specific analysis layers, we build a deep network to further factorize input features based on their higher orders of common and private information between modalities. To do so, we feed [formula] components of the previous layer as multimodal inputs of the current layer and apply the same method with new learning parameters in order to further factorize the features. As illustrated in , each layer extracts modality-specific components of the modalities and passes the shared ones for further factorization in the next layer:
+
+[formula]
+
+By applying this hierarchy on nonlinear layers, we expect the network to factorize more complex and higher order components of the inputs as it moves forward through the layers. Our deep network is trained greedily and layer-wise [\cite=bengio2007greedy] [\cite=hinton2006fast] [\cite=Lee:2009:CDB:1553374.1553453]. In other words, the optimization of each layer is started upon the convergence of the previous layer's training.
+
+Upon training of the deep network, each input sample will be factorized into a pair of specific components [formula] for each layer [formula], plus the concatenation of last layer's shared components [formula].
+
+Convolutional shared-specific component analysis
+
+By limiting our analysis into holistic RGB+D features, we may lose discriminative local information in both modalities. In addition, local features also have dependencies across modalities and their deep shared-specific component analysis (DSSCA) is beneficial. Therefore, as depicted in , we first train the local DSSCA network (DSSCAL) on local RGB+D features of smaller cubes of training samples videos. Then we apply the learned DSSCAL to decompose the features of all local cubes. By concatenating all the factorized components of local cubes together with corresponding holistic features of video samples, we build the input for the holistic DSSCA network (DSSCAH), similar to [\cite=deepISACVPR2011]. The inputs of DSSCAH are PCA whitened and scaled into the range of [formula].
+
+Overall, we have L = l1 + l2 layers of factorization where l1 and l2 are the number of layers in DSSCAL and DSSCAH networks respectively. By applying the trained local-holistic networks into the features of each video sample, we have a set of 2L + 1 independent components:
+
+[formula]
+
+where [formula] is the concatenation of last layer's common components.
+
+Optimization algorithm
+
+The proposed formulation of cost function ([\ref=eqn:cost]) is not a convex function of training parameters. Therefore, optimization of the learning parameters is not feasible in a single step. We iteratively optimize subsets of the parameters while keeping others fixed to achieve a suboptimal solution which is already shown effective in different applications [\cite=5206757]. Specifically, the learning parameters of each layer can be divided into two subsets. First are the ones defined for projection and reconstruction of the shared components [formula], and second consists of similar parameters for individual component [formula]. These two sets are:
+
+[formula]
+
+[formula]
+
+Now, to optimize the overall cost, we first fix ΩZ (except [formula]) and minimize the cost function ([\ref=eqn:cost]) regarding ΩY. Then fix parameters of ΩY (except [formula]) and optimize regarding ΩZ and repeat this iteratively to converge into a suboptimal point.
+
+In our implementation, all the optimization steps are done by "L-BFGS" algorithm using off-the-shelf "minFunc" software [\cite=schmidt2005minfunc].
+
+Structured sparsity learning machine
+
+Previous shared-specific analysis steps were all unsupervised and applied just based on the mutual characteristics of the two modalities. As a result, the factorized features of each component are not guaranteed to be equally discriminative for the following classification step. Hence we adopt the structured sparsity regularization method of [\cite=icml2013_wang13c] [\cite=6619242] aiming to select a number of components/layers sparsely to achieve more robust classification. Since the features of each component are highly correlated, our structured sparsity regularizer bounds the weights of the features inside each component to become activated or deactivated together.
+
+Mathematically, we want to learn a linear projection matrix [formula] to project our hierarchically factorized features [formula] (see equation [\ref=eqn:allcomponenets]), to a class assignment matrix [formula] defined as:
+
+[formula]
+
+so that [formula] would be as close as possible to [formula].
+
+Each column of [formula] consists of 2L + 1 components of features for each training sample. We use the notation [formula] to denote the rows of [formula] which include the features of component G. Variable G can take values between 1 and 2L + 1 or their corresponding component labels. Correspondingly, columns of [formula] have the same structure, and we denote the Gth component's parameters as [formula]. We refer to the ith column of [formula] as [formula] which is the projection to our binary classifier for the ith action. Finally [formula] refers to the ith column of [formula].
+
+Our classifier is formulated as another optimization problem with the cost function below.
+
+[formula]
+
+Component-wise regularizer norm, [formula], groups the weights of each component by applying a [formula] norm. Then applies the component selection by a [formula] norm over the [formula] values of all components. Mathematically:
+
+[formula]
+
+where c is the number of class labels.
+
+This mixed norm dictates the component-wise weight learning regarding their discriminative strength for each action class. Since it applies [formula] norm inside the components and [formula] norm between them, it regularizes the weights within each component, while sparsely selects discriminative components for different classes.
+
+On the other hand, a layer-wise group selection can also be beneficial, because discriminative features may become factorized in some layers of our hierarchical deep network. Based on this intuition, we apply another group sparsity mixed norm to enforce layer selection. Similar to GE norm, our layer selection norm (GL) groups the learning parameters corresponding to the components of each layer of the network, and applies [formula] sparsity between them:
+
+[formula]
+
+The last norm in ([\ref=eqn:cost2]) is a general weight decay regularizer to prevent the entire classifier from overfitting.
+
+Similar to previous section, this optimization is also done using "L-BFGS" algorithm. Upon training the classifier and finding the optimal [formula], we classify each testing sample with exemplar features q as:
+
+[formula]
+
+CCA-RICA factorization as a baseline method
+
+As a baseline to the proposed method to perform the shared-specific analysis of the RGB+D inputs, we combined canonical correlation analysis (CCA) [\cite=hotelling1936relations] [\cite=CCASurvey] and reconstruction independent component analysis (RICA) [\cite=RICA_NIPS11], to extract correlated and independent components of input features. In this section we describe this baseline method.
+
+We use the notation [formula] to represent input local RGB features, and [formula] for corresponding local depth features. We define the linear projections of the two input features as:
+
+[formula]
+
+and to make them maximally correlated we maximize:
+
+[formula]
+
+in which superscript j refers to the jth row of the corresponding matrices.
+
+Canonical correlation analysis [\cite=hotelling1936relations] [\cite=CCASurvey] solves this analytically as an eigenproblem, in which each eigenvector gives one row of the projection and altogether provides the full projection matrices which lead to the maximum correlation between them.
+
+Based on our intuition about insufficiency of shared components for recognition tasks, in the second step, we fix correlation projections ([formula]) and apply a reconstruction independent component analysis formulation [\cite=RICA_NIPS11], to extract modality-specific components for RGB and depth separately.
+
+[formula]
+
+For RGB features we optimize:
+
+[formula]
+
+Similarly for depth features we optimize:
+
+[formula]
+
+Upon convergence of ([\ref=eqn:CIA:ricar]) and ([\ref=eqn:CIA:ricad]), the RGB+D features of each trajectory (k) can be represented as a quadruple: [formula].
+
+Experiments
+
+This section presents our experimental setup and the results of the proposed methods on three RGB+D action recognition datasets.
+
+Experimental setup
+
+The proposed methods are evaluated on three RGB+D action recognition datasets. All these datasets are collected using the Microsoft Kinect sensor in an indoor environment [\cite=kinectSurvey2012]. This sensor captures RGB videos and depth map sequences, and locates the 3D positions of 20 body joints of actors in the scene.
+
+In our experiments, we try to use features which encode information regarding all the available modalities. From RGB videos, we extract dense trajectories [\cite=idt_ICCV2013] and use HOG, HOF, MBHX, and MBHY features as trajectory descriptors. To encode the global representation of samples based on their trajectories, we use VQ with 2K codewords, for each descriptor. The final representation of each sample video, is the concatenated max-pooled codes of the four descriptors, over 3 levels of the temporal pyramid. For depth sequences, we use the histograms of oriented 4D normals (HON4D) features [\cite=HON4D]. To explore different setups on each dataset, we extract this feature in different settings. We describe the details in following subsections.
+
+Since the RGB and depth sequences are not fully aligned and not synced in most of the datasets (all the evaluated ones in this paper, except RGBD-HuDaAct), convolutional cubes have to be large enough so that they mostly cover the same parts of the video between the two modalities. To apply the convolutional network, we consider four temporal quarters of the videos. In this way, each input sample has four temporal segments in our convolutional network and the factorized components of all these segments, together with holistic features of the entire sample are considered as the inputs of the stacked network.
+
+To cover various aspects of RGB+D motion and appearances of input samples, we used a combination of different features. For depth channel, we extract Fourier coefficients of the joint locations and local occupancy pattern (LOP) features [\cite=actionletCVPR], histogram of oriented 4D normals (HON4D) [\cite=HON4D], dynamic skeletons (DS), and dynamic depth patterns (DDP) [\cite=jianfang_CVPR15]. From RGB videos, we extract dynamic color patterns (DCP) [\cite=jianfang_CVPR15] and dense trajectory features [\cite=idt_ICCV2013].
+
+For depth-based input, we use Fourier coefficients of the joint locations and local occupancy pattern (LOP) features [\cite=actionletCVPR]. The size of [formula], [formula], and [formula] vectors is fixed as 100 for local features and 200 for holistic and stacked networks in our experiments. On each of the experiments, the optimal values of gammas in SSLM are found via leave-one-sample-out cross-validation over training samples.
+
+To show the effectiveness of our method, we compare it with two baseline methods below:
+
+Baseline method 1: descriptor level fusion. In this method, we concatenate all the input RGB and depth-based features and train a linear SVM for classification.
+
+Baseline method 2: kernel level combination. For this baseline method, we calculate the RBF kernel matrices based on all the input RGB and depth-based features and combine them linearly to classify in the form of multi-kernel SVM. We find the weights of kernels via a brute force search in a cross validation setting using training samples [\cite=Bosch:2007:RSS:1282280.1282340].
+
+In the following tables, we report the results of our method in two settings:
+
+DSSCA Kernel is the kernel combination of the hierarchically factorized components of our shared-specific analysis network.
+
+DSSCA SSLM: refers to the proposed structured sparsity learning machine based on the hierarchically factorized components described in section [\ref=sec:classifier].
+
+Online RGBD action dataset
+
+Online RGBD action dataset [\cite=Orderlet] is a RGB+D benchmark for action recognition. Unlike most of the other RGB+D benchmarks, this dataset is collected in different locations and provides a cross-environment evaluation setting. It includes samples of 7 daily action classes: drinking, eating, using laptop, reading cellphone, making phone call, reading book, and using remote. For the recognition task, it provides videos of 24 actors. Each actor performs each of the actions twice. Overall, this dataset include 336 RGB+D video samples. Three different recognition scenarios are defined on this dataset. The first and second scenarios are cross-subject tests. In the first scenario, the first 8 actors are assigned for training and the second 8 actors are for testing. The samples of the second scenario are the same as the first one but training and testing samples are swapped. The third scenario is a cross-environment setting. The videos of the third 8 actors are collected in another location and are considered as test data. The other 16 actors' videos are used for training. The first and second scenarios are cross-subject and the third is a cross-environment evaluation.
+
+compares the results of the deep shared-specific component analysis (DSSCA) and structure sparsity learning machine (SSLM), with baseline methods on this dataset. The results of this experiment show our DSSCA network successfully decompose input features into a more powerful representation which leads into a clear improvement on the classification performance. They also show our SSLM can select the discriminative components and layers and learns a better classifier.
+
+We also compare different structures of our DSSCA network. For each scenario, we report the performance of three structures. "Holistic" refers to the 3-layer deep network applied on holistic features. "Local" is the 2-layer convolutional network applied on local features. "Stacked local+holistic" is the stacked local and holistic networks, as illustrated in . The results are reported in . We conclude that the local and holistic features are complementary and applying stacked local+holistic network can improve the final classification accuracy.
+
+In our third experiment on this dataset, performance of the proposed networks is compared with a similar network without modality-specific components. The reference network acts similarly to traditional CCA methods. We compare these two networks on the "local" network of third scenario. The result is shown in . We can see including independent components is beneficial and improves the accuracy. Performance of the network with these components is clearly higher. The second observation is our method improves the performance more significantly by having multiple layers. Without having the modality-specific components, the values of common components can not change much, on higher layers. This shows our proposed structure is suitable for cascading more layers and decomposing the features layer by layer.
+
+compares our results with the state-of-the-art method on this dataset. Due to the recency of this dataset, only two other works reported results on this dataset. As shown, our method outperforms their results with a large margin, which demonstrates the importance of RGB+D fusion for action recognition as well as the effectiveness of our proposed method for this task.
+
+MSR-DailyActivity3D dataset
+
+MSR-DailyActivity dataset [\cite=actionletCVPR] is among the most challenging RGB+D benchmarks for action recognition, which has a high level of intra-class variation and a large number of action classes. It provides 320 RGB+D samples, from 16 classes of daily activities: drink, eat, read book, call cellphone, write on a paper, use laptop, use vacuum cleaner, cheer up, sit still, toss paper, play game, lie down on sofa, walk, play guitar, stand up, and sit down. Each action is done by 10 actors, twice by each actor. The standard evaluation on this dataset is defined on a cross-subject setting: first five subjects are used for training and others for testing. Results of the experiments on this benchmark are reported in {s [\ref=tab:dailyvsbl] and [\ref=tab:dailyoverall].
+
+also shows the accuracy comparison between the proposed method and the state-of-the-art results reported on this benchmark, in which we reduced the error rate by more than 40% compared to the best reported results so far. This shows our RGB+D analysis method can effectively improve the performance of the action recognition system.
+
+3D action pairs dataset
+
+3D Action Pairs dataset [\cite=HON4D] is a less challenging RGB+D dataset for action recognition. This dataset provides 6 pairs of action classes: pick up a box/put down a box, lift a box/place a box, push a chair/pull a chair, wear a hat/take off a hat, put on a backpack/take off a backpack, and stick a poster/remove a poster. Each pair of the classes have almost the same set of body motions but in different temporal order. Each action class is captured from 10 subjects, each one 3 times. Overall, this dataset includes 360 RGB+D video samples. The first five subjects are kept for testing and others are for training.
+
+compares the accuracies between the proposed framework and the state-of-the-art methods reported on this benchmark. Our method ties with two recent works (MMMP [\cite=MMMP_PAMI], and BHIM [\cite=Kong_2015_CVPR]) in saturating the benchmark by achieving the flawless 100% accuracy on this dataset.
+
+RGBD-HuDaAct Dataset
+
+RGBD-HuDaAct [\cite=rgbdhudaact] is a large size benchmarks for human daily action recognition in RGB+D. This dataset includes 1189 RGB+D video sequences from 13 action classes: exit the room, make a phone call, get up from bed, go to bed, sit down, mop floor, stand up, eat meal, put on jacket, drink water, enter room, take off jacket, and background activity. The standard evaluation on this dataset is defined on a leave-one-subject-out cross-validation setting. In our experiments we follow the evaluation setup described in [\cite=rgbdhudaact].
+
+Atomic Local Level Feature Analysis
+
+Unlike most of the other datasets, this benchmark provides fully synchronized and aligned set of RGB and depth videos. This important characteristic enables us to apply the atomic level of analysis on local RGB and depth features within the video samples.
+
+As our atomic local level features, we extract the tracked dense trajectories [\cite=idt_ICCV2013] in RGB sequences and their HOG, HOF, MBHX, and MBHY descriptors from both modalities.
+
+To evaluate the effectiveness of the proposed RGB+D analysis, we apply a single layer SSCA to decompose RGB and depth descriptors of the trajectories to their correlated and independent components. For training stage, we sample a set of 40K trajectories from training set. The output of the analysis, which are four factorized components for each trajectory are clustered separately by K-Means with codebook size 1K. LLC coding [\cite=LLC] and BOF framework are applied on the codes of all the trajectories from each RGB+D video sample to extract their global representations.
+
+In the final step, a linear SVM is used as the action classifier trained on the extracted global representations of the action video samples.
+
+We evaluated the performance of canonical correlation analysis (CCA) method also. As a better baseline, we also evaluated added independent components In our implementation of the CCA-RICA method (section [\ref=sec:ccarica]) we used the provided codes by the authors of [\cite=borga2001canonical] for CCA and [\cite=RICA_NIPS11] for RICA.
+
+All the optimizations in our experiments, are done using "L-BFGS" algorithm. We use the off-the-shelf "minFunc" software released by [\cite=schmidt2005minfunc].
+
+shows the results of all the experiments described in this section and compares them with other state-of-the-art methods.
+
+At first, we evaluated the performance of correlated components of CCA without any modality specific features, which achieves 93.9% outperforming all the reported results on this benchmark. Compared to the accuracy of RGB+D linear coding [\cite=Liu201579], which has the most similar pipeline of action recognition to ours, CCA components shows about two percents improvement. This approves the robustness of shared components and their advantage over using a simple combination of features from the two modalities.
+
+In the next step, we apply RICA to extract modality-specific components for RGB and depth local features. Adding specific components improves the accuracy of the classification by 2.5 more percents. This supports our argument about the importance of modality-specific components and their discriminative strengths for action classification. The confusion matrix for this method is illustrated in . The majority of the misclassification are caused by the background activity class. This class contains samples of random motion and other simple activities which are not covered by other 12 classes, like walking around or stay seated without much of motion. Therefore it is inevitable to have some confusion between this class with classes which contain very small amount of clear motion making a phone call. Similar action classes with reverse temporal order are also mixed up, sit down and stand up, or put on jacket and take off jacket classes have the same appearance within individual frames, and their only differences are the arrangement of frames over time.
+
+Next, we evaluate the proposed SSCA method on this atomic local level. SSCA outperforms all other techniques by performing 97.9% of correct classification and achieves the state-of-the-art accuracy on this dataset. Compared to CCA-RICA method, SSCA improves the error rate by more than 40% which is a notable improvement. The confusion matrix of this experiment is also reported in . Compared to the mixed-up cases of the CCA-RICA method (), the confusion patterns are similar but furthered improved.
+
+Global Level Feature Analysis
+
+Similar to other three datasets reported in the paper, we perform the proposed RGB+D analysis on the global representations extracted from input samples. For RGB signals, the features are HOG, HOF, MBHX, and MBHY descriptors of dense trajectories [\cite=idt_ICCV2013], followed by a K-means clustering and locality-constrained linear coding (LLC) [\cite=LLC] to calculate their global representations as bags-of-features. For depth, we extract HON4D features [\cite=HON4D] for holistic and local depth based features. The results of this experiment are reported in {s [\ref=tab:hudavsbl] and [\ref=tab:hudaoverall] in a similar evaluation setup to other datasets.
+
+As can be seen in , applying DSSCA analysis in a deep and stacked framework outperforms all the current methods as well as the atomic local level analysis, and achieved the outstanding performance of 99.0% on this benchmark, which shows more than 50% improvement on the error rate compared to the atomic local level SSCA analysis.
+
+Other reported results are also in accord with our results on other datasets and approve our arguments about the effectiveness of the the proposed framework.
+
+Comparison with single modality
+
+In , we compare our method with baseline method 2, based on single modality features. Since each modality also has holistic and multiple local features, we perform baseline kernel combination to produce the results. For a fair comparison, we use kernel combination for classification based on our factorized components. It is not surprising to observe our method outperforms the baseline, since ours integrates RGB and depth information effectively.
+
+Analysis of component contributions in the classifier
+
+shows the proportion of the weights assigned by SSLM to the factorized components of the stacked local+holistic networks. The weights of [formula] are relatively high, which supports our initial argument about robustness and discriminative properties of the shared factorized components. The Z components of the both modalities in all three layers also gain weights, which shows they also carry informative features and are complementary for the classification.
+
+Conclusion
+
+This paper presents a new deep learning framework for a hierarchical shared-specific component factorization (DSSCA), to analyze RGB+D features of human action videos. Each layer of the proposed network is an autoencoder based component factorization unit, which decomposes its multimodal input features into common and modality-specific parts. We further extended our deep factorization framework by applying it in a convolutional setting.
+
+In addition, we proposed a structured sparsity based classifier (SSLM) which utilizes mixed norms to apply component and layer selection for a proper fusion of decomposed feature components.
+
+Provided experimental results on four RGB+D action recognition datasets show the strength of our deep shared-specific component analysis and the proposed structured sparsity learning machine by achieving the state-of-the-art performances on all the reported benchmarks.

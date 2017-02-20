@@ -1,0 +1,133 @@
+[formula] A PAC-Admissible Robotic Search Algorithm
+
+Introduction
+
+Robotic search presents several challenges that traditional search algorithms do not have to consider. Traditional search algorithms require the entire search space to be both bounded and mapped. In robotic search, it is often the case that at least one of these requirements cannot be met, and environmental data must be gathered through the process of exploration. Due to this limitation, robotic search necessitates that the search path be calculated in real-time.
+
+While traditional search algorithms can be modified for use in real-time situations, they are inefficient due to their reliance on backtracking to ensure the shortest path is found. In a precomputed search, the process of backtracking does not add to the distance traveled, and thus the search produces the shortest path. In a real-time situation, backtracking is not free - the robot must physically explore possible paths. Using traditional search algorithms in real-time situations would result in a path length that is greater that the sum of all considered paths due to backtracking.
+
+Additionally, traditional search algorithms assume that the distance to the target is precisely known, while robotic search often is used in situations where the distance to the target is imprecise or possibly unknown if outside of a given range or line of sight. These uncertainties can be mitigated through exploration of the search space, however exploration is costly as it adds to the total distance traveled. It follows that a good real-time search algorithm would perform exploration in an intelligent manner to minimize unnecessary traversal of the space.
+
+To address these challenges, we propose a real-time search algorithm that bounds the maximum search path within an error factor of (1  +  ε) times the length of the shortest path with a probability of (1 - δ). The PAC nature of this bound minimizes the amount of exploration and backtracking without producing an overly aggressive search.
+
+Background
+
+When considering the robotic search problem, it is unlikely that a direct, shortest path solution can be found given the degree of uncertainty present. Utilizing an approach with strict admissibility criteria would result in a significant amount of exploration and backtracking, making it impractical for a real-time search.
+
+Better results could be had from a search that is ε-admissible, as they avoid exploration and backtracking by favoring a promissory path, so long as the next node in the path is ε-admissible. However, traditional ε-admissible search algorithms are “broken” when applied to real-time situations - the ε bound refers only to the final path and does not take into account the considered paths or the distance added due to backtracking. While ε-admissible algorithms are less likely to backtrack than their stricter counterparts, they still backtrack to an unbounded degree and are therefore not ideal for robotic search.
+
+AlphA*
+
+AlphA* is an ε-admissible search algorithm that has aggressive and conservative variations, both of which attempt to follow a promissory path as long as possible [\cite=alpha*] Nodes in the search space are given priority as fα = (1 + wα(n))f(n) where the weight function is
+
+[formula]
+
+and λ, Λ are constants such that - 1  <  λ  ≤  Λ. Nodes are more likely to be expanded if their weight value is low, with the α-perimeter α(n) being used to increase or decrease the likelihood of expansion.
+
+AlphA* is presented with four possible α-perimeters that represent cost and heuristic based aggressive and non-aggressive approaches to different usage situations e.g. a maze vs. small obstacles. One must be selected prior to the search and used for the entire duration.
+
+The α-perimeters are defined as follows where g(n) is the cost of a node, h(n) the heuristic value, π(n) the parent of n, and the most recently expanded node being n̂.
+
+Non-aggressive:
+
+Aggressive: To perform an efficient search with AlphA*, the correct α-perimeter must be used. In an unknown search space, it is impossible to ensure proper pre-selection and thus ideal performance. Furthermore, in a real-time search, AlphA* is still subject to unbounded backtracking, rendering the search no longer ε-admissible.
+
+PAC Learning
+
+Probably Approximately Correct learning is a mathematical analysis framework that uses a combinatorial bound to describe the maximum tolerable error for a the output of a function [\cite=valiant].
+
+Definition 1: In the case of machine learning, a concept is said to be PAC learnable if training results in a model that produces errors less than or equal to (1  +  ε) times the optimum solution with a probability of at least (1 - δ).
+
+We extend this concept to robotic search by using it to place a combinatorial bound on the total distance traveled, a more relevant metric to real-time search than the length of the discovered shortest path.
+
+Definition 2: An algorithm is PAC-admissible iff it produces errors less than or equal to (1  +  ε) times the optimum solution with a probability of at least (1 - δ) where 0  <  δ  <  1.
+
+PAC-Admissible Search - δεα*
+
+The need for a combinatorial bound
+
+We propose δεα*, a PAC-admissible search algorithm that is fit for use in real-time, robotic search. The use of a combinatorial bound allows us to combine the α-perimeters of AlphA* into a single α-perimeter that no longer produces an unbounded amount of exploration or backtracking. To illustrate this, first we must formally define an ε-admissible algorithm:
+
+Definition 3: An algorithm is said to be ε-admissible iff its solutions are guaranteed to be no worse than (1 + ε) times the optimal solution.
+
+From this definition, AlphA* proved that given a strictly admissible heuristic h, an algorithm is ε-admissible when [formula]. Their proof is as follows:
+
+Theorem 1. If h is admissible, then AlphA* is ε-admissible when
+
+[formula]
+
+Proof. It must be shown that C(t)  ≤  (1 + ε)C*, where C(t) is the cost of the actual solution path and C* is the cost of the shortest possible path.
+
+[formula]
+
+Let n0 be the node in the search frontier with the lowest f value.
+
+There is a least one node, n*i, from the optimal solution path in OPEN, because the search frontier is continuous.
+
+Let n*0 be the shallowest n*i.
+
+We know that f(n*0)  ≤  C*, because h is admissible.
+
+By definition, we have f(n0)  ≤  f(n*0)
+
+From fα and wα we have [formula]
+
+Combined, this gives us [formula]
+
+AlphA* reduces computational requirements by relaxing admissibility criteria, allowing promissory paths can be exploited as long as possible. Following from this notion, δεα* further relaxes admissibility criteria such that a promissory path can sometimes be continued even if the next node is not ε-admissible, minimizing the number of possible paths considered.
+
+Definition 4: A search is considered real-time if precomputation of the search path is not possible. Alternatively, a real-time search requires that the entire path be calculated incrementally, one node at a time.
+
+The definition of a real-time search implies that each considered node must be traversed, and that backtracking attempts must revisit nodes rather than skip over them. From this, we have
+
+[formula]
+
+where μ is the number of nodes considered and σ(n) is equal to the number of times a node is visited.
+
+Both strict and ε-admissible search algorithms consider many possible paths in effort to find an optimal solution. This results in poor real-time search performance, as both the number of nodes considered (μ) and σ(n) will be high. By further relaxing node admissibility criteria, we can minimize μ and σ(n) and thus minimize the final distance traveled C(t).
+
+Overview of δεα*
+
+When continuing upon a promissory path is no longer ε-admissible, AlphA* will follow one of two behaviors (aggressive vs non-aggressive), that must be pre-selected prior to the search. Neither of these behaviors produce acceptable results in real-time search due to excessive backtracking or overly aggressive continuation of the promissory path, respectively.
+
+To solve this, δεα* allows for both behaviors to be used within a search. The probability at which the aggressive behavior will occur upon termination of a promissory path is described by (1  -  δ) where 0  <  δ  <  1. A δ value of 1 would result in a real-time search that always uses the aggressive α-perimeter, continuing upon the promissory path regardless of the ε-admissibility of the next node. Similarly, a value of 0 would result in the search only exploring ε-admissible nodes and a large amount of unnecessary backtracking. In other words - due to the uncertainty associated with a real-time search, traversing some number non-ε-admissible nodes results in a shorter, more direct path than backtracking upon termination of the admissible path, so long as there is a bound on the number of non-ε-admissible nodes.
+
+To illustrate how both behaviors can be used to set a combinatorial bound, consider the pseudocode for AlphA* upon termination of a promissory path in a real-time search:
+
+if f(ni)  >  f(n*i): if non-aggressive: α(ni): = α(n0) if aggressive: α(ni): = α(n')
+
+else: α(ni): = α(n') // n' is ε-admissible so this is not aggressive.
+
+Then, consider pseudocode for δεα* upon termination of a promissory path in a real-time search:
+
+if f(ni)  >  f(n*i): if (1 - δ)(100) < rand(0,100): α(ni): = α(n0) else: α(ni): = α(n')
+
+else: α(ni): = α(n')
+
+The difference is subtle, yet significant. Recall that with AlphA*, only one α-perimeter can be used per search. A similar effect could be achieved in δεα* by setting δ  =  1 or δ  =  0, hence the requirement that 0  <  δ  <  1.
+
+Also, recall that by the definition of a real-time search, nodes must be revisited if backtracking occurs, and that each node considered through exploration adds to the total distance traveled. We can prove that by minimizing backtracking and exploration, δεα* will result a shorter distance traveled than an ε-admissible real-time search.
+
+Theorem 2. Given a real-time search that backtracks to a limited degree and a real-time search that backtracks to an unbounded degree, the cost of the bounded search Cb(t) will be less than that of the unbounded search Cu(t).
+
+Theorem 3. Given a real-time search that explores to a limited degree and a real-time search that explores to an unbounded degree, the cost of the bounded search Cb(t) will be less than that of the unbounded search Cu(t).
+
+We can prove theorems 2 and 3 in a single proof.
+
+Proof. It must be shown that Cb(t)  ≤  Cu(t), where Cb(t) is the cost of the bounded search and Cu(t) is the cost of the unbounded search.
+
+[formula], [formula], [formula]
+
+Let μb be the number of nodes considered by the search with bounded exploration.
+
+Let μu be the number of nodes considered by search with unbounded exploration.
+
+Let σb(ni) be the number of times a node visited by the search with bounded backtracking.
+
+Let σu(ni) be the number of times a node visited by the search with bounded backtracking. By definition, μb  ≤  μu and σb(ni)  ≤  σu(ni).
+
+From this, we have [formula]
+
+Conclusion
+
+We have shown that it is possible to account for uncertainties in the a real-time robotic search environment by relaxing admissibility criteria through the use of a combinatorial bound. This method places additional weight on a promissory path while setting a probabilistic limit on the number of non-ε-admissible nodes that are visited.

@@ -1,0 +1,223 @@
+A Makespan Lower Bound for the Scheduling of the Tiled Cholesky Factorization based on ALAP scheduling
+
+Introduction
+
+Most time-consuming tasks performed on supercomputers are linear algebra operations. With the advent of multicore architectures and massive parallelism, this results in the necessity to optimize and understand their parallel executions. Here, we consider the problem of the tiled Cholesky factorization. The algorithm divides the initial matrix into square sub-matrices, or tiles of the same size. The focus will be on large instances of the tiled Cholesky factorization, that is where the number of tiles is large, which allows asymptotical analysis. To the authors' knowledge, no theoretical non trivial bound on the execution time of any schedule for the tiled Cholesky factorization have been found. This motivates this paper.
+
+We note that the tiled Cholesky factorization algorithm has recently received plenty of attention. Either as an algorithm in itself [\cite=Gustavson2009] [\cite=Kurzak2008] or as a case study for task-based schedulers [\cite=Chan:2008] [\cite=Agullo2010Comparison] [\cite=Song2009] [\cite=agullo2015bridging] [\cite=journals/concurrency/KurzakLDB10] [\cite=badia2009]. Examples of task-based schedulers which have produced papers about the scheduling of tiled Cholesky factorization are for example DAGuE [\cite=dague:2012], KAAPI [\cite=kaapi:2007], QUARK [\cite=quark:2011], StarPU [\cite=starpu:2011], SMPSs [\cite=smpss:2007], and SuperMatrix [\cite=qqgzc:2009]. We also note that OpenMP since 3.1 supports task-based parallelism. The tiled Cholesky factorization algorithm is also used in practice and is implemented in Dense Linear Algebra state of the art libraries, for example DPLASMA, FLAME, and PLASMA.
+
+It is therefore of interest to better understand the parallel execution of the tiled Cholesky factorization algorithm. In this paper, we neglect communication costs between processing units. We also ignore any memory problems a real execution would encounter. Also, we assume homogeneous processing units. Also, we assume ideal flop-based weights for the execution time of the tasks. While we acknowledge that this is a very unrealistic and simplistic model, we note that any practical implementations will execute slower than this model. Therefore, this model provides lower bounds on the execution time of any parallel execution on any parallel machine. The lower bounds that we exhibit are not trivial and are relevant for practical applications.
+
+We can relate our work to the recent work of Agullo et al. [\cite=agullo2015bridging] where the authors provide lower bound as well. The authors consider a more complicated model (heterogeneous) and solve their problem with an LP formulation. We consider a simpler model (homogeneous) but we provide closed-form solutions. Another contribution of our paper is the ALAP schedule heuristic where tasks are scheduled from the end of the execution as opposed from the start.
+
+We can also relate our work to the work of Cosnard, Marrakchi, Robert, and Trystram from 1988 to 1989 [\cite=COSNARD1988275] [\cite=Robert1989159] [\cite=j38]. In this work, the authors have the same model and ask similar questions as ours. A minor difference is that they are studying the Gaussian elimination while we study the Cholesky factorization. The main difference is that they study the Level 1 BLAS algorithm which work on columns of the matrix. This algorithm was popular in the 1980s due to vectorization, nowadays tiled algorithms are much more relevant. Also the scheduling of the Level 1 BLAS algorithm seems to be an easier problem. In the Level 1 BLAS algorithm, the matrix is partitioned by columns. The number of created tasks is O(t2) where t is the number of columns of the problem. In our case, we partition the matrix by tiles. If we have a t-by-t tile matrix, the number of created tasks is t3. We have tried to apply similar techniques as in the Level 1 BLAS algorithm study papers to solve the tiled problem and we have been unsuccessful. We have tried to solve the the Level 1 BLAS algorithm problem with our techniques and have obtained the same results.
+
+A few scheduling algorithms exist for the (tiled) Cholesky factorization ; in practice, the ALAP (As Late As Possible) schedule seems to work well with the tiled Cholesky factorization. This motivates our study of this heuristic in Section [\ref=sec:alap]. In particular, we derive an upper bound on the number of processing units necessary to reach the critical path of the algorithm. Then, we present in Section [\ref=sec:lowerbounds] some lower bounds on the execution time of any schedule using a given number of processing units by splitting the task set into two subsets. In Section [\ref=sec:tightness], we analyze the last bound found in Section [\ref=sec:lowerbounds], and show that it is nearly optimal by describing a schedule with efficiency close to the efficiency bound derived from it.
+
+Context, Definitions, Assumptions
+
+Given a Symmetric Positive Definite (SPD) matrix A, the Cholesky factorization gives a (lower) triangular matrix L such that A  =  LLT. It is a core operation to compute the inverse of SPD matrices using the Cholesky inversion. Note that it also allows to solve systems of the form Ax  =  b by reducing it to computing solutions of Ly  =  b, and then LTx  =  y.
+
+In order to compute such a factorization using many processing units, we divide the matrix A into t  ×  t square tiles of size nb. This allows tile computations, and globally increases the amount of parallelism and the data locality. Algorithm [\ref=alg1] computes the Cholesky factorization of A using these blocks.
+
+We will rename the tasks corresponding to the POTRF as C or Ci with 1  ≤  i  ≤  t (as POTRF is a nb-by-nb Cholesky factorization), TRSM as T or Ti,j with 1  ≤  j  <  i  ≤  t, SYRK as S or Si,j with 1  ≤  j  <  i  ≤  t, and GEMM as G or Gi,j,k with 1  ≤  k  <  j  <  i  ≤  t to refer to the tasks in Algorithm [\ref=alg1].
+
+We neglect any communication cost here. Also, tasks C,T,S,G will be considered as elementary: at most one processing unit can execute such a task at a given time (no divisible load).
+
+The dependencies between the tasks are given by:
+
+Cj  →  Ti,j,j < i  ≤  t;
+
+Ti,j  →  Si,j,j < i  ≤  t;
+
+Ti,j  →  Gi,k,j,j < k < i  ≤  t;
+
+Ti,j  →  Gk,i,j,j < i < k  ≤  t;
+
+Si,j  →  Si,j + 1,j + 1 < i  ≤  t;
+
+Si,i - 1  →  Ci,1 < i  ≤  t;
+
+Gi,j,j - 1  →  Ti,j,1 < j < i  ≤  t;
+
+Gi,j,k  →  Gi,j,k + 1,k + 1 < j < i  ≤  t.
+
+Figure [\ref=Dag55] presents the Directed Acyclic Graph (DAG) of the dependencies between the tasks of a 5  ×  5 tiled Cholesky Factorization.
+
+For a task X, cp(X) will denote the critical path of task X, and w(X) its weight.
+
+The number of tasks of each kind is given in Table [\ref=numberTasks].
+
+Moreover, we will assume that nb is large, so that the weights of the tasks can be those of Table [\ref=weights]. As a result, for the rest of this study, we will consider [formula] as time unit: executing a POTRF will take 1 unit of time, executing a SYRK or a TRSM will take 3 steps, and a GEMM 6 steps.
+
+We can also count the number of tasks of each kind, and their critical path. The respective critical paths for the tasks are given in Table [\ref=cptask], which gives the values in Table [\ref=cps].
+
+In particular the critical path for the algorithm (CP) is reached for task C1, and equals 9t - 10.
+
+The total work (TW) of the Cholesky factorization, that is the sum of the weights of all tasks of the algorithm, equals t3 (with [formula] as the work unit).
+
+Note that as the total work is in O(t3), and as the global critical path of the algorithm is O(t), a number p  =  O(t2) of processing units is required to achieve a makespan equal to the critical path. For that reason, our results will be presented with a number of processing units p  =  αt2, and with t large to allow such an analysis.
+
+The ALAP (As Late As Possible) schedule
+
+In this section, we analyze the ALAP schedule for the t  ×  t tiled Cholesky factorization. This heuristic seems indeed to perform quite well. The schedule is executed as follows: the elementary tasks (POTRF, SYRK, TRSM, GEMM) are sorted according to their critical path. Then the tasks with least critical path are set to be executed last; those with least critical path among the remaining tasks set to be executed the latest possible so that the previous ones can be executed, etc. Thus, if this schedule has a makespan τ and has enough processing units, task X will begin its execution at time τ  -  cp(X) where cp(X) denotes the critical path of task X. Therefore, we study the distribution of the critical paths of the tasks to understand how many processing units are required to run an optimal ALAP schedule.
+
+The section flows as follows. First we analyze the ALAP schedule to obtain the number of tasks executed at each ticks of the algorithm. The results are presented in Table [\ref=eq:alap_heights]. Then we established simpler lower bounds and upper bounds to study this function. These bounds are given in Table [\ref=lowerHeightALAP] and Table [\ref=upperHeightALAP]. In Figure [\ref=ALAPbounds], we plot the exact function and our associated lower and upper bounds for t = 60. We note that our lower and upper bounds are assymptotically close to the function. Finally we conclude the section with an upper bound on the number of processors needed to obtain a makepsan equal to the critical path.
+
+Figure [\ref=ALAP88] shows the execution of an ALAP schedule with sufficiently many processing units on a 8  ×  8 tiled Cholesky factorization, with every rectangle representing a task, and the time on the x-axis.
+
+More precisely, we want to determine, at time τ  -  K, where K denotes a critical path parameter, how many tasks are executed with an ALAP schedule with sufficiently many processing units. Note that the execution of a task X starts at τ  -  cp(X), but ends at τ  -  cp(X)  +  w(X). Therefore, such a task X should count as being executed for times τ  -  cp(X) to τ  -  cp(X)  +  w(X) - 1 (we suppose that at time τ  -  cp(X)  +  w(X), the execution of task X has finished).
+
+With that in mind, we can count the number of tasks of each kind (POTRF, SYRK, TRSM, GEMM) being executed at a time τ  -  K.
+
+Counting the tasks C and T is straightforward with the formulas of Table [\ref=cps].
+
+To count the tasks S, note that the S-floor of level i, i  <  t defined by being the set [formula] begins at K(i)min  =  8  +  9(t - i - 1)  =  9(t - i) and ends at K(i)max  =  8 + 9(t - i - 1) + 1 + 3(i - 1) - 1  =  9t  -  6i - 4, and that for any K in-between, exactly 1 task of the S-floor of level i is executed. Note that the S-floor of level i starts (resp. ends) before level i - 1 starts (resp. ends) with respect to K. Therefore, for any K, there are some imin  >  1 and imax  <  t, such that at time τ  -  K, exactly one task from every floor i, imin  ≤  i  ≤  imax is executed; we then add the S-floor of level t, which starts at K = 2 and ends at K  =  3t - 2. And these are the only SYRKs being executed at that time. The expressions of imin and imax follow by noticing that imax (resp. imin) corresponds to the largest i such that cp(Si,1)  ≥  K, i.e. the S-floor of level imax starts before τ  -  K (resp. the least i such that cp(Si,i - 1)  ≤  K: the S-floor of level imin finishes before τ  -  K), and using Table [\ref=cps].
+
+For the tasks G, let us fix K. Let [formula]. Note that Gi,j,k is executed at time τ  -  K if and only if K  ≤  cp(Gi,j,k)  ≤  K + 5, as tasks G require 6 steps of time to be executed. The expression of the critical path of the tasks G gives that J is an integer interval [formula], and that for all j∈J, there is a unique kj such that Gi,j,kjτ  -  K. Also, for all j∈J, any Gi,j,kj where j  <  i  ≤  t is executed at time τ  -  K (a whole G-column is executed). To compute jmin (resp. jmax), one necessary and sufficient condition is that cp(Gi,jmin,k)  ≥  K for some k (resp. cp(Gi,jmax,k)  ≤  K for some k), which is equivalent to the fact that cp(Gi,j,j - 1)  ≥  K (resp.cp(Gi,j,1)  ≤  K).
+
+This reasoning gives Table [\ref=eq:alap_heights] where we can find the following formulas, with MX,K being the number of tasks of type X being executed at time τ  -  K in an ALAP schedule with sufficiently many processing units.
+
+We can now divide the execution time of the ALAP schedule into three zones.
+
+In a first zone, both imax and jmax are constrained, as they cannot be greater than t and t - 1 respectively. One possible interpretation is that for a bigger instance of Cholesky factorization (with t'  >  t), other S-floors would have been executed in this zone; in addition to the floors, other G-columns would have been executed. This zone is delimited by K  <  3t + 2: = KS. We will call this zone Zone 1.
+
+In a second zone, imax is constrained by t, but jmax is not constrained. It corresponds to KS  <  K  ≤  KG: = 6t - 5. We will call this zone Zone 2.
+
+In a third zone, imax and jmax are not constrained; it is the case as long as K  >  KG. We will call this zone Zone 3.
+
+Summing these formulas give the height of the ALAP schedule we look for. But because of the ceils and floors, we will not get any clear formula at the end. As a result, we focus on getting lower bounds and upper bounds on the height, by using x  ≤  ⌈x⌉  <  x + 1, and x - 1 < ⌊x⌋  ≤  x. Let us note h(t,K) the number of tasks being executed at time τ - K by an ALAP schedule with sufficiently many processing units. We have h(t,K)  =  MC,K  +  MT,K  +  MS,K  +  MG,K. That gives the formulas in Tables [\ref=lowerHeightALAP] and [\ref=upperHeightALAP].
+
+In Figure [\ref=ALAPbounds], we plot the exact distribution of the execution of the tasks, and the upper and lower bound functions. We note that our lower and upper bounds are assymptotically close to the function. From this figure, we see that for t = 60 tiles, we have a schedule that executes in 9t - 10 (=530) for 907 processing units. Our upper bound (which is simpler to analyze) guarantees that we need at most 913 processing units.
+
+Note that the maximum height of the distribution (that is the minimum number of processing units required to run the ALAP schedule optimally) is reached in Zone 3, i.e. where K  >  6t  -  5. That phenomenon is verified experimentally. It can also be deduced from the fact that the height in the two other zones is essentially a degree 2 polynomial in K with positive leading coefficient (which comes from the number of G executed); therefore by convexity the maximum height there is reached at the extremities of the zones. The result follows by observing that the height in the third zone is increasing at its beginning.
+
+From that, we obtain the maximum height of the distribution, which gives the minimal number of processing units required to run the ALAP schedule:
+
+[formula]
+
+We deduce an upper bound on the number of processing units required to reach the critical path of the Cholesky factorization:
+
+We note that this results is much better than what an ASAP schedule would give. The ASAP schedule of a t  ×  t tiled Cholesky factorization completes in the critical path time (9t - 10) critical path using p  =  0.5t(t - 1) processing units. The analysis is easy and is based on the fact that, with an ASAP schedule, after the first POTRF and the first t - 1 TRSM, one has 0.5(t - 2)(t - 1) SYRK and GEMM tasks to execute.
+
+Lower bounds
+
+We now consider lower bounds on the makespan of the Cholesky factorization. To that purpose, we split the task set into two parts, and combine lower bounds on the execution time of both parts.
+
+With computational areas
+
+The main idea here is to count, at a given time, the maximum number of processing units active for any schedule. More precisely, consider a task X and a schedule for the algorithm. X will be executed at a precise time. And given the dependencies of the tasks, we can upper bound the number of tasks executed in parallel. This will lower bound a necessary loss of work during the execution.
+
+Then, we consider a set of tasks [formula] such that they are pairwise dependent (so that we cannot execute two Xi in parallel), and then lower bound the work loss during the execution of elements of the set Xi, which gives an upper bound on the Computational area of the schedule.
+
+Here [formula] will be the tasks in the critical path of the algorithm, that is C1 - T2,1 - G3,2,1 - T3,2  -  ...  -  Tt,t - 1 - St,t - 1 - Ct.
+
+Recall that the S-floor of level i is the set [formula]. Let us now define the level i cone by the set of tasks X such that there exists a dependency path from X to the S-floor constituted with tasks of type T or G only. In particular, a task X is in the level i cone if and only if X is in the S-floor of level i (which corresponds to the case where the dependency path is empty), or X is a T or a G, and either has an element of the S-floor of level i as a successor, or an element of the level i cone as a successor.
+
+Note then that when Ti + 1,i or Gi + 2,i + 1,i is executed, only the elements in the cones of level >  i can be executed at the same time.
+
+This gives an upper bound on the CA of any schedule with p processing units executing in time τ.
+
+When τ is the critical path of the algorithm, the bound can be lightly improved. Indeed, when executing tasks Ti + 1,i or Gi + 2,i + 1,i in the critical path of the algorithm, the elements of the cones j > i have to be at a bounded distance from the task Cj as it is required to execute Tj + 1,j or Gj + 2,j + 1,j which are also in the critical path.
+
+Cutting the task set in half
+
+It is well known and clear that the makespan of any schedule working on a given algorithm with p processing units is greater than max (TW / p,CP) (where TW is the total work necessary to finish the algorithm, CP its critical path). Indeed, TW / p corresponds to a schedule that achieves full parallelism during its whole execution with p processing units; and no schedule can execute the algorithm faster than CP.
+
+The idea here will be to combine those two bounds: let K be a critical path parameter. Let E2 be the set of tasks X such that cp(X)  -  w(X)  ≤  K, and E1 be its complement.
+
+Note that in the general case, E2 contains some tasks with critical path ≥  K. Indeed, any task of E2 without parents in E2 necessarily has critical path ≥  K (else any of its parents would have been in E2 too). Also, as long as E1 and E2 are not empty, some task in E1 has a child in E2 (the two sets cannot be disconnected).
+
+Note also that all the tasks in E1 have critical path > K.
+
+Define for a set E of tasks, the total weight of E [formula] the sum of the weights of the tasks in E. The basic idea is that one will essentially require time ≥  w(E1) / p to execute E1 and time ≥  K to execute E2.
+
+This results in the following claim to prove our lower bound:
+
+Suppose by contradiction that there exists a schedule executing the algorithm in time [formula]. If τ  <  K, then the schedule cannot execute E2 (defined above) in time τ, as E2 contains some tasks with critical path ≥  K, which gives a contradiction. Therefore τ  ≥  K.
+
+Then, let us write τ  =  (τ - K) + K. Then [formula] by hypothesis. So after time τ - K, E1 cannot be fully executed, according to the naive bound. Therefore, there is a task from E1 that is not fully completed at time τ - K, and the remaining tasks cannot be executed in time K - 1 (as if X∈E1, cp(X) - w(X) > K by definition of E1, therefore X has a son with critical path ≥  K), contradiction.
+
+A remark here : why not simply take [formula] as the set of tasks that have critical path >  K, and [formula] the set of tasks that have critical path ≤  K? Because then the argument would be erroneous, as tasks X with cp(X)  >  K and cp(X) - w(X)  <  K need not to be fully completed when starting the execution of [formula] (for instance, their execution could be half-done). As a result, we remove these tasks from [formula] and put them in [formula], obtaining the previous definition.
+
+To use this claim, we need an expression of the work w(E1) for a some parameter K; we reduce this problem to computing w(E2), as w(E1)  +  w(E2)  =  TW. Note that the problem is very similar to the calculation of the height of the ALAP schedule in Section [\ref=sec:alap], but this time, we want all the tasks with critical path lower than the ones counting for the height of the ALAP. As a result, we name this quantity the cumulative distribution of the tasks.
+
+In order to simplify the calculations and the results, we focus on the GEMMs tasks only, which forms the prominent set of tasks of the Cholesky factorization, both in terms of number (there are t3 / 6  +  O(t2) GEMMs), and in terms of work (they gather work t3  +  O(t2)) which asymptotically respectively are the global number of tasks, and the total work of the algorithm.
+
+Thus, we count, for a given critical path parameter K, the number DG of GEMM tasks X such that:
+
+[formula]
+
+Recall that we assumed that the GEMMs have a weight of 6 (Table [\ref=weights]) and that we proved that the critical path of the task Gi,j,k is 9t - 3j - 6k - 2 (Table [\ref=cps]). Note then that similarly to counting the distribution in Section [\ref=sec:alap], the integer set [formula] is convex, hence some jmin and jmax such that [formula]. Also, note that for any j∈J, the set [formula] is also convex, hence some k(j)min and k(j)max. Note that the formula cp(Gi,j,k)  =  9t - 3j - 6k - 2 immediately gives jmax  =  t - 1 and [formula]. Remark that jmin is determined by the exact same equation as the one considered in Section [\ref=sec:alap], so that [formula]. And an easy calculation leads to k(j)min  =  max(1,⌈3t / 2  -  j / 2  -  K / 6  -  7 / 6⌉), as k(j)min has to be positive. So, for fixed j, there are j - k(j)min distinct couples (j,k) that satisfy Equation ([\ref=eqLowerBound]). And for each admissible couple (j,k), every Gi,j,k,j < i  ≤  t satisfy Equation ([\ref=eqLowerBound]).
+
+We obtain that the cumulative distribution of the GEMMs is given by:
+
+[formula]
+
+The previous claim then gives lower bounds on the execution time for a fixed number p of processing units. But as we have only considered the GEMMs tasks, we have to slightly modify our statement.
+
+Note that this claim gives a worse bound than the previous one, as wG(E1) < w(E1). Also, the previous proof still stands: it suffices to replace w(E1) by wG(E1) (while keeping the same E2).
+
+To use this new result, recall that the total work from the GEMMs is TWG  =    #  GEMMs  ×  w(G)  =  t3  -  3t2  +  2t. Then, for a fixed parameter K, we have wG(E1)  =  TWG  -  6DG,K.
+
+With that in hand, every parameter K gives a lower bound on the makespan of any schedule using p processing units.
+
+For instance, we find that as long as kjmin  =  ⌈3t / 2  -  j / 2  -  K / 6  -  7 / 6⌉, that is as long as K  <  6t  -  4, and with p  =  αt2 processing units, the number of tasks in E2 is:
+
+[formula]
+
+Then, the lower bound associated to K is:
+
+[formula]
+
+At this point, we want to pick the best lower bound possible among all the parameters K. Let us name it Kmax for instance.
+
+Experimentally, Kmax  <  6t  -  4, so that the maximum is reached where k(j)min  ≥  1. Also, asymptotically (that is when t  →    ∞  ), the maximum is reached for [formula], which is <  6t  -  4 as long as α  <  2 / 9. We can assume this condition, as we will see that our bound is only relevant for α  ≤  0.186 : otherwise the naive bound is better than ours. This gives us a correct lower bound, even if in practice the maximum is not reached at the exact same point as in the asymptotical case; but due to the complexity of the formula with the exact maximum, we first simplify as: Any schedule working with p  =  αt2 processing units on the t  ×  t tiled Cholesky factorization has an execution time greater than:
+
+[formula]
+
+And, with some more simplifications, we get the following theorem.
+
+As Kmax  <  6t - 4, the ALAP height in E2 is a non-decreasing function of K. Thus, the maximum ALAP height of E2 is located at K  =  Kmax. It turns out that the maximum ALAP height in E2 (obtained with Tables [\ref=lowerHeightALAP], [\ref=upperHeightALAP] in Section [\ref=sec:alap]) is asymptotically equal to the number of processing units available. In particular, we can assume α  >  ε for some fixed parameter ε  >  0, for this bound to be a non-negligible improvement over the naive one (that is we assume the size of E2 is not negligible).
+
+Then, this result improves the naive bound with a term [formula], that does not depend on the size t of the problem, which is quite a surprising result at first glance.
+
+Let us propose an explanation for this phenomenon. As Kmax  <  6t - 4, the number of tasks in E2 given in Equation [\ref=sizeE2] only depends on Kmax, not on t. As the gain from the naive bound comes from the fact that E2 cannot be well parallelized (as the limiting factor is considered to be the critical path there), this results in a gain which asymptotically does not depend on t (the negligible terms are due to the fact that we only considered GEMMs here).
+
+Also, with the naive bound, we knew that at least p  =  0.11t2 processing units were necessary to reach the critical path. With our new bound, we know that we need at least p  =  0.185t2 processing units to reach it. In other words, the naive bound is better when α  >  0.186, which justifies the previous assumption.
+
+Analysis of the tightness of the lower bound
+
+The bound exhibited in the previous section improves the previously known ones. This raises a question: can we still improve it? That is, is the bound tight? Here we analyze different schedules and compare their performance with the upper bound on performance that we derive from our lower bound on time.
+
+In this section, we study some existing schedules. Since our execution model is theoretical (assuming that POTRFs take 1 unit of time, TRSMs and SYRKs 3 units, and GEMMs 6) we simulate these schedules with the same assumptions in order to build a consistent framework for comparison. Therefore this is a theoretical study.
+
+We focus on three different schedules:
+
+the right-looking Cholesky algorithm with multithreaded BLAS, this schedule is implemented in LAPACK for example;
+
+a schedule from Kurzak et al. described in [\cite=journals/concurrency/KurzakLDB10];
+
+the ALAP schedule mentioned earlier with a list scheduling.
+
+The LAPACK schedule is the right-looking Cholesky algorithm with multithreaded BLAS. This boils down to synchronizing all processing units at the end of every loop in the Cholesky factorization (Algorithm [\ref=alg1], Section [\ref=sec:assumptions]). More precisely, one processing unit executes the POTRF, while all the other ones wait. When it has finished, they all execute TRSMs if some are available, and wait otherwise. Then, they execute the SYRKs and the GEMMs the same way. As a result, the LAPACK schedule suffers from huge synchronization needs, and therefore should result in quite poor performance overall. This is bulk synchronous parallelism or the fork-join approach.
+
+The schedule described in [\cite=journals/concurrency/KurzakLDB10] is a variant of the left-looking Cholesky factorization: it assigns rows to the processing units, which execute their assigned tasks as soon as possible.
+
+We also consider a schedule based on the ALAP heuristic. Therefore we schedule the task from the end to the start using a list schedule and priority policy based on the (ALAP) critical path of a task.
+
+A comparison of the speedups is plotted in Figure [\ref=fig1] for a Cholesky factorization with 40 tiles. The LAPACK schedule shows quite poor performance as expected, and the two others schedule performs much better. However, the gap between their performance curve and the upper bound is quite close.
+
+The horizontal black curve represent the critical path bound. No schedule can execute faster than the critical path. For t = 40, the critical path is 350. We see that the green curve reaches the critical path at p = 275 processing units. This means that any schedule which completes in the critical path time has to have at least p = 275 processing units. We see that the red curve reaches the critical path at p = 343 processing units. This means that the ALAP schedule completes in the critical path time with p = 343 processing units.
+
+Conclusion
+
+We have analyzed the tiled Cholesky factorization and improved existing lower bounds on the execution time of any schedule, with a technique that benefits from the structure of dependence graph of the tiled Cholesky factorization.
+
+We took advantage of our observation that the tiled Cholesky factorization is much better behaved when we schedule it with an ALAP (As Late As Possible) heuristic than an ASAP (As Soon As Possible) heuristic.
+
+We believe that our theoretical results will help practical scheduling studies of the tiled Cholesky factorization. Indeed, our results enable to better characterize the quality of a practical schedule with respect to an optimal schedule.
+
+We also believe that our technique is generalizable to many tile algorithms, in particular LU and QR. It is clear that many linear algebra operations would benefit from the ALAP scheduling strategy. Also, we can easily change the weight of the tasks in our study to better represent the time of the kernels (as opposed to the number of flops of the kernels) on a given architecture.
+
+There are two questions left open by our work. First we do not have satisfying closed form formula for schedules on p processors. Indeed, in Section [\ref=sec:tightness], we relied on simulation to plot the speedup of an ALAP schedule and of the schedule from Kurzak et al. [\cite=journals/concurrency/KurzakLDB10]. We do not have closed form formula for these. Also, while we made significant progress, there is still a gap between our lower and upper bounds and it seems worthwhile to further our work and close this gap in an asymptotic sense.

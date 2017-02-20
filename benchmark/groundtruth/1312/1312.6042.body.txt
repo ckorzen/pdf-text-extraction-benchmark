@@ -1,0 +1,65 @@
+Introduction
+
+We consider a Markov decision process (MDP) defined by possible states s∈S, possible actions a∈A, transition between states P(s'|s,a) and reward function r(s,a). Standard reinforcement learning (RL) approaches make the assumption that the input provided to the model (i.e. the state of the system) contains enough information to learn an optimal policy (i.e a function π(s)∈A that chooses which action to take in a state in order to maximize the expected discounted reward). When facing approximated reinforcement learning problems, the input consists in a feature vector - called observation - which is assumed to fully characterize the current state of the process, thus allowing for an optimal action choice. However, this assumption is unrealistic in real-life applications where the observation is only a partial view of the current state provided by limited sensors. For example, it is the case in visual reinforcement learning problems where the input is a camera-based picture of the environment, which can not provide second-order informations such as the moving speed of the different elements of the system. Without this information, a policy learned from such an observation will probably give low quality results.
+
+We propose to address this problem by switching from the original observation space to a latent representation space, which we expect to be more informative, and then learn policies in this new space. The model operates in two steps: (i) First, it learns how to find good representations on a set of randomly collected trajectories. This unsupervised operation is used to learn the system only once, and may be used to tackle different tasks sharing the same dynamical process. (ii) The model then infers new representations for any new trajectory, these representations being then used for discovering an optimal policy for a particular reward function.
+
+Our approach is transductive in the sense that whenever a new observation occurs, the system has to recompute all the previous representations so that it best matches the whole observation sequence. Although this process could be expensive in terms of computation, we show how to perform fast Monte-Carlo simulations in the representation space resulting in a high-speed algorithm. In comparison to common representation learning algorithms which directly compute the representation given the observation, our approach does the opposite, considering that a good representation is a representation from which the observation can be computed.
+
+Model
+
+Let us denote st the state of the process at step t and ot the observation corresponding to this state. An observation is a feature vector of size m: [formula]. Note that the learning agent only accesses the observation and does not know in which exact state the process is. The latent representation of a state st will be denoted [formula]. Finding an optimal policy at the representation level, π(zt), can be made using standard Reinforcement Learning techniques. Our model is based on two ideas: (i) The latent representation zt of a state st should contain enough information to compute the corresponding observation ot. We thus consider a decoder function [formula] that aims at computing the observation given the representation of the current state. (ii) The representation zt of a state st should contain information about the dynamics of the system, allowing to compute the representation of the next state. This is handled through the use of a dynamical function [formula] such that mγ(zt,at) aims at computing zt + 1.
+
+We address now the two steps of this approach: unsupervised learning from randomly sampled trajectories which will consist in learning the decoder and the dynamical function, and inferring representations on new states which will consist in finding the latent representation sequence from a new observation sequence.
+
+Unsupervised Learning
+
+Given a sequence of observations and actions (o1,a1,...,ot,at), we define the following loss function:
+
+[formula]
+
+where Δdec measures the quality of the decoder, Δdyn measures the quality of the dynamical model and [formula] is the sequence of latent representations. The value of this loss function directly reflects the ability of [formula] and γ to explain the observations. Given a set of Q trajectories, learning resumes to:
+
+[formula]
+
+where [formula] is the sequence of representations computed for trajectory number q.
+
+Learning produces both the optimal decoder dθ* and the dynamical function mγ*, together with the representation sequences corresponding to the Q trajectories.
+
+Inferring new representations
+
+Knowing dθ* and mγ*, the next question is to compute representations for new trajectories. Consider that at time t, given a sequence of observations (o1,a1,...,ot,at), the t first representations z1 to zt have already been computed. We propose two methods to compute the representation zt + 1:
+
+Exact Inference
+
+Given a new observation ot + 1, the first method consists in solving:
+
+[formula]
+
+This produces the optimal representation zt + 1 while revising previously computed representations z1 to zt. This characteristic of our model can be intepreted as a thinking process since it means that any new information gathered by the system will make it revise the whole representation sequence. The drawback of such an inference schema is its high complexity : finding a new representation may be slow and the optimization must be performed at each step.
+
+Fast Inference
+
+The second method consists in using the dynamical function to directly compute the next representation through zt + 1  =  mγ*(zt,at). In that case, the new representation can be produced directly from zt without requiring the observation ot + 1. The advantages are twofold. First the computation of mγ*(zt,at) is fast, which makes this inference method particularly adapted for processes where data acquisition is slow, such as moving robots for example. Moreover, the dynamical function can be used as a learned simulator which allows one to compute Monte-Carlo simulations directly in the latent representation space, and thus to discover an optimal policy without needing to compute new real-world trajectories.
+
+Experiments
+
+We present preliminary results obtained on a classical toy example of the domain: mountain car [\cite=suttonRL]. This problem has been studied in many different articles with many different variants. In this article, we consider that: (i) A state [formula] is defined by the position of the car x and its speed [formula]. (ii) The initial state s1 is generated by uniformly sampling x and [formula] and following a random policy during 5 steps. (iii) Each trajectory has a limited size T - in these exeriments T = 100. (iv) When the car reaches the goal, or when the maximum trajectory size is reached, the episode stops. The reward function measures the average number of sucessful trajectories. We consider two settings: The full observation (FO) setting where the entire knowledge of the current state is given to the system i.e [formula] and the partial observation (PO) setting where observations only contain the position of the car at time step t i.e ot  =  (xt).
+
+In order to learn an optimal policy, we use the RCPI algorithm [\cite=RCPI] using a linear classification model with a hinge-loss. At each iteration of RCPI, we sample 1000 states and simulate the current policy using only 1 trajectory per state. The base model we are using is a combination of an L2 regularized linear decoder with a linear+hyperbolic-tangent dynamical model. The Δ losses are L1 norms since using an L2 norms gives lower performances.
+
+We consider four models: The From observation model (FObs.) directly considers that the representation zt of a state st is the observation i.e zt  =  ot. This corresponds to the classical Approximated Reinforcement Learning context. The From latent model (FLat.) computes the zt value by minimizing the objective function for each new state. The From dynamical model (FDyn.) computes the representation of the initial state z1 by minimizing the loss, using the 5-sized trajectory that generated s1, and then use the fast inference method. At last, the partial (FPar.) model computes the representation of a state zt by randomly choosing between FDyn and FLat.
+
+Experimental results are illustrated in Table [\ref=ttab] which shows the performance - the expected reward - obtained by the policy found after 10 iterations of RCPI (averaged on 5 runs). The baseline corresponds to the first line where the full observation of the state is provided to the system (i.e speed and position). In that case, almost 95% of the trajectories are sucessful. With our method, the best performance is obtained with the FLat model in a latent space of size 5 - 91% of success. Note that using alternative inference methods (FDyn and FPar) allows one to obtain good performance. Particularly, the FDyn results show the ability of the model to directly learn from the dynamical model, without acquiring observations and thus at a very high speed. An illustration of the learned latent space is given in Figure [\ref=fig1]. As may be seen, states corresponding to different speeds are projected in different areas of the latent space, meaning the missing information has been recovered.
+
+Related work
+
+Efficient approaches have been proposed to extract high-level representations using deep-learning [\cite=bengio] but few studies have proposed extension to deal with sequential processes. A formal analysis has been proposed in [\cite=Ryabko]. Models concerning partially observable sequential processes have been proposed in the context of controlling tasks problems. For example, [\cite=Schmidy90] and [\cite=cuccu11] present models using recurrent neural networks (RNN) to learn a controller for a given task. In these approaches, informative representations are constructed by the RNN, but these representations are driven by the task to solve. Some unsupervised approaches have been recently proposed. In that case, a representation learning model is learned over the observations, without needing to define a reward function. The policy is learned afterward using these representations, by usually using classical RL algorithms. For instance, [\cite=sRAAM] propose a model based on a recurrent auto-associative memory with history of arbitrary depth, while [\cite=RNN] present an extension of RNN for unsupervised learning. In comparison to these models, our transductive approach is simultaenously based on unsupervised trajectories, and also allows us to choose which action to take even if observations are missing, by learning a dynamic model in the latent space.
+
+Conclusion
+
+We proposed a novel approach to learn representations on sequential processes when only partial observations are given. The model is unsupervised and transductive. It can be used for both inferring new representations, but also as a simulator, to predict what can happen in the future. Experiments on more realistic domains are currently under investigation.
+
+Acknowledgements
+
+This work was performed within the Labex SMART supported by French state funds managed by the ANR within the Investissements d'Avenir programme under reference ANR-11-LABX-65 and by the Lampada project ANR-09-EMER-007.

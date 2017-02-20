@@ -1,0 +1,417 @@
+Proposition Lemma Corollary Open Question
+
+Definition Remark Example Protocol Conjecture
+
+Pairing-based identification schemes
+
+Introduction
+
+An identification scheme is a protocol whereby Peggy the Prover proves to Victor the Verifier that she is indeed who she says she is. In practice, Peggy's identity is encoded in a private key a and a public key y. The protocol takes the form of Peggy proving to Victor that she has knowledge of the private key a. For example, the private key might be a and the public key y  =  xa mod p, where a and x are integers and p is a prime number, and Peggy proves her identity by demonstrating that she knows the discrete logarithm of y to the base x. Now, Peggy could simply tell Victor a, and Victor could verify that a is the correct private key, but then Victor could impersonate Peggy to a third party. A viable identification scheme must prevent this from happening; we require that Victor can't impersonate Peggy even if she proves her identity to him polynomially many times. Because of this property, an identification scheme is also called a zero-knowledge proof of identity.
+
+Feige, Fiat, and Shamir [\cite=ffs] introduced the first identification scheme in 1988, based on the difficulty of inverting RSA. Soon thereafter, Guillou and Quisquater [\cite=gq] and Schnorr [\cite=sch] introduced their own identification schemes, based on RSA and discrete logarithms respectively. These two schemes are still amongst the most efficient and well-studied identification schemes, though their security has never been reduced to a standard computational problem such as factoring or discrete logarithms.
+
+Identification schemes are closely related to signature schemes. For example, one way for Peggy to prove her identity to Victor is for him to ask her to digitally sign a message of his choice; if the signature is hard to forge, then a valid signature will constitute an acceptable proof of identity. On the other hand, many of the standard identification schemes can be converted to a signature scheme by replacing Victor with a one-way hash function.
+
+Recent years have brought a host of signature schemes that make use of bilinear pairings. The first of these was the short signature scheme of Boneh, Lynn, and Shacham in 2001 [\cite=bls]. This was quickly followed by a spate of pairing-based schemes designed for various applications: group signatures, ring signatures, aggregate signatures, multisignatures, threshold signatures, and more. Given this plethora of pairing protocols and the close relationship between identification schemes and signatures, it is natural to ask whether there might be a pairing-based identification scheme that has some advantage over the GQ or Schnorr schemes. The first step in this direction was taken by Kim and Kim in 2002 [\cite=kk]. Their scheme was later shown to be flawed; others have since proposed pairing-based identification schemes [\cite=hls], [\cite=scl], [\cite=yww], but none has given a convincing proof of security with a tight reduction.
+
+In this paper, we present four new identification schemes based on pairings, and prove their security given certain computational assumptions. We begin in Section [\ref=s:idscheme] by giving a formal definition of security for identification schemes, reviewing some standard computational assumptions, and describing the bilinear pairings useful for cryptography. In Section [\ref=s:bls], we describe a basic scheme based on the Boneh-Lynn-Shacham signatures and prove its security in the random oracle model under the Computational Diffie-Hellman assumption. Since the random oracle model is somewhat unsatisfactory for proving security of identification schemes, in Section [\ref=s:cdh] we modify the scheme so that it does not require the use of hash functions. To prove security of this new scheme we introduce a new assumption, called the "one-more-Computational Diffie-Hellman" assumption, which is related to several existing assumptions in the literature.
+
+In Section [\ref=s:sdh] we take another tack, adapting a signature scheme that does not make use of random oracles for its proof of security. The proof of security of this scheme relies of the "Strong Diffie-Hellman assumption," an analogue of the "Strong RSA assumption" used to prove security of RSA signatures. Finally, in Section [\ref=s:owf] we introduce a scheme whose proof of security relies on the assumption that the pairing used is a one-way function. We show that this assumption is weaker than any other made in this paper, and thus this scheme is the most secure of our new schemes.
+
+Having presented our four new schemes and proved their security, in Section [\ref=s:other] we describe two other pairing-based identification schemes in the literature, and in Section [\ref=s:comparison] we examine the bandwidth and computational requirements of all six schemes. We conclude that each of our four protocols is the preferred identification scheme in some context, for either efficiency or security reasons.
+
+Acknowledgments
+
+Research for this paper was conducted during a summer internship at HP Labs, Palo Alto. I thank Vinay Deolalikar for suggesting this problem and for providing advice and support along the way. I also thank Gadiel Seroussi for bringing me to HP and for supporting my research.
+
+Preliminaries
+
+Identification schemes
+
+Formally, an identification scheme consists of a key-generation algorithm G that creates a valid set of keys a (Peggy's private key) and pa (Peggy's public key), and an interactive protocol (P,V) that takes as input the public and private keys, and outputs 1 (accept) or 0 (reject). We require that if both users follow the protocol and use a valid public/private key pair, the protocol always outputs 1 (accepts). We also require that any cheating prover A that does not know Peggy's private key cannot interact with an honest verifier V and give output 1; this is a "passive attack." Furthermore, we require that a cheating verifier B cannot interact with Peggy, pass what he learns on to the cheating prover A, and have A interact with an honest verifier V and output 1; this is an "active attack." We note that a passive attack is a special case of an active attack, in which B outputs nothing. This leads us to the following definition:
+
+A (t,q,ε)-identification scheme is a triple (G,P,V), where G is a probabilistic polynomial-time algorithm and (P,V) is a pair of probabilistic interactive machines running in time at most t, satisfying the following conditions:
+
+Viability: For any α∈{0,1}n, let G(α)  =  (aα,pα). Then
+
+[formula]
+
+Security: For any α∈{0,1}n, let G(α)  =  (aα,pα). For any probabilistic interactive machine B running in time at most t, let Tα be a random variable describing the output of B(pα) after interacting with P(aα,pα) q times. Then for any probabilistic interactive machine A running in time at most t,
+
+[formula]
+
+Note that the security condition implies that a third party, Malice, cannot impersonate Peggy to Victor, provided that Malice cannot interact concurrently with Peggy and Victor. Indeed, if Malice can interact concurrently with both, she may impersonate Peggy by referring Victor's queries to Peggy and relaying the response back to Victor.
+
+Computational assumptions
+
+All of public-key cryptography relies on certain computational assumptions for its security; e.g. that factoring is difficult. The assumptions relevant to our identification schemes are of the Diffie-Hellman type, named after the two creators of public-key cryptography. The original Diffie-Hellman problem is known as the Computational Diffie-Hellman (CDH) problem.
+
+Let [formula] be a cyclic group of order n, let [formula], and let [formula]. The Computational Diffie-Hellman problem in [formula] is as follows: Given {g,ga,gb}, compute gab.
+
+The (t,ε)-Computational Diffie-Hellman assumption holds in [formula] if there is no algorithm [formula] running in time at most t such that
+
+[formula]
+
+where the probability is taken over all possible choices of (g,a,b).
+
+It is possible that given a triple (g,ga,gb), it is hard to compute gab but easy to compute some partial information about gab, such as its least significant bit. To ensure that no such partial information can be gained, we must make an even stronger assumption, known as the Decision Diffie-Hellman (DDH) assumption.
+
+Let [formula] be a cyclic group of order n, let [formula], and let [formula]. The Decision Diffie-Hellman problem in [formula] is as follows: Given {g,ga,gb,gc}, determine whether gab  =  gc.
+
+The (t,ε)-Decision Diffie-Hellman assumption holds in [formula] if there is no algorithm [formula] running in time at most t such that
+
+[formula]
+
+where the probabilities are taken over all possible choices of (g,a,b,c).
+
+Bilinear maps and pairings
+
+Joux and Nguyen [\cite=jn] showed that an efficiently computable bilinear map on [formula] gives an algorithm for solving the Decision Diffie-Hellman problem on [formula]. Boneh, Lynn, and Shacham [\cite=bls] make use of this property in their signature algorithm by using the pairing to verify that the signature creates a valid Diffie-Hellman tuple. Our identification schemes will use pairings in their verification procedures in a similar manner.
+
+The following definition gives the conditions necessary for a bilinear map to be useful for cryptographic purposes. To simplify our exposition, we will consider only the case where both arguments of the pairing are in the same group; for the more general case, see [\cite=bls].
+
+Let [formula] and [formula] be cyclic groups of prime order p. A map [formula] is a cryptographic pairing if the following conditions hold:
+
+Bilinearity: for all [formula] and [formula], e(xa,yb)  =  e(x,y)ab.
+
+Non-degeneracy: if g is a generator of [formula], then e(g,g) is a generator of [formula].
+
+A cryptographic pairing e can be used to solve the DDH problem on [formula] as follows: given {g,ga,gb,gc}, where g is a generator of [formula] and a,b,c are integers, compute h1  =  e(g,gc) and h2  =  e(ga,gb). Then h1  =  h2 in [formula] if and only if c  =  ab mod p. If the CDH problem in [formula] is hard and the DDH problem is easy (e.g. if there is a cryptographic pairing on [formula]), [formula] is known as a Gap Diffie-Hellman group. The Gap Diffie-Hellman problem is to solve the CDH problem given an oracle for the DDH problem.
+
+The only known examples of cryptographic pairings are derived from the Weil and Tate pairings on elliptic curves over finite fields. The study of these groups is deep and beautiful and is of great interest to current researchers. However, in describing our protocols we will not take into account the structure of the groups involved in the pairing; rather, we will make certain computational assumptions about the group and use the pairing as a "black box." For further information on elliptic curves, see [\cite=bss] or [\cite=bss2].
+
+Identification scheme based on BLS signatures
+
+A particularly simple method of building identification schemes is to use a digital signature algorithm. Victor the Verifier sends a random message to Peggy the Prover, Peggy signs the message with her secret key, and Victor verifies that the signature is correct. If the signature scheme is secure against forgery, the cheating prover has a negligible chance of creating a valid signature on a random message given him by an honest verifier, no matter how many signatures he has obtained from the honest prover.
+
+Boneh, Lynn, and Shacham [\cite=bls] were the first to devise a digital signature scheme based on pairings. The algorithm provides for signatures of half the length of a DSS signature with an equivalent level of security, and as such it makes for a particularly efficient identification scheme in terms of bandwidth. A full description of the BLS signature scheme, along with a definition of security for signature schemes and the security theorem for the BLS scheme, can be found in Appendix [\ref=a:signatures].
+
+We now show how the BLS signature scheme can be adapted nearly verbatim to serve an an identification scheme. We describe the scheme as an interactive protocol between Peggy the prover and Victor the verifier.
+
+Since our signature makes use of a hash function and the proof of security is in the random oracle model, we must add another parameter to our description of security of identification schemes. We say that a scheme using a hash function is a (t,q,r,ε)-identification scheme if the conditions of Definition [\ref=d:idscheme] hold, with the additional requirement that (A,B) make no more than r queries to the hash function.
+
+Suppose the (t',ε') Computational Diffie-Hellman assumption holds in [formula]. Then Protocol [\ref=p:blsid] defines a (t,qS,qH,ε)-identification scheme for all t and ε satisfying
+
+[formula]
+
+where c is a constant that depends on [formula], and e is the base of the natural logarithm.
+
+If Peggy and Victor follow the protocol, then Protocol [\ref=p:blsid] satisfies the viability condition of Definition [\ref=d:idscheme], since
+
+[formula]
+
+by bilinearity of e. The security follows from the security of the BLS scheme: a successful cheating prover A will send an element σ in step (2) that is accepted by the honest verifier. This σ is, with high probability, a valid BLS signature for a previously unseen message M. The security of the BLS scheme against existential forgery under chosen-message attack thus implies the security of Protocol [\ref=p:blsid]. The exact bounds for the running time and success probability follow from the proof of security of the BLS scheme (Theorem [\ref=t:bls]). For details, see Appendix [\ref=a:blsproof].
+
+Identification schemes based on the one-more-CDH assumption
+
+Protocol [\ref=p:blsid], an identification scheme derived directly from the BLS signature scheme, is unsatisfactory in several ways. While the communication overhead is minimal (one element of [formula] and one random string which needs only to be large enough to avoid hash collisions), the prover and verifier must both compute the hash of the parameter M, which adds computational time. In addition, the proof of security is in the random oracle model, which requires us to introduce another security parameter and to assume that the hash function H acts as a random function. Recent attacks on SHA-1 and other hash functions have called into question the credibility of such an assumption, so we would ideally like our identification schemes to be hash-free.
+
+Our first attempt at constructing a pairing-based identification scheme that does not use hash functions is simply to recreate the scheme based on BLS signatures, but do away with the hash function.
+
+We can think of Protocol [\ref=p:cdhid] as Protocol [\ref=p:blsid] where instead of sending a random message M in step (1), Victor sends the hash h of the message M; if the hash is random, then h is just a random element of [formula]. With this modification, the reduction of the scheme to the Computational Diffie-Hellman assumption in [formula] breaks down, as that reduction requires that Peggy can't compute M from h. The security of this scheme thus requires a different assumption.
+
+To determine what kind of security assumption we need to make, we examine the behavior of an attacker. The cheating verifier A interacts with the honest prover P by sending q queries of her choice [formula] and receiving the 'signature' of each message, [formula]. The cheating prover B must then take a random query h and return hx. (Note that by the bilinearity of the pairing e, hx is the only element that B can send in step (2) that will cause an honest verifier to accept.) If q  =  0, then this is the Computational Diffie-Hellman problem: compute hx from {g,gx,h}. If q  >  0, we are asking for the solution to a CDH problem given the solution to q related CDH problems. We formalize this notion in the following definition.
+
+Let [formula] be a finite cyclic group. Let A be a randomized algorithm that takes input [formula] and has access to two oracles. The first is a CDH oracle CDHg,ga(  ·  ), which on input [formula] returns [formula]. The second is a challenge oracle C() that, when invoked, returns a random challenge point [formula]. Furthermore, we require that A cannot invoke its CDH oracle after it has invoked the challenge oracle. We say that algorithm A has advantage ε in solving the one-more-CDH problem in [formula] if
+
+[formula]
+
+where the probability is taken over the choices g and ga input to A and the r output from C().
+
+We say the (t,q,ε)-one-more-CDH assumption holds in [formula] if there is no algorithm A that runs in time at most t, makes at most q queries to its CDH oracle, and has advantage at least ε in solving the one-more-CDH problem in [formula].
+
+Definition [\ref=d:omcdh], while it has not appeared previously in the literature, is closely related to the "one-more-RSA-inversion" and "one-more-discrete-logarithm" problems defined by Bellare, et al. [\cite=bnps]. Bellare and Palacio [\cite=bp] use these assumptions to prove the security of the well-known Guillou-Quisquater and Schnorr identification schemes, so it seems eminently reasonable that we should have to use a similar assumption in proving the security of our scheme.
+
+We now prove the security of Protocol [\ref=p:cdhid] based on the one-more-CDH assumption.
+
+Suppose the (t,q,ε)-one-more-CDH assumption holds in [formula]. Then Protocol [\ref=p:cdhid] is a (t - O(1),q,ε)-identification scheme.
+
+Let (g,gx) be the public parameters for Protocol [\ref=p:cdhid]. Suppose (A,B) is an attack that (t,q,ε)-breaks Protocol [\ref=p:cdhid] in the sense of Definition [\ref=d:idscheme]. Define an algorithm C that attempts to solve the one-more-CDH problem in [formula], as follows:
+
+For each challenge hi that the cheating verifier B sends to the honest prover P in step (1) of the protocol, query the CDH oracle with hi. Run B on the set of outputs {hxi}.
+
+Simulate the honest verifier V by querying the challenge oracle C(). Send the output r as input to the cheating prover A.
+
+Output t, the element of [formula] sent by the cheating prover A in step (2) of the protocol.
+
+If (A,B) successfully breaks the identification scheme, then the element t satisfies e(g,t)  =  e(ga,r), and thus by the bilinearity of the pairing, t  =  ra. The probability of success of C is thus at least ε. Furthermore, C makes at most q queries to the CDH oracle and runs in time t  +  O(1).
+
+Identification scheme based on the Strong Diffie-Hellman assumption
+
+Protocol [\ref=p:cdhid] is very efficient, requiring an exchange of two elements of [formula], one exponentiation for the prover, and two pairing computations for the verifier. The one-more-CDH assumption required to prove the scheme's security seems reasonable, especially given that similar assumptions are used in the security proofs of two well-known identification schemes [\cite=bp]. However, the fact that the one-more-CDH assumption has not previously appeared in the literature may give one pause, as it is generally not advisable to introduce new assumptions about computational difficulty. Thus we would like to find an identification scheme that is as efficient as Protocol [\ref=p:cdhid] but requires a weaker security assumption, or at least one that is more widely believed to hold for the groups used in implementations.
+
+The difficulty in adapting the BLS signature scheme into an identification scheme resulted from the random oracle nature of the security proof. Thus we may have more success if we try to adapt a signature scheme that does not require random oracles for its security. Boneh and Boyen [\cite=bb] have devised such a scheme; a full description of the scheme and the theorem describing its security can be found in Appendix [\ref=a:signatures]. The security rests on an assumption known as the Strong Diffie-Hellman assumption.
+
+Let [formula] be a cyclic group of prime order p, and let g be a generator. The q-Strong Diffie-Hellman problem in [formula] is defined as follows: given a (q + 1)-tuple [formula] as input, output a pair (c,g1 / (x + c)), where [formula]. An algorithm A has advantage ε in solving the q-SDH problem in [formula] if
+
+[formula]
+
+where the probability is over the choice of [formula] and [formula].
+
+We say that the (t,q,ε)-Strong Diffie-Hellman assumption holds in [formula] if there is no algorithm A that runs in time t and has advantage ε in solving the q-SDH problem in [formula].
+
+In our protocol based on the Boneh-Boyen scheme, Victor the Verifier sends a random challenge message to Peggy the Prover, which Peggy then signs with her private key.
+
+Suppose the (q',t',ε')-SDH assumption holds in [formula]. Then Protocol [\ref=p:sdhid] defines a (t,q,ε)-identification scheme, provided that
+
+[formula]
+
+where T is the maximum time for an exponentiation in [formula].
+
+We first check the viability condition. If Peggy and Victor both follow the protocol, then Victor will always accept, since
+
+[formula]
+
+by bilinearity of e. To check the soundness condition, given an attacker (A,B) that (t,q,ε)-breaks the scheme (in the sense of Definition [\ref=d:idscheme]), we can define an attacker C that (t  +  O(1),q,ε')-breaks the Boneh-Boyen signature scheme, where ε'  =  ε(1  -  q / p). The reduction is identical to that in the proof of Theorem [\ref=t:blsid], and we choose not to repeat the details.
+
+Identification scheme based on pairing as a one-way function
+
+The identification scheme of Protocol [\ref=p:sdhid] is less efficient than that of Protocol [\ref=p:cdhid], requiring both more bandwidth and more computation. However, the assumption required to prove security is weaker for the former, implying a tradeoff between efficiency and security. One may ask how far we can carry this tradeoff: what is the weakest possible assumption necessary for a secure identification scheme? We now propose a scheme whose proof of security rests solely on the assumption that the pairing [formula] is a one-way function when one argument is fixed. This assumption is weaker than both Computational Diffie-Hellman in [formula] and Decision Diffie-Hellman in [formula], both of which are standard assumptions that have been used to prove the security of a wide variety of cryptosystems.
+
+When we say than a pairing is a one-way function, we mean that given [formula] and [formula], it is hard to invert the pairing; that is, to find an element [formula] such that e(g,h)  =  y.
+
+Let [formula] be a cryptographic pairing. We say that e is a (t,ε)-one-way pairing if for any algorithm A that takes as input [formula] and [formula], produces as output an element of [formula], and runs in time at most t,
+
+[formula]
+
+where the probability is taken over the possible values of g and x. Given any such A, we say that A inverts the pairing with probability at most ε.
+
+To support our claim that one-wayness of pairings is a weak assumption, we note that inverting a pairing is no easier than solving either the Computational Diffie-Hellman problem in [formula] or the Decision Diffie-Hellman problem in [formula]. Indeed, solving the equation e(g,h)  =  e(ga,gb) for h solves the CDH problem for (g,ga,gb) in [formula], and solving the equations e(g,hi)  =  zi for hi given zi∈{z,za,zb,zc} allows us to use the pairing e to determine whether zab  =  zc in [formula]. For precise statements and proofs of these facts, see Appendix [\ref=a:owp].
+
+Now that we are confident that inverting a pairing is a sufficiently hard problem, we forge onward and define an identification scheme based on the difficulty of inverting a pairing.
+
+It is easy to see that this protocol is viable: if Peggy and Victor both follow the protocol, Victor will always output 1, since
+
+[formula]
+
+Showing security is a trickier matter. Our proof uses the "heavy row" technique introduced by Feige, Fiat, and Shamir [\cite=ffs] in their seminal paper on proofs of identity. The proof closely follows those of Okamoto's schemes [\cite=ok] based on the discrete logarithm and RSA inversion. We state the theorem below and give a sketch of the proof; the full proof can be found in Appendix [\ref=a:owfproof].
+
+Suppose [formula] is a (t',ε')-one-way pairing, where ε'  >  3 / 16 and [formula]. Then Protocol [\ref=p:owfid] is a (t,q,ε)-identification scheme, provided that
+
+[formula]
+
+for some constants c0, cs depending on [formula], [formula], and the pairing e.
+
+In Remark [\ref=r:viable] we demonstrated the viability condition of Definition [\ref=d:idscheme], so we need only show the security condition. We suppose there is an algorithm (A,B) that breaks Protocol [\ref=p:owfid], and construct an algorithm C that tries to invert the pairing. Given [formula] and [formula], we simulate Protocol [\ref=p:owfid] using (P,y) as the public key and our own randomly chosen private key (Q*,s*). Successful execution of the algorithm (A,B) on this instance of the protocol gives a valid interaction between the cheating prover A and the honest verifier V. If we run the algorithm again and use the same random coins in the algorithm (A,B), the "heavy row" lemma tells us that we will, with high probability, find a second valid interaction between A and V. From the transcripts of these two interactions we can compute [formula] such that e(P,X)  =  y, and we have inverted the pairing.
+
+The specific description of the algorithm C is as follows:
+
+Given input [formula] and [formula], choose random [formula] and [formula], and compute v  =  e(P,Q*)- 1y- s.
+
+Simulate Protocol [\ref=p:owfid] with (P,y,v) as the public key and (Q*,s*) as the private key.
+
+Run (A,B) on the simulated protocol 1 / ε times. If the attack succeeds, record RAB (the random coins of (A,B)) and the transcript (x,m,T,a).
+
+Run (A,B) on the simulated protocol 2 / ε times, using RAB as the random coins. If the attack succeeds, record the transcript (x,m',T',a').
+
+Let [formula] and [formula]. Output
+
+[formula]
+
+If steps (3) and (4) succeed and (Q,s)  ≠  (Q*,s*), then step (5) outputs a Z such that e(P,Z)  =  y, and we have inverted the pairing. Since the probability of success of (A,B) is ε, step (3) succeeds with constant probability. Furthermore, if ε  >  2 / p, then for at least half of the choices of RAB, the probability of success of (A,B) given the random coins RAB is at least ε / 2. (This is the "heavy row" lemma; see Appendix [\ref=a:owfproof] for details.) Thus step (4) succeeds with constant probability at least half of the time. Finally, the pairs (Q,s) and (Q*,s*) cannot be distinguished even by an infinitely powerful cheating algorithm, so the probability that (Q,s)  ≠  (Q*,s*) is nearly 1. When we calculate these probabilities more precisely, we find that the probability of success of C is at least 3 / 16.
+
+Finally, we analyze the running time of C. If cs is the time taken to simulate the protocol with the private key (Q*,s*), then each iteration of steps (3) and (4) takes time t  +  csq, so those two steps take time 3(t + csq) / ε. Steps (1) and (5) take a constant amount of time, say c0, so the total running time is c0  +  3(t + csq) / ε.
+
+The assumption p  ≥  17 in Theorem [\ref=t:owfid] is trivial, since in cryptographic applications p  ≈  2160. However, the assumption that e is a (t',ε')-one-way pairing with ε'  >  3 / 16 is a bit stronger than we would like. If we remove both of these conditions we get the following reduction:
+
+Suppose [formula] is a (t',ε')-one-way pairing. Then Protocol [\ref=p:owfid] is a (t,q,ε)-identification scheme, provided that
+
+[formula]
+
+for some constants c0, cs depending on [formula], [formula], and the pairing e.
+
+The reduction is the same as in the proof of Theorem [\ref=t:owfid], except we don't iterate steps (3) and (4) of algorithm C. For full details, see Appendix [\ref=a:owfproof].
+
+Other identification schemes
+
+While there have been several pairing-based identification schemes proposed in the literature, none of these have been given full proofs of security with polynomial-time reductions. The first such scheme, proposed by Kim and Kim [\cite=kk] and based on the Gap Diffie-Hellman problem, was shown to be breakable in constant time by any adversary knowing only the public key. Yao, Wang, and Wang [\cite=yww] proposed a modification of the scheme and proved it to be secure if the Gap Diffie-Hellman problem (cf. Remark [\ref=r:gdh]) is hard. However, their reduction requires exponential time, and thus the proof is unsatisfactory. We will therefore not consider these two schemes when comparing the various pairing-based identification schemes.
+
+More recently, two pairing-based identification schemes have been proposed that appear to be more promising. Shao, Cao, and Lu [\cite=scl] have proposed a scheme very similar to our Protocol [\ref=p:sdhid], based on the Boneh-Boyen signature scheme. The authors claim that the scheme's security depends on the intractability of the Strong Diffie-Hellman problem, but they do not give a proof, and we have not been able to come up with a reduction. The scheme is as follows:
+
+Suppose there exists an algorithm (A,B) that (t,q,ε)-breaks Protocol [\ref=p:scl]. Then there is an algorithm C that runs in time polynomial in t and q and succeeds in solving the Strong Diffie-Hellman problem with probability polynomial in ε.
+
+The final pairing-based identification scheme we consider was proposed by Hufschmitt, Lefranc, and Sibert [\cite=hls]. The scheme is similar to our Protocol [\ref=p:owfid].
+
+Hufschmitt, Lefranc, and Sibert describe a proof of security of their scheme against a "passive" attack involving only a cheating prover A. They assert that if such an attacker breaks Protocol [\ref=p:hls], then this attacker can be used to solve the Gap Diffie-Hellman problem (cf. Remark [\ref=r:gdh]), which is (by definition) equivalent to solving the Computational Diffie-Hellman problem in [formula].
+
+One flaw in the design of Protocol [\ref=p:hls] is that the scheme does not make use of the public parameters R  =  Pa and S  =  Pb, and it appears that they are only included to allow us to reduce breaking the protocol to breaking the Computational Diffie-Hellman problem in [formula]. If we ignore these two parameters, then the passive attacker A can be used to invert the pairing e, and thus the relevant computational assumption is not CDH but the weaker assumption that e is a one-way pairing.
+
+A more serious flaw is that while Protocol [\ref=p:hls] appears to be secure against passive attacks, our definition of security ([\ref=d:idscheme]) considers an "active" attack, which involves a cheating prover A as well as a cheating verifier B who tries to gain information by interacting with Peggy, the honest prover. The protocol's authors do not consider such an attack, and we have not yet found a security assumption under which the scheme is secure. We conjecture that since the scheme is of the same general format as the Schnorr and Guillou-Quisquater schemes ([\cite=sch], [\cite=gq]), the assumption required for security of Protocol [\ref=p:hls] will be similar to the assumptions required for the Schnorr and GQ schemes. The latter are the "one-more discrete logarithm" and "one-more RSA inversion" assumptions considered by Bellare and Palacio [\cite=bp], so we expect that an analgous "one-more" assumption will allow for a proof of security of Protocol [\ref=p:hls].
+
+Comparison of identification schemes
+
+We now compare the various identification schemes we have presented in terms of bandwidth and computation required for one iteration of each protocol. The results are summarized in Table 1.
+
+Currently, the only pairings used in cryptographic applications are derived from the Weil and Tate pairings on elliptic curves over finite fields [formula]. These pairings map from the elliptic curve group [formula] to some extension field [formula]; the parameter k is called the embedding degree of the curve E. For the pairing to be useful, it is necessary that the discrete logarithm problems in [formula] and [formula] are both hard. Given current discrete logarithm algorithms, q  ~  2160 and k  ~  21024 appear to be reasonable choices for the parameters.
+
+We now assume that [formula], [formula], and p  ≈  q. An element P of [formula] can be represented by an element of [formula] corresponding to the x-coordinate of P, plus one bit for the sign of the y-coordinate. Thus elements of [formula] and [formula] are of about the same size (log 2p bits), while elements of [formula] will be k times as large. Therefore if minimizing bandwidth is a primary concern, one of Protocols [\ref=p:blsid] or [\ref=p:cdhid] should be used. Protocols [\ref=p:owfid] and [\ref=p:hls] require an element of [formula] to be transmitted, so they should be avoided.
+
+If minimizing computational time is a primary concern, we will wish to minimize pairing computation and perform as few exponentiations as possible in the larger group. Thus Protocols [\ref=p:sdhid] and [\ref=p:scl] are ideal for this application. If we only care about minimizing the Prover's computational time, as in a smart card application, then one of Protocols [\ref=p:blsid], [\ref=p:cdhid], or [\ref=p:sdhid] will be best. However, Protocol [\ref=p:blsid] may be less preferable since the prover and verifier must each compute a hash function in addition to performing the group computations.
+
+Finally, if security is the foremost concern, then we should choose a scheme whose proof requires the weakest security assumption. Table 2 shows the implications between the various computational assumptions used to prove security of our protocols. We see that the weakest assumption is that the pairing is a one-way function. Protocol [\ref=p:owfid] is based on this assumption, so this scheme is the most secure.
+
+Conclusion
+
+We have presented four new identification schemes based on pairings, and proved their security given various computational assumptions. Each of our schemes is at least as efficient and/or secure as any scheme currently in the literature. Our main contribution is Protocol [\ref=p:owfid], a scheme which is secure if the pairing in question is a one-way function; this assumption is weaker than that made for any other pairing-based scheme currently in the literature.
+
+For another of our schemes, Protocol [\ref=p:cdhid], we introduced an assumption called the "one-more-CDH" assumption, analogous to the "one-more-discrete-log" and "one-more-RSA-inversion" assumptions, and proved our scheme secure under this assumption. An important open question is what relation this assumption has to other computational assumptions in the literature.
+
+Pairing-based signature schemes
+
+In this appendix, we describe the pairing-based signature schemes that are the basis for the identification schemes defined in Protocols [\ref=p:blsid] and [\ref=p:sdhid]. We give a definition of security for signature schemes and state the security theorems for the two protocols in question.
+
+We first describe the pairing-based short signature scheme devised by Boneh, Lynn, and Shacham [\cite=bls], on which our Protocol [\ref=p:blsid] is based. We describe the scheme in terms of a pairing, but the scheme is in fact valid in any group in which the Decision Diffie-Hellman problem is easy and the Computational Diffie-Hellman problem is hard; such a group is called a Gap Diffie-Hellman group.
+
+Boneh, Lynn, and Shacham prove the security of their scheme using the following game between a challenger and an adversary A.
+
+The advantage of A, denoted [formula], is the probability that A wins the above game, taken over the coin tosses of KeyGen and of A itself. We are now ready to define the security of a signature scheme.
+
+A forger A (t,qS,qH,ε)-breaks a signature scheme if A runs in time at most t, makes at most qS signature queries and at most qH queries to a hash function, and [formula]. A signature scheme is (t,qS,qH,ε)-existentially unforgeable under adaptive chosen-message attack if no forger (t,qS,qH,ε)-breaks it.
+
+The security of the BLS signature scheme is based on the Computational Diffie-Hellman assumption in the group [formula] (Defintion [\ref=d:cdh]).
+
+Suppose the (t',ε')-Computational Diffie-Hellman assumption holds in [formula]. Then the signature scheme defined in Protocol [\ref=p:bls] is (t,qS,qH,ε)-secure against existential forgery under an adaptive chosen-message attack (in the random oracle model) for all t and ε satisfying
+
+[formula]
+
+where c is a constant that depends on [formula], and e is the base of the natural logarithm.
+
+The second signature scheme we describe was devised by Boneh and Boyen [\cite=bb]; our identification scheme [\ref=p:sdhid] is based on this scheme.
+
+The security of the Boneh-Boyen scheme is based on the Strong Diffie-Hellman assumption (Definition [\ref=d:sdh]). The relevant fact about the proof of security is that it gives a tight reduction without using the random oracle model.
+
+Suppose the (q,t',ε')-SDH assumption holds in [formula]. Then the signature scheme defined by Protocol [\ref=p:bb] is (t,qs,ε)-secure against existential forgery under adaptive chosen message attack, provided that
+
+[formula]
+
+where T is the maximum time for an exponentiation in [formula].
+
+Security of Protocol [\ref=p:blsid]
+
+If Peggy and Victor follow the protocol, then Protocol [\ref=p:blsid] satisfies the viability condition of Definition [\ref=d:idscheme], since
+
+[formula]
+
+by bilinearity of e.
+
+To show the security condition, it suffices to show that if the BLS signature scheme (Protocol [\ref=p:bls]) is (t',q,r,ε')-secure against existential forgery under an adaptive chosen-message attack, then Protocol [\ref=p:blsid] is a (t,q,r,ε) identification scheme, provided that
+
+[formula]
+
+for some constant c depending on the groups and pairing used. If we give a reduction from the identification scheme to the signature scheme with these bounds, then the security theorem for the BLS signature scheme (Theorem [\ref=t:bls]) implies that there is a reduction from the identification scheme to the CDH problem in [formula] with the stated bounds.
+
+To construct the specified reduction, we now suppose that (A,B) is a pair of algorithms that (t,q,r,ε)-breaks the scheme (in the sense of Definition [\ref=d:idscheme]) for a given public/private-key pair. Define an attacker C on the BLS scheme with the same public and private keys, as follows:
+
+For each Mi that the cheating verifier B sends to the honest prover P, have C request a signature on Mi. Run B on the output.
+
+Simulate the honest verifier V by choosing a random M and sending M as input to the cheating prover A.
+
+Output the pair (M,τ), where [formula] is the element that the cheating prover A sends to V.
+
+If (A,V) outputs 1, then the output of algorithm C is a valid BLS message-signature pair. Thus if M is distinct from all of the queries Mi, then (M,τ) is a valid forgery. Since the probability of (A,B) simulating the prover P is at least ε and the probability that M is equal to one of the Mi is q / 2n, the probability of forging a signature is at least (1  -  q / 2n)  ·  ε. We thus have broken the BLS scheme with an attacker that runs in time t + c for some constant c. The attacker makes q signature queries and h hash queries.
+
+Hardness of inverting a one-way pairing
+
+In Section [\ref=s:owf] we stated that the assumption that [formula] is a one-way pairing is weaker than both the Computational Diffie-Hellman assumption in [formula] and the Decision Diffie-Hellman assumption in [formula]. We now give precise statements and proofs of these facts.
+
+Let [formula] be a cryptographic pairing between groups of order p. Suppose the (t,ε) Computational Diffie-Hellman assumption holds in [formula]. Then e is a (t  -  O(1),ε)-one-way pairing.
+
+Let A(g,x) be an algorithm that runs in time t and inverts the pairing with probability at least ε. Given a triple (h,ha,hb) of elements in [formula], let y  =  e(ha,hb), and run A(h,y). Then A outputs hab with probability at least ε.
+
+Let [formula] be a cryptographic pairing between groups of order p. Suppose the (t,ε)-Decision Diffie-Hellman assumption holds in [formula]. Then e is a [formula]-one-way pairing.
+
+Let A(g,x) be an algorithm that runs in time t and inverts the pairing with probability at least ε. We are given a quadruple {y,ya,yb,yc} of elements of [formula] and asked to determine if c  =  ab mod p. Define algorithm B as follows.
+
+Choose a random [formula], and compute
+
+Compute e(h1,h4) and e(h2,h3). If the two are equal output 1; else output 0.
+
+Suppose all four outputs of algorithm A are correct. Then h2  =  ha1, h3  =  hb1, and h4  =  hc1. We therefore have e(h1,h4)  =  e(h1,h1)c and e(h2,h3)  =  e(h1,h1)ab. The two are equal if and only if c  =  ab mod p. Thus if all four outputs are correct B gives a correct output to the Decision Diffie-Hellman problem. The probability that all four outputs are correct is at least ε4, which gives the stated security bound. Furthermore, B runs in time 4t  +  O(1).
+
+We can increase the probability of success of B by iterating the algorithm. Performing each computation of hi ε- 4 times increases the probability of success to a constant; fewer repetitions lead to different time/success ratios.
+
+Security of Protocol [\ref=p:owfid]
+
+In this appendix, we show that Protocol [\ref=p:owfid] is secure if we assume that e is a one-way pairing. The proof adapts Okamoto's arguments for proving security of his two identification schemes [\cite=ok]. We begin the detailed proof by defining a "heavy row" and proving some useful lemmas.
+
+Let (A,B) be an algorithm attacking Protocol [\ref=p:owfid]. Let RAB denote the random coins consumed by (A,B). Let M be a matrix summarizing all of the possible outcomes of the cheating prover A interacting with an honest verifier V, as follows: the rows of M are indexed by the possible choices of RAB, the columns of M are indexed by all the possible choices e of the verifier V in step (2), and the entries are 1 if V accepts A's proof, and 0 otherwise.
+
+Suppose the probability of success of (A,B) (i.e. the fraction of 1's in M) is ε. A row of M is a heavy row if its fraction of 1's is at least ε / 2.
+
+Suppose the success probability of (A,B) in attacking Protocol [\ref=p:owfid] is at least 2 / p. Then at least half of the 1's in M are located in heavy rows.
+
+Assume the contrary, i.e. at least half the 1's in M are located in non-heavy rows. Then the fraction of 1's in all of the non-heavy rows combined is at least 1 / p. On the other hand, in each non-heavy row the fraction of 1's is by definition less than 1 / p, a contradiction.
+
+Let (A,B) be an algorithm attacking Protocol [\ref=p:owfid] that runs in time t and has success probability ε  >  2 / p. Then there is a algorithm that runs in expected time O(t / ε) and, with probability at least [formula] outputs the history of two accepted interactions (x,m,T,a) and (x,m',T',a') of the cheating prover A with an honest verifier V, where m  ≠  m'.
+
+We adopt the following two-step "probing strategy" (cf. [\cite=oo], [\cite=ok]) to find two 1's in the same row of M.
+
+Let p1 be the success probability of Step 1 after probing 1 / ε random entries of M. Since the fraction of 1's in M is ε, we have
+
+[formula]
+
+Let p2 be the success probability of Step 2 after probing 2 / ε random entries of M0. If M0 is a heavy row, then the fraction of 1's in M0 is at least ε / 2, and thus the probability of success is at least
+
+[formula]
+
+By Lemma [\ref=l:heavy], the probability that M0 is a heavy row is at least 1 / 2, and thus [formula]. Therefore the overall success probability of our strategy is at least [formula], and the total running time is approximately 3t / ε.
+
+If the strategy finds two entries a0,a1 in the same row of M, we output the transcripts (x,e,T,a) and (x,e',T',a') of the interaction between A and V when given the random coins corresponding to a0 and a1 respectively. Since the entries are in the same row, the random coins of (A,B) are the same for the two interactions, and thus the first output x is the same for the two interactions. Since the entries are in different columns, the random coins of V are different for the two interactions, and thus m  ≠  m'.
+
+With this setup, we may now prove the security of our identification scheme.
+
+In Remark [\ref=r:viable] we demonstrated the viability condition of Definition [\ref=d:idscheme], so we need only show the security condition. Suppose (A,B) is an algorithm that runs in time t and attacks Protocol [\ref=p:owfid] with success probability ε  >  2 / p. Define an algorithm C that attempts to invert the pairing, as follows:
+
+Given input [formula] and [formula], choose random [formula] and [formula], and compute v  =  e(P,Q*)- 1y- s.
+
+Simulate Protocol [\ref=p:owfid] with (P,y,v) as the public key and (Q*,s*) as the private key.
+
+Run (A,B) on the simulated protocol 1 / ε times. If the attack succeeds, record RAB (the random coins of (A,B)) and the transcript (x,m,T,a).
+
+Run (A,B) on the simulated protocol 2 / ε times, using RAB as the random coins. If the attack succeeds, record the transcript (x,m',T',a').
+
+Let [formula] and [formula]. Output
+
+[formula]
+
+We now analyze the algorithm C. By Lemma [\ref=l:iterate], the probability that steps (3) and (4) both succeed and output valid transcripts with m  ≠  m' is at least [formula]. We now claim that if steps (3) and (4) both succeed, then (Q,s)  ≠  (Q*,s*) with probability almost 1. To prove this, we show that if (Q,s) and (Q*,s*) are both valid private keys for the public key (P,y,v), then even an infinitely powerful cheater B cannot distinguish the two solely from his interaction with an honest prover P. The condition (Q,s) and (Q*,s*) both being valid private keys for the public key (P,y,v) implies that
+
+[formula]
+
+Let [formula] and [formula]. Then the following relations hold: Furthermore, for given (Q,Q*,s,s*,m), the distribution of (R,r) is identical to that of (R*,r*). Since the cheating verifier B receives only (x,T,a) from the honest prover P, we see that there is no way for B to determine which private key was used. Since there are p possible pairs (Q,s) satisfying e(P,Q)- 1y- s  =  v, the probability that (Q,s)  ≠  (Q*,s*) is (p - 1) / p, or nearly 1.
+
+We now show that if steps (3) and (4) succeed and (Q,s)  ≠  (Q*,s*), then step (5) outputs a Z such that e(P,Z)  =  y. We first note that if (Q,s)  ≠  (Q*,s*), then equation ([\ref=eq:keys]) implies that Q  ≠  Q* and s  ≠  s*, so Z is well-defined. Since x is the same in both transcripts, we have
+
+[formula]
+
+By the bilinearity of the pairing, this implies that
+
+[formula]
+
+so by definition of Q and s we have
+
+[formula]
+
+Raising the whole equation to the power 1 / (m - m') and applying the definition v  =  e(P,Q*)- 1  ·  y- s gives
+
+[formula]
+
+Again using the bilinearity of the pairing, this gives us
+
+[formula]
+
+and raising both sides to the power 1 / (s *  - s) gives
+
+[formula]
+
+as desired.
+
+Finally, we analyze the running time and success probability of C. If cs is the time taken to simulate the protocol with the private key (Q*,s*), then each iteration of steps (3) and (4) takes time t  +  csq, so those two steps take time 3(t + csq) / ε. Steps (1) and (5) take a constant amount of time, say c0, so the total running time is c0  +  3(t + csq) / ε. By Lemma [\ref=l:iterate] and our computations above, if steps (3) and (4) succeed and (Q,s)  ≠  (Q*,s*), then step (5) outputs a valid Z. The probability of the former is at least [formula], while the probability of the latter is (p - 1) / p. If p  ≥  17 then the simultaneous probability of the two events is at least 3 / 16. Thus our reduction gives the stated bounds.
+
+Finally, we give the detailed proof of Corollary [\ref=c:owfid], a security theorem for Protocol [\ref=p:owfid] that does not require any assumptions on the security parameter ε' for the one-way pairing or the size of p, the order of [formula] and [formula].
+
+The reduction is the same as in the proof of Theorem [\ref=t:owfid], except we don't iterate steps (3) and (4) of algorithm C. Then the success probability of step (3) is ε. By Lemma [\ref=l:heavy] the entry of the summary matrix M corresponding to the output of step (3) is in a heavy row with probability at least 1 / 2, and if this is the case then the success probability of step (4) is at least ε / 2. The success probability of step (5) is still (p - 1) / p, which is at least 1 / 2 since p  ≥  2. Thus the total success probability π of the algorithm satisfies
+
+[formula]
+
+The algorithm takes time 2(t  +  csq)  +  2c0, where cs is the time taken to simulate the protocol and 2c0 is the time taken to perform the computations in steps (1) and (5). Thus our reduction gives the stated bounds.

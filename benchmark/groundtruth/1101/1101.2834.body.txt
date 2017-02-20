@@ -1,0 +1,149 @@
+Subjective Collaborative Filtering
+
+Introduction
+
+We have a web site where a list of items are offered for purchase. We can also assume that a user can perform other actions such as clicking on advertisement banners, reading a review of a product, querying the system with a keyword, etc
+
+Our goal is to produce the best possible suggestion to a user depending primarily on his previously bought items (if any) and secondarily on his behavior.
+
+For a given user u, we store all events of the user u in the cookie maintained by the browser. The cookie contains also the timestamps of the stored events. The user's cookie is used by the webserver each time the user requests a webpage, in order to select an appropriate suggestion.
+
+Two approaches based on similarity are commonly followed in collaborative filtering: one based on similar items (known as item-based or model-based) and one based on similar users (known as user-based or memory-based). Two products are similar if they have been bought by common users. Two users are similar if they have bought common items. Different measures of similarities have been used in the literature such as Jaccard similarity, cosine similarity, Pearson correlation index, etc  In this article we present an item-based approach that addresses the issue of scalability by efficiently approximating the similarities among items (possibly in real time). For a justification of an item-based approach we refer to [\cite=Amazon] and [\cite=Sarwar:2001]. The main ideas for the efficiency of the algorithm is the application of the linear counting algorithm [\cite=WhangZandenTaylor1990] for the approximation of the Jaccard measure of similarity among items.
+
+In the simplest version of our approach we are only considering the implicit binary rating, i.e., whether an item has been bought at least once by a user and we are disregarding the quantity. An extension of our approach to non-Boolean purchases in described in Section [\ref=se:non-Boolean].
+
+Efficiently estimating the value f the Jaccard similarity can be a daunting task when the number of (usually non-unique) users in the webserver's log can reach huge figures (millions). We propose an approximate estimation based on the linear counting algorithm [\cite=WhangZandenTaylor1990], i.e., approximately counting the number of unique users that have bought a specific item.
+
+We improve the accuracy of the similarity by introducing the concept of user preference for a given product, which both takes into account multiple purchases and purchases of related items. The product of the user preference and the Jaccard measure (or its approximation) is used as a score for deciding whether a given product has to be recommended.
+
+The paper is organized as follows: In Section [\ref=se:pre] we introduce some notation and definitions. In Section [\ref=se:lc] we present the approach based on approximately counting unique users. In Section [\ref=se:non-Boolean] we describe how to extend the algorithm to the non-Boolean case. In Section [\ref=sse:behavior] we consider a generalization of the approach that takes into account the user's behavior (page views, search queries, clicks on banners, etc). In Section [\ref=sse:ad] we consider a possible adaptation of our approach to ad-serving.
+
+Preliminaries
+
+We will be using two data-structures to store information on user's actions at real time: a user's profile, which depends on the user; a purchase matrix, which is global.
+
+In this article we will denote with P the set of all products and by U the set of all users.
+
+The next definition describes the data that has to be stored by each user's cookie.
+
+For every user u we define their profile Pu which is simply the subset of Pu  ⊆  P containing all their purchased items.
+
+In the following definition we describe the global data-structure necessary in our approach.
+
+We denote by M = (mp,u) the "purchase matrix", a [formula] matrix where mp,u is the number of purchases of product p by user u.
+
+Recommending by counting unique users
+
+Let us consider an item-based approach in which we can disregard the number of purchases of a given item. We assume that our recommending system produces a given number of suggestions to any user who has bought at least one item.
+
+Then we can estimate the similarity of two items p and c through the Jaccard measure:
+
+[formula]
+
+where Up and Uc are the set of users that have bought (at least once) p (p-th column of the matrix M) and c (c-th column of M), respectively.
+
+The Jaccard similarity between a previously bought item p and a candidate item c describes an "objective similarity" between p and c. In particular J(p,c) does not depend on the specific target user we are considering since it is applied without any change to any user that has bought p and not c.
+
+We denote by N(p) a function that maps a product p∈P into its set of "neighbors", i.e. most similar products. Possible choices for N(p) could be the set of k-nearest neighbors or a set of products such that their Jaccard similarity is above a given threshold. We define [formula].
+
+We denote by Cu the set of candidate products for user u. Some possible choices for Cu are N(p) and [formula].
+
+Off-line computing the similarities
+
+As discussed in [\cite=Amazon], [\cite=Sarwar:2001], similarities among items tend to change slowly and much more slowly than similarities among users. This justifies an off-line computation of the similarities J(p,c) (e.g., daily, hourly) among all possible couples (p,c) of products. The complexity of the off-line computation of the similarities is given by O(|P|2  ·  J), where J is the complexity of computing a single Jaccard similarity. In practice, most users only buy few items and the real complexity is similar to O(|P|  ·  J)
+
+The "objective" algorithm
+
+We precompute J(p,q) for any possible couple (p,q) of products.
+
+For any given user u we recommend c taking by
+
+[formula]
+
+Thus, if J(p,q) is computed off-line, the time complexity of the above formula is given by O(|Cu|  ·  |Pu|).
+
+Approximating the similarity
+
+We consider the problem to efficiently approximate the ratio in equation ([\ref=eq:Jaccard]). We denote with Up the set of unique users that have bought product p. This estimate can be computed using the linear counting algorithm [\cite=WhangZandenTaylor1990]. Thus, for each product p, a bitvector vp of size m (much smaller than |U|) is kept, where m is a sufficiently large constant. For each purchase, the user is hashed into a bucket of the bitvector vp, which is then set to 1. The estimate of the number of unique users that have bought product p is then given by the formula - m log (p), where p is the ratio of 0 bits in the bitvector vp. Through this algorithm we can approximate |Up| and |Uc| in equation ([\ref=eq:Jaccard]). We can use this procedure to estimate the ratio in equation ([\ref=eq:Jaccard]), in that we estimate [formula] and [formula]. We approximate [formula] by taking [formula] (bitwise [formula] of vp and vc). Then [formula] is estimated by - m log (ŵ). Finally, since [formula] we can estimate [formula] by - m log (p)  -  m log (c)  +  m log (ŵ).
+
+Therefore the complexity of the off-line computation of the approximated similarities is given by O(|P|2  ·  m), and in practice O(|P|  ·  m). We remark the m is much smaller than the set |U| of all users (the suggested value in [\cite=WhangZandenTaylor1990] for m is about |U| / 10). This is an improvement over other item-based approaches such as the one proposed in [\cite=Amazon].
+
+Non-Boolean purchases
+
+This approach, although inherently Boolean, can be generalized in a way that takes into account both multiple purchases of an item and purchases of similar items. In this section we describe three ways to achieve this: by a score that takes the quantity of purchases into account, by considering clusters of similar bought items, by taking similar items into account without explicitly computing clusters.
+
+Counting the purchases of an item
+
+The Jaccard measure J(p,c) between a previously bought item p and candidate a item c∈N(p) can be corrected by a factor that depends on the quantity of item p. A possible factor could be the ratio among the quantity and the average quantity over all purchases of item p. A probably better factor is proposed in Remark [\ref=re:ranking].
+
+Clustering similar previously bought items
+
+We can cluster very similar items: if two items are very similar (e.g., they differ by a few users) their sum as vectors could be considered instead of them.
+
+Subjective similarity
+
+We can improve the approach in Section [\ref=sse:user] and in Section [\ref=sse:clustering] by considering a more general concept of user preference γu(p) for an item p by user u in that we also consider the user preference for related items (similar items, items similar to similar items, etc).
+
+Given a user u and a candidate item c we define the subjective similarity Su(p,c) between a previously purchased item p and a candidate item c for u as follows:
+
+[formula]
+
+where γu(p) is a measure of the preference for product p by user u.
+
+By doing so we are introducing a "subjective" element when comparing p and c, in that we take the user preference for p into account.
+
+User preference
+
+As γu(p) we could simply take γ(0)u(p): = mp,u (this is exactly the approach in Section [\ref=sse:user]), or take into account the preference for similar items γu(p)(1):
+
+[formula]
+
+in which mq,u is the u-th component in q, i.e. the quantity of item q bought by user u (normalized with respect to the quantity bought by the average user).
+
+This can be generalized in a recursive fashion (similar to the popular PageRank algorithm [\cite=PageRank]) such that t indirect similarities of products are considered:
+
+[formula]
+
+where γ(0)u(q)  =  mq,u.
+
+We can unroll this recursive formula for γ(t)u(p) into the following expanded form:
+
+We can further improve this approach by considering a slower than linear increasing function ρ that better models how a quantity should implicitly correspond to a ranking, than simply taking the normalized quantity γ(0)u(q) = mq,u of a purchased item (which linearly increases with the number of purchases). For instance, for a given item q, we can take γ(0)u(q) as follows
+
+[formula]
+
+where M is a desired maximum value for the ranking.
+
+The "subjective" algorithm
+
+We precompute J(p,q) for any possible couple (p,q) of products.
+
+For any given user u we recommend c by the formula:
+
+[formula]
+
+Therefore the complexity for the computation of ([\ref=eq:best-subj-fit]) is given by O(|Cu|  ·  |Pu|  ·  G), where G is the complexity of the computation of γ(t)u(p), which depends on t. For t = 0, the complexity of ([\ref=eq:best-subj-fit]) is the same as the one of ([\ref=eq:best-fit]). For t > 1, the complexity will depend on the size of N(p). For practical purposes we would not suggest t > 2 because the improvement in accuracy is minimal and the complexity worsens.
+
+Future work
+
+We plan to generalize and modify our approach in two directions:
+
+including the general user's behavior into our approach;
+
+adapting the approach to ad-serving.
+
+Both generalizations will require experiments on large sets of real data.
+
+Behavioral targeting
+
+We can take into account events different from a purchase such as page views, clicks on banners, search queries, etc..., which, together with purchases, we call "features". This is achieved by having c in ([\ref=eq:best-fit]) run over all features of the given user. Having different types of features poses the problem of weighing them with respect to their relevance, e.g., a purchase should count more than any other feature, a search query should count more than a click on a banner, etc... In order to properly fine tune this generalized approach we need to perform experiments on large data-sets.
+
+Application to ad-serving
+
+We can also apply our approach to ad-serving. This is probably only possible for large data-sets. We have drawn this conclusion by real experimental data available at Neodata: in our data only 1.5% of the users clicks on two different banners. Therefore a large set of data is necessary in order to be of any use for a collaborative filtering algorithm.
+
+Our approach could be applied to behavioral targeting of banner advertisements in which, instead of suggesting the product with highest likelihood of being bought, the banner advertisement with highest probability of being clicked or the one generating the highest average profit is displayed.
+
+Nevertheless we cannot use these approach for ad-serving in a straightforward way because buying an item and clicking on a banner are events of different nature: the former often depends on the user's desire of buying an item; the latter is often a random event strongly dependent on the number of previous impressions of the banner.
+
+We can overcome this by having first a learning phase in which all banners are equally shown to all users, second using our approach to compute the banner with generates the highest profit, i.e. with the highest ecpm. An alternative solution may be to normalize our approach by the number of impressions of the given banner.

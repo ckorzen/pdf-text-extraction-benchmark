@@ -1,0 +1,205 @@
+An Alternating Direction Algorithm for Matrix Completion with Nonnegative Factors
+
+Abstract. This paper introduces an algorithm for the nonnegative matrix factorization-and-completion problem, which aims to find nonnegative low-rank matrices X and Y so that the product XY approximates a nonnegative data matrix M whose elements are partially known (to a certain accuracy). This problem aggregates two existing problems: (i) nonnegative matrix factorization where all entries of M are given, and (ii) low-rank matrix completion where nonnegativity is not required. By taking the advantages of both nonnegativity and low-rankness, one can generally obtain superior results than those of just using one of the two properties. We propose to solve the non-convex constrained least-squares problem using an algorithm based on the classic alternating direction augmented Lagrangian method. Preliminary convergence properties of the algorithm and numerical simulation results are presented. Compared to a recent algorithm for nonnegative matrix factorization, the proposed algorithm produces factorizations of similar quality using only about half of the matrix entries. On tasks of recovering incomplete grayscale and hyperspectral images, the proposed algorithm yields overall better qualities than those produced by two recent matrix-completion algorithms that do not exploit nonnegativity.
+
+Keywords. nonnegative matrix factorization, matrix completion, alternating direction methd, hyperspectral unmixing
+
+MSC. 15A83, 65F30, 90C26, 90C90, 94A08
+
+Introduction
+
+This paper introduces an algorithm for the following problem:
+
+Given samples Mi,j, [formula], of a nonnegative rank-r matrix [formula], find nonnegative matrices [formula] and [formula] such that [formula] is minimized.
+
+Note that q is not necessarily set to equal r. Firstly, not all rank-r nonnegative matrices have nonnegative factors of size r. For some of them, the available size of nonnegative factors is strictly greater than r. Secondly, when M is approximately low-rank, i.e. the singular values of M have a fast-decaying distribution, one often sets q to be the estimated rank or the number of significant singular values. This resulting problem can be called approximate NMFC. In general, depending on data and applications, q can be either equal, less than, or greater than r.
+
+NMFC is a combination of nonnegative matrix factorization (NMF) -- which finds nonnegative factors of a nonnegative matrix given all of its entries -- and low-rank matrix completion (LRMC) -- which recovers M from an incomplete set of its entries without assuming nonnegativity. Mathematically, given a matrix [formula] and q > 0, we present the three problems with the following models
+
+[formula]
+
+where Ω indexes the known entries of M and [formula] returns a copy of A that zeros out the entries not in Ω. Note that each of the three problems has other models. Examples include weighted least-squares for NMF and NMFC and nuclear-norm minimization for LRMC. While [\eqref=eqnmf] and [\eqref=nmf] return XY up to a fixed rank q, [\eqref=lrmc] seeks for a least-rank recovery Z. It is well known that models [\eqref=eqnmf]-[\eqref=lrmc] are non-convex and generally difficult to solve. A recent advance for [\eqref=lrmc] is that if M is low-rank and the samples Ω satisfy the so-called incoherence property and are sufficiently large, then a convex problem based on nuclear norm minimization can exactly recover M (see the pioneering work [\cite=fazel-PhD-Thesis2002], as well as recent results [\cite=recht2010guaranteed] [\cite=candes2009exact] [\cite=wright2011robust] [\cite=candes2010power]).
+
+We are interested in NMFC since it complements NMF and LRMC. NMF has been widely used in data mining such as text mining, dimension reduction and clustering, as well as spectral data analysis. It started to appear in [\cite=paatero1994positive] [\cite=paatero1997least] [\cite=paatero1999multilinear] and has become popular since the publication of [\cite=lee1999learning] in 1999. More information on NMF can be found in the survey paper [\cite=berry2007algorithms], as well as books [\cite=cichocki2008advances] [\cite=separationnonnegative]. Unlike NMF, NMFC assumes that the underlying matrix is incompletely sampled; hence, it leads to saving of sampling time and storage (for data such as images) and has broader applicability. On the other hand, LRMC has recently found a large number of applications including collaborative filtering, which is used by Netflix to infer individual preference from an incomplete set of user preferences [\cite=goldberg1992using], global positioning, which discovers the positions of nodes in a network from incomplete pair-wise distances [\cite=biswas2006semidefinite], system identification and order reduction, which recovers or reduces the dimension of the state vectors of a linear time-invariant state-space model [\cite=liu2009interior], as well as the background subtraction and structure-from-motion problems in computer vision. A rank-q matrix M can be written as M = XY for matrices X with q columns and Y with q rows. When X and Y are known to be nonnegative a priori, empirical evidence given in Section [\ref=sec:numerical] shows that imposing nonnegativity on the factors improves the recovery quality. In particular, in certain applications such as hyperspectral unmixing, the factors are nonnegative due to their physical nature, so these applications will benefit from NMFC. To summarize, NMFC combines NMF and LRMC, and NMFC is useful when the underlying matrix has both low rank and nonnegative factors.
+
+Related Algorithms
+
+There are two algorithms that have been widely used for NMF: the alternating least squares (ALS) in [\cite=paatero1994positive] and multiplicative updating (Mult) in [\cite=lee2001algorithms]. The former algorithm alternatively updates factor matrices X and Y to reduce the least-squares cost [formula]. The closed-form updates are given as
+
+[formula]
+
+where max {  ·  ,  ·  } is applied component-wise and † denotes pseudo-inverse. The algorithm Mult has much cheaper multiplicative updates
+
+[formula]
+
+which do not involve matrix inversion. Starting from a nonnegative initial matrix Y, X and Y remain nonnegative during the iterations of Mult. The algorithm presented in this paper also applies to NMF if a complete sample set Ω is used. The resulting algorithm, which has been studied in paper [\cite=zhang2010admnmf], is simpler and compares favorably with ALS and Mult in terms of both speed and solution quality. In fact, the proposed algorithm in this paper extends the work in [\cite=zhang2010admnmf], and both algorithms are based on the algorithm of alternating direction method of multipliers (ADM) [\cite=glowinski1975] [\cite=gabay1976dual] [\cite=BertsekasTsitsiklis-book-parallel] [\cite=WangYangYinZhang2008] [\cite=YangZhangYin2008] [\cite=AltSDP-WenGoldfarbYin-2009]. Likewise, we can extend the algorithms ALS and Mult to solving NMFC. Extending ALS is as straightforward as adopting the least-square cost [formula] and deriving the corresponding updates. One simple approach to extend Mult is to replace M by [formula], defined component-wise by [formula], i.e. [formula] is a copy of M with the unsampled entries set to 0. Drawing conclusions based on the comparative results in [\cite=zhang2010admnmf], we believe that ADM based methods deliver higher-quality solutions in shorter times.
+
+There are also several algorithms for LRMC. Since LRMC can complete a matrix and return factors that happen to be (approximately) nonnegative, we shall briefly review a few well-known LRMC algorithms and compare them to the proposed algorithm. Singular value thresholding (SVT) [\cite=cai2008singular] and fixed-point shrinkage (FPCA) [\cite=ma2009fixed] are two well-known algorithms. SVT applies the linearized Bremgan iterations [\cite=Yin-Osher-Goldfarb-Darbon-07] to the unconstrained nuclear-norm model of LRMC:
+
+[formula]
+
+FPCA solves the same model using iterations based on an iterative shrinkage-thresholding algorithm [\cite=Hale-Yin-Zhang-07-theory]. Furthermore, classic alternating direction augmented Lagrangian methods have been applied to solving [\eqref=nuc] or its variant with constraints [formula] in [\cite=Goldfarb-Ma-Wen-Allerton-09] [\cite=Yang-Yuan-10]. The algorithm LMaFit [\cite=Wen-Yin-Zhang-LMAFIT-10] uses a different model:
+
+[formula]
+
+The model is solved by a nonlinear successive over-relaxation algorithm [\cite=Grippo-Sciandrone-00]. In section 3, we compare the proposed algorithm to FPCA and LMaFit and demonstrate the benefits of taking advantages of factor nonnegativity.
+
+Organization
+
+The rest of this paper is organized as follows. Section 2 reviews the ADM algorithm and presents an ADM-based algorithm for NMFC. A preliminary convergence result of this algorithm is given in Section 2.3. Section 3 presents the results of numerical simulations, which perform tasks such as decomposing nonnegative matrices, compressing grayscale images, as well as recovering three-dimensional hyperspectral cubes from incomplete samples. Finally, Section 4 concludes this paper.
+
+Algorithm and Convergence
+
+Background: the ADM approach
+
+In a finite-dimensional setting, the classic alternating direction method (ADM) solves structured convex programs in the form of
+
+[formula]
+
+where f and g are convex functions defined on closed subsets [formula] and [formula] of a finite-dimensional space, respectively, and A,B and c are matrices and vector of appropriate sizes. The augmented Lagrangian of [\eqref=eqcadm] is
+
+[formula]
+
+where λ is a Lagrangian multiplier vector and β > 0 is a penalty parameter.
+
+The classic alternating direction method is an extension of the augmented Lagrangian multiplier method [\cite=hestenes1969multiplier] [\cite=powell1969nonlinear] [\cite=rockafellar1973multiplier]. It performs minimization with respect to x and y alternatively, followed by the update of λ; that is, at iteration k, where γ∈(0,1.618) is a step length. While [\eqref=eqcadm1] only involves f(x) in the objective and [\eqref=eqcadm2] only involves g(y), the classic augmented Lagrangian method requires a minimization of [formula] with respect to x and y jointly, i.e., replacing [\eqref=eqcadm1] and [\eqref=eqcadm2] by
+
+[formula]
+
+As the minimization couples f(x) and g(y), it can be much more difficult than [\eqref=eqcadm1] and [\eqref=eqcadm2].
+
+Main Algorithm
+
+To facilitate an efficient use of ADM, we consider an equivalent form of [\eqref=eqnmf]:
+
+[formula]
+
+where [formula] and [formula]. The augmented Lagrangian of [\eqref=eqlnmf] is
+
+[formula]
+
+where [formula], [formula] are Lagrangian multipliers, α,β > 0 are penalty parameters, and [formula] for matrices A and B of the same size. We deliberately leave [formula] in the constraints instead of relaxing them, so only those entries of Z not in Ω are free variables.
+
+The alternating direction method for [\eqref=eqlnmf] is derived by successively minimizing [formula] with respect to X,Y,Z,U,V, one at a time while fixing others at their most recent values, i.e.,
+
+[formula]
+
+and then updating the multipliers Λ and Π. Specifically, these steps can be written in closed form as where γ∈(0,1.618) and [formula]. Since matrix inversions are applied to q  ×  q matrices, they are relatively inexpensive for q <  min {m,n}.
+
+Convergence
+
+Global convergence can be obtained when the classic ADM is applied to two-block convex programs in the form of [\eqref=eqcadm]. However, to the best of our knowledge, there is no global convergence result in general for non-convex programs or convex programs with three or more blocks. Note that problem [\eqref=eqlnmf] is non-convex and there are three blocks in updates [\eqref=algadm]. Due to these difficulties, we provide a convergence property of the proposed ADM algorithm that holds only under some assumptions.
+
+A point (X,Y,Z,U,V) satisfies the KKT condition for problem [\eqref=eqlnmf] if there exist Λ and Π such that where Ωc indexes the unobserved entries of M, and [formula] denotes component-wise multiplication. To simplify notation, we consolidate all the variables in problem [\eqref=eqlnmf] as W: = (X,Y,Z,U,V), and write [formula] to represent lagrangian function with respect to X by fixing others at their most recent values.
+
+Let {(Wk,Λk,Πk)} be a sequence generated by the ADM algorithm [\eqref=algadm]. If the multiplier sequence {(Λk,Πk)} is bounded and satisfies
+
+[formula]
+
+Then any accumulation point of {Wk} satisfies the KKT condition for problem [\eqref=eqlnmf]. Consequently, any accumulation point of {(Xk,Yk)} satisfies the KKT condition for problem [\eqref=eqnmf].
+
+First, we claim Wk + 1 - Wk  →  0, and (Λk + 1,Πk + 1) - (Λk,Πk)  →  0. We begin the proof of this claim by observing that [formula] is bounded below. This follows from
+
+[formula]
+
+and the boundedness of {(Λ,Π)}. Furthermore, the lagrangian function [formula] is strongly convex with respect to each variable of X,Y,Z,U and V. For X-variable, it holds for any X and ΔX that
+
+[formula]
+
+In addition, X* is a minimizer of [formula] implies the inequality
+
+[formula]
+
+Combining [\eqref=eq:conx] and [\eqref=eq:vi] and observing Xk + 1 is a minimizer of [formula] at the k-th iteration, we have
+
+[formula]
+
+and in the same way, Let c: =  min {α,β,1}. Then by [\eqref=eq:bx] and [\eqref=eq:bw], we have
+
+[formula]
+
+Taking summation of the above inequality and recalling [formula] is bounded below, we get
+
+[formula]
+
+Since the second term on the left of the above inequality is bounded, it follows that
+
+[formula]
+
+from which we immediately have Wk + 1 - Wk  →  0. For (Λk + 1,Πk + 1) - (Λk,Πk)  →  0, it directly follows from [\eqref=eqconvg].
+
+Now, we are ready to prove the result of this theorem. First, rearrange the ADM formulas in [\eqref=algadm] into and
+
+[formula]
+
+Note Wk + 1 - Wk  →  0, Λk + 1  -  Λk  →  0 and Πk + 1  -  Πk  →  0 imply that the left- and right-hand sides in [\eqref=algradm] all go to zero, i.e., where the terms α(Xk - Uk) and β(Yk - Vk) have been eliminated in [\eqref=limadm1] and [\eqref=limadm2], respectively, by invoking [\eqref=limadm5] and [\eqref=limadm6]. For any limit point Ŵ = (X̂,Ŷ,Ẑ,Û,V̂) of sequence {Wk}, there exists subsequence {Wnk} converging to Ŵ. The boundedness of {(Λk,Πk)} implies the existence of a sub-subsequence {(Λnkj,Πnkj)} of {(Λnk,Πnk)} converging to some point (Λ̂,Π̂). Hence, (Ŵ,Λ̂,Π̂) is a limit point of sequence {(Wk,Λk,Πk)}. Since [\eqref=admz] exactly means
+
+[formula]
+
+then clearly, the first six equations in the KKT conditions [\eqref=eqkkt] are satisfied at the limit point (Ŵ,Λ̂,Π̂). The nonnegativity of Û and V̂ are guaranteed by the algorithm construction. Therefore, we only need to verify the non-positivity of Λ̂ and Π̂, and the complementarity between Û and Λ̂, and between V̂ and Π̂. Now we examine the following two equations derived from [\eqref=limadm3] and [\eqref=limadm4], respectively, Note we have [formula]. If Ûij  =  X̂ij = 0, then [\eqref=limhadm1] reduces [formula], which implies Λ̂ij  ≤  0. On the other hand, if Ûij  =  X̂ij > 0, then [\eqref=limhadm1] implies Λ̂ij  =  0. This proves the non-positivity of Λ̂ and the complementarity between Û and Λ̂. The same argument can be applied to [\eqref=limhadm2], due to the identical structure, to prove the non-positivity of Π̂ and the complementarity between V̂ and Π̂.
+
+We have verified the statement concerning the sequence {Wk} and problem [\eqref=eqlnmf]. The statement concerning the sequence {(Xk,Yk)} and problem [\eqref=eqnmf] follows directly from the equivalence between the two problems. This completes the proof.
+
+From the proof of Theorem [\ref=thmkkt], we can immediately get the following corollary.
+
+Let {(Wk,Λk,Πk)} be a sequence generated by the ADM algorithm [\eqref=algadm]. Whenever the sequence converges, the limit satisfies the KKT conditions.
+
+Numerical Results
+
+Implementation and Parameters
+
+A pseudo code for the proposed algorithm is given in Algorithm [\ref=alg:ADM] below.
+
+The most important parameters are α,β and γ. In our implementation, we set γ = 1.618, and β = nα / m. The setting β = nα / m considers the different sizes of X and Y and balances the penalties for constraints X = U and Y = V. The naive setting α  =  β also works for our tests but reduces the speed of convergence. By running a range of numerical experiments, we heuristically scale A so that [formula] and select [formula]. They have worked well for our tested matrices, and it is worth mentioning that algorithm [\ref=alg:ADM] can work well for different α,β in a fairly large interval. The iteration stops once either one of the following conditions is met: where [formula]. All tests were performed on a Lenovo T410 laptop with an i7-620m CPU and 3 gigabytes of memory and running 32-bit Windows 7 and MATLAB 2010b.
+
+Random Nonnegative Matrices Factorization
+
+We compared the algorithm proposed in [\cite=zhang2010admnmf] with the proposed algorithm [\ref=alg:ADM], where the former algorithm takes complete samples of a random matrix M while the latter algorithm takes 75%, 50%, and 25% samples of the same matrix M. While other reported tests in this paper used parameters and stopping rules given above, this test set used different but consistent parameters (which are not optimal for algorithm 1) for both algorithms in order to accurately reveal their performance difference and the difference between NMF and NMFC: α  =  β = 104 and tol  =  10- 6. We generated each rank-r nonnegative matrix [formula] in the form of M = LDR, where [formula] and [formula] were generated by calling MATLAB's command !rand! and D is an r  ×  r diagonal matrix with diagonal elements [formula]. Such scaling makes M slightly ill-conditioned. We tested different combinations of n and m and obtained roughly consistent results. Figure [\ref=fg:rand_mtx] depicts the recovery qualities and speeds corresponding to m = n = 500 and varying q = r  =  20 through 50. The results are the averages of 50 independent trials.
+
+The quality of recovery is similar for SR = 100%, 75%, and 50% for the set of tested matrices. They are all faithful recoveries with relative errors around 0.4%. The relative errors for SR = 75%, and 50% are just slightly worse. The low SR = 25% makes the recovery more difficult. When the ranks r are between 20 and 30, the four error curves are roughly parallel though the red curve (SR = 25%) is worse at relative errors around 0.6%. When r > 30, 25% of entries seem no longer enough for faithful recovery and consequently, the red curve (SR = 25%) begins to deviate from the others as r increases, and it exhibits a steep upward trend. The difficulty with SR = 25% samples for large r is also shown in terms of cpu seconds. The times for SR = 75% and 50% are about three times as long as those for SR = 100%. Since the times are the averages of merely 50 trials, the curves are not as smooth as they would be if the trials were much more.
+
+The large gap between the red curve in Figure [\ref=fg:rand_mtx](left) and the other curves is largely due to the use of the same stopping tolerance 10- 6. However, SR=25% can reach the similar accuracy of higher SRs if it has a tighter tolerance (e.g., 10- 7) and runs more iterations, at least for r  ≤  30. In this sense, lower SRs do not necessarily mean much larger errors.
+
+Overview of Algorithm LMaFit and FPCA
+
+Before more simulation results are presented, let us overview LMaFit and FPCA, which were compared to Algorithm [\ref=alg:ADM] in the next two simulations. LMaFit solves [\eqref=lmafit] based on a nonlinear successive over-relaxation (SOR) method. From its first-order optimality conditions
+
+[formula]
+
+the nonlinear SOR scheme is derived as
+
+[formula]
+
+where the weight ω  ≥  1. One of its stopping criterions is the same as [\eqref=crit1]. In our tests described below, we set tol = 10- 5 for Alg [\ref=alg:ADM] and LMaFit and chose different maximum numbers of iterations based on the size of recovered matrix, which will be specified below. We applied the rank-estimation technique coming with LMaFit (hence, we did not fix q for LMaFit). FPCA solves convex problems in the form of which includes [\eqref=nuc] as a special case by setting the linear operator [formula] to [formula]. Introducing [formula], where [formula] is the adjoint of [formula], we can write the iteration of FPCA as
+
+[formula]
+
+where Sν(  ·  ) is a matrix singular-value shrinkage operator. In our tests described below, the parameters for FPCA were set to their default values: specifically, tol = 10- 6 and maxiter = 105. For the default values of other parameters such as τ and μ, we refer the reader to [\cite=ma2009fixed].
+
+Hyperspectral Data Recovery
+
+In this subsection, we compare Algorithm [\ref=alg:ADM] with LMaFit [\cite=Wen-Yin-Zhang-LMAFIT-10] and FPCA [\cite=ma2009fixed] on recovering three-dimensional hyperspectral images from their incomplete observations. Hyperspectral (or multispectral) imaging is widely used in applications from environmental studies and biomedical imaging to military surveillance. A hyperspectral image is a three-dimensional datacube that records the electromagnetic reflectance of a scene at varying wavelengths, from which different materials in the scene can be identified by exploiting their electromagnetic scattering patterns. We let each hyperspectral datacube be represented by a three-dimensional array whose first two dimensions are spatial and third dimension is wavelength. A hyperspectral datacube can have several hundreds of wavelengths (along the third dimension) but no more than a dozen dominant materials. As a consequence, the spectral vector at every spatial location can be (approximately) linearly expressed by a small set of common vectors, called endmembers or spectral signatures of materials. The number of these basic vectors is much smaller than the number of wavelengths. Since endmembers are naturally nonnegative, a hyperspectral datacube is a set of nonnegative mixtures of a few endmembers, which are also nonnegative. This property makes it possible to recover the endmembers and mixture coefficients from a hyperspectral datacube, and it is called unmixing. Although unmixing is not as simple as NMF, the results of NMF can be used as an initial guess. Compared to NMF, NMFC not only performs initial unmixing but also recovers the datacube from an incomplete set of observed voxels. This advantage will translate to shorter sampling times and perhaps simpler designs of hyperspectral imaging devices.
+
+In our simulation, the hyperspectral datacube has 163 wavelengths or slices, and the size of each slice is 80  ×  80. Three selected slices are shown in figure [\ref=fig:real-orig]. They depict an urban area at three different wavelengths. Roads, roofs, plants, as well as other objects exhibit different intensities. Our simulation begin with reshaping the 80  ×  80  ×  163 hyperspectral datacube to a 6400  ×  163 matrix M, each slice becoming one column of M. While M is full rank, its singular values are fast decaying. We chose the estimate rank q = 30, and set tol=10- 5 and maxiter = 2000 for Algorithm [\ref=alg:ADM], and tol=10- 5 and maxiter = 2000, est_rank=2, rk_inc =3 for LMaFit. The parameters for FPCA were set to their default values.
+
+The three algorithms were compared on recovering M from incomplete observations of SR = 30%, 40%, 50%, and their results were compared in terms of peak signal-to-noise ratio (PSNR), as well as mean squared error (MSE). Specifically, given a recovered matrix [formula] from incomplete samples of [formula], we let
+
+[formula]
+
+where [formula] is the maximum pixel intensity, which is 1023 in this subsection for the tested hyperspectral data and 1 in subsection [\ref=subsec:imagetest] for two grayscale images. The results are listed in table [\ref=table:real], and the three slices of the recovered datacube that correspond to those in figure [\ref=fig:real-orig] are depicted in figure [\ref=fig:real-recslic]. The results show that Algorithm [\ref=alg:ADM] performs better than FPCA in both CPU time and recovery quality. LMaFit is comparable with algorithm [\ref=alg:ADM] in terms of speed but less accurate. We believe that the use of nonnegativity is a major factor for the superiority of the results of algorithm [\ref=alg:ADM].
+
+Tests on images
+
+Despite that natural image recovery from incomplete random samples is not a typical image processing task, we picked it to test algorithm [\ref=alg:ADM], LMaFit, and FPCA since it is easy to visualize their solution qualities. This simulation used two grayscale images, the 768  ×  1024 Kittens and the 1200  ×  1600 Panda, shown in figure [\ref=fig:cat-panda-orig].
+
+We applied relatively small (thus, challenging) sample rates of SR=10%, 20%, 30% for Kittens and SR=10%, 15%, 20% for Panda. We set tol=10- 5, and maxiter=2000 for Algorithm [\ref=alg:ADM] and LMaFit and est_rank=2, rk_inc =3 for LMaFit. The parameters for FPCA were set to their default values. The results are given in tables [\ref=table:cat] and [\ref=table:panda] and the recovered images in figures [\ref=fig:cat-rec] and [\ref=fig:panda-rec].
+
+Tables [\ref=table:cat] and [\ref=table:panda] indicate that FPCA performs slightly better than algorithm [\ref=alg:ADM] in terms of recovery quality but slower when SR is as small as 10% while at this SR, LMaFit performs much worse. With larger SRs such as 20% and 30% for Kittens and SR=15% and 20% for Panda, algorithm [\ref=alg:ADM] is both faster and returns better images than FPCA. With SR=20% and 30%, algorithm [\ref=alg:ADM] is better than LMaFit on Kittens in terms of recovery quality with comparable speed. However, with SR=20%, LMaFit becomes slightly faster than algorithm [\ref=alg:ADM] on Panda with comparable recovery quality. As SR further increases, the three algorithms will return images with almost the same quality while LMaFit is the best in speed.
+
+Conclusions
+
+Among wide applications of nonnegative matrix factorization and those of low-rank matrix completion, there is a rich subset of problems where data matrices can be well approximated by matrix factorizations that are both low-rank and nonnegative, while some of the data (matrix elements) are missing. To best recover missing data, we propose to combine nonnegative matrix factorization and matrix completion, utilizing both nonnegativity and low-rankness in a date recovery formulation. This paper presents our first attempt to solve this non-convex formulation using an algorithm based on the classic alternating direction augmented Lagrangian method. The algorithm has a relatively low per-iteration complexity, especially when the approximation rank is low. Extensive numerical results in this paper indicate that the underlying formulation is useful, and the performance of the alternating direction algorithm is satisfactory. Since global convergence and recovery guarantee results are still largely unknown, we hope that the results of this paper will also motivate further theoretical and numerical studies on this useful problem.
+
+Acknowledgements
+
+The work of W. Yin was supported in part by US NSF CAREER Award DMS-07-48839, ONR Grant N00014-08-1-1101, ARL and ARO grant W911NF-09-1-0383, and an Alfred P. Sloan Research Fellowship. The work of Z. Wen was supported in part by NSF DMS-0439872 through UCLA IPAM. The work of Y. Zhang was supported in part by NSF DMS-0811188 and ONR grant N00014-08-1-1101.

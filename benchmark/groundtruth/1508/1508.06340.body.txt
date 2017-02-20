@@ -1,0 +1,237 @@
+Lemma Corollary Proposition Fact
+
+Linear time algorithm for quantum 2SAT
+
+Miklos Santha
+
+Aarthi Sundaram
+
+Shengyu Zhang
+
+Introduction
+
+Various formulations of the satisfiability problem of Boolean formulae arguably constitute the center piece of classical complexity theory. In particular, a great amount of attention has been paid to the SAT problem, in which we are given a formula in the form of a conjunction of clauses, where each clause is a disjunction of literals (variables or negated variables), and the task is to find a satisfying assignment if there is one, or prove that none exists when the formula is unsatisfiable. In the case of the k-SAT problem, where k is a positive integer, in each clause the number of literals is at most k. While k-SAT is an NP-complete problem [\cite=Cook71] [\cite=Karp72] [\cite=Lev73] when k  ≥  3, the problem 2-SAT is well-known to be efficiently solvable.
+
+Polynomial time algorithms for 2-SAT come in various flavors. Let us suppose that the input formula has n variables and m clauses. The algorithm of Krom [\cite=Krom76] based on the resolution principle and on transitive closure computation decides if the formula is satisfiable in time O(n3) and finds a satisfying assignment in time O(n4). The limited backtracking technique of Even, Itai and Shamir [\cite=EIS76] has linear time complexity in m, as well as the elegant procedure of Aspvall, Plass and Tarjan [\cite=APT79] based on computing strongly connected components in a graph. A particularly simple randomized procedure of complexity O(n2) is described by Papadimitriou [\cite=Pap91].
+
+For our purposes the Davis-Putnam procedure [\cite=DP60] is of singular importance. This is a resolution-principle based general SAT solving algorithm, which with its refinement due to Davis, Putnam, Logemann and Loveland [\cite=DPLL62], forms even today the basis for the most efficient SAT solvers. While on general SAT instances it works in exponential time, on 2-SAT formulae it is of polynomial complexity.
+
+The high level description of the procedure for 2-SAT is relatively simple. Let us suppose that our formula φ contains only clauses with two literals. Pick an arbitrary unassigned variable xi and assign xi  =  0. The formula is simplified: a clause [formula] becomes true and therefore can be removed, and a clause [formula] forces xj  =  1. This can be, in turn, propagated to other clauses to further simplify the formula until a contradiction is found or no more propagation is possible. If no contradiction is found and the propagation stops with the simplified formula φ0, then we recurse on the satisfiabilty of φ0. Otherwise, when a contradiction is found, that is at some point the propagation assigns two different values to the same variable, we reverse the choice made for xi, and propagate the new choice xi = 1. If this also leads to contradiction we declare φ unsatisfiable, otherwise we recurse on the result of this propagation, the simplified formula φ1.
+
+There is a deep and profound link between k-SAT formulas and k-local Hamiltonians, the central objects of condensed matter physics. A k-local Hamiltonian on n qubits is a Hermitian operator of the form [formula], where each hi is by itself a Hermitian operator acting non-trivially on at most k qubits. Local Hamiltonians model the local interactions between quantum spins. Of central importance is the minimal eigenstate of the Hamiltonian, known as the ground state, and its associated eigenvalue, known as the ground energy. The ground state governs much of the low temperature physics of the system, such as quantum phase transitions and collective quantum phenomena [\cite=ref:Sachdev] [\cite=ref:Vidal-2003]. Finding the ground state of a local Hamiltonian shares important similarities with the k-SAT problem: in both problems we are trying to find a global minimum of a set of local constraints. This connection with complexity theory is of physical significance. Indeed, with the advent of quantum information theory and quantum complexity theories, it has become clear that the complexity of finding the ground state and its energy is intimately related to its entanglement structure. In recent years, much attention has been devoted into understanding this structure, revealing a rich an intricate behaviour such as area laws [\cite=ECP10] and topological order [\cite=ref:toric].
+
+The connection between classical k-SAT and quantum local Hamiltonian was formalized by Kitaev [\cite=Kit02] who introduced the k-local Hamiltonian problem: one is given a k-local Hamiltonian H, along with two constants a  <  b such that b - a > 1 / nα for some constant α. It is promised that the ground energy of H is at most a (the YES case) or is at least b (the NO case), and the task is to decide which case holds. Broadly speaking, given a quantum state |ψ〉, the energy of a local term 〈ψ|hi|ψ〉 is a measure of how much |ψ〉 "violates" hi, hence the ground energy is the quantum analog of the minimal number of violations in a classical k-SAT. Therefore, in spirit, the k-local Hamiltonian problem corresponds to MAX-k-SAT, and indeed Kitaev has shown [\cite=Kit02] that 5-local Hamiltonian is QMA-complete, where the complexity class QMA is the quantum analogue of classical class MA, the probabilistic version of NP.
+
+The problem quantum k-SAT, the quantum analogue of k-SAT, is a close relative of the k-local Hamiltonian problem. Here we are given a k-local Hamiltonian that is made of k-local projectors, [formula], and we are asked whether the ground energy is 0 or it is larger than b = 1 / nα for some constant α. Notice that in the YES case, the energy of all projectors at the ground state is necessarily 0, since by definition, projectors are non-negative operators. Classically, this corresponds to a perfectly satisfiable formula. Physically, this is an example of a frustration-free Hamiltonian, in which the global ground state is also a ground state of every local term. Bravyi [\cite=Bra06] has shown that quantum k-SAT was [formula]-complete for k  ≥  4, where [formula] stands for [formula] with one-sided error (that is on YES instances the verifier accepts with probability 1). The [formula]-completeness of quantum 3-SAT was recently proven by Nagaj [\cite=GN13].
+
+This paper is concerned with the quantum 2-SAT problem, which we will also denote simply by Q2SAT. One major result concerning this problem is due to Bravyi [\cite=Bra06], who has proven that it belongs to the complexity class P. More precisely, he has proven that Q2SAT can be decided by a deterministic algorithm in time O(n4), together with a ground state that has a polynomial classical description. In the case of Q2SAT, the Hamiltonian is given as a sum of 2-qubits projectors; each projector is defined on a 4-dimensional Hilbert space and can therefore be of rank 1, 2 or 3. In this paper, we give an algorithm for Q2SAT of linear complexity.
+
+Our algorithm shares the same trial and error approach of the Davis-Putnam procedure for classical 2SAT, but handles many difficulties arising in the quantum setting. First, a ground state of Q2SAT input may be entangled, some distinctive feature that classical 2SAT does not have. Thus the idea of setting some qubit to certain state and propagating from there does not have foundation at the first place. Indeed, if a rank-3 projection leaves the only allowed state entangled, then any ground state is entangled in those two qubits. We overcome this by showing a product-state theorem, which asserts that for any frustration-free Q2SAT instance H that contains only rank-1 and rank-2 projectors, there always exists a ground state in the form of a tensor product of single-qubit states.
+
+This structural theorem grants us the following approach: We try some candidate solution |ψ〉i on a qubit i, and propagate this along the graph. If no contradiction is found, it turns out that we can detach the explored part and recurse on the rest of the graph. If a contradiction is found, then we can identify two candidates (i,|ψ〉i) and (j,|φ〉j) such that either assigning |ψ〉i to qubit i or assigning |φ〉j to qubit j is correct, if there exists a solution at all. More details follow next.
+
+To illustrate the main idea of our algorithm, let us suppose that the input contains only projectors of rank at most two. Such a system can be further simplified to a system consisting only of rank-1 projectors, by writing every rank-2 projector as a sum of two rank-1 projectors. Consider, for example, qubits 1 and 2 and a rank-1 projector Π12  =  |ψ〉〈ψ| over these qubits. The product-state theorem implies that it suffices to search for a product ground state. Thus on the first two qubits, we are looking for states |α〉,|β〉 such that [formula], which is equivalent to [formula]. In other words, we look for a product state [formula] that is perpendicular to |ψ〉. Assume that we have assigned qubit 1 with the state |α〉 and we are looking for a state |β〉 for qubit 2. The crucial point, which enables us to solve Q2SAT efficiently, is that just like in the classical case, there are only two possibilities: (i) for any |β〉, the state [formula] is perpendicular to |ψ〉, or (ii) there is only one state |β〉 (up to an overall complex phase), for which [formula]. The first case happens if and only if |ψ〉 is by itself a product state of the form [formula], where [formula] is perpendicular to |α〉 and |ξ〉 is arbitrary. If the second case happens, we say that state |α〉 is propagated to state |β〉 by the constraint state |ψ〉.
+
+The above dichotomy enables us to propagate a product state |s〉 on part of the system until we either reach a contradiction, or find that no further propagation is possible and we are left with a smaller Hamiltonian Hs. This smaller Hamiltonian consists of a subset of the original projectors, without introducing new projectors. It turns out that once an edge is checked for potential propagation, then no matter whether a propagation happens along the edge, the edge can be safely removed without changing the satisfiability. Thus the satisfiability of the original Hamiltonian H is the same as that of the smaller Hamiltonian Hs.
+
+We still need to specify how the state |α〉 is chosen to initialize the propagation. An idea is to begin with projectors |ψ〉〈ψ| for which |ψ〉 is a product state [formula]. In such cases a product state solution must either have [formula] at the first qubit or [formula] at the second. To maintain a linear running time, we propagate these two choices simultaneously until one of the propagations stops without contradiction, in which case the corresponding qubit assignment is made final. If both propagations end with contradiction, the input is rejected.
+
+The more interesting case of the algorithm happens when we have only entangled rank-1 projectors. What should our initial state be then? We make an arbitrary assignment (say, |0〉) to any of the still unassigned qubits and propagate this choice. If the propagation ends without contradiction, we recurse. If a contradiction is found then we confront a challenging problem. In the classical case we could reverse our choice, say x0  =  0, and try the other possibility, xi  =  1. But in the quantum case we have an infinite number of potential assignment choices. The solution is found by the following observation: Whenever a contradiction is reached, it can be attributed to a cycle of entangled projectors in which the assignment has propagated from qubit i along the cycle and returned to it with another value. Then using the techniques of 'sliding', which was introduced in Ref. [\cite=JWZ11], one can show that this cycle is equivalent to a system of one double edge and a 'tail' (see Fig. [\ref=fig:contradicting-cycle]). Using a simple structure lemma, we are guaranteed that at least one of the projectors of the double edge can be turned into a product state projector, which, as in the previous stage, gives us two possible free choices.
+
+Let us state here that our algorithm works in the algebraic model of computation: we suppose that every arithmetic operation on complex numbers can be done in unit time. There are several ways to work in a more realistic model. Bravyi [\cite=Bra06] suggests considering bounded degree algebraic numbers, in which case the length of the representations and the cost of the operations should be analyzed. Another possibility would be to consider complex numbers with bounded precision in which case exact computation is no more possible and therefore an error analysis should be made. By choosing a more convenient computational model, we disregard these issues.
+
+Classically, Davis-Putnam [\cite=DP60] and DPLL algorithms [\cite=DPLL62] are widely-used heuristics, forming the basis of today's most efficient solvers for general SAT. For quantum k-SAT, it could also be a good heuristic if we try to find product-state solutions, and in that respect our algorithm makes the first-step exploration.
+
+Simultaneously and independently from our work and approximately at the same time, de Beaudrap and Gharibian [\cite=BG] have also presented a linear time algorithm for quantum 2SAT. The main difference between the two algorithms is how they deal with instances with only entangled rank-1 projectors. Contrarily to us, [\cite=BG] handles these instances by using transfer matrix techniques to find discretizing cycles [\cite=ref:Laumann09].
+
+Preliminaries
+
+Notation
+
+We will use the notation [formula]. For a graph G = (V,E), and for a subset U  ⊆  V of the vertices, we denote by G(U) the subgraph induced by U. Our Hilbert space is defined over n qubits, and is written as [formula], where Hi is the two-dimensional Hilbert space of the ith qubit. We shall often write |α〉i to emphasize that the 1-qubit state |α〉 lives in Hi. Similarly, |ψ〉ij denotes a 2-qubit state that lives in [formula]. For a 1-qubit state |α〉  =  α0|0〉  +  α1|1〉, we define its perpendicular state as [formula].
+
+We shall denote local projectors either by Πij, or by Πe, where e = (i,j). When i < j, Πij is a 2-local projector on the qubits i,j; it can be written as [formula], where Π̂ij is a projector working on [formula] and [formula] is the identity operator on the rest of the system. Similarly, when i = j, [formula], where Π̂ii is a projector defined in Hi. Often, in order not to overload the notation, we shall use Πij instead of Π̂ij, even when acting on states in [formula]. Similarly, with a slight abuse the notation, we define the rank of a projector Πe to be the dimension of the subspace that its local projector Π̂e projects to, and it will be denoted by [formula]. We call a rank-1 projector Πe  =  |ψ〉〈ψ|, entangled if |ψ〉 is an entangled state, and product if |ψ〉 is a product state.
+
+The Q2SAT problem
+
+A quantum 2-SAT Hamiltonian on an n-qubit system is a Hermitian operator [formula], for some I  ⊆  {(i,j)∈[n]  ×  [n]:1  ≤  i  ≤  j  ≤  n}. We suppose that [formula], for all (i,i)∈I, and [formula], for all (i,j)∈I when i < j. The single-qubit projectors of H as well as its 2-qubit projectors of rank-3 are called maximal rank.
+
+The ground energy of a Hamiltonian [formula] is its smallest eigenvalue, and a ground state of H is an eigenvector corresponding to the smallest eigenvalue. The subspace of the ground states is called the ground space. A Hamiltonian is frustration-free if it has a ground state that is also simultaneously the ground state of all local terms. As explained in the introduction, if the Hamiltonian is made of local projectors, it is frustration-free if and only if there is a state that is a mutual zero eigenstate of all projectors, which happens if and only if the ground energy is 0. Therefore, if |Γ〉 is a ground state of a frustration-free quantum 2-SAT Hamiltonian, Πe|Γ〉  =  0 for all e∈I. We can also view each local projector as a constraint on at most two qubits, then a ground state satisfies every constraint.
+
+It turns out that for the representation of the 2QSAT Hamiltonian, it will be helpful to eliminate the rank-2 projectors by decomposing each one of them into a sum of two rank-1 projectors. For every (i,j)∈I such that [formula], let Πij  =  Πij,1  +  Πij,2, where Πij,1 and Πij,2 are rank-1 projectors. Such projectors can be found in constant time. We therefore suppose without loss of generality that H is specified by
+
+[formula]
+
+which we call the rank-1 decomposition of H.
+
+To the rank-1 decomposition we associate a weighted, directed multigraph with self-loops G(H)  =  (V,E,w), the constraint graph of H. By definition [formula], For every rank-3 and rank-1 projector acting on two qubits, there is an edge in each direction between the two nodes representing them. For every projector acting on a single qubit, there is a self-loop. Finally, for every rank-2 projector, there are two parallel edges in each direction between nodes representing its qubits. Because of the parallel edges, E is not a subset of V  ×  V. Formally, [formula] where
+
+[formula]
+
+and
+
+[formula]
+
+We say that an edge e∈E goes from i to j if e∈{(i,j),(i,j,1),(i,j,2)}. For a projector Π acting on two qubits, we define its reverse projector Πrev by Πrev|α〉|β〉  =  Π|β〉|α〉, and for i  ≤  j and b∈[2], we set Πji  =  Πrevij and Πjib  =  Πrevijb. Then for an edge (i,j), its weight is defined as w(i,j)  =  Πij, and analogously for an edge (i,j,b), we set w(i,j,b)  =  Πijb.
+
+We will suppose that the input to our problem is the constraint graph G(H) of the Hamiltonian, given in the standard adjacency list representation of weighted graphs, naturally modified for dealing with the parallel edges as shown in Figure [\ref=fig:constraint_graph]. In this representation there is a linked list of size at most n containing one element for each vertex, and the element i in this list is also pointing towards a linked list containing an element for every edge (i,j) or (i,j,b). For an edge (i,j), this element contains j, the projector Πij and a pointer towards the next element in the list, for an edge (i,j,b) it also contains the value b. The problem Q2SAT is defined formally as follows.
+
+Simple ground states
+
+Our algorithm is based crucially on the following product state theorem, which says that any frustration-free Q2SAT Hamiltonian has a ground state which is a product state of single qubit and two-qubit states, where the latter only appear in the support of rank-3 projectors. A slightly weaker claim of that form has already appeared in Theorem 2 of Ref. [\cite=CCD+11]. The difference here is that we specifically attribute the 2-qubits states in the product state to rank-3 projectors. Just as in Ref. [\cite=CCD+11], our derivation begins with Theorem 1 of Ref. [\cite=CCD+11], which we give below. It relies on the notion of a genuinely entangled state in an n-qubit system, which is a pure state that is not a product state with respect to any bi-partition of the system. Then Theorem 1 in [\cite=CCD+11] states
+
+We will also need the following simple fact about 2-dimensional subspaces in [formula]
+
+Any 2-dimensional subspace V of the 2-qubit space [formula] contains at least one product state, which can be found in constant time.
+
+Take a basis {|ψ〉,|φ〉} of the two-dimensional subspace [formula], the orthogonal complement of V. Our goal is to find a product state [formula] such that [formula]. To that aim, expand in the standard basis: [formula], [formula], and [formula], [formula]. Then our task is to find coefficients αi and βi such that [formula] and [formula]. We can pass to a matrix notation, in which ψ*ij,φ*ij are the entries of 2  ×  2 matrices Ψ,Φ, and αi,βi are the coordinates of the 2-vectors ,. In that notation, we are looking for vectors , such that
+
+[formula]
+
+If the matrix Φ is singular, we pick [formula] inside its the null space, and choose [formula] such that TΨ = 0. Otherwise, when Φ is non-singular, we let [formula] be an eigenvector of the matrix Φ- 1Ψ, i.e., Φ- 1Ψ = c, where c is some eigenvalue. Then Ψ = cΦ, and therefore to satisfy Eq. ([\ref=eq:2by2-cond]), we can choose [formula] such that TΦ = 0.
+
+Our product state theorem is stated as follows.
+
+Consider a frustration-free Q2SAT Hamiltonian H and let |Γ〉 be its ground state. Generally, |Γ〉 can be written as a product state
+
+[formula]
+
+where each |α(i)〉 is a genuinely entangled state defined on a subset S(i) of qubits. Notice if [formula] is a rank-3 projector then necessarily every ground state of H will contain |ψ〉jk at a tensor product with the rest of the system. Therefore, if |ψ〉jk happens to be entangled, there would necessarily be a subset S(i)  =  {j,k} in the above decomposition with |α(i)〉 = |ψ〉jk. On the other hand, if |ψ〉jk is a product state, there would be two subsets S(i1)  =  {j}, and S(i2)  =  {k}.
+
+Let H(i) be the Hamiltonian that is the sum of all the projectors whose support is in S(i). Clearly, |α(i)〉 is a ground state of H(i). By the reasoning in the paragraph above, it is clear that for subsets S(i) with two or more qubits, that do not correspond to the support of rank-3 projectors, the corresponding H(i) consists only of rank-1 and rank-2 projectors. It is easy to see that Fact [\ref=lem:rank2product] implies that for such Hamiltonians, which do not contain rank-3 projectors, Proposition [\ref=thm:genuinely-ent] also for n = 2 case. Therefore, any such H(i) also has a ground state |β(i)〉 which is a product state of one qubit states:
+
+[formula]
+
+The remaining S(i) subsets correspond either to one qubit subsets, or to 2-qubits subsets of entangled rank-3 projectors. In all these cases, we define |β(i)〉 = |α(i)〉.
+
+We now claim that the state [formula], which is a product of one-qubit and two-qubit states, is a ground state of H. To prove this we need to show that this state is in the ground space of every projector Πe in H. If the support of Πe is inside one of the Si subsets, then by definition Πe|β(i)〉 = 0 and therefore also Πe|β〉 = 0. Assume then that Πe is supported on a qubit from S(i) and a qubit from S(j) with i  ≠  j. We now consider 3 cases:
+
+If both S(i) and S(j) contain only one qubit then [formula].
+
+If S(i) is made of one qubit but S(j) has two or more qubits, then consider the Schmidt decomposition [formula]. Here, |x1〉,|x2〉 are defined on the qubit of Sj that is in the support of Πe, while |y1〉,|y2〉 are defined on the rest of the qubits in Sj. The Schmidt coefficients λ1,λ2 are by assumption non-zero, as |αj〉 is entangled. Then the condition [formula] is equivalent to [formula], and by the linear independence of |y1〉,|y2〉, we conclude that [formula]. Therefore, Πe annihilates the subspace [formula] of the two qubits that it acts on, and in particular it annihilates [formula] since |β(i)〉 = |α(i)〉.
+
+The third case in which both S(i) and S(j) contain two or more qubits cannot happen. Indeed, in such case we write both |α(i)〉,|α(j)〉 in their Schmidt decomposition, and from a similar argument that was used above, we conclude that Πe must annihilate 4 independent vectors. It therefore cannot be a rank-1 or a rank-2 projector.
+
+This completes the proof of the theorem.
+
+Assignments
+
+Let [formula] be a 2-local Hamiltonian. By Theorem [\ref=thm:productstate], if H is frustration free then it has a ground state which is the tensor product of 1-qubit and 2-qubit entangled states, where the latter only appear in pairs of qubits corresponding to rank-3 projectors. To build up a ground state of such form, our algorithm will use partial assignments, or shortly assignments. An assignment s is a mapping from
+
+[formula]
+
+Propagation
+
+The crucial building block of our algorithm is the propagation of values by rank-1 projectors. This is the quantum analog of the classical propagation process when for example the clause [formula] propagates the value xi  =  0 to the value xj  =  1 in the sense that given xi  =  0, the choice xj  =  1 is the only possibility to make the clause true. In the quantum case this notion has already appeared in Ref. [\cite=ref:Laumann09], and can in fact be traced back also to Bravyi's original work. Here, we shall adopt the following definition
+
+Let Πe  =  |ψ〉〈ψ| be a rank-1 projector acting on variables i,j, and let |α〉 be either a 1-qubit state assigned to variable i, or a 2-qubit entangled state assigned to variables k,i for some k  ≠  j. We say that Πe propagates |α〉 if, up to a phase, there exists a unique 1-qubit state |β〉 such that [formula] In such case we say that |α〉 is propagated to |β〉 along Πe, or that Πe propagated |α〉 to |β〉.
+
+The following lemma shows how the propagation properties of Πe = |ψ〉〈ψ| are determined by entanglement in |ψ〉.
+
+Assume that |ψ〉 is entangled and consider the state |α〉. Our task is to show that there always exists a unique |β〉 (up to an overall constant) such that [formula], and that different |α〉's yield different |β〉's.
+
+Expanding |ψ〉, |α〉, and |β〉 in the standard basis [formula]; [formula]; [formula], the condition [formula] translates to [formula]. Assuming that |ψ〉 is entangled, one can easily verify that the 2  ×  2 matrix (ψ*ij) is non-singular. Then using the simple fact that in a two-dimensional space every non-zero vector has exactly one non-zero vector (up to an overall scaling) which it is orthogonal to, it is straightforward to deduce that for every non-zero vector (α0,α1) there is a unique (up to scaling) non-zero vector (β0,β1) such that [formula]. Moreover, (β0,β1) can be calculated in constant time, and that different (α0,α1) necessarily yield different (β0,β1).
+
+The case when |ψ〉 is a product state is straightforward.
+
+We now present two lemmas that describe the structure of the global ground state of the system, if we know that part of it is in a tensor product of 1-qubit or 2-qubits states, which are then propagated by some Πe.
+
+For the first claim assume that Πe propagates |α〉i to |β〉j. Without loss of generality, we may expand
+
+[formula]
+
+where the states |rest1〉,|rest2〉 are defined on all the qubits of the system except for (i,j), and are not necessarily normalized. Plugging this expansion into the condition Πe|Γ〉 = 0, we obtain the equation
+
+[formula]
+
+Since Πe propagates |α〉i to |β〉j, we have Πe|α〉i|β〉j = 0 and [formula]. Therefore, the above equation implies that |rest2〉 = 0, and we may set |rest'〉 = |rest1〉.
+
+The second claim follows trivially from the frustration-freeness of the system.
+
+Write |φ〉 in its Schmidt decomposition [formula], and note that both λ1,λ2  ≠  0, since |φ〉 is entangled. Plugging this into the condition Πe|Γ〉 = 0, we get
+
+[formula]
+
+Since |β〉 is is linearly independent of [formula], we conclude that [formula].
+
+To prove the first claim, assume by contradiction, that |ψ〉 is entangled. Then by Lemma [\ref=lem:propagate0], Πe propagates |α〉 and [formula] to two different states, say, |γ1〉  ≠  |γ2〉. But then by Lemma [\ref=lem:propagate1], it follows that |rest〉 must be both in the form [formula] and [formula] - which is a contradiction!
+
+For the second claim, assume that [formula] is a product state. Since [formula], both states [formula] are ground states of the single projector Hamiltonian H̃  =  Πe. Using Lemma [\ref=lem:propagate0] and Lemma [\ref=lem:propagate1], together with the fact that and at least one of the states [formula] is different from [formula], we conclude that [formula].
+
+The third claim, as before, follows simply from the frustration-freeness of the system.
+
+Let H be a Q2SAT Hamiltonian in rank-1 decomposition, let s be a coherent assignment, and let Gs  =  (Vs,Es) be the constraint graph of the reduced Hamiltonian Hs. We would like to describe in Gs the result of the iterated propagation process when a value given to variable i is propagated along all possible projectors, then the propagated values are propagated on their turn, and so on until no more value assigned during this process can be further propagated. The propagation can get started when the initial value is already assigned by s, that is when s(i)  =  |δ〉 for |δ〉∈{|α〉,|γ〉ij}, where |α〉 is some 1-qubit state and |γ〉ij some a 2-qubit state, or it can get started when [formula], in which case we shall explicitly choose a 1-qubit state |α〉 and assign it to i.
+
+Let now s,i and |δ〉 be such that [formula]. We say that in the constraint graph Gs an edge e∈Es from i to j propagates |δ〉 if Πe propagates it, and we denote by [formula] the state |δ〉 is propagated to. We generalize the notion of propagation in Gs from edges to paths. Let [formula] be vertices in Vs, and let ej be an edge from ij to ij + 1, for [formula]. Let [formula], and set |α0〉  =  |δ〉. Let [formula] be states such that the propagation of |αj〉 along Πej is |αj + 1〉, for [formula]. Then we say that the path [formula] from i0 to ik propagates |δ〉, and we set [formula]. We say that a vertex j∈Vs is accessible by propagating |δ〉 from i if either j = i or there is a path from i to j that propagates |δ〉. We denote by [formula] the set of such vertices, and by [formula] the extension of s by the values given to the vertices in [formula] by iterated propagation.
+
+Let us suppose that [formula] is also coherent. The set [formula] divides the edges Es into three disjoint subsets: the edges E1 of the induced subgraph [formula], the edges E2 between the induced subgraphs [formula] and [formula], and the edges E3 of the induced subgraph [formula]. While the edges in [formula] are satisfied by s', none of the edges in E3 is satisfied. Therefore Gs' is nothing but [formula] without the isolated vertices, and it can be constructed by the following process. Given s and i, the edges in [formula] can be traversed via a breadth first search rooted at i. The levels of the tree are decided dynamically: at any level the next level is composed of those vertices whose value is propagated from the current level. The leaves of the tree are vertices in [formula]. The algorithm Propagation uses a temporary queue Q to implement this process.
+
+The assignments made during the breadth first search correspond exactly to the the paths propagating |δ〉 from i, therefore the extension of s created by the process is indeed [formula]. The while loop removes the edges between vertices in [formula] and the edges which go from [formula] to [formula], as well as the vertices in [formula]. Then the edges from [formula] to [formula] are removed, as well as the remaining vertices without outgoing (and incoming) edges. Therefore we have G'  =  Gs'.
+
+Let us suppose that s is a pre-solution, and let z be an extension of s which is a solution and which is a product state on the vertices in Vs. By Theorem [\ref=thm:productstate] there exists such a solution since Hs doesn't have rank-3 constraints. We define the assignment z' by
+
+[formula]
+
+Then z' is a solution which is an extension of s', and therefore s' is a pre-solution. If s is closed then so is s' since only the vertices in [formula] get assigned during the process, and they are not included into Vs'.
+
+Let us now suppose that the procedure returns "unsuccessful". Then there is a vertex [formula], and two paths p and p' in Gs from i to k such that [formula], [formula] and |β〉  ≠  |β'〉. Let us also suppose that there exists a solution z which is an extension of s and for which z(i)  =  |δ〉. Then by the repeated use of Lemma [\ref=lem:propagate1], and also by using once Lemma [\ref=lem:propagate2] when |δ〉 is a 2-qubit entangled state, we conclude that z(k) is simultaneously equal to |β〉 and to |β'〉, which is a contradiction.
+
+Finally Statement 3 follows since every step of the procedure can be naturally charged to an edge in [formula], and every edge is charge only a constant times.
+
+The main algorithm
+
+Description of the algorithm
+
+We now give in broad lines a description of our algorithm we call Q2SATSolver. It takes as input the the adjacency list representation of the constraint graph G(H) of a 2-local Hamiltonian H in rank-1 decomposition. The algorithm uses four global variables: assignments s0 and s1 initialized to [formula], and graphs G0 and G1 in the adjacency list representation, initialized to G(H). The algorithm consists of four phases, and except the first one, each phase consists of several stages, where essentially one stage corresponds to one Propagation process. In the case of an unsatisfiable Hamiltonian the algorithm at some point outputs "H is unsatisfiable" and stops. This happens when either the maximal rank constraints are already unsatisfiable, or at some later point several values are assigned to the same variable during a necessary propagation process.
+
+In the case of a frustration-free Hamiltonian, at the beginning and end of each stage, we will have s0 = s1, fand G0 = G1 = Gs0. In the first two phases only (s0,G0) develops, and is copied to (s1,G1) at the end of the phase. In the last two phases, (s0,G0) and (s1,G1) develop independently, but only the result of one of the two processes is retained and is copied into the other variable at the end of the phase. This parallel development of the two processes is necessary for complexity considerations, it ensures that the useless work done is proportional to the useful work.
+
+In the first phase the procedure MaxRankRemoval satisfies, if this is possible, all constraints of maximal rank. In the second phase all these assignments are propagated, which, if successful, results in a closed assignment s such that Hs has only rank-1 constraints. In the third phase the procedure ParallelPropagation satisfies the product constraints one by one and propagates the assigned values. To satisfy a product constraint, the only two possible choices are tried and propagated in parallel. In the fourth phase the remaining entangled constraints are taken care of, again, one by one. To satisfy a constraint, an arbitrary value is tried and propagated. In case of an unsuccessful propagation we are able to efficiently find a product constraint implied by the entangled constraints considered during the propagation, and therefore it becomes possible to proceed as in phase three. In case of success we are left with a satisfying assignment and the empty constraint graph. Theorem [\ref=thm:intro] is an immediate consequence of the following result.
+
+Theorem [\ref=thm:main] will be proven in Section [\ref=subsec:analysis].
+
+Max rank removal
+
+The MaxRankRemoval procedure is conceptually very simple. Since every maximal rank constraint has a unique solution (up to a global phase), it makes this assignment for each constraint, and then checks if this is globally consistent.
+
+If the procedure doesn't output "H is unsatisfiable" then indeed s0 is coherent and it satisfies all maximal rank constraints. The removal of the necessary edges and vertices insures that G0  =  G(Hs0), and obviously s0 = s1,G0 = G1. If H is satisfiable, then it has a ground state for some total assignment s. This s is an extension of s0 because there is a unique way to satisfy the maximal rank constraints.
+
+Maximal rank projectors are such that there is a unique assignment for their qubit(s) which satisfies them. The first part of the procedure creates the assignment which assigns these necessary values. If this assignments is not coherent then H is unsatisfiable. Similarly, if s0 assigns an entangled 2-qubit state between variables i and k, and there is an entangled rank-1 constraint between i and j, then by Lemma [\ref=lem:propagate2] it is impossible to extend s0 into a satisfying assignment, and therefore H is unsatisfiable. This proves Statement 2.
+
+The procedure can be executed by a constant number of vertex and edge traversals for s0, and similarly for s1.
+
+Algorithm ParallelPropagation
+
+The procedure ParallelPropagation is called when s0 is a closed assignment, and in Gs0 there is a product edge. Since there are only two ways to satisfy a product constraint, these are tried and propagated in parallel. If one of these propagations terminates successfully, the other is stopped, which ensures that the overall work done is proportional to the progress made.
+
+If the procedure doesn't output "H is unsatisfiable" then at least one of the parallel propagations terminates successfully, say Propagation(s0,G0,i0,|α0〉). Then s'0 is a proper extension of s0 since s0 is closed and therefore [formula]. Obviously s'1 = s'0 and G'1 = G'0, and all other claims follow from the Propagation Lemma.
+
+Since Hs0 doesn't have rank-3 constraints, by Theorem [\ref=thm:productstate] if it is frustration free, it has a product ground state. In Hs0 there exists a product edge from i0 to i1 with constraint [formula], therefore only assignments which have either |α0〉 assigned to variable i0 or |α1〉 assigned to variable i1 can be a solution. But if both propagations output "unsuccessful", then by the Propagation Lemma no such assignment can satisfy Hs0. Therefore Hs0 is not frustration free, and neither is H.
+
+For the complexity analysis observe that the unsuccessful or unterminated propagation of the parallel processes makes at most as many steps as the successful one. This is the reason for performing the two propagations in parallel. Undoing this propagation can be performed in the same order of time as the propagation itself, for example, by copying the removed edges into temporary lists. The claim on the complexity of the successful propagation follows from the Propagation Lemma.
+
+Algorithm ProbePropagation
+
+The procedure ProbePropagation is evoked when s0 is a closed assignment, and in Gs0 there are only entangled constraints. It picks an arbitrary vertex in i∈Vs, assigns |0〉 (an arbitrary value) to it, and propagates this choice. In the lucky case of successful propagation this is repeated. Otherwise, we reach a contradiction: there is some j∈Vs, such that two propagating paths assign different values to it. We prove below the Sliding Lemma which already appeared in Ref. [\cite=JWZ11]. It implies that when [formula] is a propagating path of entangled rank-1 projectors, the ground space of the Hamiltonian [formula] is equal to the ground state of the Hamiltonian [formula], where Πi0,ik is a new projector defined on the qubits (i0,ik) that replaces the projector Πi0,i1. Graphically, this can be viewed as if we are sliding the (i0,i1) edge on the path [formula], as shown in Fig. [\ref=fig:sliding-path]. Therefore, if we have two propagating paths starting at i and ending at j, they define two projectors on qubits (i,j), as illustrated in Fig. [\ref=fig:contradicting-cycle]. As we shall see, if these two paths are contradicting then necessarily the two projectors are different, which by Lemma [\ref=lem:rank2product] implies the existence of a product constraint between (i0,ik) variables. In such case, we can proceed by calling the procedure ProbePropagation.
+
+Consider the Schmidt decomposition |ψ2〉jk  =  λ1|x1〉j|y1〉k  +  λ2|x2〉j|y2〉k, where λ1,λ2  ≠  0, as |ψ2〉jk is entangled. Define a non-singular transformation T on qubit j by λ1T|x1〉  =  |y2〉 and λ2T|x2〉  =   - |y1〉. Then T|ψ2〉jk  =  |y2〉j|y1〉k  -  |y1〉j|y2〉k is the anti-symmetric state. Let |ψ̃1〉ij and |ψ̃2〉jk be the normalization of T|ψ1〉ij and T|ψ2〉jk respectively, and use them to define the rank-1 projectors 1,2. Since 2 projects into the anti-symmetric subspace, then any state in the ground space of 1  +  2 must be invariant under a swapping of qubits j,k. Therefore, definining |ψ3〉ik = |ψ̃1〉ik, and [formula], the the ground space of 1  +  2 is identical to the ground space of Π3  +  2. Applying now the inverse transformation T- 1 on qubit j, the projector 2 returns to Π2, while Π3 remains unchanged. Since both T,T- 1 are non-singular, it follows that ground space of Π1  +  Π2 is identical to the ground space to Π2  +  Π3.
+
+For the second claim, assume by contradiction that Π3 does not propagate |α〉i to |β〉k. Then there is a 1-qubit state |γ〉  ≠  |β〉, such that Π3(|α〉i|γ〉k) = 0. Since Π2 is a rank-1 entangled projector, by Lemma [\ref=lem:propagate0], it propagates |γ〉k to some state |δ〉j, and therefore the state |α〉i|δ〉j|γ〉k is a ground state of Π2  +  Π3, as well as of Π1  +  Π2. But this contradicts the assumption that latter propagates |α〉i to |β〉k.
+
+Applying Lemma [\ref=lem:sliding] iteratively, we reach the following corollary
+
+We will denote the state |γ〉 in the conclusion of the corollary by [formula].
+
+If the procedure doesn't output "H is unsatisfiable" then either Propagation(s0,G0,i,|0〉) or one of the parallel propagations (say Propagation(s0,G0,i,|α〉)) terminates successfully. Then s'0 is a proper extension of s0 since s0 is closed and therefore [formula]. Obviously s'1 = s'0 and G'1 = G'0, and all other claims follow from the Propagation Lemma.
+
+Let's suppose that all three propagations are unsuccessful. By Corollary [\ref=cor:sliding], any solution for Hs0 also satisfies [formula]. Then Lemma [\ref=lem:parallel] implies that H is unsatisfiable.
+
+For the complexity analysis the interesting case is when the first propagation, that we call Propfailure, is unsuccessful but one of the two parallel propagations is successful. Let's call this successful one Propsuccess. The main observation here is that every propagating edge in Propfailure will also be propagating in Propsuccess, since by Lemma [\ref=lem:propagate0] entangled edges always propagate. The paths p1 and p2 can be found in time proportional to the size of the subgraph visited by Propfailure. Indeed, observe that the edges of the two paths, except the last edge of one of the two, are edges in the BFS tree underlying Propfailure. The way from a vertex to the root of the tree can be then found, for example, by maintaining for each vertex in the tree, a pointer towrads its father. The product state [formula] can be found in constant time by Lemma [\ref=lem:rank2product]. Therefore, by Lemma [\ref=lem:parallel], the complexity is indeed O(|Es0|  -  |Es'0|).
+
+Analysis of the algorithm
+
+Proof of Theorem [\ref=thm:main] If H is frustration free then by Lemma [\ref=lem:maxrank] outputs a pre-solution s0 that satisfies every maximal rank constraint. By the Propagation Lemma, at the end of Phase two, in addition s0 is a closed. By Lemma [\ref=lem:parallel] outputs s0 such that in addition in Hs there are only entangled constraints. By Lemma [\ref=lem:probe] at the end of the algorithm in addition Hs is empty, and therefore s is a solution.
+
+If the algorithm doesn't output "H is unsatisfiable" then by Lemma [\ref=lem:maxrank], by the Propagation Lemma, and by Lemmas [\ref=lem:parallel] and [\ref=lem:probe] it outputs a coherent assignment s such that Gs is the empty graph, and therefore s is a solution.
+
+The complexity of MaxRankRemoval by Lemma [\ref=lem:maxrank] is O(|E|). After the second phase, the propagation of the assigned values during MaxRankRemoval, the copying of s0 and G0 into respectively s1 and G1 can be done by executing the same propagation steps this time with s1 and G1. The complexity of the rest of the algorithm by the Propagation Lemma, and Lemmas [\ref=lem:parallel] and [\ref=lem:probe] is a telescopic sum which sums up to also O(|E|).

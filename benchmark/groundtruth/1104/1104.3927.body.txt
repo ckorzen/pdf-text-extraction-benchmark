@@ -1,0 +1,169 @@
+Translation-based Constraint Answer Set Solving
+
+=2pt =2pt =3pt =3pt
+
+Introduction
+
+Several formalisms have been proposed for representing and solving combinatorial problems: constraint programming (CP; [\cite=robewa06a]), answer set programming (ASP; [\cite=baral03]), propositional satisfiability checking (SAT; [\cite=bihemawa09a]), its extension to satisfiability modulo theories (SMT; [\cite=niolti06a]), and many more. Each has its particular strengths: for example, CP systems support global constraints, SAT often exploits very efficient implementations, whilst ASP systems permit recursive definitions and offer default negation. As a non-monotonic reasoning paradigm, ASP is particularly adequate for common-sense reasoning and modelling of dynamic and incomplete knowledge, and was put forward as a powerful paradigm to solve constraint satisfaction problems (CSP) in [\cite=niemela99a]. Moreover, modern ASP solvers have experienced dramatic improvements in their performance [\cite=gekanesc07a] and compete with the best SAT solvers. Empirical comparisons with CP have shown that, whilst ASP encodings are often highly competitive and more elaboration tolerant, non-propositional constructs like global constraints are more efficiently handled by CP systems [\cite=dofopo05a].
+
+This led to the integration of CP with ASP in hybrid frameworks, most notably constraint answer set programming (CASP; [\cite=geossc09a]). Similar to SMT, the key idea of a hybrid approach is that theory-specific solvers interact in order to compute solutions to the whole constraint model. However, the elaboration of constraint interdependencies from different solver types is limited by the restricted interface between the ASP and the CP solver.
+
+This paper puts forward a translation-based approach rather than a hybrid one. In this approach, all parts of the CSP model are mapped into ASP for which highly efficient solvers are available. We make several contributions to the study of translation into ASP [\cite=drwa10a]:
+
+Background
+
+Answer Set Programming
+
+As a form of logic programming oriented towards solving CSP, ASP comes with an expressive but simple modelling language. Formally, a logic program over a set of primitive propositions A, [formula], is a finite set of rules r of the form
+
+[formula]
+
+where h,ai∈A are atoms, 1  ≤  i  ≤  n. A literal is an atom a or its default negation not a. The special atom [formula] denotes a proposition that is always false. For a rule r, define head(r)  =  h and [formula]. Furthermore, let [formula] and [formula]. A rule r with [formula] is widely referred to as an integrity constraint. The semantics of a logic program is given by its answer sets, which are the key objects of interest in this paradigm. Given a logic program P over A, a set X  ⊆  A is an answer set of P iff X is the ⊆  -minimal model of the reduct [\cite=gellif88b]
+
+[formula]
+
+Intuitively, a rule r of the form above can be seen as a condition on the answer sets of a logic program, stating that if [formula] are in the answer set and none of [formula] is included, then h must be in the set. We also consider extensions to logic programs, such as choice rules and cardinality rules. A choice rule of the form
+
+[formula]
+
+allows for the nondeterministic choice over atoms in [formula]. A cardinality rule of the form
+
+[formula]
+
+infers h if k or more literals in the set [formula], [formula] are satisfied. The semantics of choice rules and cardinality rules is given through program transformations (cf. [\cite=siniso02a]). Note that aggregations and other forms of set constructions are also common in ASP. However, we will limit ourselves to the above concepts as they are expressive enough for what follows. Also note that, although answer set semantics is propositional, atoms in A can be constructed from a first-order signature. The logic program over A is then obtained by a grounding process, systematically substituting all occurrences of first-order variables with terms formed by function symbols and constants given through the signature. The task of ASP systems is to compute answer sets for logic programs. A successful framework is conflict-driven nogood learning (CDNL;[\cite=gekanesc07a]). It reflects conditions from program rules in a set of nogoods, and describes ASP inference as unit-propagation on nogoods to determine logical consequences.
+
+Constraint Satisfaction and Consistency
+
+We want to use ASP to model and solve CSP. Formally, a CSP is a triple (V,D,C) where V is a finite set of variables, each v∈V has an associated finite domain dom(v)∈D, and C is a set of constraints. A constraint c is a pair (RS,S) where RS is a k-ary relation, denoted range(c), on the variables in S∈Vk, denoted scope(c). Given a (constraint variable) assignment [formula], for a constraint c with [formula] define [formula] and call c satisfied if A(S)∈range(c). Define the set of constraints satisfied by A as satC(A)  =  {c|A(scope(c))∈range(c), c∈C}. A binary constraint c has |scope(c)| = 2. For instance, the constraint v1  ≠  v2 ensures that v1 and v2 take different values. An n-ary constraint c has parametrised scope. For instance, all-different ensures that a set of variables, |scope(c)| = n, take all different values. As any non-binary constraint, this can be decomposed into binary constraints, i.e., O(n2) constraints vi  ≠  vj for i < j. However, as we shall see in the following, such reformulation can hinder inference.
+
+An assignment A is a solution to a CSP iff it satisfies all constraints in C. Typically, CP systems use backtracking search to explore assignments in a search tree. In a search tree, each node represents an assignment to some variables, child nodes are obtained by selecting an unassigned variable and having a child node for each possible value for this variable, and the root node is empty. Every time a variable is assigned a value, constraint propagation is executed, pruning the set of values for the other variables, i.e., enforcing a certain type of local consistency such as arc, bound, range, or domain consistency. A binary constraint c is arc consistent iff a variable v1∈scope(c) is assigned any value d1∈dom(v1), there exists a compatible value d2∈dom(v2) for the other variable v2. An n-ary constraint c is domain consistent iff a variable [formula] is assigned any value di∈dom(vi), there exist compatible values in the domains of all the other variables dj∈dom(vj), 1  ≤  j  ≤  n, j  ≠  i. Bound and range consistency are defined for constraints over finite intervals. A constraint c is bound consistent iff a variable vi is assigned di∈{min(dom(vi)),max(dom(vi))} there exist consistent values between the minimum and maximum domain value for all the other variables in the scope of the constraint, called a bound support. A constraint is range consistent iff a variable is assigned any value in its domain, there exists a bound support. Range consistency is in between domain and bound consistency, where domain consistency is the strongest of the three local consistency properties.
+
+Constraint Answer Set Programming
+
+Constraint logic programming naturally merges CP and logic programming, while preserving the advantages of either approach to modelling and solving CSP. Formally, a constraint logic program is a logic program P over an alphabet distinguishing regular atoms A and constraint atoms C, such that head(r)∈A for each r∈P [\cite=geossc09a]. A function γ:C  →  C associates constraint atoms with constraints. (The set C stems from the definition of CSP.) For sets of constraints C'  ⊆  C define γ(C')  =  {γ(c)|c∈C'}. Given a constraint logic program P over A and C, and an assignment A, a set X  ⊆  A is a constraint answer set of P with respect to A iff X is an answer set of the constraint reduct [\cite=geossc09a]:
+
+[formula]
+
+The idea in our translation-based approach to constraint answer set solving is to compile a constraint logic program into a (normal) logic program by adding an ASP reformulation of constraint variables and all constraints that appear in the constraint logic program. This allows us to apply CDNL to compute constraint answer sets. A key advantage is that nogood learning techniques can exploit constraint interdependencies since all variables will be shared between constraints. This can improve propagation between constraints. Our reformulations also provides a propagator for the negation of a constraint.
+
+Reformulating CASP into ASP
+
+We now present four ASP encodings for variables and constraints over finite domains. All constraints c are reified via atoms sat(c), and violate(c), indicating whether c is satisfied or violated, respectively. To ensure consistency, i.e., either sat(c) or violate(c) is in an answer set, we post
+
+[formula]
+
+for every constraint c. Other representations, e.g., using choice rules, are also possible. To save the reader from multiple superscripts, in the following, we will assume dom(v)  =  [1,d] for all v∈V.
+
+Direct Encoding
+
+A straightforward encoding is the direct encoding in which an atom e(v,i) is introduced for each constraint variable v and each value i from their domain, representing v  =  i. Intuitively, e(v,i) is in an answer set if v takes the value i, and it is not if v takes a value different from i. For each v, possible assignments are encoded by a choice rule ([\ref=direct:1]). Furthermore, we specify that v takes at least one value ([\ref=direct:2]) and that it takes at most one value ([\ref=direct:3]).
+
+[formula]
+
+A constraint c is encoded as forbidden combination of values, i.e., if v1  =  d1, v2  =  d2, [formula], vn  =  dn is such a forbidden combination then we encode
+
+[formula]
+
+Unfortunately, the direct encoding hinders propagation:
+
+Enforcing arc consistency on the binary decomposition of a constraint prunes more values from the variables domain than unit-propagation on its direct encoding.
+
+The support encoding has been proposed in the domain of SAT to tackle this weakness [\cite=gent02].
+
+Support Encoding
+
+We now encode support information for assignments rather than the encoding of conflicts. For each possible assignment to a variable one of its supports must hold, that is, the set of values for the other variable which allow this assignment. Formally, a support for a constraint variable v to take the value i across a constraint c is the set of values [formula] of another variable in [formula] which allow v  =  i, and can be encoded in the following rule, based on (1-3):
+
+[formula]
+
+It can be read as whenever v  =  i, then at least one of its supports must hold, otherwise the constraint is violated. In the support encoding, for each constraint c there is one support for each pair of distinct variables v,v'∈scope(c), and for each value i.
+
+Unit-propagation on the support encoding enforces arc consistency on the binary decomposition of the original constraint.
+
+We have used program transformation [\cite=siniso02a] in [\cite=drwa10a] to reformulate all-different straightforwardly according to our support encoding into O(d) cardinality rules:
+
+[formula]
+
+Unit-propagation on (1-4) enforces arc consistency on the binary decomposition of all-different in O(nd2) down any branch of the search tree.
+
+Range Encoding
+
+In the range encoding, we represent that a variable can take values from an interval v∈[l,u], i.e., a value between l and u (inclusive). An atom r(v,l,u) is introduced for each v and   ⊆  [1,d]. For each range [l,u], the following O(nd2) rules encode v∈[l,u] whenever [formula] and [formula], and enforce a consistent set of ranges, i.e., v∈[l,u] implies v∈[l - 1,u] and v∈[l,u + 1]:
+
+[formula]
+
+Constraints are encoded into integrity constraints representing conflict regions [formula]:
+
+[formula]
+
+Unit-propagation on the range encoding enforces range consistency on the original constraint.
+
+An efficient propagator for all-different enforces range consistency by pruning Hall intervals [\cite=le96a]. A Hall interval of size k completely contains the domains of k variables, formally, |{v|dom(v)  ⊆  [l,u]}|  =  u  -  l  +  1. Observe that in any bound support, the variables whose domains are contained in the Hall interval consume all values within the Hall interval, whilst any other variable must find their support outside the Hall interval (cf. [\cite=bekanaquwa09a]). We encode all-different such that no interval [l,u] can contain more variables than its size:
+
+[formula]
+
+This simple reformulation can simulate a complex propagation algorithm like the one in [\cite=le96a] with a similar overall complexity.
+
+Unit-propagation on (5-8) enforces range consistency on all-different in O(nd3) down any branch of the search tree.
+
+Bound Encoding
+
+In our bound encoding, similar to the order encoding [\cite=tatakiba06a], an atom b(v,i) is introduced for each variable v and value i to represent that v is bounded by i, i.e., v  ≤  i. For each v, possible assignments are encoded by a choice rule ([\ref=bound:1]). To ensure a consistent set of bounds, ([\ref=bound:2]) encodes that v  ≤  i implies v  ≤  i + 1. Finally, ([\ref=bound:3]) encodes v  ≤  d, i.e., some value must be assigned to v.
+
+[formula]
+
+Similar to the range encoding, we represent conflict regions l1  <  v1  ≤  u1, [formula], ln  <  vn  ≤  un as below
+
+[formula]
+
+Unit-propagation on the bound encoding enforces bound consistency on the original constraint.
+
+In order to achieve a reformulation of all-different that can only prune bounds, the bound encoding for variables is linked to ([\ref=range:all]) as follows:
+
+[formula]
+
+Unit-propagation on (8-14) enforces bound consistency on all-different in O(nd2) down any branch of the search tree.
+
+Experiments
+
+We have conducted experiments on hard combinatorial problems modelled with all-different constraints that stem from CSPLib [\cite=gewa99a]. Experiments consider different options in our translation-based approach to constraint answer set solving. We denote the support encoding by S, the bound encoding by B, and the range encoding by R. To explore the impact of small Hall intervals, we also tried Bk and Rk, an encoding with only those cardinality rules ([\ref=range:all]) for which u - l + 1  ≤  k. The consistency achieved by Bk and Rk may be weaker than bound and range consistency, respectively, when k  <  n. We also include the hybrid CASP systems clingcon (0.1.2), and ezcsp (1.6.9) in our empirical analysis. While clingcon extends the ASP system clingo (2.0.2) with the CP solver gecode (2.2.0), ezcsp combines the grounder gringo (2.0.3) and ASP solver clasp (1.3.0) with sicstus (4.0.8) as CP solver. (Note that the system clingo combines the grounder gringo and ASP solver clasp in a monolithic way.) To provide a representative comparison with clingcon and ezcsp, we have applied clingo (2.0.3) to the encodings in our translation-based approach. To compare the performance of constraint answer set solvers against traditional CP, we also report results of gecode (3.2.0). Its heuristic for variable selection was set to a smallest domain as in clingcon. All experiments were run on a 2.00 GHz PC under Linux. We report results in seconds, where each run was limited to 600 s time and 1 GB RAM.
+
+Pigeon Hole Problems
+
+The famous pigeon hole problem is to show that it is not possible to assign n pigeons to n - 1 holes if each pigeon must be assigned a distinct hole. As can be seen from the results shown in Table [\ref=tab:php], our bound and range encodings perform significantly faster compared to weaker encodings and the other options using filtering algorithms for the all-different constraint that achieve arc consistency on its binary decomposition. However, as can be expected on such problems, detecting large Hall intervals is essential.
+
+Quasigroup Completion
+
+A quasigroup is an algebraic structure over n elements and can be represented by an n  ×  n-multiplication table such that each element in the structure occurs exactly once in each row and each column of the table. The quasigroup completion problem is to show whether a partially filled table can be completed to a multiplication table of a quasigroup. We have included models for gecode that enforce bound and domain consistency on all-different, denoted gecodeB and gecodeD, respectively, in our experiments. Table [\ref=tab:qcp] gives the runtime for solving QCP of size n = 20. The left-most column gives the ratio of preassigned entries. The results demonstrate phase transition behaviour in the systems ezcsp, clingcon, gecode, and gecodeB, while our ASP encodings and gecodeD (not shown) solve all problems within seconds. We conclude that learning constraint interdependencies as in our approach (using CDNL) is sufficient to tackle quasigroup completion, i.e., specialised algorithms that enforce domain consistency are not necessary.
+
+Quasigroup Existence
+
+The quasigroup existence problem is to determine the existence of certain interesting classes of quasigroups with some additional properties ([\cite=fuslbe93a]). The properties are represented by axioms #1 - #7 in the direct encoding. In ezcsp and gecode, we additionally use constructive disjunction. Their logic programming equivalent are integrity constraints, exploited in the options S, Bk, Rk and clingcon. As for ezcsp and clingcon on benchmark classes #1 to #4, our resuls presented in Table [\ref=tab:qep] suggest that both constructive disjunction and integrity constraints have a similar behaviour. However, our encodings benefit again from learning constraint interdependencies, resulting in runtimes that outperform all other systems including gecode on the hardest problems.
+
+Graceful Graphs
+
+A labelling of the nodes in a graph (V,E) is graceful if it assigns a unique label from the integers in
+
+[formula]
+
+&B
+
+[formula]
+
+Related Work
+
+Most previous work integrates CP techniques into ASP to avoid huge ground instantiations given through logic programs with first-order variables over large domains. An ASP system was extended in [\cite=baboge05a] [\cite=mege08a] [\cite=megezh08a] such that it does not require full grounding, since variables and limitations on their domains can be handled in the CP solver. A similar approach presented in [\cite=padoporo09a] employs the CP solver to compute also the answer sets. Although these hybrid strategies potentially eliminate the bottleneck that is inherent to the translation-based approach, they view ASP and CP solvers as blackboxes which do not match the performance of state-of-the-art SMT solvers. In particular, they do not make use of conflict-driven learning and back-jumping techniques. This gap was closed by the approach taken in [\cite=geossc09a] following the one by SMT solvers in letting the ASP solver deal with the propositional structure of the logic program, while a CP solver addresses the constraints. Apart from extending the unit-propagation of an ASP solver through constraint propagation, it deals with the elaboration of reasons for atoms derived by constraint propagation within conflict resolution. The elaboration of conflict information from constraint propagators, however, is limited since constraint propagators lack support for this feature (they would have to keep an implication graph to record reasons for each propagation step). Hence, the conflict resolution process cannot exploit constraint interdependencies. A different hybrid approach to solving CASP is presented in [\cite=balduccini09a], where an answer set of a logic program with constraint atoms encodes a desired CSP which, in turn, is handled by a CP system. A more general framework using multiple declarative paradigms to specify CSP is proposed in [\cite=jaoijani09a]. Either approach, however, restricts communication between different solver types in order to compute solutions to the whole CASP model, e.g., they also do not incorporate conflict-driven learning and back-jumping techniques.
+
+In a translation-based approach, all parts of the model are mapped into a single constraint language for which highly efficient off-the-shelf solvers are available. Hence, related work has mostly focussed on the translation of constraints to SAT (cf. [\cite=wa00] [\cite=gent02]). Translation into ASP, however, can be more general than translation into SAT: Every nogood can be syntactically represented by a clause, but other ASP constructs are also possible, such as cardinality and weight constraints [\cite=siniso02a]. ASP was put forward as a novel paradigm for modelling and solving CSP in [\cite=niemela99a], where straightforward encodings to represent generic constraints via either allowed or forbidden combination of values has been presented. Preliminary work on translating CASP into ASP was conducted in [\cite=gehiscth09a], but they did not consider what level of consistency was achieved by their translation.
+
+Decompositions of all-different into simple arithmetic constraints such that bound and range consistency can be achieved were proposed in [\cite=bekanaquwa09a]. There is no polynomial-sized decomposition that achieves domain consistency [\cite=bekanawa09a].
+
+Conclusions
+
+We have shown that constraint answer set programming is a promising approach to representing and solving combinatorial problems that naturally merges CP and ASP, while preserving the advantages of both paradigms. We have presented a translation-based approach to constraint answer set solving. In particular, we have proposed various generic ASP encodings for constraints on finite domains such that the unit-propagation of an ASP solver achieves a certain type of local consistency. We have formulated our techniques as a preprocessor that can be applied to existing ASP systems without changing their source code. This allows for programmers to select the solver that best fit their needs. An empirical evaluation of the computational impact on benchmarks from CP has shown our approach outperforming CP and hybrid CASP systems on most instances. As a key advantage we have identified that CDNL exploits constraint interdependencies which can improve propagation between constraints.
+
+Future work concerns the combination of our translation-based approach with a hybrid CASP system centred around lazy nogood generation (cf. lazy clause generation in [\cite=ohstco09a]) to combine the advantages of either approach. We will also explore the different choices that arise from this combination.
+
+Acknowledgements
+
+NICTA is funded by the Department of Broadband, Communications and the Digital Economy, and the Australian Research Council.

@@ -1,0 +1,523 @@
+Sequential cavity method for computing free energy and surface pressure
+
+Introduction
+
+It is a classical fact in statistical physics that the logarithm of the partition function of a general statistical mechanics model on [formula], appropriately rescaled, has a well-defined limit as n  →    ∞   [\cite=GeorgyGibbsMeasure],[\cite=SimonLatticeGases]. This limit is called free energy or pressure (the difference is in normalizing constant). Similarly, the limit of its first order correction, surface pressure, exists, though such limit depends on the shape of the underlying finite box and the existing proofs assume soft core interactions, H <   ∞   (see Section [\ref=section:model]) [\cite=SimonLatticeGases]. It is a different matter to compute these limits, and this question interested researchers both in the statistical physics and combinatorics communities. In very special cases, free energy can be computed analytically. The most widely known example is Fisher-Kasteleyn-Temperley's formula for dimer model on [formula] [\cite=Fisher], [\cite=KasteleynDimer],[\cite=TemperleyFisher]. This formula was used in [\cite=KenyonOkounkovSheffield] for obtaining complete parametrization of different Gibbs measures for the pure dimer model on [formula]. The formula, unfortunately, extends neither to a dimer model in other dimensions nor to the closely related monomer-dimer model. Another example of an exactly solvable model is hard-core model on a hexagonal lattice [\cite=BaxterHexagon].
+
+Short of these special cases, the existing methods for computing free energy mostly rely on numerical approximations. These include randomized methods such as Monte-Carlo [\cite=JerrumSinclairHochbaumApproxAlgorithms],[\cite=KenyonRandalWilsonPermanentPlanar] and deterministic methods such as transfer matrices. The Monte-Carlo method can be used to estimate free energy in finite graphs, say d, with some probabilistic approximation guarantee, provided that some underlying Markov chain is rapidly mixing. One then has to relate finite graph to infinite lattices to approximate free energy for an infinite lattice. This can be done since the rate of convergence in the definition of the free energy is known to be O(1 / n) different from the log-partition function on d, and the constant in O(  ·  ) can be explicitly bounded. The drawback of this method is its dependence on the sampling error. Transfer matrix method, on the other hand is a deterministic method and provides rigorous bounds on the free energy. It is based on considering an infinite strip [formula] and then identifying the number of different ways two configurations on d - 1 can match. One then constructs an d - 1 by d - 1 matrix and the spectral radius of this transfer matrix can be related to the growth rate of the partition function on d - 1  ×  [ -  N,N] as a function of N, namely the partition function on [formula]. Then by making n sufficiently large, bounds on the free energy on the entire lattice [formula] can be obtained. The construction of such transfer matrix requires time exp (O(nd - 1)) time. Since the convergence rate of the free energy to its limit wrt n is O(1 / n), then in order to get a target additive error ε, the transfer matrix method requires time exp (O((1 / ε)d - 1). Namely, this is time required to construct an ε-length interval containing the actual value of the free energy. While, for low dimensions d, this is a substantial saving over a brute force method, which would simply compute free energy on d for n  ≥  1 / ε and requires time exp (O((1 / ε)d), the method stops being effective for larger d. Some additional computational savings can be achieved using underlying automorphisms group structure, see Friedland and Peled [\cite=FriedlandPeled], but we are not aware of any formal analysis of the computational savings produced by this method. The complexity of computing surface pressure using the transfer matrix method further increases to exp (O((1 / ε)2d - 2), see Subsection [\ref=subsection:complexity].
+
+The transfer matrix method was used to obtain some of the best known bounds. For the hard-core model (see Section [\ref=section:IS]) with activity λ = 1, which corresponds to counting independent sets in [formula], the exponent of the free energy is known to be in the range
+
+[formula]
+
+for d = 3 using the transfer matrix method. The lower bound was later tightened to 0.7845 using the Friedland-Tveberg inequality [\cite=FriedlandGurvits]. This inequality provides a bound for general regular graphs. This bound, while quite accurate for the case [formula], is not improvable by running some numerical procedure longer or on a faster machine. A tighter lower bound 0.7849602275 was recently obtained using techniques related to the asymptotic matching conjectures [\cite=FriedlandKropLundowMarkstrom]. A bit earlier a similar non-rigorous estimate
+
+[formula]
+
+. While our lower bound is weaker than the previous best known bound 1.503047782 [\cite=CalkinWilf] (see above), which is already quite close to a believed estimate [\cite=Baxter99], our upper bound improves the earlier best bound 1.5035148 [\cite=CalkinWilf]. For the case of monomer-dimer model in three dimensions we obtained a range
+
+[formula]
+
+Model, assumptions and notations
+
+Finite and locally finite graphs
+
+Consider a finite or infinite locally finite simple undirected graph [formula] with node set V and edge set E  ⊂  V  ×  V. The locally-finite property means every node is connected to only finitely many neighbors. The graph is undirected and simple (no loops, no multiple edges). For every v,u∈V let d(u,v) be the length (number of edges) in the shortest path connecting u and v. For every node v, we let N(v) stand for the set of neighbors of v: N(v) = {u:(u,v)∈E}. We will write [formula] when we need to emphasize the underlying graph [formula]. The quantity [formula] is called the degree of the graph. For every [formula] let Br(v) = {u:d(v,u)  ≤  r}. For every set A  ⊂  V, let [formula]. Thus locally finite property means |Br(v)| <   ∞   for all v,r. Given A  ⊂  V, let [formula] and let ∂rA = ∂(Br(A)). For every subset A  ⊂  V, we have an induced subgraph obtained by taking nodes in A and all edges [formula]. The corresponding edge set of the induced graph is denoted by E(A).
+
+Let [formula] ([formula]) denote the set of all non-negative real (integer) values. Le [formula] be the set of all positive real (integer) values. Our main example of an infinite locally-finite graph is the d-dimensional lattice [formula] with [formula] and [formula], where [formula]. We denote the origin [formula] by 0 for short. Given a vector [formula], and [formula], let [formula]. In the special case [formula], we write Br instead of Br(0) and Ban instead of Ban(0). For each [formula], let [formula]. Each of these is a d-dimensional half-plane in [formula]. Let [formula] denote a lexicographic full order on [formula]. Namely, [formula] iff either ud > vd or [formula] such that uk > vk and [formula]. For every [formula] and [formula], let [formula] Similarly we define [formula] and [formula] with [formula] and [formula] replacing [formula].
+
+Throughout the paper we write f(n) = O(g(n)) and [formula] if f(n)  ≤  Cg(n), respectively f(n) / g(n)  →  0, for all n, for some constant C. This constant may in general depend on model parameters such as H,h (see the next section) or dimension d. However, in some places the constant is universal, namely independent from any model parameters. We will explicitly say so if this is the case.
+
+Gibbs measures
+
+Consider a finite set of spin values [formula], a Hamiltonian function [formula], and an external field [formula]. Given a graph [formula] we consider the associated spin configuration space Ω  =  χ|V| equipped with product σ-field [formula]. If the graph [formula] is finite, a probability measure [formula] on (Ω,) is defined to be Gibbs measure if for every spin assignment (sv)∈χV
+
+[formula]
+
+where Z is the normalizing partition function:
+
+[formula]
+
+We will often write [formula] and [formula] in order to emphasize the underlying graph. The case H(a,a') =   ∞   corresponds to a hard-core constraint prohibiting assigning a∈χ and a'∈χ to neighbors. The possibility of such hard-core constraints is important for us when we discuss the problems of counting independent sets and matchings.
+
+When [formula] is infinite, a probability measure [formula] is defined to be Gibbs measure, if it satisfies the following spatial Markovian property. For every finite A  ⊂  V and every spin assignment (sv)∈χ|∂A| on the boundary ∂A of A, the conditional probability measure [formula] on the finite graph (V(A),E(A)) induced by A is a Gibbs measure with the same H as the original graph and external field h' given as [formula] for every a∈χ. Here every node [formula] belongs to ∂A and thus its spin value su is well defined. This is called spatial Markovian property of Gibbs measure. One can construct Gibbs measures as a weak limit of Gibbs measures on cylinder sets in [formula] obtained from finite induced subgraphs of [formula], see [\cite=SimonLatticeGases],[\cite=GeorgyGibbsMeasure] for details. Generally there are multiple Gibbs measures and the space of Gibbs measures of [formula] is denoted by M or [formula]. We say that the model [formula] is in the uniqueness regime if M consists of a unique measure [formula]. Most of the results in this paper correspond to the uniqueness case, and more specifically to the case of Strong Spatial Mixing (SSM) defined below. Given a model [formula] and a subset A  ⊂  V, we have a naturally defined induced submodel on the the induced subgraph [formula], given by the same χ,H and h (but different partition function). In order to emphasize the underlying subgraph [formula] we write, with abuse of notation, [formula] and [formula] for the partition function and the Gibbs measure on the subsystem [formula], when it is unique. By default we drop the subscript when the underlying graph is the entire lattice [formula].
+
+The definitions above is "node" centered: the spins are associated with nodes of a graph. In order to study the monomer-dimer model we need to consider a similar "edge" model where spins are associated with edges. Thus given a finite graph [formula], and a finite set of spin values χ, we consider a probability space Ω  =  χ|E|. Then ([\ref=eq:Gibbs]) is restated as follows. Write e  ~  e' if edges e,e' are distinct and incident (share a node). For every spin assignment (se)∈χ|E| we assign probability measure
+
+[formula]
+
+It is clear that "edge" model can be reduced to "node" model by considering a line graph of [formula]: the nodes of this graph are edges of [formula] and two nodes e,e' form an edge in the line graph if and only if e  ~  e'. For simplicity, however, we prefer not to switch to the line graph model.
+
+Free energy, pressure and surface pressure
+
+Given [formula], Hamiltonian H and an external field h, consider an arbitrary infinite sequence of finite subsets [formula], such that the sequence [formula] diverges to infinity as n  →    ∞  . Consider the corresponding sequence of Gibbs measures [formula] and partition functions ZΛn on the graphs induced by Λn. It follows from sub-additivity property of partition functions that the limit
+
+[formula]
+
+exists and is independent from the choice of the sequence of subsets [\cite=SimonLatticeGases], [\cite=GeorgyGibbsMeasure]. This quantity is called pressure. Given a positive β > 0 one usually also considers limits lim n  →    ∞ log ZΛn / (β|Λn|) where H and h are replaced by βH and βh, respectively. The corresponding limit is called free energy. For our purposes, this difference is insubstantial, as it is just a matter of redefining H,h and changing the normalization. We will mostly use the term free energy.
+
+The first order correction to the limit ([\ref=eq:pressure]) is known as surface pressure and is defined as follows. Unlike pressure, this quantity is "shape" dependent. In this paper we only consider the case of the rectangular shape, although our results can extended to more complicated shapes as well. Given a vector [formula], let [formula] and let [formula]. Observe that surface area of Ban (the number of boundary nodes in Ban) is A(a)nd - 1 + o(nd - 1). The surface pressure is defined as
+
+[formula]
+
+The surface pressure is interpreted as the first order correction of the free energy, scaled by the surface area. The existence of this limit is a classical fact [\cite=SimonLatticeGases] for the case max s,s'∈χH(s,s') <   ∞  . The case hard-core case H =   ∞   is trickier and we are not aware of results on the existence of the limit for this case. Our proofs however imply the existence of the limit under the assumption of SSM, see below.
+
+Strong Spatial Mixing
+
+The following technical assumption is needed for our analysis. The assumption essentially says that there is always a choice of a spin value s*∈χ which allows any other choice of spin values for its neighbors without making the Hamiltonian infinite. The assumption implies that under any Gibbs measure, for every node v
+
+[formula]
+
+where the minimum is over all possible spin assignments (su)∈χ|N(v)| of the neighbors of v. We now introduce the Strong Spatial Mixing assumption, which, in particular, implies the uniqueness of the Gibbs measure on an infinite graph. We first informally discuss this notion. Loosely speaking, a model [formula] exhibits just spatial mixing if for every finite set [formula] the joint probability law for spins in A is asymptotically independent from the values of spins which are far away from A. A form of this condition is known to be equivalent to the uniqueness of the Gibbs measure. Instead, a strong spatial mixing means the same except that values for any other subset [formula] are allowed to be fixed. In other words, strong spatial mixing is spatial mixing, but for the reduced model on [formula] when values of spins in B are fixed and values of the external field h on the remaining graph are appropriately modified. Strong spatial mixing is strictly stronger than spatial mixing (hence the separate definition), see [\cite=BertoinMartinelliPeres] for counterexamples and discussion.
+
+We now introduce the definition formally.
+
+It is known that if [formula] exhibits SSM, then the Gibbs measure is unique: [formula], [\cite=BertoinMartinelliPeres].
+
+Sequential cavity method
+
+In this section we present our main theoretical result: the representation of the free energy and surface pressure on [formula] in terms of some conditional marginal probabilities [formula] defined on suitably modified subsets of [formula]. The idea is to sequentially remove nodes from a rectangle Ban one by one and observe that the log-partition function can be written in terms of the log-marginal probabilities (cavity) of the removed nodes.
+
+Representation theorem
+
+Given a graph [formula] with some full order [formula], a node v and s∈χ, let Ev,s denote the event "σu = s for all [formula]". By convention we assume that Ev,s is the full event Ω, if the set [formula] is empty. In the special case when [formula] and [formula] is the lexicographic order, this event is denoted by Es, see Figure [\ref=fig:CavityGeneral] for the case d = 2. We remind the reader, that we drop the subscripts in [formula] when the underlying graph is [formula] and SSM holds guaranteeing uniqueness of the Gibbs measure.
+
+Suppose [formula] satisfies the SSM property and the Assumption [\ref=assumption:s*] holds. Then
+
+[formula]
+
+If, in addition, SSM is exponential, then for every [formula]
+
+[formula]
+
+Moreover, the infinite sum is convergent.
+
+Remark : We stress that our proof does not rely on the existence of a limit in ([\ref=eq:pressure]) and thus provides an independent proof for it, albeit in the restricted case of SSM. Preempting the formal discussion, the convergence of the infinite sum in ([\ref=eq:SurfacePressureGeneral]) is an almost immediate consequence of exponential SSM, which gives
+
+[formula]
+
+A similar conclusion for difference of the logarithms is obtained then using Assumption [\ref=assumption:s*]. This observation implies that ε-additive approximation of this infinite sum is obtained by considering the partial sum with first O( log (1 / ε)) terms. As we shall discuss in the following subsection, the main import from this observation is that the overhead of computing surface pressure vs free energy is very small.
+
+We first prove ([\ref=eq:PressureGeneral]). Let [formula] be the labeling of nodes in Bn according to the lexicographic order. Note that the number of edges in Bn is d|Bn| + o(|Bn|). We have
+
+[formula]
+
+from which we infer that
+
+[formula]
+
+On the other hand, by telescoping property
+
+[formula]
+
+Fix ε > 0 and find r = r(ε) such that according to Definition [\ref=definition:SSM], R(r) < ε for [formula]. Let Bo  =  {v∈Bn:Br(v)  ⊂  Bn}. Observe that |Bo| / |Bn|  →  1 as n  →    ∞  . By the choice of r we have for every v∈Bo
+
+[formula]
+
+By translation invariance we have
+
+[formula]
+
+For every [formula] we have the generic lower bound ([\ref=eq:c^*])
+
+[formula]
+
+which is strictly positive by Assumption [\ref=assumption:s*]. A similar inequality with the same constant holds for [formula]. Combining this with ([\ref=eq:ZN-1]) and ([\ref=eq:telescope]) we obtain
+
+[formula]
+
+Since |Bo| / |Bn|  →  1 as n  →    ∞   and c* > 0, then we obtain
+
+[formula]
+
+Recalling [formula], since ε was arbitrary, we conclude
+
+[formula]
+
+Similarly we show
+
+[formula]
+
+where for the case [formula] we use a trivial inequality [formula] in place of ([\ref=eq:lowerNotinBo]). We obtain
+
+[formula]
+
+This concludes the proof of ([\ref=eq:PressureGeneral]).
+
+Now we establish ([\ref=eq:SurfacePressureGeneral]). Thus consider a rectangle Ban. The proof is based on a more refined estimates for the elements of the telescoping product ([\ref=eq:telescope]) with Ban replacing Bn. We begin by refinement of ([\ref=eq:ZN-1]). The number of edges in Ban is d|Ban| - A(a)nd - 1 + o(nd - 1). Repeating the derivation of ([\ref=eq:ZN-1]) and ([\ref=eq:telescope]), we obtain
+
+[formula]
+
+Let
+
+[formula]
+
+and for each [formula] and 0  ≤  k < C log n let
+
+[formula]
+
+Here C > 0 is a large yet unspecified constant. In other words, [formula] consists of nodes which have distance k from from the boundary of Ban in the j coordinate, but have distance at least C log n in all the other coordinates i  ≠  j. Observe that the sets Ban,j,k, +,Ban,j,k, - are non-intersecting, for sufficiently large n. Observe also that
+
+[formula]
+
+For every v∈Boan we have by exponential SSM
+
+[formula]
+
+By translation invariance we have
+
+[formula]
+
+Recalling [formula], we obtain using the Taylor expansion,
+
+[formula]
+
+Fix v∈Ban,j,k, +. Since vj  =  ⌊ajn⌋ - k and for every i  ≠  j, vi is at least C log n away from the boundary of Ban, then by the exponential SSM property we have
+
+[formula]
+
+(see Figure [\ref=fig:Cavity-Level-K] for the two-dimensional illustration with j = 2). Recalling vj  =  ⌊ajn⌋ - k and using translation invariance we have
+
+[formula]
+
+Using again the Taylor expansion, we obtain
+
+[formula]
+
+Similarly, if v∈Ban,j,k, -, then
+
+[formula]
+
+By translation invariance and since vj =  - ⌊ajn⌋ + k, then
+
+[formula]
+
+and again applying Taylor expansion
+
+[formula]
+
+We now take log  of both sides of ([\ref=eq:ZN-1a]) and divide by nd - 1 to obtain
+
+[formula]
+
+Here we use ([\ref=eq:B0a]) and the fact [formula] for all v. Applying ([\ref=eq:InternalNodes])
+
+[formula]
+
+where we used ([\ref=eq:B0a]) in the last inequality and assume that C > 1 / γ. Using the established identity ([\ref=eq:PressureGeneral]) we conclude
+
+[formula]
+
+Further applying ([\ref=eq:B+approx]) and ([\ref=eq:B-approx]) and using C > 1 / γ, we obtain the following expression
+
+[formula]
+
+We have
+
+[formula]
+
+The resulting expression is then
+
+[formula]
+
+Applying the exponential SSM property and the Taylor expansion, we have for every k  ≥  C log n
+
+[formula]
+
+This means that we can replace the sums [formula] with infinite sums [formula], with a resulting error O( exp ( - γC log n) = O(n-  γC). Dividing by A(a) we obtain the result.
+
+Extensions and variations
+
+In this subsection we establish several variations of the first part of Theorem [\ref=theorem:MainResultGeneral], namely the representation ([\ref=eq:PressureGeneral]) of the free energy in terms of the marginal probability. First we extend identity ([\ref=eq:PressureGeneral]) for the case when we do not necessarily have SSM, but instead have an upper or lower bound on marginal probability [formula]. In this case we obtain an analogue of ([\ref=eq:PressureGeneral]) in the form of inequalities. These inequalities will be useful for obtaining numerical bounds on free energy for hard-core model in dimensions d = 3,4 in Section [\ref=section:IS].
+
+Given r > 0 consider an arbitrary spin assignment (su)∈χ|∂Br| which is consistent with event Es*. Namely, su = s* for all [formula]. Let pmax(r) ~ (pmin(r)) be the maximum (minimum) of [formula] when we vary over all such assignments.
+
+While the result holds for arbitrary r the quality of the bounds presumably improves with increasing r. We will see in Section [\ref=section:IS] that in some cases pmax(r) and pmin(r) are fairly close for large r even though the model is outside of provably exponential SSM regime.
+
+The proof is a minor variation of the proof of ([\ref=eq:PressureGeneral]). Instead of estimate ([\ref=eq:MarginalFiniteInfinite]) we use [formula] for every n > r.
+
+Our second variation is a "chess-pattern" version of Theorem [\ref=theorem:MainResultGeneral] where in representation ([\ref=eq:telescope]) we sequentially remove only vertices with even sum of coordinates. As it turns out this version provides substantial gains in computing numerical estimates of free energy both for hard-core and monomer-dimer models, though we do not have theoretical explanation for this gain.
+
+Let [formula]. Similarly define [formula]. Given a subgraph [formula] of [formula], let [formula] denote the event [formula]. The special case v = 0 is denoted by [formula]. See Figure [\ref=fig:CavityGeneralChessPattern] for this chess-pattern version of the event Es*.
+
+Suppose [formula] satisfies the SSM property and the Assumption [\ref=assumption:s*] holds. Then
+
+[formula]
+
+Let [formula]. Observe that every node [formula] has only neighbors in [formula]. Let Δ(v) denote the degree of v in Bn. As a result,
+
+[formula]
+
+from which we obtain
+
+[formula]
+
+On the other hand, by telescoping property
+
+[formula]
+
+The remainder of the proof is very similar to the proof of Theorem [\ref=theorem:MainResultGeneral] and details are omitted. Notice that for |Bn| - o(|Bn|) nodes in Bn, the degree Δ(v) = 2d. Then in place of ([\ref=eq:limsupinf]) we obtain
+
+[formula]
+
+Now let us present a version of Theorem [\ref=theorem:MainResultGeneral] for the model ([\ref=eq:GibbsEdges]) where spins are assigned to edges rather than nodes. We need this for application to the monomer-dimer model. Let [formula] denote the event [formula], and let [formula] denote the event [formula]. Let [formula] denote the same events when v = 0.
+
+Consider a model [formula] given by ([\ref=eq:GibbsEdges]) with spins assigned to edges. Suppose [formula] satisfies the SSM property and the Assumption [\ref=assumption:s*] holds. Then
+
+[formula]
+
+Remark : Contrast this result with Theorem [\ref=theorem:MainResultGeneralChessPattern]. There the extra term [formula] appears since every odd node surrounded by even nodes with preset spin value s* still has χ choices for the spin selection. For the edge version this is not the case: all edges are preselected to take spin values s*.
+
+We first prove ([\ref=eq:PressureGeneralEdges]). Let E(Bn) denote the edge set of Bn. Note that E(Bn) = d|Bn| + o(|Bn|) and the the number of edges with 2d - 2 incident edges is also d|Bn| + o(|Bn|). The number of pairs of incident edges is then d(2d - 1)|Bn| + o(|Bn|). We have
+
+[formula]
+
+On the other hand, by telescoping property
+
+[formula]
+
+The remainder of the proof of ([\ref=eq:PressureGeneralEdges]) is similar to the one of Theorem [\ref=theorem:MainResultGeneral] and is omitted.
+
+Turning to ([\ref=eq:PressureGeneralEdgesChessPattern]), observe that every edge in [formula] has exactly one end point in [formula]. Then we have again by the telescoping property
+
+[formula]
+
+The remainder of the proof of ([\ref=eq:PressureGeneralEdges]) is similar to the one of Theorem [\ref=theorem:MainResultGeneral]. The fact |Bn,even| / |Bn|  →  1 / 2 as n  →    ∞   leads to a factor 1 / 2 in ([\ref=eq:PressureGeneralEdgesChessPattern]).
+
+Applications and numerical complexity
+
+Theorem [\ref=theorem:MainResultGeneral] reduces the problem of computing P and sP to the problem of computing conditional marginal probabilities [formula]. This is certainly not the only way to represent free energy and surface pressure in terms of marginal probabilities. For example, consider a modified system [formula] on a finite graph [formula], and observe that
+
+[formula]
+
+both expectations are taken wrt the Gibbs measure [formula]. Thus knowing the marginal probabilities [formula] and joint probabilities [formula] lets us recover [formula] approximately in principle. Unfortunately, this means we have to integrate the answers over β∈[0,1], which in practice has to be approximated by summation. In order then to guarantee the target level of accuracy, one would have to control the derivatives of marginal probabilities wrt β. Additionally, one would have to compute marginal probabilities for a whole range of β, over which the integration takes place. The advantage of the representation ([\ref=eq:PressureGeneral]) and ([\ref=eq:SurfacePressureGeneral]) is that it allows us computing free energy and surface pressure by computing only one marginal probability [formula]. In this paper we will compute these marginal probabilities approximately using recent deterministic algorithms for computing such marginal probabilities in general graphs, where appropriately defined computation tree (see following chapters) satisfies exponential SSM. As we will see below, when we have such property, our method provides an additive ε approximation of free energy in time (1 / ε)O(1), where the constant O(1) may depend on the model parameters and d. Let us now compare this performance with the performance of the transfer matrix method. While we are not aware of any systematic numerical complexity analysis of the transfer matrix method, it can be deduced from the following considerations. The transfer matrix method is based on first computing the partition function on a strip [formula]. The latter is done by constructing certain |χ|(2n + 1)d - 1 by |χ|(2n + 1)d - 1 transfer matrix. For the hard-core case with λ = 1 (see Section [\ref=section:IS]) the matrix is 0 - 1 with 1 corresponding to allowed pair of neighboring configurations and 0 corresponding to pairs of configurations which are not allowed. The spectral radius of the transfer matrix is then used to deduce the growth rate of the partition function, namely the free energy. Constructing such matrix takes time exp (O(nd - 1)). Since the partition function on [formula] converges to the one of [formula] at the rate O(1 / n) [\cite=SimonLatticeGases], then in order to achieve an additive error ε > 0, one needs exp (O((1 / ε)d - 1)) computation effort.
+
+Suppose one then wishes to use this method to approximate the surface pressure with an additive error ε. What is the required numerical effort? We are not aware of applications of the transfer matrix method for computing the surface pressure. Thus the reasonable alternative approach is to 1) select a rectangle an for some large value n, 2) Compute the partition function Zan in this rectangle using perhaps the brute force method and 3) Compute the approximation P̂ of the free energy P using perhaps the transfer matrix method. The approximate surface pressure is then obtained from the fact that the convergence rate in the limit ([\ref=eq:surfacepressure]) is O(1 / n) [\cite=SimonLatticeGases]. Let us show that this approach requires [formula] numerical effort in order to obtain ε additive approximation, regardless of how quickly one is able to compute Zan. Indeed, observe that this approach leads to an error nd|P̂  -  P| / nd - 1 = n|P̂  -  P|. Thus for the target ε additive error, we need to set n  ≥  1 / ε. But this further requires that (1 / ε)|P̂  -  P| = O(ε), namely |P̂  -  P| = O(ε2). Thus we need to achieve ε2 additive error accuracy in estimating the free energy. This requires [formula] per our earlier calculations, and the assertion is established. This is a stark contrast with complexity (1 / ε)O(1) of the method proposed in this paper both for free energy and surface pressure for the cases of hard-core and monomer-dimer models. However, one should note that our method takes explicit advantage of the exponential SSM, while the transform matrix method does not rely on this assumption.
+
+Hard-core (independent set) model
+
+The hard-core lattice gas model, commonly known as independent set model in combinatorics, is given by χ  =  {0,1},H(0,0) = H(0,1) = H(1,0) = 0,H(1,1) =   ∞  ,h(0) = 0,h(1) = β for some parameter β. Case of interest is β  ≤  0 as it corresponds to Gibbs measure putting larger weight on larger cardinality independent set. Choosing s* = 0 we obtain that Assumption [\ref=assumption:s*] holds.
+
+It is common to set λ  =   exp ( - β) > 0 and let λ be the parameter of the hard-core model. This parameter is usually called activity. Note that in terms of λ, for every finite graph [formula]
+
+[formula]
+
+where the sum is over all spin configurations (σv)∈{0,1}V such that σvσu = 0 for all (v,u)∈E. Equivalently, a subset of nodes [formula] is called an independent (also sometimes called a stable set) if for no edge (u,v) we have both u and v belong to I. Then we may rewrite ([\ref=eq:IndSetPartitionFunction]) as
+
+[formula]
+
+where the summation is over all independent sets of [formula]. The summation in ([\ref=eq:PartitionFunctionIS]) is sometimes called an independent set polynomial in the combinatorics literature. From now on we let [formula] denote the random independent set selected according to a Gibbs measure (multiply defined if there are many Gibbs measures). In the case of finite graph [formula], for every independent set I we have
+
+[formula]
+
+The special case λ = 1 corresponds to a uniform distribution on the set of all independent sets in [formula]. We denote the free energy and surface pressure on [formula] by P(d,λ) and sP(d,λ,a), respectively. In the special case λ = 1, the free energy is also the entropy of the Gibbs distribution, since it is uniform. Conditioning on spins taking value s* = 0 simplifies significantly in the context of hard-core model as the following proposition shows, a simple proof of which we include for completeness.
+
+If a hard-core model on a graph [formula] satisfies SSM for some λ, then so does any subgraph of [formula]. The same assertion applies to exponential SSM. Moreover, for every [formula] the following identity holds with respect to the unique Gibbs measure.
+
+[formula]
+
+for every [formula], where [formula] is the subgraph induced by nodes in [formula].
+
+Fix any positive integer r and consider any spin assignment [formula]. Extend this to a spin assignment to entire ∂Br(v) by setting su = 1 (that is u∈), for [formula] and su = 0 (that is u∉) for [formula]. Call this spin assignment S. Applying spatial Markovian property we have
+
+[formula]
+
+where I1 is the set of independent sets in Br(v) such that [formula] and [formula] iff su = 1 (according to S). The set I2 is defined similarly, except the condition v∉I is dropped. Then the ratio is equal to
+
+[formula]
+
+where I4 is the set of independent subsets of [formula] such that [formula] iff su = 1, and I3 is defined similarly, except in addition v∉I for every I∈I3. We recognize this ratio as [formula]. We conclude
+
+[formula]
+
+Now consider any induced subgraph [formula] of [formula] and any two sets W1,W2 in [formula]. Applying a similar argument we obtain
+
+[formula]
+
+where 1 is induced by nodes [formula]. By SSM property, the second quantity has a limit as r  →    ∞   which is independent from assignment S on the boundary ∂Br(v). Therefore the same applies to the first and third quantities. The first conclusion implies that [formula] satisfies SSM. The second conclusion gives ([\ref=eq:reductionIS]) when applied to [formula].
+
+In light of Propoposition [\ref=prop:hardcorereduction] we obtain the following simplification of Theorems [\ref=theorem:MainResultGeneral] and [\ref=theorem:MainResultGeneralChessPattern] in the hard-core case. Let
+
+[formula]
+
+see Figure [\ref=fig:CavityGeneralChessPattern]. Thus we now focus on developing an algorithm for numerically estimating marginal probabilities appearing in ([\ref=eq:PressureIS1]) and ([\ref=eq:PressureIS1chesspattern]).
+
+Recursion, sequential cavity algorithm and correlation decay
+
+Let us now introduce a recursion satisfied by the hard-core model. This identity in a different form using a self-avoiding tree construction was established recently by Weitz [\cite=weitzCounting]. We repeat here some of the developments in [\cite=weitzCounting], with some minor modifications, which are indicated as necessary.
+
+Given a finite graph [formula] and v∈V, let [formula]. Then
+
+[formula]
+
+where [formula] is the graph induced by [formula], [formula] is induced by [formula] and [formula] when k = 0.
+
+We have
+
+[formula]
+
+where everywhere the sums are over independent sets I. Note that [formula] and [formula]. Dividing both sides of the identity ([\ref=eq:recursionIndSetZ]) by [formula] we obtain
+
+[formula]
+
+It is immediate that [formula]. In order to interpret [formula] similarly we rewrite it as
+
+[formula]
+
+and note that [formula]. Combining these observations we obtain ([\ref=eq:RecursionIndSet]).
+
+The identity ([\ref=eq:RecursionIndSet]) suggests a recursion for computing marginal probabilities [formula] approximately. The idea is to apply the identity recursively several times and then set the initial values arbitrarily. One then establishes further that a correlation decay property holds on this recursion which implies that any initialization of the values at the beginning of the recursion leads to approximately correct values at the end of the recursion. This principle was underlying the algorithm proposed in [\cite=weitzCounting] for computing approximately the number of independent sets in general graphs. The original approach taken in [\cite=weitzCounting] was slightly different - first a self-avoiding tree corresponding to the recursive computation tree described above is constructed. Then it is shown that [formula] on this tree equals the same probability in the underlying graph. The approach proposed here is slightly simpler as it bypasses the extra argument of showing equivalence of two marginal probabilities.
+
+We now provide details of this approach. Given a finite graph [formula], for every subgraph  = (V̂,Ê) of [formula], every vertex v∈V̂ and every [formula] we introduce a quantity [formula] defined inductively as follows.
+
+[formula]
+
+Here again 0 is induced by [formula] and i is induced by [formula]. The recursion ([\ref=eq:Phirecursion]) is naturally related to the identity ([\ref=eq:RecursionIndSet]). Specifically if [formula] for all i then [formula]. However, this will not occur in general, as we set [formula], due to the lack of knowledge of actual values of the corresponding probabilities.
+
+Similarly to Φ, we introduce values ΨĜ(v,t) with the only exception that [formula] for all  = (V̂,Ê) and v∈V̂. The following lemma follows from Theorem [\ref=theorem:RecursionIndSet] and the definitions of Φ and Ψ using a simple induction argument
+
+For every v and [formula]
+
+[formula]
+
+Next we provide bounds on the computational effort required to compute Φ and Ψ.
+
+For every finite graph [formula] with degree ≤  Δ, [formula] and t, the values [formula] can be computed in time exp (O(t log Δ)), where the constant in O(  ·  ) is universal.
+
+The result follows immediately from the recursive definitions of Φ and Ψ.
+
+The crucial correlation decay property is formulated in the following proposition.
+
+For every Δ  ≥  3 and for every
+
+[formula]
+
+there exists C = C(λ,Δ),ρ  =  ρ(λ,Δ) < 1 such that for every finite graph [formula] with degree at most Δ and every [formula]:
+
+[formula]
+
+As a result, [formula] satisfies exponential SSM for λ satisfying ([\ref=eq:lambdaBound]).
+
+The details of the proof can be found in [\cite=weitzCounting]. It is shown there that the absolute value in ([\ref=eq:UpperLowerIS]) is upper bounded by the same quantity, when applied to [formula] - the Δ-regular depth-t tree. Then a classical results by Spitzer [\cite=Spitzer75] and Kelly [\cite=KellyHardCore] are invoked to show the existence of C and ρ. The existence of ρ then implies SSM via Proposition [\ref=prop:hardcorereduction] and observing that changing values of σ for nodes u which have distance bigger than t from a given node v, does not affect the values of [formula] and [formula].
+
+Free energy and surface pressure on [formula]. Numerical results
+
+We are now equipped to obtain bounds on the free energy and the surface pressure for the hard-core model on [formula].
+
+Denote by Φ(t) and Ψ(t) the values of [formula] when applied to a graph [formula], for sufficiently large n and v = 0. Observe that the values [formula] are the same for all values of n sufficiently larger than t (for example n  ≥  t + 1 suffices). Thus the notations are well-defined. The following relations are the basis for computing bounds on the free energy and surface pressure.
+
+By Theorem [\ref=theorem:CorrelationDecayIS] we have exponential SSM. Thus
+
+[formula]
+
+[formula] is finite graph for which bounds from Lemma [\ref=lemma:UpperLowerIS] are applicable.
+
+Our algorithm for computing P(d,λ) and [formula] is based on relations ([\ref=eq:UpperLowerISLattice1]) and ([\ref=eq:UpperLowerISLattice2]), and will be called Sequential Cavity Algorithm or shortly SCA.
+
+We have numerically computed values Φ(t),Ψ(t) for the cases d = 2,3,4 using the chessboard pattern method. Our results provide the following bounds on the free energy for the case λ = 1. Since previous bounds were stated in terms of exp (P(d,1), we do the same here:
+
+[formula]
+
+The computations were done at the level t = 27 for the case d = 2, t = 16 for the case d = 3 and t = 12 for the case d = 4. Our lower bound for the case d = 2 is weaker than the previous best known 1.503047782 [\cite=CalkinWilf], which is already very close to the presumably correct but unproven value stated in [\cite=Baxter99]. However, our upper bound is stronger than the previous best known 1.5035148 [\cite=CalkinWilf]. We are not aware of any estimates for the case d = 3. Thus we believe our bounds are the best known. We have not done computations of the surface pressure and we are not aware of any previously existing benchmarks. Note that in the case d = 3 we have Δ = 6, and λ = 1 no longer satisfies ([\ref=eq:lambdaBound]). Thus we have no guarantee that SCA will provide converging estimates as t increases. The correctness of our bounds for this case is guaranteed by Corollary [\ref=coro:MainResultUpperLower]. It is encouraging to see that the bounds are close and based on this fact we conjecture that λ = 1 corresponds to the uniqueness regime.
+
+It is instructive to compare our numerical results, which were obtained using the chess-pattern approach (identity ([\ref=eq:PressureIS1chesspattern])) with results which could be obtained directly from ([\ref=eq:PressureIS1]). The computations based on ([\ref=eq:PressureIS1]) for the case d = 2,λ = 1 at depth t = 12 lead to bounds 1.0942  ≤   exp (P(2,1))  ≤  1.8377. At the same time, the computations using chess pattern method at the depth only t = 3 already lead to a much tighter bounds 1.4169  ≤   exp (P(2,1))  ≤  1.5565.
+
+Notice, that while Theorem [\ref=theorem:CorrelationDecayIS] is not used in computing actual bounds on the free energy and surface pressure, it provides the guarantee for the quality of such bounds. Let us use it now to analyze the computation effort required to obtain a particular level of accuracy in bounds.
+
+For every d,λ < (d - 1)d - 1 / (d - 2)d and ε > 0 SCA produces an ε-additive estimate of P(d,λ) and [formula] in time [formula], where the constant in O(  ·  ) depends on λ and d.
+
+Applying Theorem [\ref=theorem:CorrelationDecayIS], an additive error ε is achieved provided that Cρt  <  ε or t  ≥   log (C / ε) log - 1(1 / ρ) = O( log (1 / ε)). Hence the result for free energy follows from Lemma [\ref=lemma:ComputationalComplexityISGeneral].
+
+For surface pressure observe that applying Theorem [\ref=theorem:CorrelationDecayIS]
+
+[formula]
+
+A similar bound holds for [formula]. Thus if we take k0 such that Cρk0 / (1 - ρ) < ε, then the partial sum in ([\ref=eq:SurfacePressureGeneral]) corresponding to terms k  ≥  k0 is at most 2ε. The required k0 is [formula]. For the remaining terms k < k0 we compute [formula] and [formula] using SCA with accuracy   =  ε / k0. Since log (1 / ) =  log (1 / ε) +  log  log (1 / ε) = O( log (1 / ε)), the result then follows from our estimate for computing P(d,λ).
+
+Monomer-dimer (matching) model
+
+The monomer-dimer model is defined by spin values S = {0,1} assigned to edges of a graph G = (V,E). A set of edges M  ⊂  E is a matching if no two edges in M are incident. Sometimes term partial matching is used to contrast with full matching, which is a matching with size |V| / 2 (namely every node is incident to an edge in the matching). The edges of M are called dimers and nodes in V which are not incident to any edge in M are called monomers. We set H(0,0) = H(0,1) = H(1,0) = h(0) = 0,H(1,1) =   ∞  ,h(1) = β. The Gibbs measure is defined via ([\ref=eq:GibbsEdges]). As in the case of hard-core model, it is convenient to introduce λ  =   exp ( - β) > 0. Similarly to the hard-core model we have for finite graphs [formula]
+
+[formula]
+
+were the summation is over all matchings in [formula]. The summation in ([\ref=eq:PartitionFunctionM]) is called a matching polynomial in the combinatorics literature. We denote by [formula] a random matching chosen according to the Gibbs measure, when it is unique. In the case of finite graphs
+
+[formula]
+
+The monomer-dimer model is a close relative of the hard-core model, even though its properties are substantially different. For example this model does not exhibit a phase transition and is always in the uniqueness regime [\cite=HeilmanLieb]. Moreover, it satisfies the SSM property for all activities λ as we shall shortly see. Corresponding analogues of Proposition [\ref=prop:hardcorereduction] will be stated later once exponential SSM is asserted.
+
+Recursion, sequential cavity algorithm and correlation decay
+
+We now establish an analogue of ([\ref=eq:RecursionIndSet]) for the monomer-dimer model. The proof of this result can be found in [\cite=BayatiGamarnikKatzNairTetali] and is omitted. It is similar to the proof of ([\ref=eq:RecursionIndSet]). In the following, with a slight abuse of notation we write v∈M if matching M contains an edge incident to v.
+
+[\cite=BayatiGamarnikKatzNairTetali] For every finite graph [formula] and v∈V
+
+[formula]
+
+where [formula] is induced by [formula] and [formula] when v is an isolated node.
+
+The further development in this subsection mirrors the one of Subsection [\ref=subsection:AlgorithmIS], yet the conclusion will be different - the monomer-dimer model exhibits SSM for all values of λ. This will lead to an algorithm for computing the free energy and surface pressure for monomer-dimer model for every value λ > 0.
+
+Given a finite graph [formula], for every subgraph  = (V̂,Ê) of [formula], every node v∈ and every [formula] we introduce a quantity [formula] defined inductively as follows. In the context of monomer-dimer model this quantity stands for (approximate) probability that v∉ in the subgraph [formula].
+
+[formula]
+
+Here 0 is induced by [formula]. If [formula] for all i then [formula].
+
+Similarly, introduce ΨĜ(v,t) with the only exception that [formula] for all [formula] and v. The following proposition follows from Theorem [\ref=theorem:RecursionMatchings] and the definitions of Φ and Ψ using a simple induction argument.
+
+For every [formula]
+
+[formula]
+
+Next we provide bounds on the computational effort required to compute Φ and Ψ.
+
+For every finite graph [formula] with degree Δ, [formula] and t, the values [formula] can be computed in time exp (O(t log Δ)), where the constant in O(  ·  ) is universal.
+
+The result follows immediately from the recursive definitions of Φ and Ψ.
+
+The correlation decay property is formulated in the following proposition which is proved in [\cite=BayatiGamarnikKatzNairTetali]. Let
+
+[formula]
+
+For every Δ  ≥  2,λ > 0, for every graph [formula] with degree at most Δ and every node v
+
+[formula]
+
+As a consequence, every graph [formula] satisfies exponential SSM for all λ > 0.
+
+We now state the analogues of Proposition [\ref=prop:hardcorereduction] and Corollary [\ref=corollary:IS]. The proofs are very similar and omitted. Given any set W  ⊂  E, let [formula].
+
+Given a graph [formula], for every mutually exclusive sets A,W1,W2  ⊂  E and spin assignment (se),e∈A on A the following identity holds with respect to the unique Gibbs measure.
+
+[formula]
+
+where [formula] is the subgraph obtained from [formula] by removing edges [formula].
+
+We use notations P(d,λ) and sP(d,λ) for the free energy and the surface pressure for the monomer-dimer model on [formula] as well. As a corollary of Theorem [\ref=theorem:MainResultGeneralEdges], and Proposition [\ref=prop:matchingsreduction] we obtain
+
+Free energy and surface pressure on [formula]. Numerical results
+
+We now obtain bounds on the free energy and surface pressure for the monomer-dimer model on [formula]. Again denote by Φ(t) and Ψ(t) the values of [formula] when applied to any graph [formula] in the monomer-dimer context, for sufficiently large n and v = 0. The relations ([\ref=eq:UpperLowerISLattice1]) and ([\ref=eq:UpperLowerISLattice2]) hold as well and the proof is very similar.
+
+Our algorithm for computing P(d,λ) and [formula] is again based on computing Φ(t) and Ψ(t) and is again called Sequential Cavity Algorithm (SCA). We now report numerical results on computing P(d,λ). We have computed values Φ(t),Ψ(t) for d = 2,3,4 and a range of values λ using the chessboard pattern method. Our upper and lower bounds for free energy are presented in Table [\ref=table:pressureMatchings]. The depth levels t = 14,9,7 were used for the cases d = 2,3,4. As expected, our bounds are high quality for lower λ and then degrade as λ  →    ∞  . Each computation run took about 3 minutes on a workstation and we have not made an attempt to obtain very accurate bounds for each value λ. However for the case of interest λ = 1 we ran our algorithm for larger depths. For the case d = 2 a very accurate rigorous estimate 0.6627989727  ±  0.0000000001 is due to Friedland and Peled [\cite=FriedlandPeled], shown non-rigorously earlier by Baxter [\cite=Baxter68]. We have not made an attempt to improve this bound. However for the case d = 3 we can significantly improve the best known bound 0.7850  ≤  P(3,1)  ≤  0.7863 due to Friedland et al [\cite=FriedlandPeled],[\cite=FriedlandGurvits],[\cite=FriedlandKropLundowMarkstrom]. At depth t = 19 we obtained estimates 0.78595  ≤  P(3,1)  ≤  0.78599, which is two orders of magnitude improvement. One should also note that the lower bounds 0.7845 in [\cite=FriedlandGurvits] and 0.7850 in [\cite=FriedlandKropLundowMarkstrom] were obtained using Friedland-Tveberg inequality which provides a bound for general regular graphs. Thus, while highly accurate for the case [formula], this bound is not improvable by running some numerical procedure longer or on a faster machine. The previous best known numerical estimate P(3,1)  ≥  0.7653 [\cite=FriedlandPeled], is based on the transfer matrix method is weaker. We have also obtained bounds for d = 4 for which no prior computations are available. We obtained 0.8797  ≤  P(4,1)  ≤  0.8812. The computations were done at depth t = 14.
+
+The following proposition gives a bound on the numerical complexity of SCA.
+
+For every d  ≥  2,λ > 0,ε > 0 SCA produces an ε-additive estimate of P(d,λ) and sP(d,λ,a) in time [formula], where the constant in O(  ·  ) is universal.
+
+Again for constant λ,d we obtain performance (1 / ε)O(1), which is a qualitative improvement over the numerical effort exp (O((1 / ε)d - 1)) of the transfer matrix method.
+
+We have Δ = 2d. Applying Theorem [\ref=theorem:CorrelationDecayM], an additive error ε is achieved provided that ρt log (1 + 2λd) < ε or
+
+[formula]
+
+Applying ([\ref=eq:rho]) we have [formula]. The result for P(d,λ) then follows from this estimate and Lemma [\ref=lemma:ComputationalComplexityMGeneral]. The result for sP(d,λ) is established using the same line of reasoning as for Proposition [\ref=prop:ComputationalComplexityIS].
+
+Conclusions
+
+Several statistical mechanics models besides hard-core and monomer-dimer models fit our framework, yet were not discussed in this paper. One such model is Ising model and its generalization, Potts (coloring) model [\cite=SimonLatticeGases]. The Ising model satisfies our Assumption [\ref=assumption:s*] by making s* = 1 or - 1. Thus the representation Theorem [\ref=theorem:MainResultGeneral] holds, provided (exponential) SSM holds. However, in order to turn it into a useful method for obtaining provably converging bounds, we need an analogue of Theorems [\ref=theorem:CorrelationDecayIS] and [\ref=theorem:CorrelationDecayM], namely the correlation decay property on a computation tree. Such a result is indeed established in [\cite=GamarnikKatz], but for an Ising model with very weak interactions. Thus it is of interest to strengthen the result in [\cite=GamarnikKatz] and obtain some concrete estimates for the Ising model on [formula]. We are not aware of earlier benchmark results for this model. The situation with the Potts model is similar with the exception of hard-core Potts model (proper coloring). In this case the required s* does not exist, as for every color s,H(s,s) =   ∞  . However, our method can be extended by considering for example a periodic coloring of nodes [formula] or using the chess-pattern version Theorem [\ref=theorem:MainResultGeneralChessPattern] of our main result. The required correlation decay result is established in [\cite=GamarnikKatz] for the case q > 2.86Δ and q,Δ appropriately large constants. Thus in order to turn this result into a useful method for computing free energy and surface pressure for coloring model on [formula], one needs to deal with these constants explicitly. Also a convenient monotonicity present in the hard-core and monomer-dimer models is lost in the Potts model case, which makes application of Corollary [\ref=coro:MainResultUpperLower] harder.
+
+Acknowledgements
+
+The first author wishes to thanks I. Sinai for an inspiring conversation, R. Pemantle and Fa. Y. Wu for providing several relevant references, S. Friedland for updating us on the state of the art numerical estimates, J. Propp and Domino server participants for responding to some of our questions, and F. Martinelli and C. Borgs for enlightening discussions on Strong Spatial Mixing.

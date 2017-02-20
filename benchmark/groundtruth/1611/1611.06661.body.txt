@@ -1,0 +1,223 @@
+Gland Instance Segmentation Using Deep Multichannel Neural Networks
+
+Introduction
+
+Existing in most organ systems as important structures, glands secrete proteins and carbohydrates. However, adenocarcinomas, the most prevalent type of cancer, arises from the glandular epithelium [\cite=travis2011international]. The morphology of glands determines whether they are benign or malignant and the level of severity [\cite=nguyen2012structure]. Segmenting glands from the background tissue is important for analyzing and diagnosing histological images.
+
+In gland labeling/segmentation, each pixel is assigned one label to represent whether the pixel belongs to the foreground (gland) or the background. However, which gland the foreground pixel belongs to is still not determined. In order to analyze the morphology of glands, they need to be recognized individually. Each pixel needs to be classified and it must be determined which gland the pixel belongs to, which is to assign a gland ID to each foreground pixel. We call this task as gland instance segmentation (as shown in Fig.1). In this paper, we aim to solve the gland instance segmentation problem. We formulate this problem as two sub-problems - gland labeling/segmentation and instance recognition.
+
+The intrinsic properties of gland histopathological image pose plenty of challenges in instance segmentation [\cite=dimopoulos2014accurate]. First of all, heterogeneous shapes make it difficult to use mathematical shape models to achieve segmentation. As Fig.1 shows, the cytoplasm being filled with mucinogen granule causes the nucleus to be extruded into a flat shape whereas the nucleus appears as a round or oval body after secreting. Second, variability of intra- and extra- cellular matrices often leads to anisochromasia. Therefore, the background portion of histopathological images contains more noise like intensity gradients, compared to natural images. Several problems arise in our exploration of analyzing gland images: 1) some objects are very close together making only the tiny gaps between them visible when zooming in on a particular image area; or 2) one entity borders another making their edges adhesive to each other. We call this an issue of 'coalescence'. If these issues are omitted during instance recognition process, even if there is only one pixel coalescing with another, the algorithm will consider two instances as one.
+
+As one sub-problem of gland instance segmentation, gland labeling/segmentation is a well-studied field in which various methods have been explored, such as morphology-based methods [\cite=naik2007gland] [\cite=nguyen2010automated] [\cite=naik2008automated] [\cite=paul2016gland] and graph-based methods [\cite=egger2013pcg] [\cite=tosun2011graph]. However, glands must be recognized individually to enable the following morphology analysis. Gland segmentation is insufficient due to its inability to recognize each gland in histopathological images. The MICCAI 2015 Gland Segmentation Challenge Contest [\cite=sirinukunwattana2016gland] has drawn attention to gland instance segmentation. The precise gland instance segmentation in histopathological images is essential for morphology assessment, which has been proven to be not only a valuable tool for clinical diagnosis but also a prerequisite for cancer grading [\cite=fleming2012colorectal].
+
+Although gland instance segmentation is a relatively new subject, instance segmentation in nature images has attracted much interest from researchers. Ever since SDS [\cite=hariharan2014simultaneous] raised this problem and proposed a basic framework to solve it, other methods have been proposed thereafter, such as hypercolumn [\cite=hariharan2015hypercolumns] and MNC [\cite=dai2015instance], which merely optimize and accelerate the feature extraction process. All of these algorithms fall into a routine that detects objects first and then segments object instances inside the detected bounding boxes.
+
+In medical image analysis, traditional methods are more prevalent for segmenting gland instances instead of learning-based methods. Traditional methods depend heavily on hand-craft features and prior knowledge. In natural images, instance segmentation algorithms are mostly the pipeline of object detection and masking [\cite=hariharan2014simultaneous] [\cite=hariharan2015hypercolumns] [\cite=dai2015instance]. The objects in natural images are regular-shaped, and relatively easy to segment by first creating bounding boxes for each one. However, most glands are irregular in shape, which increases the difficulty of detecting the whole gland structure. Thus the traditional instance segmentation methods for natural images are not suitable for gland instance segmentation.
+
+In a broad sense, gland instance segmentation can be viewed as gland labeling process with commutative labels. Thus gland labeling can offer useful cues for gland instance segmentation. The latest advantages in deep learning technologies have led to explosive growth in machine learning and computer vision for building systems that have shown significant improvements in a huge range of applications such as image classification [\cite=krizhevsky2012imagenet] [\cite=vggnet] and object detection [\cite=girshick2015fast]. The fully convolutional neural networks (FCN) [\cite=long2015fully] permit end-to-end training and testing for image labeling; HED [\cite=xie15hed] detector learns hierarchically embedded multi-scale edge fields to account for the low-, mid-, and high- level information for contours and object boundaries; Faster R-CNN [\cite=ren2015faster] predicts object locations and compensates for the possible failure of edge prediction. We solve the gland instance segmentation problem by multi-task learning. One task is to segment the gland images, and another task is to identify the gland instances. In the gland segmentation sub-task, a fully convolutional neural network (FCN) [\cite=long2015fully] model is employed to exploit the advantage of end-to-end training and image-to-image prediction. In the gland instance recognition sub-task, a holistically-nested edge detector (HED) and a faster R-CNN object detector are applied to define the instance boundaries.
+
+We make use of multichannel learning to extract region, boundary and location cues and solve the instance segmentation issue in gland histology images (as shown in Fig. [\ref=model1]). Our algorithm is evaluated on the dataset provided by the MICCAI 2015 Gland Segmentation Challenge Contest [\cite=sirinukunwattana2016gland] and achieves state-of-the-art performance among all participants and other popular methods of instance segmentation. We conduct a series of ablation experiments and prove the superiority of the proposed algorithm.
+
+This paper is arranged as follows. We formulate the instance segmentation problem in Section [\ref=pro]. Section [\ref=related] is a review of related previous works. In section [\ref=method], we describe the complete methodology of the proposed algorithm of gland instance segmentation. Section [\ref=exp] is a detailed evaluation of our method. Section [\ref=con] summarizes our conclusion.
+
+Problem
+
+We formulate the instance segmentation problem by two sub-problems, labeling/segmentation and instance recognition. We denote D = {(Xn,Yn,Zn),n = 1,2,...,N} as the input training dataset, where N is the image amount.We subsequently drop the subscript n for notational simplicity, since we consider each image independently. X = {xj,j = 1,2,...,|X|} denotes the raw input image, Y = {yj,j = 1,2,...,|X|},yj∈{0,1} denotes the corresponding segmentation label and Z = {Rk,k = 0,1,2,...,K} denotes the instance label, in which Rk  =  {(p,q)} denotes the coordinates set of pixels inside of region Rk. When k equals 0, it denotes the background area and it denotes the corresponding instance when k takes other values. K is the total instance number. Regions in the image satisfy the following relations:
+
+[formula]
+
+[formula]
+
+Note that instance labels only count gland instances thus they are commutative. Our objective is to segment glands while ensuring that all instances are differentiated. In the labeling/segmentation sub-problem, Ŷ represents the labeling/segmentation result. The cost function is:
+
+[formula]
+
+In the instance recognition sub-problem, Ẑ denotes the instance prediction. The cost function is:
+
+[formula]
+
+where ∈Ẑ denotes the instance segmentation prediction region and Rk∈Z denotes the instance label region. K' represents the total predicted region count. T is the threshold which is set to 0.5 in this algorithm. When the overlap ratio of the gland instance in a certain prediction region and labels is higher than the threshold, this region is considered an instance prediction by the algorithm. Fig.3 shows the two gland instance segmentation sub-problems.
+
+Since the cost function of instance recognition is nondifferentiable, it cannot be trained with SGD. We hereby approximate instance recognition by edge detection and object detection. We generate edge labels E and object labels O through Y and Z to train edge detector and object detector, in which E = {ej,j = 1,2,...,|X|},ej∈{0,1} and ej equals 0 when all four nearest pixels (over, below, right and left) belong to the same instance. O denotes the smallest bounding box for each gland instance.
+
+Related Work
+
+This section is a retrospective introduction about instance segmentation and gland instance segmentation.
+
+Instance segmentation
+
+Instance segmentation, a task requiring distinguishment of contour, location, class and the number of objects in an image, is attracting more and more attention from researchers in image processing and computer vision. As a complex problem can hardly be solved using traditional algorithms, a growing number of deep learning approaches have emerged to solve it. For example, SDS [\cite=hariharan2014simultaneous] uses a framework that resembles R-CNN [\cite=girshick2014rich] to extract features from both the bounding box of the region and the region foreground, and then classifies region proposals and refines the segmentation inside bounding boxes based on those extracted features. Hypercolumn [\cite=hariharan2015hypercolumns] defines pixel features as a vector of activations of all CNN units above that pixel, and then classifies region proposals and refines region segmentation based on those feature vectors. MNC [\cite=dai2015instance] integrates three networks designed for detection, segmentation and classification respectively in a cascaded structure. Unlike SDS and Hypercolumn, MNC is capable of training in an end-to-end fashion, since MNC takes advantage of the Region Proposal Network (RPN) to generate region proposals. Similar to SDS and hypercolumn, MNC performs segmentation inside the proposal box as well. In contrast to the above methods, our method performs segmentation and instance recognition in a parallel manner.
+
+Gland instance segmentation
+
+Gland morphology and structure can vary significantly, which poses a big challenge in gland instance segmentation. Researchers have come up with several methods to solve this problem. Previous works focus on detecting gland structure like nuclei and lumen. Sirinukunwattana et al. [\cite=sirinukunwattana2015stochastic] model every gland as a polygon in which the vertices are located at the nucleus. Cheikh et al. [\cite=Cheikh2016A] propose a mathematical morphology method to characterize the spatial distribution of nuclei in histological images. Nguyen et al. [\cite=nguyen2012prostate] use texture and structural features to classify the basic components of glands, and then segment gland instance based on prior knowledge of gland structure. These methods perform well in benign images but are comparatively unsatisfactory when used on malignant images, which has been the impetus for creating methods based on deep learning [\cite=sirinukunwattana2015stochastic]. Li et al. [\cite=Li2016Gland] train a window-based binary classifier to segment glands using both CNN features and hand-crafted features. Kainz et al. [\cite=Kainz2015Semantic] train two separated networks to recognize glands and gland-separating structures respectively. In the MICCAI 2015 gland segmentation challenge contest, some teams achieved impressive performance. DCAN [\cite=chen2016dcan] is a multi-task learning framework that combines a down-sampling path and an up-sampling path together. From the hierarchical layer, the framework is separated into two branches to generate contour information and segment objects. Team ExB [\cite=sirinukunwattana2016gland] proposes a multi-path convolutional neural network segmentation algorithm. Each path consists of different convolutional layers and is designed to capture different features. All paths are fused by two fully connected layers to integrate information. Team Freburg [\cite=sirinukunwattana2016gland] utilizes an off-the-shelf deep convolutional neural network U-net [\cite=ronneberger2015u], and then performs post-processing of hole-filling and removes objects less than 100 pixels wide from the final results.
+
+Previous work
+
+An earlier conference version of our approach was presented in Xu et al. [\cite=xu2016gland]. Here we further illustrate that: (1) we explore another channel - object detection - in this paper, due to the edge detection and the object detection channels complementing each other; (2) ablation experiments are carried out to corroborate the effectiveness of the proposed algorithm; (3) based on the rotation invariance of histological images, a new data augmentation strategy is proposed that has proven to be effective; (4) this algorithm achieves state-of-the-art results on the dataset provided by the 2015 MICCAI Gland Segmentation Challenge Contest.
+
+Method
+
+There are two possible failures for gland instance segmentation. Since the gland-separating tissues are relatively few and similar to glands in coloration, it is very difficult for segmentation to rule out those pixels completely. Although it has little effect on segmentation, it is detrimental to the instance recognition process. Only one pixel that connects two glands can mislead the algorithm into recognizing that they belong to the same gland. Another possible scenario is that algorithms designed to recognize instances separately may cause prediction areas to be smaller than the ground truth. In this case, the objects number and position may be accurate, but the segmentation performance is substandard. Those two scenarios are illustrated in Fig. [\ref=sce].
+
+We propose a new multichannel algorithm to achieve gland segmentation and gland instance recognition simultaneously. Our algorithm consists of three channels each designed to undertake different responsibilities. Fig. [\ref=model1] presents the flow chart of the proposed algorithm. One channel is designed to segment foreground pixels from background pixels. The other two channels are used to recognize instances. Aiming to determine which gland each foreground pixel belongs to, we utilize both object detection and edge detection to define the spatial limits of every gland. The reason for choosing these two channels is based on the fact that information on contour and location contributes respectively and complimentarily to instance recognition and the joint effort will perform much better together than each one alone. Specifically, edge detection performs a little better than object detection in instance recognition, but edge detection fails to complete the task because of the coalescence phenomenon of glands as abovementioned, which affects not only segmentation but edge detection as well. Gland detection may perform well for benign and well-shaped glands, but hardly detect the entire glands accurately for malignant ones. However, edge detection and object detection can compensate for each other's weaknesses and identify instances better. By integrating the information generated from different channels, our multichannel framework is capable of instance segmentation. A detailed depiction of our algorithm is presented in Fig  [\ref=model2].
+
+Foreground Segmentation Channel
+
+The foreground segmentation channel distinguishes glands from the background.
+
+The well-suited solutions to image labeling/segmentation in which each pixel is assigned a label from a pre-specified set are FCN family models [\cite=long2015fully] [\cite=xie15hed]. FCN replaces the fully-connected layer with a convolutional layer and upsamples the feature map to the same size as the original images through deconvolution thus an end-to-end training and prediction is guaranteed. Compared to the previous prevalent method, sliding window [\cite=sermanet2013overfeat] [\cite=ciresan2012deep] in image segmentation, FCN is faster and simpler. Usually, an FCN model can be regarded as the combination of a feature extractor and a pixel-wise predictor. A pixel-wise predictor predicts probability masks of segmented images. The feature extractor is able to abstract high-level features by down-sampling and convolution. Though useful high-level features are extracted, details of images sink in the process of max-pooling and strided convolution. Consequently, when objects are adjacent to each other, FCN may consider them as one. Applying FCN to segment images is a logical choice but instance segmentation is beyond the ability of FCN. It requires an algorithm to differentiate instances of the same class even when they are extremely close to each other. Even so, probability masks produced by FCN still offer valuable support in solving instance segmentation problems.
+
+To compensate for the resolution reduction of feature maps due to downsampling, FCN introduces skip architecture to combine deep semantic information and shallow appearance information. Nevertheless, Yu et al. [\cite=yu2015multi] propose the dilated convolution that empowers the network with a wider receptive field without downsampling. Less downsampling means less space-invariance brought by dwonsampling which is beneficial to increasing segmentation precision.
+
+Our foreground segmentation channel is a modified version of the FCN-32s [\cite=long2015fully] of which the strides of pool4 and pool5 are 1 and subsequent convolution layers enlarge the receptive field with a dilated convolution.
+
+Given an input image X and the parameter of the FCN network is denoted as ws, thus the output of FCN is
+
+[formula]
+
+where μ(  ·  ) is the softmax function. μk(  ·  ) is the output of the kth category and hs(  ·  ) outputs the feature map of the hidden layer. Y* is the segmentation prediction.
+
+Edge Detection Channel
+
+The edge detection channel detects boundaries between glands.
+
+To receive precise and clear boundaries, edges are crucial as proven by DCAN [\cite=chen2016dcan]. The effectiveness of edges in our algorithm can be shown in two ways. First, the edge compensates for the information loss caused by max-pooling and strided convolution in FCN. As a result, contours become more precise and the morphology becomes more similar to the ground truth. Second, even if the location and the probability mask are confirmed, it is unavoidable that predicted pixel regions of adjacent objects are still connected. Edge, however, is able to differentiate between them. As expected, the synergy of regions, locations and edges achieves state-of-the-art results. The edge channel in our model is based on a Holistically-nested Edge Detector (HED) [\cite=xie15hed]. It is a CNN-based solution towards edge detection. It learns hierarchically embedded multi-scale edge fields to account for the low-, mid-, and high- level information of contours and object boundaries. In edge detection, pixels of labels are much less than pixels of backgrounds. The imbalance may decrease the convergence rate or even cause the non-convergence problem. To solve the problem, deep supervision [\cite=lee2015deeply] is deployed. In total, there are five side supervisions which are established before each down-sampling layer.
+
+We denote we as the parameter of HED, thus the mth prediction of deep supervision is
+
+[formula]
+
+σ(  ·  ) denotes the sigmoid function - the output layer of HED. h(m)e represents the output of the hidden layer relative to mth deep supervision and E(m) * denotes the mth side output prediction. The weighted sum of M outputs of deep supervision is the final result of this channel which is denoted as E*, and the weighted coefficient is α.
+
+[formula]
+
+This process is delivered through the convolutional layer. The back propagation enables the network to learn relative levels of importance of edge predictions under different scales.
+
+Object Detection Channel
+
+The object detection channel detects glands and their locations in the image.
+
+Object detection is helpful in counting and identifying the range of objects. According to some previous works on instance segmentation, such as MNC [\cite=dai2016instance], confirmation of the bounding-box is usually the first step in instance segmentation. After that, segmentation and other options are carried out within bounding boxes. Though this method is widely recognized, the loss of context information caused by the limited receptive field of bounding-box may exacerbate segmentation results. Consequently, we integrate location information into the fusion network instead of segmenting instances within bounding boxes. To obtain location information, Faster R-CNN, a state-of-the-art object detection model, is conceived. Convolutional layers are applied to extract feature maps from images. After that, the Region Proposal Network (RPN) takes an arbitrary-sized feature map as input and produces a set of bounding-boxes with the probability of objects. Region proposals will be converted into regions of interest and classified to form the final object detection result.
+
+Filling is done in order to transform the bounding box prediction into a new formation that represents the number of bounding boxes that every pixel belongs to. The value of each pixel in regions covered by the bounding boxes equals the number of bounding boxes it belongs to. For example, if a pixel is in the overlapping area of three bounding boxes, the value of that pixel will be three.
+
+wd is denoted as the parameter of Faster R-CNN and φ represents the filling operation. The output of this channel is
+
+[formula]
+
+[formula] is the predicted coordinate of the bounding box.
+
+Fusing Multichannel
+
+Merely receiving the information of these three channels is not the ultimate purpose of our algorithm. As a result, a fusion algorithm is of great importance to maximize synergies of the three kinds of information - region, location and boundary cues. It is hard for an algorithm which is not learning-based to recognize the patterns of all this information. Naturally, a CNN based solution is the best choice.
+
+After obtaining outputs of these three channels, a shallow seven-layer convolutional neural network is used to combine information and yield the final result. To reduce information loss and ensure a sufficiently large reception field, we again replace downsampling with dilated convolution.
+
+We denote wf as the parameter of this network and hf as the hidden layer. Thus the output of the network is
+
+[formula]
+
+Y*I is the instance segmentation prediction.
+
+Experiment
+
+Dataset
+
+Our method is evaluated on the dataset provided by the MICCAI 2015 Gland Segmentation Challenge Contest [\cite=sirinukunwattana2016gland]. The dataset consists of 165 labeled colorectal cancer histological images scanned by Zeiss MIRAX MIDI. The image resolution is approximately 0.62μm per pixel. 85 images belong to the training set and 80 are part of test sets (test set A contains 60 images and test set B contains 20 images). There are 37 benign sections and 48 malignant ones in the training set, 33 benign sections and 27 malignant ones in testing set A and 4 benign sections and 16 malignant ones in testing set B.
+
+Data augmentation and Preprocessing
+
+We first preprocess data by performing per channel zero mean. The next step is to generate edge labels from region labels and perform dilation on edge labels afterwards. Whether a pixel is an edge or not is decided by its four nearest pixels (over, below, right and left) in the region label. If all four pixels in the region label belong to the foreground or in the background, this pixel does not belong to any edge. To enhance performance and combat overfitting, copious amounts of training data are needed. Given the circumstance of the absence of a large dataset, data augmentation is essential before training. Two strategies for data augmentation have been carried out and the improvement of results is strong enough evidence to prove the efficiency of data augmentation. In Strategy , horizontal flipping and rotation operation ([formula], [formula], [formula], [formula]) are used in training images. Besides operations in Strategy , Strategy also includes elastic transformation, such as pin cushion transformation and barrel transformation. Deformation of original images is beneficial to increasing robustness and the promotion of the final result. After data augmentation, a 400  ×  400 region is randomly cropped from the original image as input.
+
+Evaluation
+
+The evaluation method is the same as the competition requires. Three indicators are used to evaluate the performance on test A and test B. Indicators assess detection results, segmentation performance and shape similarity respectively. The final score is the summation of six rankings and the smaller the better. Since image amounts of test A and test B have a significant difference in quantity, we not only calculate the rank sum as the host of MICCAI 2015 Gland Segmentation Challenge Contest demands, but we also list the weighted rank sum. We calculate the weighted average of three evaluation criteria on test set A and test set B. Since the images in test A account for 3/4 of the test set and images in test B account for 1/4, the weighted rank sum is calculated as:
+
+[formula]
+
+The program for evaluation is given by the MICCAI 2015 Gland Segmentation Challenge Contest [\cite=sirinukunwattana2016gland]. The first criterion for evaluation is the F1 score, which reflects gland detection accuracy. The segmented glandular object of True Positive (TP) is the object that shares more than 50% of areas with the ground truth. Otherwise, the segmented area will be determined as a False Positive (FP). Objects of ground truth without corresponding prediction are considered as False Negatives (FN).
+
+[formula]
+
+[formula]
+
+[formula]
+
+Dice is the second criterion for evaluating segmentation performance. The dice index of the whole image is
+
+[formula]
+
+of which G represents the ground truth and S is the segmented result. Unfortunately, it is not able to differentiate instances of the same class. As a result, an object-level dice score is employed to evaluate segmentation results. The definition is as follows:
+
+[formula]
+
+[formula]
+
+[formula]
+
+nS and nG are the numbers of instances in the segmented results and the ground truth.
+
+Shape similarity reflects the performance on morphology likelihood which plays a significant role in gland instance segmentation. Hausdorff distance is exploited to evaluate shape similarity. To assess glands respectively, the index of Hausdorff distance deforms from the original formation:
+
+[formula]
+
+to the object-level formation:
+
+[formula]
+
+where
+
+[formula]
+
+[formula]
+
+Similar to the object-level dice, index nS and nG represent instances of segmented objects and the ground truth.
+
+Result and Discussion
+
+Table 1 lists results of our proposed algorithm, FCN, dilated FCN and other participants on datasets provided by the MICCAI 2015 Gland Segmentation Challenge Contest. In the table, RS and WRS denote rank sum and weighted rank sum respectively. We rearrange the scores and ranks in this table. Our method outranks FCN, dilated FCN and other participants based on both rank sum and weighted rank sum.
+
+Compared to FCN and dilated FCN, our algorithm obtains better scores which is convincing evidence that our work is more effective in solving instance segmentation problems in histological images. Though dilated FCN performs better than FCN as the dilated convolution process has less pooling and covers larger receptive fields, our algorithm combines region, location and edge information to achieve higher scores in the dataset. The reason our algorithm ranks higher is because most adjacent glandular structures have been separated, which is more beneficial to meet the evaluation index of instance segmentation, while in FCN and dilated FCN they are not. Comparison results are illustrated in Fig. [\ref=result].
+
+Ranks of test A are generally higher than test B due to the inconsistency of data distribution. In test A, most images are normal ones while test B contains a majority of cancerous images which are more complicated in shape and larger in size. Hence, a larger receptive field is required in order to detect cancerous glands. However, before we exploit dilated convolution, the downsampling layer not only gives the network a larger receptive field but also makes the resolution of the feature map decrease, thus it deteriorates the segmentation results. Dilated convolution empowers the convolutional neural network with a larger receptive field with fewer downsampling layers. Our multichannel algorithm enhances performance based on the dilated FCN by adding two channels - edge detection and object detection.
+
+Since the differences between background and foreground in histopathological images are small (3th row of Fig. [\ref=result]), FCN and dilated FCN sometimes predict the background pixel as gland, raising the false positive rate. The multichannel algorithm abates the false positive by adding pixel context while predicting object location.
+
+Compared to CUMedVision1 [\cite=chen2016dcan], CUMedVision2 [\cite=chen2016dcan] adds edge information which improves the results of test A but those of test B deteriorate. Our method improves results of test A and test B after combining edge and location context.
+
+However, white regions in gland histopathological images are of two kinds: 1) cytoplasm; and 2) no cell or tissue (background). The difference between these two is that cytoplasm usually appears surrounded by nuclei or other stained tissue. In the image of the last row in Fig. [\ref=result], glands encircle some white regions with no existence of cell or tissue causing the algorithm to mistake them for cytoplasm. As for images of the 4th and 5th row in Fig. [\ref=result], glands are split when cutting images, which is the reason that cytoplasm is mistaken for background.
+
+Comparison with instance segmentation methods Currently, methods suitable for instance segmentation of natural scene images predict instances based on detection or proposal, such as SDS [\cite=hariharan2014simultaneous], Hypercolumn [\cite=hariharan2015hypercolumns] and MNC [\cite=dai2015instance]. One problem with this logic is its dependence on the precision of detection or proposal. If the object or a certain pixel of an object escapes the detection, it will evade the subsequent segmentation as well. Besides, the segmentation being restricted to a certain bounding box will have little access to context information hence it impacts the result. Under the condition of bounding boxes overlapping one another, which instance the pixel in the overlapping region belongs to cannot be determined. The overlapping area falls into the category of the nearest gland in our experiment. The experiment results are presented in Fig. [\ref=figins].
+
+To further demonstrate the defect of the cascade architecture, we design a baseline experiment. We first perform gland detection and then segment gland instances inside bounding boxes. There is a shallow network (same as the fusion network) combining foreground segmentation and edge detection information to generate the final result. Configurations of all experiments are set the same as our method. Results are shown in Table 2 and less effective than the proposed algorithm.
+
+Ablation Experiment
+
+Data Augmentation Strategy
+
+Data augmentation contributes to performance enhancement and overfitting elimination. We observe through experiments that adequate transformation of gland images is beneficial to training. This is because glands naturally form in various shapes and cancerous glands are more different in morphology. Here we evaluate the effect on results of the foreground segmentation channel using Strategy and Strategy . We present the results in Table 3.
+
+Plausibility of Channels
+
+In convolutional neural networks, the main purpose of downsampling is to enlarge the receptive field, but this comes at a cost of decreased resolution and information loss of original data. Feature maps with low resolution increase the difficulty of upsample layer training. The representational ability of feature maps is reduced after upsampling and further leads to inferior segmentation results. Another drawback of downsampling is the space invariance it introduces while segmentation is space sensitive. The inconsistence between downsampling and image segmentation is obvious. Dilated convolution empowers the convolutional neural network with larger receptive field with less downsampling layers.
+
+The comparison between segmentation performances of FCN with and without dilated convolution shows its effectiveness in enhancing segmentation precision. The foreground segmentation channel with dilated convolution improves the performance of the multichannel algorithm. So does the fusion stage with dilated convolution.
+
+Pixels belonging to the edge occupy an extremely small proportion of the whole image. The imbalance between edge and non-edge poses a significant barrier to network training that may lead to non convergence. Edge dilation can alleviate the imbalance in a certain way and improve edge detection precision.
+
+To prove that these three channels truly improve instance segmentation performance, we conduct the following two baseline experiments: a) we launch a foreground segmentation channel and an edge detection channel; b) we launch a foreground segmentation channel and an object detection channel. The results favor the three-channel algorithm.
+
+Results from the experiments mentioned above are presented in Table 4.
+
+Conclusion
+
+We propose a new algorithm called deep multichannel neural networks. The proposed algorithm exploits features of edge, region and location in a multichannel manner to generate instance segmentation. We observe state-of-the-art results on the dataset from the MICCAI 2015 Gland Segmentation Challenge. A series of baseline experiments are conducted to prove the superiority of this method.
+
+In future work, this algorithm can be expanded to instance segmentation of other medical images.
+
+Acknowledgment
+
+This work is supported by Microsoft Research under the eHealth program, the Beijing Natural Science Foundation in China under Grant 4152033, the Technology and Innovation Commission of Shenzhen in China under Grant shenfagai2016-627, the Beijing Young Talent Project in China, the Fundamental Research Funds for the Central Universities of China under Grant SKLSDE-2015ZX-27 from the State Key Laboratory of Software Development Environment in Beihang University in China.
+
+References

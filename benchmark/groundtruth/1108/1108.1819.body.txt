@@ -1,0 +1,667 @@
+Faster computation of adiabatic EMRIs using resonances
+
+Introduction
+
+Stellar mass compact objects inspiraling into supermassive black holes (SMBHs) will be important astrophysical sources of gravitational waves (GWs) for future space-based detectors. Accurate GW templates for such extreme mass-ratio inspirals (EMRIs) require detailed knowledge of the motion of the source, so there has been a community effort to calculate EMRI trajectories. If we neglect the gravitational self-force of the small object, its orbit is a Kerr geodesic that, up to parameters specifying the initial position, is characterized by three constant orbital parameters: an energy E, an azimuthal angular momentum Lz, and the Carter constant Q. Determining the inspiral is tantamount to calculating how the self-force causes both the positional parameters and the orbital parameters to evolve in time.
+
+Despite ongoing efforts, direct evaluation of the self-force in the Kerr case is still not possible. Accordingly, there have been parallel efforts to approximate its effects. The focus of this paper is the adiabatic approximation, which captures the slow secular evolution of [formula] by solving a system of ordinary differential equations (ODEs) of the form For now, it suffices to know that the righthand sides (RHSs) of equations ([\ref=eq:ELzQ_adiab_ODEs]) are so costly to evaluate that these equations will have to be integrated using a numerical grid. More specifically, the [formula] velocity field will be pre-computed only on a dense mesh of points in [formula]-space. Real-time integration of ([\ref=eq:ELzQ_adiab_ODEs]) will then rely on derivative values interpolated off of that grid.
+
+In this paper, we advocate building such grids using only points corresponding to resonant geodesics, for which the frequencies of the radial and polar motions are rationally related. As we will see, intermediate calculations that comprise the bulk of the computational expense can be recycled among several Fourier modes on resonant grid points but must be recomputed for every mode in the non-resonant case. We estimate that, compared to using non-resonant grid points, our prescription could reduce the computational cost of an EMRI grid by an order of magnitude or more. The resonant-grid prescription will also facilitate faster computation of GW snapshots from geodesic sources.
+
+We represent our proposal schematically in Figure [\ref=fig:grid]. First, the RHSs of equations ([\ref=eq:ELzQ_adiab_ODEs]) are evaluated directly on a grid of either resonant points (dots) or non-resonant points (plus signs). At any other point, the RHS values can be interpolated from the values at the grid points. The adiabatic eqautions ([\ref=eq:ELzQ_adiab_ODEs]) are continuous and smooth, so regardless of which grid is used, integrating them produces the same adiabatic solutions (dashed curves). The only difference is that the resulting adiabatic curves cost significantly less to generate with the resonant grid.
+
+Ref. [\cite=mino2005] and more recently, Ref. [\cite=flanagan2010] have noted that such adiabatic approximations may fail to capture important features of the true inspiral (solid curves) near low-order resonances. Heuristically speaking, those authors argue that while an adiabatic solution may remain fairly faithful to an inspiral that steers clear of resonant points (lower right of the figure), those approximations may fare much worse for an inspiral that transits near a resonant point (middle left of the figure). To pre-empt possible confusion, we remark that there is no inconsistency between this observation and our proposal. The decision to include any particular [formula] point, resonant or not, in the numerical grid is unrelated to whether the resulting adiabatic curves will faithfully reflect EMRI motion near that same point. The ironic coincidence is that the points where the adiabatic approximation is most likely to fare poorly are also the optimal grid points for generating adiabatic curves.
+
+The rest of this paper is organized as follows. In Section [\ref=sec:background], we review some relevant features of resonant Kerr orbits in both physical space and phase space. In Section [\ref=sec:adiab-insp-thru-flux-balance], we summarize how one arrives at the adiabatic equations of motion and clarify why an averaging perscription required to derive those equations must be a torus average rather than a time average, an issue that has raised some debate in the literature [\cite=mino2005] [\cite=drasco2005] [\cite=pound2005] [\cite=pound2007:2] [\cite=pound2007:1] [\cite=hinderer2008]. Partly to help make the averaging argument and partly because we will focus on frequency-domain approaches to solving the adiabatic equations, Section [\ref=sec:adiab-insp-thru-flux-balance] also provides some necessary mathematical background on Fourier analysis in both the non-resonant and resonant cases. With a clear view of the adiabatic program now in hand, Section [\ref=sec:definite] presents the main result of the paper, namely a concrete prescription for computational savings that frequency-domain EMRI codes can leverage by using resonances. Finally, Section [\ref=sec:spec] speculates about how a more unorthodox use of resonances could offer additional efficiencies provided it can be practically implemented.
+
+Resonant Kerr Orbits
+
+The paramount role of resonant orbits was the central theme of an earlier series of papers [\cite=levin2008] [\cite=grossman2011] [\cite=levin2008:2]. (We use the terms "resonant", "closed", and "periodic" interchangeably.) A spectrum of closed orbits, which manifests as a spectrum of multi-leaf clovers, entirely structures black hole dynamics. Although completely closed orbits must return to their initial values of (r,θ,φ) simultaneously, only the r-θ periodicity detailed in Ref. [\cite=grossman2011] is relevant to the present work. The rational number associated with the r-θ frequencies determines the multi-leaf clover geometry. What's more, that rational obediently stacks in energy monotonically: lower rationals correspond to lower energies than do higher rationals. Such orbits constitute a measure zero set but are nonetheless dense in the phase space. Every non-resonant orbit is arbitrarily close to some resonant orbit.
+
+We first consider resonant orbits in physical space and then again in phase space. Since we will be concerned with functions that do not depend explicitly on either the azimuthal angle or on coordinate time, it will suffice for us to restrict attention to geodesic motion in two coordinates (r,θ) in physical space and to the projection of the motion into a 4D submanifold of the phase space spanned by (r,θ) and their conjugate momenta.
+
+Resonant Orbits in Physical Space
+
+The black hole is completely characterized by its mass M and spin a. The geodesic of the lighter companion is characterized by four dimensionless constants μ,E,Lz,Q. In Boyer-Lindquist coordinates and dimensionless units, which is equivalent to setting M = μ = 1, the radial and polar Kerr equations of motion can be written as
+
+[formula]
+
+where
+
+[formula]
+
+and
+
+[formula]
+
+An overdot denotes differentiation with respect to Mino time [\cite=mino2003], λ, related to proper time τ by The advantage of using Mino time is that the r and θ equations of motion decouple and that each is a function only of one coordinate. To make connections with observations, we will often care about how certain quantities evolve with respect to coordinate time t. However, coordinate time turns out to be mathematically cumbersome, so throughout this paper, we perform all intermediate calculations related to such quantities by first changing variables to Mino time.
+
+Solving equations ([\ref=eq:R]) and ([\ref=eq:TH]) for the radial and polar turning points, we find that the radial coordinate varies between a periastron rp and an apastron ra and that the polar coordinate similarly varies between some minimum value θmin and maximum value θmax  =  π  -  θmin. All turning points depend only on the constants [formula]. We introduce the simplifying notation for those 3 orbital parameters and reserve the symbol [formula] to refer to any one of [formula] individually.
+
+The radial and polar coordinates are each periodic with respective Mino periods and corresponding frequencies The radial and polar velocities are also periodic with the same corresponding periods and frequencies. If the frequency ratio is a rational number, an r-θ projection of the resulting orbit closes after a finite time.
+
+Note from equations ([\ref=eq:R]), ([\ref=eq:TH]) and ([\ref=eq:N_theta_r]) that the frequencies and qrθ depend only on the constants [formula]. qrθ is also a topological invariant and thus coordinate independent. A qrθ for which the relatively prime numerator and denominator are both low-valued integers will be referred to as "low-order". We arbitrarily call low-order resonant orbits those for which the numerator and denominator of qrθ are each less than 10.
+
+Projections of periodic orbits into the r-θ plane produce Lissajous figures. The top panel of Figure [\ref=fig:periodic_rcos] shows the Lissajous figure of a periodic orbit with a low-order qrθ, while the bottom panel shows the analogous projection of a neighboring orbit with an irrational qrθ.
+
+The figures produced by projecting into the r-θ plane are less topologically insightful than the figures in an orbital plane, loosely defined in the Kerr system as the plane perpendicular to the orbital angular momentum [\cite=grossman2011]. In the orbital plane, the rational qrθ has powerful topological information and can be interpreted as qrθ = w + v / z, where the integer w represents the number of nearly circular whirls near periastron, the integer z is the number of elliptical leaves in the multi-leaf clover pattern, and the integer v is the order in which the leaves are hit [\cite=levin2008] [\cite=grossman2011]. To illustrate, the same two orbits of Figure [\ref=fig:periodic_rcos] are plotted in the orbital plane in Figure [\ref=fig:periodic_orb]. The orbit in the top panel of Figure [\ref=fig:periodic_orb] has qrθ = 1 / 2 and therefore corresponds to a 2-leaf clover, as is now evident. The bottom panel non-resonant orbit is close to a resonant orbit with [formula] which would correspond to a 250,000-leaf clover that skips 125,857 leaves in the pattern each time. Notice that [formula] so that the orbit is really a tight precession of the 2-leaf clover through an angle of [formula] radians per radial cycle.
+
+While they do fix the turning points, the constants [formula] do not uniquely fix the orbit [\cite=levin2009]. An orbit that hits apastron at θmin is not identical to the orbit that hits apastron at a different value of θ, as shown in Fig. [\ref=fig:phasing]. Since qrθ depends only on constants, a qrθ = 1 / 2 orbit is always a 2-leaf clover in the orbital plane [\cite=grossman2011]. However, orbits with different r-θ initial conditions (r0,θ0) are rotated relative to each other in the orbital plane.
+
+As Fig. [\ref=fig:phasing] shows, the resulting orbits are genuinely distinct in 3D. Presumably, they could have distinct gravitational wave emissions. Interestingly, though, perihelion precession happens on a faster time scale than plane precession. It is therefore reasonable to suspect that all orbits with the same qrθ generate similar waveforms and that the different plane precessions induce modest differences in the modulations of the amplitude [\cite=2010arXiv1009.2533L]. We remain agnostic on the relative importance of r-θ initial values on the waveform generated and instead focus on efficient calculation of adiabatic inspirals.
+
+Resonant Orbits in Phase Space - Phase Space Tori
+
+In the 4D space spanned by (r,pr,θ,pθ), all orbits (resonant or non-resonant) lie on 2D tori that can be constructed as the Cartesian product of two closed curves. We obtain one of those closed curves if we project an orbit into the r-pr plane. The area of the curve is the familiar action Jr used in action-angle coordinates. Analogously, the projection of the same orbit into the θ-pθ plane yields another closed curve with area Jθ. We now consider that pair of curves as a locus of points on a 2D surface with the topology of the 2-torus [formula]. Every set of orbital parameters [formula] defines one such torus that we denote [formula].
+
+The use of Mino time as an evolution parameter furnishes one (but certainly not the only) coordinate system for [formula], according to the following construction. As already mentioned, the motions r(λ) and θ(λ) are each individually periodic in Mino time, with periods [formula] and [formula] (and frequencies [formula] and [formula]), respectively. Scaling the evolution parameter λ on each of the r-pr and θ-pθ curves by [formula] and [formula], respectively, leads to a natural definition of angle variables [formula] and [formula]. We choose a specific trajectory [formula] in order to assign [formula] and [formula] values, respectively, along the r-pr and θ-pθ curves, but the trajectory is only a device that we discard once the torus coordinate system is in place. The points at 0 and 2π in each of [formula] are identified, so the torus can be represented as a 2π-by-2π square with opposite sides identified as in Fig. [\ref=fig:res_tor]. We will make a simplifying choice that [formula] corresponds to the origin of the torus. Then, a reflection in the line [formula] corresponds to keeping r fixed and reversing the sign of pr, and analagously for reflections in [formula]. Note that each quadrant of the toroidal square therefore contains the same (r,θ) pairs but with all possible sign combinations for the momenta (+  + , +  - , -  + , -  - ).
+
+Note that each [formula] corresponds to an ordered pair (r,pr) and each [formula] corresponds to an ordered pair (θ,pθ). We discuss alternative coordinate systems for [formula] in Appendix [\ref=subsec:which_time] and elsewhere in this article but will use only the [formula] coordinates for calculations.
+
+On the compact [formula] square defined above, geodesic trajectories are lines of slope [formula]. With respect to Mino time, those orbits are given parametrically by Two different initial positions [formula] and [formula] produce distinct orbits unless there exist real numbers x and y that simultaneously satisfy
+
+[formula]
+
+and
+
+[formula]
+
+If these conditions are met, then the two different initial positions produce time-translated versions of the same orbit.
+
+When [formula] is irrational, we will call both the torus and any orbits on that torus . Orbits on non-resonant tori never close and instead sample the entire torus ergodically: an orbit starting from any initial condition will pass arbitrarily close to every point in the torus after some finite (but possibly very long) time. Therefore, non-resonant orbits with different [formula] are arbitrarily close to time translations of every other non-resonant orbit with the same [formula]. We will alternately refer to such orbits as aperiodic or biperiodic.
+
+When the frequency ratio [formula] is a rational number [formula], we will call both the underlying torus and orbits on that torus . Orbits that live on resonant tori inherit the rational frequency ratio and thus always trace out closed curves. Since no single resonant orbit ergodically fills the torus, even after infinite time, two resonant orbits with the same [formula] but different [formula] are not necessarily time translations of each other. The set of all resonant orbits with the same [formula] does fill the entire torus. Because they return to their initial conditions after a finite time, we will alternately refer to these orbits as periodic or singly periodic.
+
+Figure [\ref=fig:res_tor] shows two resonant orbits on the resonant torus defined by E = 0.954788, Lz = 2.65115, Q = 0.944969. Each is thus a [formula] orbit, or 2-leaf clover in the orbital plane. These are the same two orbits illustrated in physical space in the top two rows of Figure [\ref=fig:phasing]. The two orbits are distinguished by their initial position [formula] on the torus. The solid line orbit, which starts at χr0 = 0, χθ0 = 0, corresponds to the physical space orbit with initial conditions r0 = ra = 17.81477 and [formula]. The dotted line orbit with intitial conditions χr0 = 0 and χθ0 = 0.7854 has physical space intial conditions of r0 = ra = 17.81477 and θ0 = 1.39579. Notice that any two adjacent line segments belonging to a single orbit are separated in χr by [formula] and in χθ by [formula] but are not traced out sequentially for general [formula].
+
+In the same way that the rational numbers have zero measure on the line, the set of resonant tori has zero measure in the 4D phase space. To date, most of the literature on the adiabatic EMRI problem has ignored resonant geodesics precisely for this reason. Nevertheless, as we will see, the judicious exploitation of this measure zero set leads to significant computational efficiencies in adiabatic EMRI calculations.
+
+Averaging in the adiabatic approximation
+
+Given the background on geodesic dynamics, we now turn to the adiabatic approximation of EMRIs, an approximation that has seen substantial debate in the literature. As we elucidate below, most of that debate conflates the question of what kind of averaging procedure to use in the equations of motion ([\ref=eq:ELzQ_adiab_ODEs]) with other related but logically independent questions about the adiabatic approximation. In this section, we clarify why phase space averaging (as opposed to time averaging) is the correct averaging procedure. We also establish the results we will need in Section [\ref=sec:definite] to exploit resonant orbits for computational savings.
+
+The adiabatic equations of motion
+
+Let [formula] denote the Boyer-Lindquist coordinates of the inspiraling object along with its canonical radial and polar momenta. In the absence of radiation reaction, the equations of motion are where the RHSs [formula] of the positional equations are some form of the equations for geodesic motion, e.g. Hamilton's equations for free-particle Kerr motion. Radiation reaction adds to the RHSs new functions that are determined by the full gravitational self-force on the particle. Those unknown functions can be expanded in a perturbation series in powers of a natural small parameter: the system's mass ratio [formula]. Furthermore, at each order in ε, the functions above decompose into a sum of dissipative and conservative pieces: See [\cite=hinderer2008] and references therein for a fuller account.
+
+We expect a natural separation of timescales in this system. The "fast" positional variables [formula] will change substantially on a short timescale equal to an orbital period [formula], while the "slow" orbital parameters [formula] only change substantially on the much longer timescale [formula]. Due to the coupling of the [formula] and [formula] equations, both [formula] and [formula] should exhibit oscillations around a secularly trending central value, but the oscillations in [formula] should be [formula]. In such a system, a first-order averaging procedure seeks an approximate and hopefully more tractable set of equations for the slow variables from which the dependence on the fast variables (and thus the source of the small oscillations) is removed [\cite=arnold] [\cite=kevorkian] [\cite=verhulst].
+
+Averaging must therefore decouple the [formula] equations from the [formula] equations in ([\ref=eq:total_self-force_eom]) in order to isolate the secular trend in the former. One can even adopt the point of view that the desideratum of a preliminary averaging procedure is to decouple the equations for the slow and the fast variables from each other as much as possible. We represent those averaged, decoupled equations for the orbital parameters (equivalent to equation ([\ref=eq:ELzQ_adiab_ODEs])) as Throughout this paper, we will represent averages of all sorts with angle brackets [formula] and use subscripts on the brackets to denote the type of average implied. Note that in ([\ref=eq:secular_ODE]), we have used [formula] to denote an average without yet specifiying which variables that average is to be taken over.
+
+Flux balance and its relationship to averaging
+
+Although we now have the general form of the adiabatic equations, we cannot write them explicitly because we still do not know how to evaluate the self-force. Mino showed [\cite=mino2003] [\cite=mino2005] that, under the assumption of non-resonance, the infinite time-averaged values of the functions FE and FLz equal the sum of the infinite time-averaged fluxes of the corresponding orbital parameters at radial infinity and the central black hole horizon in GWs emitted by the system. While there is no conserved Q-current to associate with a GW Q-flux, Mino likewise showed that there are analogous infinite time-averaged quantities at infinity and the horizon that sum to the infinite time-averaged value of FQ. Though not strictly physically accurate, we will henceforth refer to those quantities as fluxes of Q for ease. Subsequent work [\cite=drasco2005] [\cite=sago2005] [\cite=ganz2007] has led to explicit formulae for these Q-fluxes.
+
+Fortunately, we do know how to calculate the aforementioned time-averaged fluxes at infinity and the horizon via the computationally mature Teukolsky formalism. Various Teukolsky-based (TB) codes can compute the required fluxes from equatorial orbits [\cite=glampedakis2002], spherical orbits (constant r) [\cite=hughes2001], and now generic orbits of arbitrary inclination and eccentricity [\cite=drasco2006] [\cite=ganz2007] [\cite=fujita2009].
+
+These developments have led to the following two-stage implementation of the adiabatic approximation. The first stage, usually called the radiative approximation, keeps only the lowest-order contributions from the dissipative self-force (since the conservative contributions will average to zero). The second stage, called the flux-balance method, uses the time-averaged nonlocal fluxes (computable) as proxies for the averaged local contributions of the dissipative self-force (not currently computable). The RHSs of equation ([\ref=eq:secular_ODE]) end up with nonlocal fluxes inside the brackets and an interpretation of those brackets as infinite time-averages.
+
+There is a problem, however, with this perscription, which intertwines two logically distinct facets of the adiabatic approximation to EMRIs:
+
+Is it mathematically appropriate to interpret the angle brackets in equation ([\ref=eq:secular_ODE]) as a time-average, or is some other sort of average required?
+
+Given the answer to 1, can we evaluate the RHS of ([\ref=eq:secular_ODE]), either directly or by finding a numerically equivalent proxy?
+
+After all, the fact that we can compute a time-averaged proxy does not imply that we should be time averaging in the first place.
+
+The form of equation ([\ref=eq:secular_ODE]) suggests two ways to average the RHS in order to remove the dependence on the positional variables: for fixed [formula], we can either phase space average over the torus, or we can evaluate the RHS along a specific orbit on that torus and then average over time. In Section [\ref=sec:four-analys-summary], we offer a definitive argument in favor of torus averaging instead of time averaging.
+
+To arrive at that conclusion, we must first distinguish between torus functions and time functions. Torus functions assign a value to every point on a phase space torus, while time functions assign a value to points along an individual orbit that are labeled by the value of an evolution parameter (i.e. a time variable). Our conclusions about adiabatic averaging will be based on differences in how Fourier analysis is done on these two domains -- a 2-dimensional compact position space for the torus-functions and a 1-dimensional noncompact time axis for the time-functions. Moreover, numerically accurate flux calculations require frequency-domain TB codes that separately compute fluxes from individual Fourier modes, and the aforementioned different domains also impact the details of the modewise flux calculation.
+
+Before delving into those details, we must mention an important point. Average values, whether in the torus or time sense, are coordinate dependent, and in certain applications it matters which coordinates the average is taken over. The angle brackets in equation ([\ref=eq:secular_ODE]), for instance, will turn out to denote a torus average not over [formula] but over a different set of torus coordinates [formula] described in Appendix [\ref=subsec:which_time]. However, torus averages with respect to [formula] are much easier to compute than those over [formula], in much the same way as Mino time averages are easier to compute than are coordinate time averages. Luckily, for every torus function [formula] and every time function u(t), we can always construct different functions [formula] and v(λ) such that The relationship between U and V (or between u and v) is highlighted in Appendix [\ref=sec:mino-time-vs-coord-time-fourier-coeffs]. Sections [\ref=sec:four-analys-torus-fcns] and [\ref=subsec:time_avg_FA] present the necessary Fourier analysis details.
+
+We will always avail ourselves of the simplication in equation ([\ref=eq:torus_and_time_fcn_avgs_for_different_coords]). Accordingly, throughout the rest of the paper, we focus exclusively on torus averages over [formula] and time averages over Mino time λ with the understanding that they may merely be computation-friendly proxies for averages of different but related functions over different torus or time coordinates.
+
+Torus averaging and Fourier analysis of torus-functions
+
+We will call a [formula] any rule that assigns a complex number to every point on a phase space torus. Note that [formula] specifies both the torus function and the phase-space torus that serves as its domain. Usually, we will be discussing properties of torus functions evaluated at some definite value of [formula]. We thus omit the explicit dependence on the orbital parameters [formula] for brevity, except where it might lead to confusion.
+
+We assume that every such torus-function is continuous and differentiable in all its arguments (including [formula]). We also require it to be single-valued on the torus, which implies 2π periodicity in each of the angle variables:
+
+[formula]
+
+Like any function that is independently periodic in two independent variables, a torus-function has a double Fourier series representation with the Akn's given as usual by In order to distinguish them from another set of double-indexed quantities we introduce later, we will refer to the [formula]'s as or .
+
+We now define, in the usual way, the following useful quantities. The f is The is By Parseval's theorem, the torus-averaged power must also equal
+
+[formula]
+
+The is the contribution to the torus-averaged Fourier power from each pair of spatial frequencies or wavenumbers [formula]. Note that because the period in each of the [formula] and [formula] directions is 2π, the corresponding fundamental spatial frequencies are [formula], so we see power only at integer lattice points [formula] in the 2D wavenumber space.
+
+All statements above are standard results from the Fourier analysis of functions on a compact 2D spatial domain. They apply equally well on resonant and non-resonant tori.
+
+Time averaging and Fourier analysis of time-functions
+
+We can evaluate any torus function along a curve ([\ref=eq:chi_of_lambda]) on its associated torus that corresponds to an orbit. Since each orbit is specified by its initial position [formula] on the torus, each torus function naturally induces a 2-parameter family of time functions, one for each [formula] pair. Time functions, then, are grouped into 5-parameter families - 3 parameters [formula] to specify a torus, and 2 parameters [formula] to specify an orbit on that torus.
+
+We denote one memeber of such a family as [formula]. We will sometimes omit the explicit [formula] and [formula]-dependence of a time function and simply write f(λ), again except where clarity would suffer. Throughout this paper, we adopt the notational convention that a time function and the torus function from which it is derived are denoted by the same symbol (f, in the examples so far).
+
+For time functions, non-resonant and resonant tori must be treated separately.
+
+Non-reosnant tori
+
+When [formula] is irrational, every [formula] pair leads to a distinct frequency Such a biperiodic time-function is not periodic: it is bounded on ( -   ∞  ,  ∞  ), but there is no finite time interval over which the function exactly repeats itself. Still, every biperiodic function has a unique discrete Fourier representation [\cite=samoilenko] Note that the harmonics are not equally spaced in frequency. The temporal Fourier coefficients [formula] (which we have named suggestively) are given by the limit which exists and is independent of b [\cite=samoilenko] (henceforth, we set b  =  0 for convenience). Equivalently, we could say that the Fourier transform of [formula] consists of a series
+
+[formula]
+
+of delta-function impulses unequally spaced in frequency.
+
+Paralleling the Fourier discussion of torus functions, we now define the time-averaged value, time-averaged Fourier power, and the 1D power spectrum of a time function associated with a non-resonant orbit. Biperiodic functions offer no single period over which to time-average in a natural way. Given the existence of expressions like ([\ref=eq:temp_double_coeffs_APF_defn]), averaging over all time seems like a sensible choice. The theory of almost-periodic functions states that such an infinite time-average indeed exists [\cite=corduneanu], so we define We will refer to [formula] simply as the time-average of f rather than as the infinite time-average value, as it is sometimes called. Comparing equations ([\ref=eq:temp_double_coeffs_APF_defn]) and ([\ref=eq:defn_nonres_time_avg]), the time-average equals
+
+[formula]
+
+We define the time-averaged Fourier power of f(λ) as a special case of ([\ref=eq:defn_nonres_time_avg]) by Parseval's theorem also applies to biperiodic time-functions [\cite=corduneanu], so
+
+[formula]
+
+That fact allows us to define a 1D power spectrum for f(λ) as the contribution to the time-averaged power from each temporal frequency [formula]. The graph of [formula] over the 1D [formula]-space would show power only at the discrete and unequally spaced set of frequencies ([\ref=eq:defn_omega_kn]).
+
+The question now is how to evaluate these time averages in practice. Though equation ([\ref=eq:temp_double_coeffs_APF_defn]) defines the [formula]'s, such integrals over infinite intervals divided by infinite quantities do not lend themselves to simple evaluation, either analytically or numerically.
+
+To compute the temporal Fourier coefficients of [formula], we must instead proceed circuitously. Consider the spatial Fourier representation ([\ref=eq:spatial_Fourier_expnsn_of_torus_fcn]) of the torus-function [formula] evaluated along the orbit ([\ref=eq:chi_of_lambda]), which yields By uniqueness of the Fourier representation of [formula], and comparing equations ([\ref=eq:biperiodic_temp_Fourier_expnsn]) and ([\ref=eq:temporal_Fourier_expnsn_intermediate]), we conclude that the temporal Fourier coefficients of [formula] and the spatial Fourier coefficients of [formula] are related by
+
+We note that each temporal coefficient differs from the corresponding spatial coefficient in ([\ref=eq:spatial_double_coeffs]) only by a complex phase determined by the initial conditions [formula] of the orbit. Consequently, their magnitudes are identical, regardless of the initial position of the orbit: This fact is consistent with the ergodic property of these orbits. Every orbit eventually comes arbitrarily close to every point on the torus, so shifting initial conditions leads to a new orbit that is arbitrarily close to a time translation of the original orbit. And, of course, time translations only affect the complex phase of temporal Fourier coefficients.
+
+If we know the torus function [formula], its spatial Fourier coefficients [formula] can be computed by any number of efficient numerical routines, without any of the difficulties that beset computation of the [formula]'s via direct evaluation of the definition ([\ref=eq:biperiodic_temp_Fourier_expnsn]). This fact, combined with equation ([\ref=eq:temp_double_coeffs_are_spatials_times_phase]), leads to the only practical recipe for computing the [formula]'s of the orbit with initial position [formula], namely to compute instead the [formula]'s and then use equation ([\ref=eq:temp_double_coeffs_are_spatials_times_phase]). Ref. [\cite=drasco2004] introduced just such a technique in the specific context of functions of Kerr geodesics.
+
+All the other quantities mentioned in this section are likewise determined from their torus function counterparts. From equations ([\ref=eq:nonres_time_avg_equals_A00]) and ([\ref=eq:temp_double_coeffs_are_spatials_times_phase]), A00;λ  =  A00. We thus conclude that on a non-resonant torus, the time average of f(λ) equals the torus average of its associated torus-function [formula]. Moreover, since this is true for every time function on that torus, the time average of such a function is independent of the initial condition [formula]:
+
+[formula]
+
+Likewise, equations ([\ref=eq:temp_double_coeffs_mods_are_spatial_mods]) and ([\ref=eq:torus_avg_Fourier_power_freqdom]) imply that, on a non-resonant torus, the time-averaged Fourier power of [formula] equals the torus-averaged Fourier power of [formula] for every [formula]:
+
+[formula]
+
+Equations ([\ref=eq:torus_avg_Fourier_power_freqdom]), ([\ref=eq:temp_double_coeffs_mods_are_spatial_mods]) and ([\ref=eq:nonres_timeavg_power_equals_toravg_power]) together imply equation ([\ref=eq:nonres_time_avg_Fourier_power_Parseval]). By extension, the 1D power spectrum of f(λ) can be derived from the 2D power spectrum of [formula] by mapping wavenumber pairs to frequencies using eq. ([\ref=eq:defn_omega_kn]).
+
+All of the above relationships between torus-function quantities and those of any biperiodic time function induced via ([\ref=eq:temporal_Fourier_expnsn_intermediate]) are well-established and well-known in the literature on almost-periodic functions [\cite=samoilenko] [\cite=corduneanu] and on integrable Hamiltonian systems [\cite=arnold]. Many of these facts, however, are used but not so clearly delineated in this way in the literature relating to EMRI calculations. We have gone through the trouble of including them here not only for completeness and clarity but also to emphasize that we can only execute the above recipes if we know the corresponding torus function [formula].
+
+This leads us to a crucial observation. If all we know is f(λ), either as some closed-form expression in terms of λ or as a numerical time-series, there is no practical scheme for computing its temporal Fourier coefficients [formula], even though those coefficients are perfectly well-defined. In addition to the initial conditions [formula] associated with f(λ), we must also know the torus-function [formula] (or at least its spatial Fourier coefficients [formula]) in order to compute the [formula]'s. We summarize the implications of this fact for flux balancing in section [\ref=sec:four-analys-summary].
+
+All of the equivalences noted between torus-function quantities and their time-function counterparts followed from the assumption of non-resonance. On resonant tori, all of these equivalences break down, as we now show.
+
+Resonant tori
+
+Unlike time functions evaluated along non-resonant orbits, time functions on resonant orbits are singly periodic, with (possibly very long) period [formula] and corresponding fundamental frequency [formula]. The single periodicity of time functions of resonant orbits means that all frequency-domain quantities have straightforward and familiar definitions.
+
+Any time function evaluated on a resonant orbit has a Fourier series representation whose coefficients are single-index objects Like the [formula]'s, each [formula] varies with the initial condition [formula]. Unlike the [formula]'s, the Fourier transform of [formula] is a sequence
+
+[formula]
+
+of equally spaced delta-function impulses in frequency space.
+
+In the resonant case, we define the time average of f(λ) straightforwardly as
+
+[formula]
+
+Likewise, we define the time-averaged power as By Parseval's theorem, the time-averaged power is also given by
+
+[formula]
+
+To flush out how the [formula]'s relate to the spatial [formula]'s and to the initial condition [formula], we begin, as in the non-resonant case, by inducing a time function ([\ref=eq:temporal_Fourier_expnsn_intermediate]) from a torus function. In the resonant case, the frequency ratio [formula] is a rational number p / z, where p and z are relatively prime and p  >  z. (In terms of integers in the definition [formula], p = (w + 1)z + v.) The individual r and θ frequencies and periods are therefore related to the fundamental frequency and total period of the periodic orbit by and As a result, all [formula] combinations for which
+
+[formula]
+
+lead to identical frequencies
+
+[formula]
+
+in the arguments of the exponential functions on the RHS of equation ([\ref=eq:temporal_Fourier_expnsn_intermediate]).
+
+The selection rule ([\ref=eq:kzplusnp_with_same_j]) maps every [formula] pair to some [formula]. By the uniqueness of Fourier represenations, we conclude from equations ([\ref=eq:temporal_Fourier_expnsn_intermediate]) and ([\ref=eq:temporal_Fourier_expnsn_resonant]) that
+
+[formula]
+
+Note that equation ([\ref=eq:temp_single_coeff_is_sum_of_phased_spatials]) is really only a summation over a single index since the value of [formula] in any term is determined by the value of [formula] and the (fixed) value of [formula].
+
+It is tempting to rewrite each term on the RHS of equation ([\ref=eq:temp_single_coeff_is_sum_of_phased_spatials]) as [formula], mimicking the notation for the non-resonant temporal Fourier coefficients. We refrain from doing so because we seek a clear distinction between spatial and temporal Fourier coefficients, and temporal double-index coefficients are not defined in the resonant case [\cite=schilder2006] [\cite=corduneanu]. Fourier representations are unique, so the familiar single-index representation ([\ref=eq:temporal_Fourier_expnsn_resonant]) is the only such projection of f(λ) onto a set of mutually orthogonal basis functions. If we were to write an expression like ([\ref=eq:biperiodic_temp_Fourier_expnsn]) on a resonant orbit, the different harmonics on the RHS would not all be orthogonal, and we would not have a bona fide Fourier expansion in hand until we collapsed all terms corresponding to the same frequency into a single term.
+
+Equation ([\ref=eq:temp_double_coeffs_are_spatials_times_phase]) implied that, on non-resonant orbits, several quantities one can compute for a time-function [formula] turn out to be independent of [formula]: the magnitudes of its Fourier coefficients, its time-averaged value, its time-averaged Fourier power, and its power spectrum. In contrast, equation ([\ref=eq:temp_single_coeff_is_sum_of_phased_spatials]) implies that, on resonant orbits, each of those quantities does depend on the initial condition [formula]. Each [formula] is a sum of spatial [formula]'s with [formula]-dependent phases rather than just one such term (cf. equation ([\ref=eq:temp_double_coeffs_are_spatials_times_phase])), so both the magnitudes
+
+[formula]
+
+and time-averaged value retain [formula]-dependence. The squared magnitudes also depend on [formula] through cross terms, and the time-averaged power and power spectra inherit this dependence via ([\ref=eq:parseval_for_Cjs_res]). Figure [\ref=fig:periodic] illustrates this point for the test function r cos θ.
+
+Via its [formula]-dependence, equation ([\ref=eq:timeavg_of_f_depends_on_ICs]) defines a torus function in the variables [formula]. Complex exponentials have a zero average value, so averaging that torus function over all [formula] kills every term in the summation on the RHS of ([\ref=eq:timeavg_of_f_depends_on_ICs]), leaving only A00. But A00 is the torus averaged value of the associated torus function [formula]. We conclude that the torus-average over all initial conditions of the time average of a time function equals the torus-average of the underlying torus-function. An identical argument applies if we torus average the squared-magnitudes ([\ref=eq:c_j_mod]) of the coefficients over all [formula] and, by extension, if we likewise torus-average the time-averaged power ([\ref=eq:time_avg_Fourier_power_res]).
+
+The upshot is that the parallels between torus functions and time functions obtained in the non-resonant case break down in the resonant case: However, torus averages over initial conditions and torus averages of time averaged are equal for both a function f and its Fourier power:
+
+To clarify, equations ([\ref=eq:res_toravg_notequal_timeavg]) and ([\ref=eq:pwr_toravg_notequal_pwr_timeavg]) state that the time average of a time function and the torus average of its associated torus-function are not identically equal as they are in the non-resonant case. That does not, of course, preclude the possibility that the two could be circumstantially equal for some particular choice of initial condition [formula]. In fact, for real-valued functions f, the mean-value theorem guarantees that [formula] for at least one [formula]. In general, f will be complex-valued, and we have no such guarantee. The time-averaged Fourier power, however, is strictly real, so there is at least one [formula] such that [formula]. We explore some implications of this fact for adiabatic EMRI calculations in Section [\ref=sec:spec].
+
+And the winner is torus averaging
+
+To summarize, time averaging is equivalent to torus averaging for non-resonant orbits. Furthermore, torus averaging is the only practical recipe for computing Fourier coefficients and so torus averaging is the explicit computation instituted in practice.
+
+However, time averaging is inequivalent to torus averaging for resonant orbits. Thus torus averaging wins out for two reasons. First, torus averaging along a resonant torus crucially washes away any [formula] positional dependence, while time averaging does not. The [formula]-dependence violates the spirit of averaging, namely to remove all dependence on the fast variables. Second, and more seriously, though the time-averaged equations are continuous in [formula] for fixed [formula], they are in general discontinuous in [formula] for fixed [formula]. The situation will resemble that of Thomae's modified Dirichlet function
+
+[formula]
+
+which is continuous at the irrationals, discontinuous on the rationals, and nowhere differentiable [\cite=beanland]. Pragmatically speaking, even if a set of ODEs with such pathologically discontinuous and non-differentiable equations had a solution, it is unclear how one would numerically integrate them. Furthermore, the continuity furnished by torus-averaged fluxes is absolutely essential for the proper construction of a grid through which adiabatic trajectories are to be interpolated, as discussed in the introduction.
+
+In short, torus-averaged equations are well-behaved, while time-averaged equations lose the continuity and differentiability that guarantee the resulting equations are well-posed and have unique solutions, the very basis of every standard numerical integration scheme.
+
+The arguments made in favor of torus averaging apply to the radiative approximation, based on an average of the dissipative piece of the local self-force on the inspiraling particle. But when it comes to flux-balance as a specific implementation of the radiative approximation, this now leaves a logical gap. As acknowledged in [\cite=mino2003] [\cite=mino2005], the flux-balance arguments that allow the nonlocal fluxes of conserved quantities to be used as proxies for the local dissipative self-force have been derived on a time-averaged basis and under the assumption of non-resonance. Since time and torus averages agree for non-resonant orbits/tori, the time-averaged nonlocal fluxes are still good proxies for the torus-averaged local dissipative self-force in the non-resonant case.
+
+What has never been made explicit is whether flux-balance is also valid in the resonant case, on either a time averaged or torus-averaged basis. We resolve this issue now: time averaged flux-balancing may not be true on resonant orbits in general, but that will be irrelevant since it will be true on a torus-averaged basis. Mino showed that, under the assumption of non-resonance, the time-averaged fluxes of [formula] at infinity and the horizon furnish proxies for the time averaged RHSs of equations ([\ref=eq:secular_ODE]). But then, by the arguments we have heavily exploited, the corresponding torus-averaged versions must also be equal. And since torus averages are insensitive to the resonance or non-resonance of the underlying torus and are continuous in [formula], the flux-balance prescription is valid in a torus-averaged sense for all orbits. If the torus-averaged fluxes were not good proxies for the torus-averaged local equations only at resonances, a discrete set of measure zero, then they could not be continuous in [formula]. But we have shown torus averages are everywhere continuous. De facto, then, Mino's argument establishes the validity of torus-averaged flux-balancing generally.
+
+It would thus seem that both flux-balancing as a general procedure and its specific implementation in a frequency-domain application of the Teukolsky formalism treat non-resonant and resonant tori equally, as stated in [\cite=hinderer2008]. Flux-balancing is, in fact, thusly impartial, but interestingly, the Teukolsky formalism is not. As we will show below, a TB torus-averaged flux calculation can achieve computational savings of an order of magnitude or more on low-order resonant tori that are simply not available on non-resonant tori. These efficiencies follow from a simple observation about the Fourier integrals a TB code must evaluate and are independent of the specific implementation in code of the Teukolsky formalism. Thus, rather than disfavoring resonances, as has been commonly assumed, the Teukolsky formalism actually shows favoritism for resonances, and properly leveraged, that favoritism can substantially accelerate adiabatic inspiral calculations.
+
+Computational savings along resonances
+
+We now explain computational efficiences that exploit resonant tori. Although specific to the Teukolsky formalism, the computational expedience can be understood without all details of that formalism. We simply assert some features and formulae from a TB flux calculation that we require to make our argument. For reference, Appendix [\ref=sec:tuek_formalism] gives a somewhat more detailed overview of the Teukolsky formalism and offers at least skeletal derviations of the formulae listed below. For a fuller treatment of the Teukolsky formalism, which is beyond the scope of this work, we direct the reader to the references listed in Appendix [\ref=sec:tuek_formalism].
+
+As a reminder, our argument is specific to frequency-domain Teukolsky calculations and corresponding codes. In the context of the EMRI problem, such codes compute a combined multipole and Fourier decomposition of the metric perturbations at infinity and the black hole horizon due to a geodesic source.
+
+The fluxes of [formula]
+
+The fluxes of the conserved quantities [formula] are usually reported as quantities averaged over coordinate time t on non-resonant orbits. By the arguments of Section [\ref=sec:four-analys-time-nonres] and Appendix [\ref=subsec:which_time], this is equivalent to the torus-averages of the fluxes on all tori over the torus coordinates [formula]. We therefore report those same expressions here as torus-averaged fluxes. For E and Lz, those expressions are [\cite=drasco2006] [\cite=drasco2005] The prefactors in the first two lines of ([\ref=eq:torus_avgd_TB_Q_flux]) are computed only once for the entire torus. Thus, substituting equations ([\ref=eq:torus_avgd_TB_E_flux]) and ([\ref=eq:torus_avgd_TB_Lz_flux]) into the RHS of ([\ref=eq:torus_avgd_TB_Q_flux]) and combining like terms with those in the summation of the last line, the flux for Q has the same general form as the fluxes of E and Lz have. Our savings arguments will be based on that form, so although we will speak about E and Lz for concreteness, those arguments will apply to Q as well. Appendices [\ref=sec:tuek_formalism] and [\ref=sec:using_TSN] summarize the derivations of these expressions.
+
+Before proceeding with those arguments, we clarify the notation in equations ([\ref=eq:torus_avgd_TB_fluxes]). First, the apparent discrepancy between the ordering of the H /   ∞   superscripts on the left- and righthand sides of the equations is not a typographical error. On the LHS, the superscript denotes fluxes at the black hole horizon and radial infinity, respectively. The somewhat backward notational choice to have the fluxes at infinity depend on a quantity labeled ZHlmkn and the horizon fluxes on Z∞lmkn is, at this point, ingrained in the literature. To maintain a modicum of notational uniformity, we have labeled the weighting factors αH /   ∞ with the same backward superscript convention. The exact form of those weighting factors will not concern us. What matters for our purposes is that every factor αHlmkn for the fluxes at infinity is equal to 1 and that every factor α∞lmkn for the fluxes at the horizon is real and depends on [formula] only through [formula]. All the arguments to follow apply equally to fluxes at infinity and at the horizon. We borrow the notation [formula] from Ref. [\cite=drasco2006] to denote either of H /   ∞  .
+
+Continuing, the indices l,m are standard multipole indices, with l  ≥  2, - l  ≤  m  ≤  l. Our argument will focus on the Fourier analysis of each l,m term individually, so that, unless explicitly stated otherwise, l,m are taken to be fixed everywhere in this section, while [formula] each run from -    ∞   to ∞  . The frequencies
+
+[formula]
+
+are the combined harmonics [formula] of the r and θ fundamental frequencies (the coordinate time version of equation ([\ref=eq:defn_omega_kn])) and the fundamental azimuthal frequency [formula]. Note that the integer m is both a multipole index and the relative contribution of [formula] to each frequency [formula]. Other than attaching itself as a label to frequencies in this way, however, m will not appear as a Fourier index in any sense below.
+
+Finally, Appendix [\ref=sec:using_TSN] explains why we have written the fluxes as average values over the [formula] torus coordinates mentioned in Section [\ref=subsec:flux_balancing] and in Appendix [\ref=subsec:which_time]. We note here simply that if we seek adiabatic solutions in the form [formula] (as opposed to [formula]), then the angle brackets in ([\ref=eq:secular_ODE]) should also be averages over [formula], so that ([\ref=eq:torus_avgd_TB_fluxes]) have the correct form to be proxies for [formula]. The representations of the LHSs of the flux equations as averages over [formula] is otherwise irrelevant, since in light of ([\ref=eq:torus_and_time_fcn_avgs_for_different_coords]), we will always seek equivalent and easier to compute [formula]-averaged quantities.
+
+[formula] as Fourier coefficients of a torus function
+
+With these preliminaries out of the way, we are ready to list the features of the RHSs of ([\ref=eq:torus_avgd_TB_fluxes]) that we will need for our savings arguments both in this section and in Section [\ref=sec:spec]. For our principal argument, what matters is that for fixed l,m values, each [formula] takes the form of a Fourier coefficient of some torus function,
+
+[formula]
+
+This form of the [formula]'s associated with a geodesic source of arbitrary eccentricity and inclination is detailed in several references (see, for instance, [\cite=drasco2005] [\cite=drasco2006] [\cite=drasco2004] [\cite=Sago:2005gd] [\cite=sago2005] [\cite=ganz2007]) and summarized in Appendix [\ref=sec:tuek_formalism].
+
+Equation ([\ref=eq:Zkn_as_torus_fcn_Fourier_coeff]) parallels the form of equation ([\ref=eq:spatial_double_coeffs]) from Section [\ref=sec:four-analys-torus-fcns], but there is one critical difference. For fixed l,m, the function [formula] further depends on a continuous parameter [formula] that must be set to [formula] when evaluating [formula] for a given multipole mode. Postponing for the moment any details of the function [formula] or its derivation, we remark that this dependence on the coordinate time harmonic frequencies of the source as an external parameter persists despite the fact that equation ([\ref=eq:Zkn_as_torus_fcn_Fourier_coeff]) is a spatial Fourier integral.
+
+Thus, for fixed l,m, the [formula] are not the Fourier coefficients of a single function but rather isolated Fourier coefficients of several different functions. On a non-resonant torus, every [formula] pair leads to a different value of [formula], and every coefficient computed has a distinct function [formula] in the integrand. On a resonant torus with associated frequency ratio [formula], all [formula] pairs that satisfy the selection rule ([\ref=eq:kzplusnp_with_same_j]) for the same [formula] lead to identical values of [formula], and some coefficients with different values of [formula] will share the same integrand function [formula]. The practical implications of this asymmetry for a TB flux calculation constitute the basis of our savings argument.
+
+In anticipation of later arguments, we also note that for each fixed value of the pair l,m, the resulting doubly infinite sum over [formula] in ([\ref=eq:torus_avgd_TB_fluxes]) has the appearance of a torus-averaged Fourier power in the sense of Section [\ref=sec:four-analys-torus-fcns] with the identification The prefactors in front of [formula] turn out to be real-valued and non-negative for all values of the indices, so it is valid to subsume them into some new coefficients Akn.
+
+Recycling computations between Fourier modes
+
+The complex-valued quantities [formula] are the backbone of a frequency-domain Teukolsky calculation, and a code that implements such a calculation spends by far the lion's share of its CPU budget on computing them. To explain how resonances can be leveraged to optimize that budget, we must look a bit more closely at the integrand functions [formula].
+
+The main ingredients in [formula] are two separate functions that have the same sort of [formula] dependence described above: a radial Teukolsky function [formula] and a spin-weighted spheroidal harmonic [formula]. We imagine re-expressing the former as a torus function of [formula] alone and the latter as a torus function of [formula] alone but will continue to write them as functions of r and θ, as they are in the rest of the literature. [formula] consists of a somewhat messy assortment of terms and factors involving these two functions, several of their derivatives, the coordinates and velocities of the particle (both of these are absorbed into the torus coordinates [formula]), and other elementary functions.
+
+Each of [formula] and [formula] satisfies an ODE that depends on l,m and [formula] in a nontrivial and partly implicit way (see Appendix [\ref=sec:tuek_formalism]). No simple closed-form solutions to these equations exist that make the functional dependence of the solutions on those parameters explicit. As a result, for every distinct set of values [formula], those ODEs must be solved from scratch to obtain the numerical representations of [formula] and [formula] needed to evaluate the integrand. Particularly in the case of [formula], this operation is computationally costly.
+
+Schematically, then, one calculates each [formula] for fixed l,m via the following steps:
+
+Determine the frequency [formula]
+
+Obtain a representation of [formula]
+
+Obtain a representation of [formula] for [formula] (this step requires first determining an eigenvalue of the [formula] ODE)
+
+Evaluate [formula] at whatever abscissae [formula] are required by the specific numerical integration algorithm chosen
+
+Compute whatever weights wi the integration algorithm may require for those function values and tabulate the integral ([\ref=eq:Zkn_as_torus_fcn_Fourier_coeff]) as [formula] .
+
+On a non-resonant torus, each [formula] pair produces a different answer to step 1 and requires the execution from scratch of all the remaining steps as well. On a resonant torus, in contrast, the [formula] pairs can be grouped by a common value of [formula] in the selection rule ([\ref=eq:kzplusnp_with_same_j]). Steps 1-3 need only be performed once for an entire [formula]-group. Depending on the integration algorithm selected, steps 4 and 5 may also only need to be performed once or a small number of times per [formula]-group, with a total number of reusable function evaluations set by the [formula] in the group requiring the greatest number of sample points to attain some target accuracy. We will make the reasonable assumption that steps 1 and 5, even if done several times per [formula]-group, are a small fraction of the total cost of evaluating all the coefficients in that group, and we will take the cost of steps 2-4 as an estimate of the total cost of computing any single coefficient.
+
+Consider now evaluating all the [formula] on a low-order resonant torus with [formula] and on a neighboring non-resonant torus with nearly identical orbital parameters. By the continuity of the [formula] with respect to [formula], coefficient values will be nearly identical on those two tori. The integer values of [formula] determined should also be identical or nearly identical on the two tori (we assume for simplicity that they are identical). Let [formula] and [formula] denote, respectively, the number of separate times steps 2-4 above must be executed on the non-resonant torus and resonant torus. To make a more apples to apples comparison, one can instead let [formula] represent the total number of distinct executions of steps 2-4 on the resonant torus if the resonance of that torus is not acknowledged from the outset. Roughly speaking, generating all the [formula] with [formula] on the non-resonant torus will require [formula] times more computation than it will on the neighboring resonant torus. Symmetries in the underlying equations imply that the value of [formula] is uniquely determined by the value of [formula]. Thus, in practice, one of the indices [formula] and [formula] can be restricted to run over only nonnegative values, and the value of [formula] should take that fact into account.
+
+Figure [\ref=fig:histogram_torus] estimates the savings factor [formula] for resonant tori with various values of qrθ and for several representative hypothetical values of [formula] and [formula] consistent with the reported performance of the TB code for arbitrary eccentricities and inclinations described in Ref. [\cite=drasco2006]. For simplicity, we have taken [formula].
+
+We can see the following trends in the histograms. First, for a given [formula], if we fix the value of [formula] and increase [formula] or vice versa, the savings factor drops. Thus, the savings factor is largest when both p and z are as low as possible. The greatest savings (over an order of magnitude) accrue when z  =  1. Second, the larger the values of [formula], i.e. the more slowly converging the expressions for the fluxes, the greater the savings factor for a given [formula]. Generally speaking, the most slowly converging fluxes are for orbits with moderate to high eccentrities [\cite=drasco2006] [\cite=ganz2007], which typically have higher associated values of qrθ since they are closer to the separatrix between plunging and non-plunging motion [\cite=grossman2011]. Thus, for instance, a rough approximation of the true savings factor in the top two panels of Figure [\ref=fig:histogram_torus] would be given by a roughly horizontal or slightly downward sloping line connecting the histogram bar with the lowest qrθ at the lowest [formula] with the highest qrθ at the highest [formula]. A good rough predictor for the expected savings would thus be the z value of a torus, yielding a savings factor of ~  30 for z  =  1 and ~  7 for z  =  6. The lowest savings factor on that graph of ~  3 (corresponding to the not-so-low-order resonance with [formula]) is nothing to sneeze at, and more typically the savings factor from acknowledging resonance would appear to be around an order of magnitude on average.
+
+While a detailed audit of comparative cost would have to be done on a code-specific basis, the potential payoff of these observations makes a case for testing our proposal in existing codes.
+
+Numerical EMRI grids
+
+Even if we stipulate that fluxes can be computed more efficiently on low-order resonant tori than on non-resonant tori, is this fact necessarily useful? After all, points in [formula]-space corresponding to resonant tori, let alone low-order ones, are already a measure zero set, so to construct the inspiral curve [formula], wouldn't the RHSs of the adiabatic ODEs have to be evaluated in general (and, formally, infinitely more often) on non-resonant tori than on resonant ones? Interestingly, while the answer to that question is "yes", the actual calculation of TB fluxes itself need only ever be done on resonant tori, and at least predominantly (and possibly exclusively) on low-order ones, at least for the foreseeable future.
+
+The reason has to do with the absolute computational cost of those fluxes, even on resonant tori. Simply inserting a TB frequency-domain flux routine into the RHS of, say, a standard Runge-Kutta ODE solver to generate inspiral curves in real-time is untenable, even with a large number of processors at one's disposal to parallelize the TB calculation. Instead, solution of the adiabatic ODEs will proceed as follows. For each value of the black hole parameters, one would build a numerical grid of flux values on some dense mesh of points in [formula]-space and then interpolate off of that grid to obtain the fluxes for arbitrary values of [formula]. Once handed such a grid, those interpolated flux values would go into a standard ODE solver which could presumably generate inspiral curves very efficiently. The main expense to consider, then, is the construction of the grid.
+
+Our proposal is that such a grid should be built using exclusively resonant grid points. More specifically, we propose a hierarchical population of such a grid, beginning with the low-order resonant points and then increasing the order of the resonance (or just increasing z, if our loose conjecture about horizontal lines in the top panels of Figure [\ref=fig:histogram_torus] proves to be correct) until some requisite grid density is obtained to minimize interpolation error. Those grid density requirements may force the evaluation of fluxes on some higher-order resonances, but no resonant grid point (whether low- or high-order) will ever be more expensive to populate with Fourier flux data than a nearby non-resonant grid point will be. The worst-case scenario near certain locations in the space would be to break even by using a resonant versus a non-resonant grid point. Our hierarchical approach would seem to at least lower if not minimize the total computational cost of such a grid.
+
+We remark on two features of our proposal. First, the savings factor discussed depends only on the decision to use resonant tori for TB calculations and no other implementation-specific features of that calculation. Thus, those savings will multiply any additional savings that may stem from other algorithmic improvements in any such implementation or from the availability of more or faster processors to perform the TB calculations.
+
+Second, its efficacy has nothing to do with interesting physical effects that may occur in the neighborhood of resonant orbital parameter values during a real inspiral [\cite=flanagan2010]. The flux-balance method, and in fact the adiabatic approximation in general, may fail to capture these effects. Any such failure is immaterial to our argument, which rests not on physical properties of resonant tori but rather mathematical ones they have in specific relation to frequency-domain TB calculations. In other words, despite the fact that the adiabatic approximation might be least faithful to reality in and around resonances, leveraging resonances is nonetheless the most efficient means of attaining an adiabatic approximation for those regimes where it is likely to be faithful.
+
+Gravitational waveform snapshots
+
+As already argued, we are free to interpret the coefficients [formula] either as spatial Fourier coefficients of a torus function of [formula] or of a different torus function of [formula]. As shown in Appendix [\ref=sec:tuek_formalism], the t-function versions of the [formula] coefficients are used to build the Weyl scalar ψ4 at radial infinity, from which the two polarizations of the waveform h are constructed. These waveform "snapshots" from geodesic sources [\cite=drasco2006] are useful for exploring how a known orbital motion impacts GW signals, and though they will quickly go out of phase with a true inspiral signal, they are still likely to play a pivotal role in hierarchical searches for GWs from EMRIs.
+
+More specifically, with the [formula]-coefficients [formula] in hand, h can be reconstructed from the associated t-coefficients. By analogy to equation ([\ref=eq:temp_double_coeffs_are_spatials_times_phase]), we get in the nonresonant case, and by analogy to equation ([\ref=eq:temp_single_coeff_is_sum_of_phased_spatials]) get in the resonant case if we know the initial conditions. Since the waveforms (or, rather, their Fourier representations) depend on the [formula] coefficients, then like the fluxes, they will also probably need to be interpolated from a grid that stores the [formula] values themselves instead of or in addition to the fluxes. The same arguments made above for the fluxes thus cross-apply to waveform snapshots.
+
+Speculations on further savings
+
+In this section, we sketch a speculative but tantalizing possibility for further efficiencies in adiabatic EMRI grid construction beyond those discussed in Section [\ref=sec:definite]. The idea centers around calculating time-averaged rather than torus-averaged fluxes on resonant tori. At first glance, that suggestion seems to fly in the face of earlier arguments that the RHSs of the adiabatic equations should be torus-averaged fluxes and that torus averages and time averages are not identical on resonant tori. The apparent incongruity disappears, however, in light of two facts:
+
+On any resonant torus, the mean value theorem guarantees that torus-averaged fluxes equal time-averaged fluxes on certain special orbits.
+
+For low-order resonances, those time-averaged fluxes are more accurate and cheaper to compute.
+
+The additional savings are beyond the cost benefit of incorporating the proposal of Section [\ref=sec:definite].
+
+We substantiate these claims below in turn. We caution the reader that, in contrast to the savings of Section [\ref=sec:definite], those discussed in this section may prove more elusive in practice because determining the special orbits mentioned in step 1 above could prove so difficult as not to be net-beneficial. We discuss such limitations and suggest fruitful avenues of numerical investigation to help further reduce the cost of generating adiabatic inspirals.
+
+Using time-averages to compute torus-averages
+
+The time-averaged fluxes from a single resonant orbit do not appear elsewhere in the literature. As we explain in Appendix [\ref=sec:using_TSN], the arguments of Section [\ref=sec:four-analys-time-res] imply that those fluxes are (note, these are single-index objects in j) It remains to be shown whether the following would translate to [formula]. We restrict attention in this section to E and Lz fluxes for the sake of exposition.
+
+As before, we assume fixed l,m in everything below. In the fluxes, the frequencies
+
+[formula]
+
+the real-valued weight factors [formula], and the temporal Fourier coefficients all become single-index quantities by the arguments of Section [\ref=sec:four-analys-time-res]. We recall from equation ([\ref=eq:fluxes_as_toravgd_Fourier_powers]) that the torus-averaged fluxes have the form of a torus-averaged power of some unspecified torus-function. Likewise, for fixed values of l,m, the time-averaged fluxes ([\ref=eq:res_time_avgd_TB_E_flux]) and ([\ref=eq:res_time_avgd_TB_Lz_flux]) have the appearance of a time-averaged Fourier power in the sense of Section [\ref=sec:four-analys-time-res] with the identification
+
+Each time-averaged flux, like any time-averaged Fourier power, is real-valued. Therefore, by equations ([\ref=eq:fluxes_as_timeavgd_Fourier_powers]) and ([\ref=eq:pwr_toravg_equal_toravg_of_pwr_timeavg]) and the mean-value argument made at the end of Section [\ref=sec:four-analys-time-res], there exist initial positions [formula] on the torus such that Actually, there must be at least two continuous 1-parameter families of special initial values [formula] (one for each of [formula]) and two such families for [formula]: any two initial conditions that lie on the same orbit simply time-translate that orbit, and time-translation does not change time-averaged function values or time-averaged powers.
+
+None of the values [formula] and [formula] need agree. Thus, if we sought to determine the torus-averaged fluxes indirectly by instead evaluating time-averaged fluxes, we might need to evaluate each coefficient [formula] as many as four times, once for each of the initial conditions [formula] and [formula].
+
+We can, however, also apply the mean-value argument individually to each real-valued [formula]. In this case, we would obtain a sequence of special initial conditions [formula] that cause each [formula] to attain its torus-averaged value over all possible initial conditions. The different [formula] would not necessarily agree for different values of [formula]. Since the prefactors in ([\ref=eq:fluxes_as_timeavgd_Fourier_powers]) are independent of initial position, each [formula] would simultaneously set the [formula]th term in the power spectrum of every flux to its torus-averaged value. Evaluating the time-averaged fluxes for any of the individual initial conditions [formula] would not produce a torus-averaged flux. However, since the average of a sum of terms must equal the sum of the individual averages of those terms, the sum of the resulting [formula] (each evaluated at a possibly different [formula]) would yield the torus-averaged value of all fluxes simultaneously. Recalling that each integrand in ([\ref=eq:res_Zj_defn]) is different anyway, there is no further waste in evaluating each one using a different initial condition [formula].
+
+It is important to note that we have simply made an existence argument for [formula] and every [formula]. What those values actually are would vary from problem to problem, and finding them for the Teukolsky problem may not be practical. The integrands in ([\ref=eq:res_Zj_defn]) are not especially analytically transparent, so it may be that they can only be determined by evaluating those integrands for several initial conditions [formula], which would defeat the purpose of invoking the mean-value theorem in the first place. Still, we believe the potential added savings from knowing the [formula] merits exploring whether the Teukolsky calculation harbors some structure or symmetries that would allow those initial conditions to be determined with little or no added expense. We turn to those additional potential savings now.
+
+Relative cost of time-averaged vs. torus-averaged functions on low-order resonant tori
+
+Assume that we have in hand the [formula] for each [formula] and agree to evaluate the coefficients [formula] using those special initial conditions. The added efficiency is twofold: each [formula] should potentially be less expensive to compute than any given [formula] (by reducing a double integral to a single integral), and fewer such [formula]'s than [formula]'s will have to be computed in order to achieve a given target accuracy in the torus-averaged fluxes (by reducing a double sum to a single sum). In fact, the more efficient calculation might even increase the resulting flux accuracy. We justify those claims in turn below.
+
+Cost of a coefficient
+
+For ease of illustration, we will estimate the relative computational costs of a single [formula] and of any single [formula] for which [formula] satisfy the selection rule ([\ref=eq:kzplusnp_with_same_j]). To make the comparison more stark, we remap the integral ([\ref=eq:res_Zj_defn]) to the interval
+
+[formula]
+
+. For a periodic function, an FFT will return all the Fourier coefficients from C- N1 through CN1 by sampling the integrand at 2N1  +  1 equally spaced abscissae. So to capture [formula], we would need [formula] evaluations of the integrand. However, the highest index coefficients computed via an FFT are heavily afflicted by aliasing error, while the lowest index coefficients computed are relatively free of such error. To minimize aliasing effects, we imagine increasing the number of sample points (and thus of coefficients computed) by some integer safety factor S so that [formula] will be one of lowest index coefficients returned by the FFT and thus fairly free of aliasing error. The total number of integrand evaluations under this scheme for computing [formula] would thus be [formula].
+
+Now imagine evaluating the double integral ([\ref=eq:Zkn_as_torus_fcn_Fourier_coeff]) using a 2D FFT, which we (even more crudely) envision simply as nested 1D FFTs. Assuming the same safety factor S throughout, we would need [formula] function evaluations. Re-expressing [formula] in terms of [formula] and [formula] via the selection rule and using the number of integrand evaluations as a metric of numerical expense, the ratio of the cost of [formula] to the cost of [formula] would be
+
+[formula]
+
+Generally speaking, for small values of both [formula] and [formula], the denominator in the cost ratio is smaller than the numerator since [formula] and [formula] more often than not have opposite signs for a given [formula]. It is conceivable that a single [formula] could turn out less costly to evaluate than [formula], but the likelihood of that would become higher as both [formula] and [formula] became large, for which case a resonant torus would be barely distinguishable from a non-resonant torus in terms of all the aspects discussed in this paper.
+
+The argument above artificially increases the true cost of evaluating both integrals and is not intended even to be fully convincing, let alone a proof. Rather, it is a heuristic illustration of a rule of thumb in numerical integration that, with similarly behaved integrands, 1D integrals are less costly to compute than 2D integrals.
+
+Number of coefficients
+
+In contrast to the relative cost of computing a coefficient, we can say more definitively that the total number of single-index coefficients needed to achieve some specified accuracy in the torus-averaged fluxes will be less than the number of double-index coefficients needed to obtain the same accuracy.
+
+Suppose achieving a certain flux accuracy for a given l,m pair requires computing all [formula] with indices up to [formula] and [formula]. Denote the total number of torus coefficients computed by [formula]. The [formula] coefficients satisfy [formula] [\cite=chrzanowski1976], so one of [formula] and [formula] need only run over non-negative values to obtain all the coefficients with [formula]. The total number of coefficients actually computed is therefore (having [formula] run only non-negative)
+
+[formula]
+
+For comparison, we determine the number [formula] of [formula] coefficients (evaluated at [formula]) that we would have to calculate so that, in light of the arguments of subsection [\ref=sec:using-time-for-torus], every [formula] above would automatically be included in the sum of all [formula]. As we showed in subsection [\ref=sec:using-time-for-torus], the maximum [formula] index that needs to be included in the single-index series that will thusly catch every [formula] pair is
+
+[formula]
+
+The symmetry of [formula] implies that [formula] need not run both positive and negative, and the number of [formula]'s we would need to calculate to ensure at least the same level of flux convergence as that attained with the [formula] coefficients is
+
+[formula]
+
+Comparing equations ([\ref=eq:N_2]) and ([\ref=eq:up_bound_N_1]), we see that we need a factor of
+
+[formula]
+
+fewer coefficients. The reduction in the number of coefficients therefore depends on the order of the periodic orbit as well as on [formula] and [formula]. The lower the values of [formula] and [formula], the greater the reduction factor.
+
+Figure [\ref=fig:histogram_torus] showed the average number of kn modes on a resonant torus per distinct frequency. It also gives a general sense of how [formula] varies with [formula] and [formula]. The agreement between the two is not exact because, when computing all [formula] coefficients up to the maximum [formula], some additional frequencies will be included that do not correspond to any of the included kn frequencies with [formula]. Therefore, Figure [\ref=fig:histogram_torus] overestimates [formula] but only slightly and gives a better estimate for the larger values of [formula]. For example, for [formula], equation ([\ref=eq:coeff_reduc]) gives [formula] for [formula] and [formula] for [formula], both of which agree with the values in the histogram of Figure [\ref=fig:histogram_torus] within a few percent. On the basis of Figure [\ref=fig:histogram_torus], we can therefore conclude that focusing on temporal rather than spatial Fourier coefficients and invoking the above mean-value arguments could reduce by a factor of an order of magnitude or so the total number of [formula] coefficients required to obtain accurate torus-averaged fluxes.
+
+Conclusion
+
+Computation of adiabatic inspirals with a grid of resonant orbits could be an order of magnitude more efficient than the same computation with a non-resonant grid. If our speculations are verified and double sums can be collapsed to single sums (and double integrals to single integrals), there may be substantial additional savings since fewer and simpler coefficients will be required. To date, no accurate adiabatic EMRIs have been computed. Such a dramatic boost in speed would bring EMRIs more within computational reach.
+
+Torus coordinates and time coordinates
+
+Mino time vs. coordinate time Fourier coefficients
+
+Suppose Akn;t is a Fourier coefficient of some biperiodic coordinate time function f(t),
+
+[formula]
+
+Then Akn;t is also the knth Fourier coefficient of a different biperiodic Mino time function g(λ),
+
+We prove equation ([\ref=eq:Aknt_equals_Aknlambda]) by constructing the function g from f explicitly. We will need the fact (see Ref. [\cite=drasco2004] for details) that [formula] depends on r and θ and is thus biperiodic when evaluated on a trajectory r(λ),θ(λ). [formula] also has a nonzero average value Γ defined by
+
+[formula]
+
+Consequently, the function t(λ) takes the form
+
+[formula]
+
+where Δt(λ) is biperiodic in λ and has zero average value.
+
+We can now construct g(λ). Since Δt(λ) is biperiodic, it is also bounded. Thus, if we define [formula], then in the limit T  →    ∞  , we get T  →  ΓΛ. We can now change variables in the integral in ([\ref=eq:Aknt_defn]): In the second line above, we have absorbed the Γ into the Λ and used the fact that the coordinate-time and Mino-time frequencies will be related [\cite=drasco2004] by to convert to Mino frequencies in the argument of the exponential.
+
+Comparing ([\ref=eq:Aknt_equals_Aknlambda]) to ([\ref=eq:inf_t_integral_as_inf_lambda_integral]), we see that due to the dependence on k and n in the argument of the exponential (the coordinate time frequencies [formula] and [formula] appear here simply as parameters), there is actually a different function
+
+[formula]
+
+for each Akn;λ. In other words, the Akn;t are Fourier coefficients of a single function f while each Akn;λ is the knth Fourier coefficient of a different function gkn(λ). But that poses no problem -- we only sought to show that every t-Fourier coefficient is also the λ-Fourier coefficient of some function of λ. The pragmatic importance of this fact has to do with the evaluation of coefficients of torus functions, which, though stated in slightly different language, is the crux of the original argument in Ref. [\cite=drasco2004] and which we discuss in Section [\ref=sec:lambda-based-vs-t-based-torus-coords].
+
+Analogous reasoning to the above in the resonant case with
+
+[formula]
+
+and p,z relatively prime shows that each coefficient [formula] of f(t) can likewise be considered a Mino time coefficient [formula] of some different function
+
+[formula]
+
+The difference is that now each of [formula] and [formula] is a singly periodic function of λ with period
+
+[formula]
+
+Temporal Fourier coefficients can be calculated in the resonant case without first having to convert to Mino time. We will nonetheless express and evaluate coefficients [formula] as coefficients [formula] in order to parallel the non-resonant case.
+
+λ-based vs. t-based torus coordinates
+
+Figure [\ref=fig:res_tor] represents [formula] as a compact 2π-by-2π square in the [formula] angle coordinates defined in Section [\ref=sec:phase-space-tori]. Kerr geodesics trace out lines on this torus-square at constant velocity. With respect to any other time parameter, geodesic curves continue to be lines on the torus-square, but their parametric representations are not in general linear in time, nor are their velocities on the torus constant.
+
+For any choice of time parameter, however, there is always some set of coordinates on the torus such that geodesic motion on that torus is linear in that time parameter and has constant velocity. For instance, with respect to coordinate time t, there will be coordinates [formula] such that
+
+Note that in any set of angle coordinates in which the trajectory velocities are constant with respect to some time parameter, orbit trajectories will all be lines with the same slope 1  +  qrθ. Such coordinate systems are nevertheless distinct: identical ordered pairs in two such coordinate systems will not, in general, correspond to the same point on the torus.
+
+Though not unique, the [formula]-[formula] coordinate system on [formula] is nevertheless uniquely useful. Since each of γr,γθ would be a combination of [formula] and [formula], each point on the projected r-pr curve of an orbit would be labelled by a pair of values (γr,γθ) rather than by a single value [formula], and likewise for the projected θ-pθ curve. This mixing of radial and polar motions in each torus coordinate makes most calculations harder than they need to be, and the impetus behind [formula]-[formula] coordinates is precisely the convenience that flows from torus coordinates that separately shadow radial and polar motion.
+
+Still, we sometimes are interested in values of quantities averaged over the [formula] coordinates. Luckily, by the correspondence between temporal Fourier coefficients of biperiodic functions and spatial Fourier coefficients of torus functions, equations ([\ref=eq:Aknt_equals_Aknlambda]) and ([\ref=eq:gkn_functions_defined]) further establish that if [formula] is the knth coefficient of the torus function [formula] associated with f(t), then it is also the knth coefficient [formula] of the torus function [formula] corresponding to gkn(λ). This is important for evaluating torus coefficients in practice: it is usually very difficult to go from a function [formula] to a form [formula] explicitly while it is straightforward to go from [formula] to [formula].
+
+A synopsis of the Teukolsky formalism
+
+Here we summarize some relevant aspects of the Teukolsky formalism as applied to the EMRI problem. More details of this application can be found in numerous references, including [\cite=glampedakis2002] [\cite=hughes2001] [\cite=hughes2005] [\cite=drasco2006] [\cite=ganz2007] [\cite=sago2005] [\cite=Sago:2005gd]. Our goal in this aapendix is to justify the expressions for the coefficients ZH /   ∞lmkn and [formula] in equations ([\ref=eq:Zkn_as_torus_fcn_Fourier_coeff]) and ([\ref=eq:res_Zj_defn]), respectively.
+
+The Weyl scalar, ψ4
+
+In 1972 Teukolsky derived the master equation [\cite=teukolsky1972] [\cite=teukolsky1973], a separable partial differential equation (PDE) whose solution describes the propagation in the Kerr spacetime of small perturbations to fields of different spin-weights s: scalar, electromagnetic and gravitational. Each solution to the master equation is a separable function which can be written as a multipole expansion. There are two computational approaches to solving the master equation for each multipole mode: the time-domain approach, which solves the resulting PDE directly, and the frequency-domain approach, which further Fourier expands the solutions. For the purposes of extracting flux information from gravitational perturbations, frequency-domain codes are the accuracy standard and the ones to which our savings proposal applies. We thus restrict our attention to the frequency-domain approaches to solving the master equation.
+
+The combined multipole-Fourier expanded perturbations take the form
+
+[formula]
+
+where [formula] denotes the coordinate-time frequency of the perturbations at the field point due to the source. Each [formula] is a function of the field point (t, r, θ, φ) at which we wish to evaluate the perturbation. The s marker in equation ([\ref=eq:psi_four]) is a "spin-weight parameter" [\cite=teukolsky1972] which denotes the perturbation type. For gravitational radiation, s =  - 2, and [formula] where
+
+[formula]
+
+The functions [formula] and [formula] (described in the next subsections) each depend on the parameter [formula] as a consequence of the separation of variables procedure. When the source is a geodesic, [formula] turns out to be a discrete variable composed of harmonics of the radial, polar and azimuthal frequencies of that geodesic. That discrete dependence can be expressed differently for non-resonant orbits, Once [formula] becomes a discrete variable, we can replace the integral over all possible [formula] in equation ([\ref=eq:psi_four]) with a sum over either m,k,n or m,j for non-resonant and resonant sources, respectively.
+
+Because everything in this paper deals with gravitational spin-weighting, we henceforth omit all the - 2 subscripts. The net result is that equation ([\ref=eq:psi_four]) becomes for a resonant source.
+
+The Spheroidal Harmonics
+
+The functions [formula] with a spin-weight of s =  - 2 are the gravitational (tensor) spheriodal harmonics, a generalization of the likewise spin-weighted spherical harmonics. These functions satisfy [\cite=teukolsky1973]
+
+Clm are the eigenvalues for which equation ([\ref=eq:spheriodal]) has solutions. Solving for [formula] for given [formula] requires simultaneously determining an eigenvalue Clm and the associated spheroidal harmonic. These eigenvalue-eigenfunction pairs can be computed in several different ways (see Refs. [\cite=hughes2001] [\cite=ganz2007] [\cite=fujita2009]).
+
+The spheroidal harmonics satisfy several orthogonality relations. The one we will need in this paper is that, for fixed m and ω, where the overbar denotes complex conjugation. We have chosen a normalization of [formula], as in Ref. [\cite=drasco2006].
+
+The radial Teukolsky functions
+
+Solving for the radial functions [formula] is more difficult. [formula] satisfy the inhomogeneous radial Teukolsky equation [\cite={teukolsky1973}] The potential [formula] depends in part on the eigenvalue Clm of [formula], so equation ([\ref=eq:spheriodal]) must be solved before the homogeneous or inhomogeneous version of equation ([\ref=eq:teuk_eq]) can be.
+
+The source term [formula] is built by, among other things, evaluating [formula] and two homogeneous solutions [formula] to ([\ref=eq:teuk_eq]) along the geodesic source. Two general methods are described for constructing [formula]. One approach integrates the homogeneous Teukolsky equation (or, equivalently, the better numerically behaved Sasaki-Nakamura equation [\cite=hughes2000]) outward from the horizon. The other expands [formula] in terms of hypergeometric functions (see [\cite=fujita2009] and references therein) and evaluates [formula] directly at certain points, possibly extrapolating its values to nearby points with series expansions. Both approaches are fairly computationally costly. For detailed explanations on these different approaches and how various numerical problems are circumvented, see [\cite=press1973] [\cite=teukolsky1974] [\cite=chandrasekhar1975] [\cite=leaver1985] [\cite=hughes2000] [\cite=fujita2009]. We elaborate a bit more on the structure of the source term below.
+
+The quantities [formula]
+
+With the homogeneous radial solutions in hand, the inhomogeneous Teukolsky equations can be solved using the method of variation of parameters [\cite=haberman]. The radial functions [formula] can be written as where [formula] and [formula] are defined as The constant c is related to the Wronskian of [formula] and [formula]. r+ is the larger root of Δ and is the radial coordinate of the black hole horizon (the smaller root is denoted r-).
+
+Because we are only interested in the radiation going into the black hole and being carried away to infinity, we are only concerned about the asymptotic behavior of [formula] as r  →  r+ and r  →    ∞  . In fact, the homogeneous basis solutions have been chosen to have the simplifying feature that Note that we have used the same notation for the functions [formula] and for the constants [formula] representing their asymptotic values at ∞   and r+, respectively. As mentioned in Section [\ref=sec:fluxes-elqall], the literature seems stuck with the rather backward notational convention that [formula] is nonvanishing at ∞   while [formula] is nonvanishing at r+.
+
+The radial functions as r  →    ∞   and r  →  r+ thus become where and [formula] and r* is the Kerr tortoise coordinate defined by
+
+The coefficients [formula] are found from The source function [formula] in ([\ref=eq:Z_asym]) is an integral of the form
+
+[formula]
+
+The source term is derived in [\cite=breuer], but we have written it borrowing the notation [formula] from [\cite=drasco2006]. All that matters for our purposes is that [formula] is built out of a series of operations on the null tetrad components of the energy-momentum tensor of the orbiting particle and thus contains delta functions and derivatives of delta functions centered on the source geodesic. Thus, the dΩ integral can be evaluated, resulting in every θ and φ in ([\ref=eq:source_fn]) being replaced with the source trajectories θs(t),φs(t) (the subscript s here denotes "source" as opposed to a spin-weight as earlier in this Appendix).
+
+Delta functions [formula] and derivatives thereof still remain in ([\ref=eq:source_fn]), along with the integration over t. When we plug ([\ref=eq:source_fn]) into equation ([\ref=eq:Z_asym]), we can switch the order of integration for r' and t and use those remaining delta functions in r (we rename r' to r now, for simplicity) to replace every r with rs(t). The net result is that [formula] takes the form The functions [formula] depend on r and θ both directly and via a combination of elementary functions, the spheroidal harmonics, the homogeneous radial Teukolsky functions, and various derivatives thereof. Explicit expressions can be found in several sources (see, for instance, [\cite=drasco2006] [\cite=fujita2009]).
+
+We will now use this form for [formula] to define the coefficients ZH /   ∞lmkn and ZH /   ∞lmj;λ to which the efficiency arguments of Sections [\ref=sec:definite] and [\ref=sec:spec] apply, respectively.
+
+The quantities ZH /   ∞lmkn
+
+We now show that, when the source is a non-resonant orbit, the [formula]-dependence of [formula] takes the form
+
+[formula]
+
+where [formula] are the coordinate-time harmonic frequencies defined in equation ([\ref=eq:omega_non_res]). Note that even though equation ([\ref=eq:Zlmkn_as_weights_of_delta_fcn_comb]) has the form of the Fourier transform of an almost-periodic function with respect to coordinate time t, we are free to interpret the coefficients of the delta functions either as Fourier coefficients of a coordinate time function or as Fourier coefficients of a (different) Mino time function.
+
+For the reasons stated in Appendix [\ref=subsec:which_time], we opt for the latter and begin by rewriting ([\ref=eq:source_fourier_integral]) as an integral over Mino time. Treating all source coordinates as functions of λ and using equation ([\ref=eq:t_of_lambda]), we get
+
+[formula]
+
+We now use the fact (see Ref. [\cite=drasco2004]) that, like [formula], [formula] depends on r and θ and is thus biperiodic when evaluated on a trajectory r(λ),θ(λ). [formula] has a nonzero average value [formula] defined by
+
+[formula]
+
+Consequently, the function φs(λ) takes the form
+
+[formula]
+
+where Δφs(λ) is biperiodic in λ and has zero average value. Like its radial and polar counterparts, [formula] is related to the coordinate-time frequency [formula] via
+
+[formula]
+
+More generally, coordinate-time and Mino-time frequencies are related by
+
+[formula]
+
+In light of equations ([\ref=eq:phi_of_lambda])-([\ref=eq:rel_between_Minotime_and_coordtime_gen_freqs]), equation ([\ref=eq:source_fourier_integral_over_lambda]) becomes
+
+[formula]
+
+Note that the coordinate-time frequency [formula] still appears as a parameter in both [formula] and in the argument of [formula].
+
+Like Δt(λ) and Δφ(λ), the functions [formula] are biperiodic in λ. We define the biperiodic function
+
+[formula]
+
+and Fourier expand it as
+
+[formula]
+
+Inserting ([\ref=eq:f_lmomega_time_Fourier_expnsn]) into equation ([\ref=eq:source_fourier_integral_over_lambda_with_omphi]) yields The multipole index m and the Fourier indices k,n all do double duty by helping to specify the value of the parameter [formula] in [formula]. Consequently, each [formula] is fully specified by the four integers l,m,k,n and we can define
+
+[formula]
+
+We will absorb the factor of 2π into the function [formula] in the integral defining ZH /   ∞lmkn;λ.
+
+Since each ZH /   ∞lmkn;λ is a temporal Fourier coefficient, then by the arguments of Section [\ref=sec:four-analys-time-nonres], we determine it by instead computing the corresponding spatial Fourier coefficient
+
+[formula]
+
+of the associated torus function in the [formula] torus coordinates. Despite our earlier notation, the function [formula] actually depends not only on r and θ but also on their conjugate momenta (since it depends on the r and θ velocities via the energy-momentum tensor of the particle). [formula] inherits this dependence, and it is thus appropriate to write it as a function of the torus coordinates [formula] that need not have any special symmetries on the torus.
+
+As we show in Appendix [\ref=sec:using_TSN], the averaged fluxes required to evaluate the RHS of the adiabatic equations for [formula] depend on the ZH /   ∞lmkn defined in ([\ref=eq:Z_lmkn_as_torus_coeff]). Thus, equation ([\ref=eq:Z_lmkn_as_torus_coeff]) verifies equation ([\ref=eq:Zkn_as_torus_fcn_Fourier_coeff]), on which the savings arguments of Section [\ref=sec:zhinf_lmnkr-as-fourier-torus-coeffs] are based.
+
+The quantities [formula]
+
+We now show that when the source is a resonant orbit, the [formula]-dependence of [formula] instead takes the form
+
+[formula]
+
+where [formula] are now the coordinate-time harmonic frequencies defined in equation ([\ref=eq:omega_res]). As before, we are free to interpret the coefficients of the delta functions either as Fourier coefficients of a coordinate time function or as Fourier coefficients of a (different) Mino time function and take the computationally tractable latter option.
+
+Equations ([\ref=eq:source_fourier_integral_over_lambda])-([\ref=eq:f_lmomega_defn]) carry over to the resonant case with the difference that each of Δt(λ),Δφ(λ),r(λ),θ(λ) and thus [formula] is now singly periodic with period [formula]. Thus [formula] can be Fourier expanded in harmonics of a single fundamental frequency [formula],
+
+[formula]
+
+with
+
+[formula]
+
+The functions [formula] are induced from some torus function, so by the arguments of Section [\ref=sec:four-analys-time-res], both they and the coefficients [formula] depend on initial positions, which we can represent compactly as a dependence on initial position [formula] on the phase space torus.
+
+Inserting ([\ref=eq:f_lmomega_time_res_Fourier_expnsn]) into the resonant version of equation ([\ref=eq:source_fourier_integral_over_lambda_with_omphi]) yields The relevant quantities, then, are those in equation ([\ref=eq:Zlmomegaj_defn]) with the parameter [formula] in [formula] set to [formula].
+
+Paralleling the non-resonant case, each [formula] is fully specified by the three integers [formula]. By absorbing the factor of 2π into the functions [formula] in the integrand of ([\ref=eq:Zlmomegaj_defn]), we can define the notationally more compact coefficients
+
+[formula]
+
+By the construction above, each such [formula] is given by
+
+[formula]
+
+As we show in Appendix [\ref=sec:using_TSN], the time-averaged fluxes for [formula] from resonant orbits depend on the [formula] defined in ([\ref=eq:Zlmj_defn]). Thus, equation ([\ref=eq:Zlmj_defn]) verifies equation ([\ref=eq:res_Zj_defn]), on which the more speculative savings arguments of Section [\ref=sec:spec] are based.
+
+Fluxes from the Teukolsky formalism
+
+In this appendix, we review how the apparatus of Appendix [\ref=sec:tuek_formalism] yields fluxes of conserved quantities. Several authors [\cite={hughes2001}] [\cite={drasco2006}] [\cite={glampedakis2002}] [\cite={drasco2005}] [\cite=ganz2007] [\cite=fujita2009] implement this Fourier-domain formalism in TB codes to calculate the radiative [formula] fluxes at radial infinity and the horizon to determine how the inspiral evolves. We show how expressions for time-averaged (as opposed to torus-averaged) fluxes differ between non-resonant and resonant orbits.
+
+Overview of flux calculation
+
+We will not refer to the Q flux, but restrict our discussion to E and Lz. To determine the evolution of an inspiral in orbital parameter space, we use the the E and Lz fluxes at radial infinity and the horizon as proxies for the local self-force. This subsection gives an overview of the calculation for finding these fluxes.
+
+From the Weyl scalar ψ4, the gravitational waveform and the E, Lz and Q radiation fluxes can be calculated. Specifically, we can calculate the polarizations h+ and h× of the metric perturbations at infinity (i.e. the GWs) via
+
+[formula]
+
+After integrating equation ([\ref=eq:psi_4_grav_wave]) twice to get h+ + ih× (the integration constants are set to zero), we can calculate an effective GW stress-energy tensor at infinity [\cite=isaacson1968] as
+
+[formula]
+
+The average over several wavelengths signifies the following [\cite=maggiore]. The stress-energy tensor of GWs contributes to curvature in the analogus way that the stress-energy tensor of matter does. However, since GWs are fluctuations in the metric itself, we cannot define their stress-energy tensor at a field point because, with only information at one point, we cannot distinguish between the curvature of the background spacetime and the contributions to that curvature from fluctuations on the spacetime. To distinguish between the background and the effect of the fluctuations, there needs to be either a length or frequency scale separation between the two. In our case, as r  →    ∞  , the background curvature scale is much greater than the wavelength of the fluctuations. Therefore, we average over several gravitational wavelengths in order to smooth out the fluctuations and determine only the secular contribution of such GWs to the curvature.
+
+While the background curvature scale is much greater than the GW wavelength, GW detectors look not for spatial fluctuations to the metric but rather temporal ones. Therefore, in the spirit of applicability to actual experiments, it is more useful to distingiush between a background frequency (i.e. a reciprocal of a curvature scale in the timelike direction) and the much larger frequency of the fluctuations. Therefore, rather then average over several wavelengths, we average over several periods to isolate the net effect of the GWs [\cite=maggiore].
+
+The energy and angular momentum fluxes carried to radial infinity by GWs are related to the components of T∞αβ by,
+
+[formula]
+
+The E and Lz fluxes are calculated by integrating equation ([\ref=eq:fluxes_from_T]) over a 2-sphere of radius r on a constant t spacelike hypersurface
+
+[formula]
+
+The time-averaged fluxes from a given geodesic can then be calculated by
+
+[formula]
+
+Alternatively, we can calculate the torus-averaged fluxes by taking the average of the time-averages for all geodesics with a given set of orbital parameters over all possible initial conditions,
+
+[formula]
+
+An analougus procedure can be performed to calculate the fluxes at the horizon [\cite=hawking1972] [\cite=teukolsky1974].
+
+Fluxes from ψ4
+
+Combining equations ([\ref=eq:psi_4_quad]) with ([\ref=eq:radial_funcs]) we find that Similar expressions can be found for ψH4, but for brevity, we will only proceed with the detailed computations for r  →    ∞  . Also, we only work out the details for the E flux, but the Lz flux follows exactly the same perscription.
+
+Following the prescription laid out in section [\ref=subsec:gen_flux_calc] we find that where [formula] denote the discrete variables that are two-indexed for resonant orbits and three-indexed for non-resonant orbits. Performing the φ integration in equation ([\ref=eq:e_l_dot_inst_time_coefs]) yields 2πδmm'. We thus set m = m' everywhere.
+
+For non-resonant orbits, equation ([\ref=eq:e_l_dot_inst_time_coefs]) becomes We are interested in an infinite time-average of equation ([\ref=eq:e_l_dot_inst_time_coefs_non_res]). Therefore, we can drop the average over several periods because the time-averaging process will smooth out the fluxes so that the period averaging will have no further effect once we have time-averaged. The time-average of a function corresponds to the constant term in a Fourier expansion, so the argument of the exponential in t will need to be zero. Therefore, performing the inifinite time-average yields the added conditions k = k' and n = n'. This equates the frequencies everywhere, including in the spheroidal harmonics. We can therefore now perform the θ integration using ([\ref=eq:spheroidal_delta]) and get l = l'. The result is that the infinite time average in the non-resonant case is
+
+In Section [\ref=sec:four-analys-time-nonres], we saw that infinite time averages over non-resonant orbits are the same as torus averages over non-resonant tori with respect to the corresponding torus coordinates. The time average over t on the LHS of ([\ref=eq:e_l_dot_infinite_time_avg_non_res]) thus corresponds to a torus average over the [formula] torus coordinates. We also saw that [formula], where the ZHlmkn are spatial Fourier coefficients (for fixed l,m) with respect to the [formula] torus coordinates. Therefore, the torus averaged energy flux is This expression is true for all tori, as torus averages are insensitive to whether the orbits on that torus are resonant or non-resonant.
+
+Analogous arguments lead to the angular momentum flux at infinity. Similar arguments to those above then lead to the corresponding fluxes at the horizon. The upshot is that all the torus-averaged fluxes are given by
+
+[formula]
+
+where [formula] and the details of αHlmkn can be found in reference [\cite=teukolsky1974]. We note that there is no residual dependence on the initial conditions [formula].
+
+We return to equation ([\ref=eq:e_l_dot_inst_time_coefs_non_res]) and evaluate it for a resonant orbit, As was the case with the non-resonant infinite time average, we can drop the averaging over several periods. Additionally, the resonant time-average picks out the constant term in the Fourier expansion, which results when j = j'. Therefore,
+
+[formula]
+
+The rest of the E and Lz time-averaged fluxes can be found similarly and are,
+
+[formula]
+
+We remark that unlike the torus-averaged fluxes, the time-averaged fluxes of resonant orbits clearly depend on the initial conditions of the orbit, since as we saw in Section [\ref=sec:quant-zhinfty_lmjo-lambda], [formula] is not the same for all initial conditions.
+
+Alternatively, we can write the time-averaged fluxes of equation ([\ref=eq:el_flux_ti_res]) explicitly in terms of the torus coefficients ZH /   ∞lmkn. From section [\ref=sec:four-analys-time-res] we know that Therefore, we can rewrite equation ([\ref=eq:el_flux_ti_res]) as
+
+The explicit initial condition dependence is now evident. Notice that if we average the time-averaged flux expressions of equation ([\ref=eq:el_flux_ti_res_tor]) over all possible initial conditions, we reproduce the torus-averaged fluxes of equation ([\ref=eq:e_l_dot_tor_avg_all])

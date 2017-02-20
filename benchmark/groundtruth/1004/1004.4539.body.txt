@@ -1,0 +1,109 @@
+=1
+
+Towards a High Fidelity Direct Transcription Method for Optimisation of Low-Thrust Trajectories
+
+Introduction
+
+A direct optimisation method proposed by Sims and Flanagan [\cite=GOlowthrust:Sims99] suggests that low-thrust trajectories can be modeled as a series of impulsive ΔV connected by conic arcs. The method is fast and robust and has been applied in previous works for preliminary mission design [\cite=JIMO:Yam1] [\cite=JIMO:Yam2]. However with its impulsive ΔV transcription, the Sims-Flanagan method can fail to accurately represent the actual dynamical model unless the number of impulses is increased and thus at the cost of slowing down the overall optimisation.
+
+In this paper, we study new transcription methods to improve the accuracy of the Sims and Flanagan model without increasing the dimension of the problem. The works extends some of the ideas presented at the fifth international meeting on celestial mechanics CELMEC V [\cite=celmec]. The first improvement is to replace the impulses with continuous thrust, where low-thrust arcs are numerically propagated. The magnitude and direction of the thrust are part of the optimisation variables and are assumed to be constant throughout a segment. Perturbations can be included, in the propagation, to further improve the fidelity of the model. The modification introduces a performance penalty due to the higher computational costs of the integration with respect to a simple Keplerian propagation between impulses. In order to tackle this issue we introduce the use of Taylor integration [\cite=taylorint] methods in place of the commonly employed Runge-Kutta-Fehlberg scheme, reducing the performance loss by almost one order of magnitude.
+
+A second improvement we introduce is to allow the time mesh to be optimised together with the trajectory. While this is a long unsolved issue in direct method for trajectory optimisation, we manage to obtain an efficient algorithm by introducing the Sundman transformation[\cite=sundman19112], in which the independent variable is changed from time to s, where the time variation of s is inversely proportional to the radial distance. By doing so, and adding only one constraint to the optimisation problem, segments are automatically distributed more densely near the central body (where speed is usually higher) along the optimal solution and thus on-line mesh adaptation is obtained at the cost of an acceptable performance loss. We present a numerical example to compare results between the original and the new methods. The resulting tool has the further advantage of being suitable for different phases of the mission design, from preliminary, where global optimisation methods need a rather simple and low-dimensional transcription, to operational where dynamics need to be accounted for in a precise manner and optimality is sought.
+
+The Original Sims-Flanagan Model
+
+In 1999, Sims and Flanagan proposed a direct method for optimising low-thrust trajectories, where later the software packages GALLOP [\cite=McConaghy03] and MALTO [\cite=Sims06] are developed based on this model. Figure [\ref=fig_sim] briefly illustrates such a trajectory model. The whole trajectory is divided into legs which begin and end with a planet. Low-thrust arcs on each leg are modeled as sequences of impulsive maneuvers ΔV, connected by conic arcs. We denote the number of impulses (which is the same as the number of segments) with N. The ΔV at each segment of equal duration should not exceed a maximum magnitude, ΔVmax, where ΔVmax is the velocity change accumulated by the spacecraft when it is operated at full thrust during that segment:
+
+[formula]
+
+where Fmax is the maximum thrust of the low-thrust engine, m is the mass of the spacecraft, T0 and Tf is the initial and final time of a leg. The spacecraft mass is propagated using the rocket equation [\cite=rocketeq]:
+
+[formula]
+
+where the subscript i denotes the mass and ΔV on the i-th segment, g0 is the standard gravity (9.80665 m/s2), and Isp is the specific impulse of the low-thrust engine.
+
+At each leg, trajectory is propagated (with a two-body model) forward and backward to a matchpoint (usually halfway through a leg), where the spacecraft state vector becomes Smf = [formula] (and similarly for Smb), where r and v are respectively the position and velocity of the spacecraft and the subscripts represents the Cartesian x, y, z components. The forward- and backward-propagated half-legs should meet at the matchpoint, or the mismatch in position, velocity, and mass:
+
+[formula]
+
+should be less than a tolerance in order to have a feasible trajectory.
+
+The problem is transcripted into a nonlinear programming problem (NLP), where the objective is to maximize the final spacecraft mass subjected to the constraints on the maximum ΔV and the state mismatch, while the decision variables of the problem are listed below:
+
+the departure epoch T0
+
+the departure velocity relative to the earth V∞
+
+for each leg and each segment, the magnitude of the impulse and direction
+
+for each swingby, the incoming and outgoing velocities relative to the planet
+
+for each swingby j, the swingby epoch Tj
+
+the arrival epoch Tf
+
+For a rendezvous mission, the arrival velocity to the destination is not included in the set of variables, as it is, by construction of the model, zero relative to the planet. To solve the NLP, we use a software package called SNOPT [\cite=SNOPT02] [\cite=SNOPT06], which implements sequential quadratic programming (SQP).
+
+Improvement to Trajectory Model
+
+From the beginning, the use of the Sims-Flanagan model is limited to preliminary mission design, in which the results are not expected to be accurate up to the operation level. In terms of the fidelity of the model, there are two areas in the Sim-Flanagan model that can lead to loss in accuracy: (1) the use of impulses; and (2) the insufficient number of segments. To address these issues, we introduce two improvements:
+
+Impulsive ΔV are replaced by continuous thrust to improve the fidelity of the trajectory dynamics. In order to keep a reasonably low computing time, we employ a Taylor integration scheme showing an order of magnitude performance gain with respect to the classical Runge-Kutta methods.
+
+An adaptive time mesh is obtained on the segments via the Sundman transformation to improve on the optimality of the final trajectory.
+
+The Taylor Integration Method
+
+When replacing the original impulsive ΔV transcritpion with a continuous fixed thrust transcription, the optimization process becomes slower as the optimization relies on a numerical integration scheme of a higher complexity with respect to a simpler ballistic arc solver. Efficiency is essential to keep the CPU time penalty at a minimum level. For this purpose, we report the comparison, in terms of CPU time and accuracy, among classical Runge-Kutta-Fhelberg methods and the Taylor integration [\cite=taylorint]. The tests have been done having in mind the typical algorithm call done during an optimization procedure that uses our approach. An improvment of one order of magnitude in CPU time (while keeping the integration accuracy to the same level) is found.
+
+Comparison set-up
+
+We consider the set of differential equations describing the motion of a spacecraft subject to a fixed thrust force in the interplanetary medium. This fixed thrust problem is at the basis of the ideas on direct transcription methods presented by some of these authors during the fifth international meeting on celestial mechanics CELMEC V ([\cite=celmec]) and that motivated the current paper. Since in the proposed new direct transcription method the fixed thrust problem needs to be solved a large amount of times (in each segment) and with diverse initial conditions and thrust vectors we focus the algorithmic comparison to those cases representative of such a process. The equations, in a non dimensional form, are the following:
+
+[formula]
+
+The mass is not considered for the purpose of this comparison, but will be included in the trajectory model described later. To test the integration schemes, N = 10000 different Cauchy problems have been generated at random considering xi(0),ui uniformly distributed in xi(0)∈[0.1,2] and ui∈[0.0001,0.01]. The final integration time has been also set to be random and tf∈[π   /   20,10π]. The same problems where solved using a Runge-Kutta-Fhelberg integration scheme (in the implementation of the GAL libraries [\cite=gal]) and a Taylor integration scheme (implemented using the tool taylor [\cite=taylorweb]). In order to test the speed and the precision of the solvers, we propagate each problem from xi(0) for tf, we then take the result and propagate backwards for tf reaching the point xfi. By doing this, as we know the exact result of the propagation that is xi(0), we evaluate the precision of the propagation defining the propagation error as [formula]. Each algorithm is tested on the same set of randomly generated Cauchy problems. In all cases, no minimum step size is used and the same parameter ε is passed to the RKF integrators as the absolute error, and to the Taylor integrator as both absolute and relative error. The initial trial stepsize of 0.1 is set to the RKF integrators.
+
+Results
+
+From the results oulined in Table [\ref=tab:comp] it is clear that the Taylor integrator is outperforming the RKF both in speed and accuracy confirming in the low-thrust fixed direction problem the same performance gain levels already reported in past literature [\cite=taylorint] [\cite=scott2010high]. From the table we may also, empirically, establish that ε  =  10- 10 is a good compromise between speed and accuracy and can thus be used as a default parameter to call the Taylor integrator. The speed gained by employing the Taylor integrator is roughly one order of magnitude.
+
+The Sundman Transformation
+
+In his celebrated paper [\cite=sundman19112] Karl Sundman introduces a simple differential transformation for the time variable, to regularize the otherwise singular three body problem. The Sundman transformation dilates the time metric introducing a new variable s defined through the relation ds  =  dt  /  r guaranteeing an asymptotically slower flow near the singularities. In a trajectory propogation this same property turns out to be quite useful if equally spaced segments are considered in the s domain rather than in the t domain. Let us for example consider Eq.([\ref=eq:motion]) and use the Sundman transformation, we obtain the following set of equations:
+
+[formula]
+
+To demonstrate the effect of such a transformation on a numerical mesh, we take a circular orbit of radius one and propagate it forward with a constant thrust aligned along the x axis. In Figure [\ref=fig:time1]a we visualize the obtained orbit using a uniform sampling in time, while in Figure [\ref=fig:time2]b the same trajectory is visulaized using the same number of samples, but equally spaced in the Sundman variable domain. The same is done in Figures [\ref=fig:time2]a-b for a constant tangential thrust. These pictures clearly show the problem with using points equally spaced in time to define a mesh for a numerical algorithm: due to the conservation of energy the closer we get to the singularity the more potential energy we lose and thus acquire in terms in kinetic energy. This pumps up the body velocity substantially creating an unequal distribution of segments length bound to create numercial difficulties. The use of the s variable is one of the possible transformations able to alleviate such a problem.
+
+New trajectory models
+
+The implementation of the ideas reported above leads to new trajectory models that, when optimized, result in significant improvments on the optimality and feasibility over the original Sims-Flanagan method.
+
+Continuous thrust time-space propagation
+
+In this model the impulses at each segment are replaced with continouous thrusts (Fx,Fy,Fz) which are assumed to be constant within the segment (see the middle scheme in Figure [\ref=fig:compare3models]). Each leg of the trajectory is propagated forward and backward with equal-duration segments as before. The propagation of the trajectory changes from pure Keplerian to integration of the ordinary differential equations:
+
+[formula]
+
+Continuous thrust s-space propagation
+
+For the continuous thrust s-space method, we apply the Sundman transformation [\cite=sundman19112] to change the independent variable from time t to s,and the differential equations in s-space becomes:
+
+[formula]
+
+where the derivatives are here meant to be taken with respect to the independent variable s. Here each leg of the trajectory is propagated forward from s0 and backward from sf in equal s-space (Δs). The time between the mesh is no longer constant and it is proportional to the radial distance r, which implies a shorter time mesh (a finer grid size or segment) is used when the spacecraft is closer to the central body. The 8th differential equation gives the condition for matching the time difference between the two endpoints:
+
+[formula]
+
+To implement the s-space method for optimisation, we assume s0 to be zero and solve for sf to satisfy Eq. [\ref=eq:DsConstraint], which means an additional variable and constraint are added for each leg.
+
+Numerical Example
+
+We demonstrate our new methods with a sample low-thrust mission to Mercury. Table [\ref=tab-NEPparam] summarizes the mission specification for a spacecraft similar to the Deep Space 1 mission [\cite=Rayman2000]. Instead of using a model of the SEP (solar electric propulsion) system, we simplify the problem a bit here by assuming a constant thrust and constant specific impulse engine. The launch and arrival dates are kept frozen for the test.
+
+Figure [\ref=fig:EM_IM] shows the trajectory found by the impulsive model, where the black dots denote the midpoint of the segments and the red lines represent the impulses. It is visually clear that for this fast rotating trajectory, the impulsive propagation method might not be able to have a fair representation of the actual low-thrust trajectory. With the same number of segments (30), the continuous thrust time-space model is able to fill up the "gap" between the impulses with low-thrust arcs (shown as red curves in figure [\ref=fig:EM_CT]). Even with a lower final mass (see Table [\ref=tab-EMercuryMf]), the trajectory found by the continuous thrust method satisfies the real dynamical model which can be used as a trajectory for the actual mission (after adding other perturbative forces). The trajectory modelling can be further improved by converting to the s-space propagation method in figure [\ref=fig:EM_Ds]. In the s-space method, we note that when the spacecraft is near Mercury, the grid size is smaller than it is near Earth's orbit, while in the time-space method the segment duration is constant (see figure [\ref=fig:SegdurDs]). In this example, the implementation of the s-space propagation can automatically adapt the grid size (segment duration) to fit the radial distance (and hence the speed of the spacecraft) of the trajectory during the optimisation. A smarter choice of the segment duration along the trajectory allows the spacecraft to update its control (i.e. thrust) and therefore be more efficient, which explains why the final mass of the s-space is higher than the time-space method.
+
+Conclusions and Future Work
+
+We have successfully extended the Sims-Flanagan model to include the full dynamics of low-thrust trajectory. The change of independent variable via Sundman transformation can further improve the results through online adaptive time-mesh during the optimisation. In the future, we hope to investigate a more general form of the Sundman transformation [\cite=Matthew02] and to perform some benchmarking of the new methods to compare their convergence speed and the accuracy.

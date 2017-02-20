@@ -1,0 +1,93 @@
+Introduction
+
+This work is motivated by the practical problem, encountered during our studies in physics of magnetic materials.  Namely, we wanted to investigate properties of simple magnetic systems, consisting of few entities, called spins, and treated as classical (i.e. not quantum) 2- or 3-dimensional vectors of unit length. The positions of spins are fixed in space (in crystal lattice, for example), but the spins are free to rotate - accordingly to the interactions between them and to the strength and orientation of the external magnetic field.  Each geometrical configuration of the system is characterized by a single number called the free energy.  It is the so called free energy landscape what we are interested in: the positions of (stable) free energy minima, the valleys between them and so on. The free energy is a smooth function, defined on the open domain spanned by angular variables describing the orientations of all the spins involved. The interactions between spins, as well as the numbers characterizing the external field (if any), are fixed parameters.
+
+Very similar problem is encountered in computational chemistry, where the so called reaction pathways need to be traced.
+
+Standard approach and its deficiencies
+
+The exploration of the free energy landscape usually begins with solving the system of simultaneous equations:
+
+[formula]
+
+where n is the number of unknowns (variables).
+
+From now on we will assume that the system ([\ref=first]) has finitely many solutions [formula], with p <   ∞  . We will not discuss the potentially possible degenerate case, p =   ∞   (countable or not) for purely physical reasons: each real system always settles in a state with well defined magnetization, at least after sufficiently long time.
+
+Once the set [formula] is known, we can start the classification procedure. It should tell us which members of [formula] are minimizers, maximizers or correspond to the saddle points of f. The usual approach is to investigate the properties of Hessian of the function f, calculated for each [formula]  in turn. Positive definiteness of the matrix [formula]  is the sufficient (but not necessary) condition for f to have a local minimum at [formula]. Checking whether H is positively defined is easy in dimension n = 2 and is routinely presented in analytical calculations performed 'by hand', as can be seen in many textbooks on magnetism. For n = 2 the process reduces to finding whether the expressions
+
+[formula]
+
+are all positive (all negative when searching for maximum).
+
+When the dimensionality of the problem gets higher, the above approach becomes more and more tedious, requiring the evaluation of many expressions of increasing complexity - determinants of various minors of the matrix H [\cite=Korn].  In automated computations another approach may appear more efficient,  namely finding all the eigenvalues of the matrix [formula].  The positiveness (negativeness) of all its eigenvalues is also a sufficient condition for [formula] to be positively (negatively) defined and, consequently, for [formula] to be a local minimizer (maximizer) of f. Needless to say that both approaches are, except for nearly trivial cases, practically unsuitable for hand calculations and we have to rely on computers to perform this task.
+
+However, both those approaches suffer from two serious problems. The first one is inherent to automatic computations, performed with limited accuracy. Every investigated point [formula],  [formula],  is already known only approximately and so is the matrix [formula].  Rounding errors accumulating during either procedure can only worsen this situation leading to the unreliable or even false results.
+
+The second possible deficiency has nothing to do with limited accuracy and is related rather to the properties of the function f. Consider for example [formula] having exactly one minimum at [formula].  One can easily check, that [formula] is a singular 2  ×  2 matrix, with the only non-vanishing element ∂2f / ∂x21 = 2.  Since the matrix is diagonal then we have immediately its all eigenvalues: λ1 = 2, λ2 = 0 - not all positive. No conclusion concerning [formula] is thus possible during exact calculations. It is interesting, however, that in automated calculations we may arrive at slightly perturbed [formula],  with δ  ≠  0,  as a sole candidate for a local minimizer. Now the Hessian is diagonal again, with H11 = 2 and H22 = 12x22 = 12δ2, leading to different conclusions. Depending on the particular value of δ, H22 either remains equal to zero within the machine accuracy, like before, or is positive. For example, working with accuracy of 10 decimal digits we may have: δ = 10- 4 and H22 = 2  ×  10- 8  >  0, while the relevant component of gradient is ∂f / ∂x2 = 4x32  =  4  ×  10- 12 - the number which will be rounded down to exactly zero by our computer.  Looking at those two numbers one is tempted to think that [formula] is a true minimizer for f. Maybe [formula] is another one, for some reason missed by gradient-calculating routine.
+
+The interval solution
+
+Here we present a simple and elegant solution to our problem, based on properties of interval calculus. Let us recall the definition of a local minimum of a real function f of n variables:
+
+In simple words: moving away from the point [formula], but within the limited range ε, always leads to the increase of the function value compared to [formula].
+
+Wrong, naive test for minimum and why it fails
+
+Let us try to make direct use of the definition above and let's evaluate the function f at the following points: [formula],  [formula],  for some fixed (presumably small) value of ε and [formula], in hope of reaching the conclusion concerning the character of [formula] - whether it is a local minimum, maximum or a saddle point of f.  It is well known that this procedure may only accidentally produce the correct answer. The main reason is that it does not sample every possible direction around [formula].  Last but not least - [formula] may, and usually will, slightly differ from the true location of minimum.
+
+Interval test
+
+The naive test produces incorrect results but, fortunately, we know why. Nevertheless its simplicity is so tempting that the idea of improving it makes sense. All we have to change is the ability to test the behavior of the given function in every possible direction with respect to the suspected point. To achieve this goal we need to construct a closed surface around [formula] and simply check the range of f on this surface.
+
+Here are the necessary steps of the interval-oriented algorithm to determine the character of each point [formula],  [formula],  i.e. satisfying the equation [formula]:
+
+initialization: set k = 1,
+
+fix the attention at point [formula]. Calculate the reference value [formula],
+
+determine the distances between [formula] and all other members of the set [formula] and discover the shortest one, Dk,
+
+set ε = Dk / 2,
+
+generate 2n interval boxes around [formula] with the following properties:
+
+the center of each box is an image of the center (midpoint) of [formula] shifted by +  ε or -  ε along the consecutive coordinate axes,
+
+the size of each box in each direction is 2ε, except for the shift direction in which the width of box is equal to zero.
+
+evaluate f over each newly created box obtaining the intervals F+1, F-1, F+2, , F+n, F-n,
+
+count the events:
+
+N0: the intervals Vk and [formula] ([formula],  [formula]) intersect,
+
+N>: [formula] (every real number taken from Vk is greater than any number form [formula]), and
+
+N<: [formula] is true.
+
+The classification of [formula] is following:
+
+N< = 2n   ⇒   f has a local minimum at [formula],
+
+N> = 2n   ⇒   f has a local maximum at [formula],
+
+N>  ·  N<  ≠  0   ⇒   there is a saddle point at [formula]  (inflection point if n = 1),
+
+otherwise the case is undecided.
+
+set k←k + 1. If k  ≤  p then repeat the procedure, starting from step 2 else finish.
+
+Discussion and final remarks
+
+The sketch of the algorithm makes no clear statement whether the elements of the set [formula] belong to [formula] or rather to [formula] - the set of all n-dimensional intervals. For the idea itself, as presented here, it is not an issue and both interpretations are almost equally good. This is because we don't discuss the ways to obtain the set [formula]. What we require, however, is that [formula] contains all the solutions of an equation [formula] within the domain of interest. This is because we have to be able to precisely separate every one of such solution from every other member of [formula]. In machine calculations the really important thing is the knowledge of guaranteed bounds for each member of [formula] and the certainty that those solutions are separable, even after their uncertainties are taken into account.
+
+The proposed routine avoids the most important trap of the naive, incorrect approach. It effectively samples all the directions around the suspected point [formula] and therefore is in full accord with the definition of a local minimum.  This is because the trial boxes constructed by the algorithm make a complete and 'air-tight' surrounding of the suspected point [formula]. In other words every straight line that passes through [formula] must also necessarily intersect two surrounding boxes.  The continuity of f, which is differentiable and therefore continuous, assures that our algorithm is correct. It is the remarkable property of the interval calculations: the ability of executing infinite and uncountable number of operations in a single step. This feature makes possible to convert the naive and essentially wrong algorithm into a powerful and reliable tool.
+
+It may come as a surprise that our ε is rather large, contrary to the regular use of this symbol, mostly thought as 'being sufficiently small' or 'no matter how small'. We prefer to use ε this big for a good reason: too small value is dangerous and vulnerable to the other trap, namely that [formula] is inexact. On the other hand the bigger ε is the wider can be the intervals [formula] and therefore we may obtain 'undecided' result too often. Our prescription sets the safe upper limit for ε rather than treats it as the one and only correct value. If ε had higher value then our surface could contain more than one element of [formula].
+
+In practice the set [formula] will be determined by interval methods (because only those methods guarantee that all the candidates for extrema can be found within the domain of interest) and therefore each its member will have the form of a small box.  Setting ε equal to the width of such box, or only slightly higher, is the first thing coming to the mind.  One should not forget, however, that the interval calculus usually overestimates the ranges of the functions. For this reason the range of f calculated for the single face of such a small box is likely to have non-empty intersection with range of [formula]. It is even certain, if the true minimizer happens to be located at the face of [formula] currently investigated rather than laying at its midpoint.
+
+Making the surrounding boxes 'thin' in one direction is a trick to circumvent the notorious overestimates of interval enclosures. But it is not perfect and larger values of ε, somewhere between Dk / 2 and half of the width of [formula] should be used.  'Undecided' members of [formula] may be retried with [formula]. Allowing ε to be smaller that the halved width of [formula] is dangerous: the uncertainty of [formula] will almost surely produce false results, if ever. The other built-in feature of the algorithm is implicit partitioning of the investigated surface into 2n parts. Doing so we also increase our chances of getting smaller overestimations.  Of course, in practice the explicit form of f is also important - the SUE's (Single Usage Expressions), if possible at all, are preferred as usually. The thin trial boxes should be constructed with care: their edges have to be rounded outwards.
+
+It is likely that NP-hardness of many interval algorithms is among the key factors preventing their wide dissemination, no matter that they also deliver only highest quality, verified results. The algorithm presented here is different: its complexity per single candidate scales linearly with the dimensionality of the problem. Hence it is able to outperform any of its classical counterpart based on matrix operations. Moreover, it is simple and makes no implicit use of unfounded assumptions, like the one that every minimum can be approximated by a quadratic form. In addition, it will never produce false results. Our solution is one more example of the old truth: we need algorithms designed from the very beginning as interval-oriented.

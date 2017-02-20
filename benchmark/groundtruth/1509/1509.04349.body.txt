@@ -1,0 +1,117 @@
+=8.5in =11in
+
+A Closer Look at Variance Implementations In Modern Database Systems
+
+Introduction
+
+Variance is an important aggregate function supported in most major modern databases and is an essential tool in sampling-based aggregation queries. Typically used as a secondary measure, it augments measures such as AVERAGE and provides an insight into the distribution of the data beyond the primary measure. Computation of variance, however, can suffer from precision loss: it is particularly susceptible when the variance is much smaller than the mean [\cite=chan1983algorithms].
+
+There exist several techniques to compute variance. The standard variance formula uses two passes to provide an accurate estimate (Two Pass). However, as is apparent, this can be prohibitively expensive for large datasets. Some other techniques using a single pass over the data store basic statistics such as the count, sum, and sum of squares. One such formula, although fast, is known to suffer from precision loss (Textbook One Pass) due to catastrophic cancellation [\cite=higham2002accuracy], an undesirable effect of a floating point operation that causes the relative error to increase far more than the absolute error. Figure [\ref=fig:error:halfCI] demonstrates this problem.
+
+Another formula (Updating), which has been recommended by Knuth [\cite=knuth2014art], has found a strong foothold in the database community, with numerous implementations citing Knuth in their documentation. However, this formula is constrained by the fact that it can only incorporate a single data point to the current running estimates. It is unable to combine the estimates of different subsets of data.
+
+Given the rise of large-scale data processing, with massive multi-core support and availability of GPUs, it is prudent to consider using representations that can be combined at a larger scale instead of incrementally adding a single data point, such as Pairwise Updating. Further, Pairwise Updating is also known to have a better precision, as shown by Chan et al. [\cite=chan1983algorithms] for single precision input (and, as verified in the following sections, for double precision as well.)
+
+Contributions & Outline:
+
+We analyze source code for various open source database systems to catalog usage of different variance formulas (Table [\ref=database:usage]).
+
+We experiment with different closed source and open source databases to investigate precision loss issues. We find that precision of PostgreSQL and System X deteriorates the most.
+
+Based on our experiments, we experimentally study representations used by two closed source implementations (System X and System Y). After looking at the PostgreSQL source code, we can verify that it uses Textbook One Pass, and hypothesize that System X does so as well (or uses a similar variant).
+
+In the next subsection, we look at the adverse effects of imprecise variance calculation. Section [\ref=formulas] presents the different variance representations and their properties. We then detail the representations used by modern databases in Section [\ref=modern-database]. Section [\ref=experiment] lists our analysis of the behavior of the different formulas (double precision input compared with single precision in Chan et al. [\cite=chan1983algorithms]) as well as study the databases empirically as the input dataset is made more prone to precision loss. Finally, we conclude with our recommendations for variance representation in current environments.
+
+Impact of Variance Calculations
+
+Due to the pervasive use of variance, a loss of precision can have an impact in a variety of different domains. In the following paragraphs, we look at some use cases where the lack of precision in variance calculation can have adverse consequences.
+
+Incorrect Output: In its simplest form, it is possible to experimentally observe the loss of precision as incorrect output. In order to illustrate the pitfalls in using Textbook One Pass, data points were generated from a Uniform(0,1) distribution and shifted by 10Shift Exponent for Shift Exponent varying from 1 to 14. Thus, the variance obtained by using a shift exponent should be similar to the one without any exponent shift. We verify this by adding and subtracting the shift exponent and note that the variance of the resultant dataset was close to the true sample variance.
+
+Figure [\ref=fig:error:halfCI] shows that PostgreSQL 9.3 and System X suffer from variance calculations being susceptible to precision loss since the variance should not show such an increase. We know that PostgreSQL uses Textbook One Pass and the pattern of the erroneous calculations displayed by both of them hints towards System X using the same variance calculation as PostgreSQL.
+
+In contrast, other database systems suffered minor precision loss, as expected: these results are not shown since they do not add any additional information to the figure. It should be noted that System Y was found to be highly immune to precision loss.
+
+Visualization: Erroneous variance calculation, however small, can have a notable impact on visualizations. As a demonstration, we show the results of a repetition of the above experiment in Figure [\ref=fig:error:MOE] and depict the sample mean and the confidence interval. Due to precision loss, we observe inaccurate results for higher shift values for PostgreSQL 9.3 and System X. While the error bars should be similar throughout, they vary widely and inaccurately instead. Error bars for System Y are (correctly) low throughout.
+
+Negative variance: It is possible for the variance to be negative while using Textbook One Pass - an impossible result (Table [\ref=expt:one-pass-example]). We observed in the PostgreSQL source code that the implementation checks if the variance is negative and sets it to zero, if true. Figure [\ref=fig:error:MOE] shows numerous values of 0 for PostgreSQL (shift exponent 8, 9, and 12) and also for System X (shift exponents 10 and 11), providing evidence of System X employing a similar strategy for handling negative variance values and using Textbook One Pass.
+
+Decision support systems: As a building block in popular algorithms, flaws in variance implementations can have far-reaching impacts, e.g., in hypothesis testing, which is an integral part of numerous decision support systems. Having imprecise or incorrect variance estimates can greatly change the result of hypothesis testing.
+
+Loud Failure: Consider the case of 1 sample 2 tailed t-test with the shift exponent of 8 using the output of PostgreSQL as given in Figure [\ref=fig:error:MOE]. Let the null hypothesis be as follows:
+
+H0: μ  =  108 + 0.483594 (sample mean)
+
+And the alternate hypothesis as:
+
+Ha: μ  ≠  108 + 0.483594
+
+The t-statistic can be given by [formula], where μ is the hypothesized mean estimate, x̄ is the sample mean, s is the sample standard deviation and n is the sample size. In this case, since s is 0, the t-test will fail by reporting an error.
+
+Silent Failure: We now look at the more harmful error of silent failures. Let us consider the sample with shift exponent of 12 and use the output of System X. Again, let the hypotheses be as follows:
+
+H0: μ  =  X
+
+Ha: μ  ≠  X
+
+where X is the hypothesized population mean. Let α (confidence level) be 0.05 with the resultant critical value of 1.98. The t-statistic will be equal to [formula] instead of being [formula]. If the variance calculation were correct, the range of X for the hypothesis testing to not reject it would have been
+
+[formula]
+
+. Thus, we can see that for a large range of X, the null hypothesis will end up not being rejected without the user any wiser.
+
+Data Mining: Variance is an important tool in statistical analysis and machine learning algorithms such as Gaussian Naive Bayes, or Mixture-of-Gaussians-based algorithms such as background modeling, clustering, or topic modeling. For example, we found usage of Textbook One Pass within a graphics library of the R language [\cite=ihaka1996r]. Similarly, MADlib [\cite=hellerstein2012madlib] was also found to have a call to the PostgreSQL variance function: thus, an erroneous calculation of variance can extend from the underlying databases to the systems built on top of them.
+
+Different Ways to Calculate Variance
+
+Table [\ref=intro:common-formulas] presents the common variance representations [\cite=chan1983algorithms]. We have also described Total Variance, for which we could not find a reference in accessible literature. We use a similar naming convention to that used by Chan et al. [\cite=chan1983algorithms]: S stands for the sum of squares. The sample variance can be given by [formula], where N is the sample size. xi is the ith data point. x̄ is the sample mean. Mm,n is the mean of the data points with index m to n (both inclusive). Tm,n is the total of the data points with index m to n (both inclusive). Finally, k represents a constant.
+
+Textbook One Pass can be computationally dangerous as the quantities [formula] and [formula] can nearly cancel each other out. The Updating formula refers to the nearly identical formulas for unweighted sum of squares used by Welford et al. [\cite=welford1962note], West et al.[\cite=west1979updating], and, Hanson et al. [\cite=hanson1975stably]. The Pairwise Updating formula uses O(log(N)) storage and reduce the relative errors from O(N) to O(log(N)) [\cite=chan1983algorithms]. Shifting the data by an exact or approximate value of x̄ can also result in substantial accuracy gains [\cite=chan1983algorithms].
+
+Properties
+
+While Chan et al. [\cite=chan1983algorithms] note the accuracy, passes and storage required for most of the formulas given in Table [\ref=intro:common-formulas] (other than Total Variance), their classification as being distributive and thus the ability to be parallelized, has not been explicitly listed before, which we do.
+
+The accuracy of Shifted One Pass depends on the accuracy of the estimate of the mean. The second and third passes required by Total Variance are over the groups obtained as a result of the first pass, and not over the number of tuples and thus can vary widely based on the group sizes. As we can see Pairwise Updating is the only representation giving accurate results which is highly parallelizable, and yet uses a single pass.
+
+Additionally, as we will see in Section [\ref=experiment], the precision of Total Variance (which has not been studied before) is slightly better than that of Updating Pairwise, which typically has the best precision amongst all single pass algorithms. We note two major differences between the two formulas. First, Total Variance calculates the overall mean before combining the variances of the different groups whereas Updating Pairwise keeps combining two groups and hence Total Variance has slightly better precision. Second, Updating Pairwise computation is performed in a tree-like fashion in a single pass over the data whereas Total Variance uses 1-3 passes. As a side note, amongst the different representations, Two Pass, Total Variance and Textbook One Pass are the only ones that can be represented using a standard SQL query.
+
+Current Recommendation Guidelines
+
+Chan et al. [\cite=chan1983algorithms] provide detailed recommendation guidelines on the use of different variance formulas. We note that they recommend usage of Pairwise Updating for combining variances across multiple processors since it reduces the errors and is massively parallelizable if extra O(log(N)) space is available. Further, it is also the safest (least precision loss) algorithm to use within each processor.
+
+Extensibility to Other Measures
+
+Standard deviation, standard error and co-efficient of variation are important statistical measures and need variance estimation. Given the variety of variance representations, these measures too will have the properties that the corresponding formulas hold. Similarly, the properties also extend to any user-defined measure whose variance can be expressed in a closed form as a function of the variance of one of the measure dimensions. For example, for a user-defined measure given by a *   AVG(Agg1)  +  b, where a and b are constants and Agg1 is a measure dimension, the variance of the measure can be given in closed form as a2  *  VARIANCE(Agg1). We note that obtaining a closed form solution to the variance of measures such as holistic measures or complex measures is, however, not always possible, with bootstrapping being a popular choice for estimating the variance.
+
+Variance Implementations in Modern Database Systems
+
+Given the variety of variance formulas, we now survey various open source databases to find out which formulas are used by them to compute variance. We also conjecture about the closed source implementations using experimental validation. Table [\ref=database:usage] lists the formula used in each database system.
+
+PostgreSQL uses Textbook One Pass and is thus susceptible to precision loss, as confirmed in our empirical evaluation. MySQL and Impala use Knuth's modification [\cite=knuth2014art] of Welford's updating formula. Thus, MySQL and Impala can only process a single additional data point and thus cannot avail of the parallelization presented by Pairwise Updating. On the other hand, Spark 1.4.1 uses a modified version of Updating Pairwise for combining sum of squares. Even though the source code for System X is not available, its behavior was similar to that shown by PostgreSQL in our experiments. Amongst all the systems, System Y was found to have the best precision. We hypothesize that it uses higher precision variables, but cannot make any conjecture about the exact representation.
+
+Thus, we conclude that PostgreSQL and System X use representations likely to suffer from precision loss. Further, other than Spark and Hive, the other database engines lack the ability to combine variance of different groups and are inherently non-parallelizable.
+
+Experimental Analysis
+
+Chan et al. [\cite=chan1983algorithms] have looked at the precision of different algorithms given single precision input. We present the precision values for double precision input. Further, we could not find any discussion on the precision of the Total Variance formula, which we cover. We also look at the precision in the variance calculation offered by different databases.
+
+Impact of Shift on Precision
+
+We implemented formulas in the previous section using Java 7, and evaluated their precision for varying shift exponents. The formulas were run over a synthetic dataset of 10000 samples with double precision from Uniform(0,1) with the resulting variance of [formula]. As before, these samples were shifted by adding values ranging from 101 to 1015. For each variance calculation, the number of correct decimal places was recorded. The results were averaged over 100 runs. The initial group size was set at 10 for VarianceCommon. We present our findings in Figure [\ref=fig:error:precision], where Y-axis represents the number of correct decimal digits (non-fractional part of the result was 0). Results are as expected [\cite=chan1983algorithms], and Textbook One Pass is clearly impacted by shift exponent.
+
+Impact of Shift on Database Implementations
+
+We now look at the variance results of different databases in the presence of similar datasets that may cause precision issues. 100 points were chosen from the aforementioned Uniform(0,1) distribution with exponential decimal shifts in the same fashion as in the motivating example. Each experiment was repeated 10 times. We noted the number of correct decimal digits in Figure [\ref=fig:error:correct-decimal] as a measure of precision of the variance calculation. As we can see, the precision loss follows a similar pattern in both System X and PostgreSQL. Impala and MySQL which use the same variance representation have similar error pattern as well.
+
+Textbook One Pass in Action
+
+To further illustrate the catastrophic cancellation occurring as a result of Textbook One Pass, we present below the corresponding mantissa of the two expressions that compose it, in double precision. We consider a random sample of size 10000 generated from Uniform(0,1) distribution that has been shifted by exponents ranging from 1 to 7. Note that Textbook One Pass calculates the sum of squares as S = S1 - S2 where [formula] and [formula]. Thus, we can see that increasing number of bits start becoming the same in the mantissa of S1 and S2, until the all precision is lost for the shift exponent of 6.
+
+Conclusion & Recommendations
+
+Floating point precision can cause information loss in both data measurement as well as data storage. This problem is further exacerbated to varying degrees by different variance calculation formulas.
+
+Pairwise Updating has been recommended from the perspective of precision as well as speed in the presence of multiple processors or cores [\cite=chan1983algorithms]. Further, the precision issues associated with Textbook One Pass have been well documented. However, we have seen that PostgeSQL and likely System X still use it; this implementation should either be changed or documented readily for end users. Although Textbook One Pass suffers from catastrophic precision loss only in the presence of some specific datasets, it is not entirely implausible to encounter such values, especially with growing data volume and variability. Thus, we recommend for safety and therefore to not use it as a general purpose method. However, we note that its computation is extremely fast and parallelizable and may be practical in fast-but-inaccurate-style computations. Further, in the case that O(log(N)) memory is available, it would be wise to use Pairwise Updating instead of Updating considering the tremendous speedups and increase in precision provided by it. Additionally, this representation is also highly suitable for GPUs.
+
+Finally, due to variability in the datasets, in contrast to [\cite=chan1983algorithms], we suggest the database providers allow the user to choose between the different formulas for their applications based on their need for speed and accuracy since the user might have a better understanding of the data and can choose wisely. This argument is further reinforced by the fact that PostgreSQL and System X have used Textbook One Pass for a few years and have been generally accepted by real-world users. Further, in the use case of approximate querying, it is assumed that the results will not be accurate and in that case due to the speedups offered by Textbook One Pass, it might be more worthwhile to consider it.

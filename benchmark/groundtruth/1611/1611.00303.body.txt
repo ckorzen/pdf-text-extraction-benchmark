@@ -1,0 +1,75 @@
+Semi-Supervised Radio Signal Identification
+
+Introduction
+
+Radio signal recognition in complex multi-user spectrum environments is an important tool for optimizing spectrum utilization, identifying and minimizing interference, enforcing spectrum policy, and implementing effective radio sensing systems. Classical approaches to the problem focus on energy detection and the use of expert features and decision criteria to identify and categorize specific modulation types [\cite=hsue1989automatic] [\cite=gardner1988cyclic]. These approaches rely on prior knowledge of signal properties, features, and decision statistics derived under certain assumptions on hardware effects, propagation effects and radio environment effects present.
+
+We recently demonstrated the viability of naive feature learning for supervised radio classification systems [\cite=convmodrec] which allows for joint feature and classifier learning given labeled datasets and examples, demonstrating the viability of feature learning in this class of applications.
+
+This was a powerful result, providing significant performance improvements against current day solutions, but it relies on entirely on supervised learning and well curated training data. In the real world, and especially in the radio domain, we are faced with the problem of vast amounts of unlabeled example data available to our sensor, and incomplete knowledge about class labels present.
+
+To address this problem we investigate alternative strategies for radio identification learning which rely less heavily on labeled training data and are capable of making sense of radio signals with either no or less labeled examples, potentially drastically reducing the burden of data curation on such machine learning system developers and maintainers, and allowing systems to recognize and
+
+Background
+
+In semi-supervised learning [\cite=semisup1] [\cite=semisup2] [\cite=semisup3], we seek to be able to separate and identify new classes without having been given class labels on prior examples allowing us to specifically learn features to separate them.
+
+To approach this problem, we consider performing dimensionality reduction on signal examples into a smooth smaller space where we can perform signal clustering. Given an appropriate dimensionality reduction, we seek a space where signals of the same or similar type have a low distance separating them while signals of differing types are separated by larger distances. Ideally in such a space, examples of same or similar type form discrete and separable clusters that are readily discernible from each other in the embedding space.
+
+Classification of signal types in such a space then becomes a problem of identifying clusters, associating a label with each cluster (rather than each example, a much less labor intensive task), and one that allows for the recognition, classification, and historical annotation of new classes and new class examples even without knowledge of the label.
+
+Learning Sparse Representations
+
+We focus on learning sparse representations of raw sampled radio signal time series examples using convolutional neural networks of several varieties. We leverage the a labeled radio modulation dataset over 11 modulations [\cite=radioml] which includes the effects of noise, oscillator drift, sample clock drift, and fading. Examples from this data set are shown in figure [\ref=figure:dataset].
+
+Purely Unsupervised Sparse Representation
+
+In the case where no classes are labeled (we discard and do not use the labels from this dataset), we must take a purely unsupervised approach to learning a sparse representation of the dataset. This is often done classically by applying dependence based dimensionality reduction techniques such as Principal Component Analysis (PCA) or Independent Component Analysis (ICA). Instead we leverage non-linear representations of the signal by a set of convolutional basis functions [\cite=convnn] learned within an autoencoder neural network [\cite=masci2011stacked] using non-linear activations. Autoencoders are unsupervised learning tools in which the optimization goal of the neural network is to minimize reconstruction error at the output to match the input, through some intermediate representation of a more constrained dimension, typically using mean squared error (MSE) loss and a stochastic gradient descent to back-propagate error gradients and find network parameters approximating those in equation [\ref=equation:eq1]. We evaluate both RMSProp [\cite=rmsprop] and Adam [\cite=adam] gradient descent solvers.
+
+[formula]
+
+By constraining intermediate layer widths within the network to narrow representations from which the original examples can be reconstructed with low error, we obtain a non-linear dimensionality reduction we can use for clustering. In this case, modulations using similar basis functions and pulse shapes can be represented by similar shaped learned convolutional filters within the decoder and encoder, leading them to exist in similar regions of this compressed space. The convolutional layers in the autoencoder are well suited for this radio time domain representation due to their shift invariant representation and constrained parameter search space vs thier fully-connected layer equivalents. Additionally, we introduce both dropout [\cite=srivastava2014dropout] and input noise [\cite=vincent2008extracting] as regularization techniques to help improve generalization of our learned representation. The resulting convolutional autoencoder is shown in figure [\ref=figure:convae_arch]
+
+Training our dataset on the autoencoder, we minimize reconstruction error, but since our primary goal is sparse representation for clustering, we significantly constrain the hidden layer dimension to a point where our reconstruction makes some visible simplifying assumptions. Figure [\ref=figure:convAE] shows for two training examples of what the 2x128 input vector looks like, what the 1x30 (we evaluate several widths 30,44,50) compressed representation looks like, and what the 2x128 output reconstruction looks like to give some idea of the learned representational capacity of this network.
+
+Supervised Bootstrapping of Sparse Representation
+
+In the case that we do have a labeled dataset, we can also generate a sparse representation of the data with potentially more powerful discriminative features by training a supervised classifier using the classes we do have and then using intermediate feature maps from the resultant classifier as our sparse representation. In prior work [\cite=convmodrec] we trained a convolutional neural network in a purely supervised way to to label examples, but here we leverage this trained network and discard the final softmax layer to keep only the prior layer's feature map transform. The supervised training network and resulting feature-map based sparse representation transform network are shown in figure [\ref=figure:supervised_arch]
+
+While the features comprised in forming this representation have guilty knowledge of direct training on supervised data, it is our hope that they will generalize to additional class labels for which we may not have labeled training data. That is to say, we may bootstrap our sparse feature learning in a supervised way, and then generalize to semi-supervised recognition over much larger data-sets containing additional classes for which we do not have labeled training data.
+
+Visualizing Signal-Type Embeddings
+
+To visualize these datasets we take the sparse representations of each of the examples and perform t-distributed Stochastic Neighbor Embedding (t-SNE) [\cite=tsne] to display the sparse representation on a 2 dimensional manifold in which we can get some idea of the clustering and distances present in the underlying dataset.
+
+First we look at the clustering and separability of classes from the tSNE embedding of classes in the auto-encoder's representational feature space, shown in [\ref=fogure:ss1] and [\ref=fogure:ss3]. In this case, we can see that several of the classes such as WBFM, AM-DSB, and QPSK have formed fairly distinct and separable clusters while other appear as if they would be much more difficult to group through some form of clustering base unsupervised class partitioning algorithm. Still this is not bad considering the features were never trained as discriminators and we have essentially achieved some amount of class separability. There is hope that some amount of hierarchical approach to the separability of remaining classes might help, but that approach is not attempted here.
+
+Second we look at the clustering of the tSNE embeddings of the bootstrapped discriminative feature representation, shown in figure [\ref=figure:ss2]. In this case we obtain distinct and almost completely separable clustering for almost every single modulation of interest in the dataset.
+
+Of course here we had guilty class-discriminative knowledge while forming this representation but the hope is that these discriminative features will continue to generalize and help discriminate additional unknown signals as well.
+
+Learning Generalization
+
+To test our goal that the learned discriminative features may be able to continue to help discriminate new unknown modulations in a semi-supervised way using the bootstrap sparse representation approach, we repeat our prior approach but this time we train the supervised classifier on 9 out of the 11 modulations. We hold out BPSK and 16QAM modulations, presenting no information about this class or its examples during supervised training. We then take examples from all 11 classes and transform them into the compressed space prior to the softmax layer of the network and visualize a 2-dimensional embedding using tSNE shown below in figure [\ref=figure:ss5]
+
+Closely inspecting these results we can see that BPSK has been unfortunately quite heavily mixed with both QPSK and 8PSK modulations in a fairly mixed clustering. However, QAM16, a previously unseen class to these features, has been tightly clustered in the vicinity of QAM64 in a fairly well defined and separable region in the embedding space.
+
+These results support the fact that, while learned discriminative features do carry significant capacity for generalization to identifying, clustering, and discerning new unknown or previously seen modulation types, they do not guarantee clean separability.
+
+Class Clustering
+
+Once we have definable clusters in the compressed or embedding space we can use any number of clustering algorithms to aggregate them into predictions of what our classes are. Below in figure [\ref=figure:ss6] we show an example using the DBSCAN [\cite=dbscan] clustering algorithm to group clusters into unknown but distinct modulation classes. If we know which ones correspond to real, distinct, named modulation or radio types, we can now go through and label a handful of clusters if desired, rather than labeling thousand, millions, or more single training examples.
+
+While these clusters are not error free, we can generally find a one to one or several to one mappings from discovered class clusters to distinct real named classes with relatively low error rate in this example.
+
+Conclusion
+
+We have demonstrated in this work that low level learned time series features in convolutional networks and potentially other forms of sparse representations for radio time series signals, formed either through supervised sub-problems, or through unsupervised representation learning, can be used in their sparse intermediate representation or a low-dimension embedding thereof to differentiate many types of signal modulations from one another without the need for class labels. This is a powerful result in that it demonstrates a potential way forward for learning to differentiate, reason, recall, and describe new and unknown radio signals without the need for manual curation or expert guidance. While generalization of the compressing feature bases remains a challenging problem, we have shown that in some cases discriminating features work extremely well at separating yet to be seen signals from known, and in other cases not.
+
+Future Work
+
+There is much left to learn about how to effectively build semi-supervised radio signal recognition systems, we hope this work has laid the foundation for maturing this field. Critical area for improving performance in this area include, how to best learn discriminating features which generalize well to unknown modulation types, potential iterative guided correction methods for confused classes, and other methods for optimizing features and sparse representation for class separability. We seek to quantify measures of performance for a number of approaches to this problem in future work, considering additional traditional forms of dimensionality reduction as baselines. Such metrics will likely consist of correct class number estimation, full class confusion matrix and classification accuracy and false alarm rates among other many others.
+
+Acknowledgment
+
+The authors would like to thank the Virginia Tech ECE Department and Hume Center for their support. This work was supported in part by the Defense Advanced Research Agency under grant no. HR0011-16-1-0002.

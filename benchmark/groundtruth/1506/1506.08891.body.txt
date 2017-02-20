@@ -1,0 +1,129 @@
+Detecting Table Region in PDF Documents Using Distant Supervision
+
+Introduction
+
+Tables are primarily used to present data such as the results of statistical analysis, experimental records, attributes of items, etc. The grid structure of the table - columns and rows - allows a reader to easily interpret and compare different items. Due to the advantages, tables have been widely adopted in many different articles such as web pages, academic publications, online manuals. Computer scientists who conduct research on information extraction take delight in engaging with tables that occur in those electronic documents, as they are the natural sources to feed and populate relational databases.
+
+Some formats of the electronic documents are machine-readable, such as HTML, XML and even TEX. These formats derive from SGML (Standard Generalized Markup Language) and inherit the basic principle that the language pins a pair of specific tags to mark a snippet of text. For example, HTML files use 〈table〉 as the start and 〈 / table〉 as the end, to indicate the region of a table. AI programs can easily recognize expected regions with the help of tags, and extract the information that we want with pre-defined actions. However, it is tedious for our human beings to read the markup language, because we are sensitive to the layouts of documents, and focus more on the contents. Therefore, the Portable Document Format (PDF) was designed as a file format to represent a document independent of the platform it displays, and to preserve the layouts both on screen and in print. These strengths draw much attention from the online publishing. So far, many academic papers and manuals have adopted PDF as the standard format.
+
+Unfortunately, we meet Waterloo when detecting the region of tables within PDF files, due to the lack of structural information. To the best of our knowledge, the latest off-the-shelf software, Apache PDFBox, could only provide the coordinates (x,y) and the font style of each character in a PDF document. As table region detection is the fundamental and significant step for further information extraction from PDF files, fruitful approaches have been proposed in recent decades. However, they either simply design heuristic rules based on pre-defined layouts, or adopt supervised learning techniques fed by few annotated corpora from restricted domains. For instance, ICDAR 2013 set up a competition about table detection and structure recognition within 67 annotated PDF documents posted by U.S. and E.U. governments, where each document is accompanied by a XML file to indicate the location of tables.
+
+When we further apply these methods to some free access digital academic archives, such as IEEE Xplore and Springer Link, the variety of layouts and explosive amount of unannotated data expose the urgent demand on unsupervised or semi-supervised frameworks. By means of these frameworks, we do not have to spend much labor on annotation, but can leverage large-scale unlabeled PDF files. To the best of our knowledge, Klampfl et al. [\cite=klampfl2014comparison] have recently proposed unsupervised table recognition methods applied on digital scientific articles. However, their work was purely based on heuristic rules and evaluated on 109 files in total. We consider it not flexible enough to handle more PDF articles with variable layouts.
+
+Therefore, we firstly propose a novel solution which requires very little human efforts in detecting a table region in PDF. Specifically, our approach reduces the cost of training data annotation by automatically generating the annotated data using a distant supervision technique[\cite=fan2014distant] [\cite=fan2015distant]. The approach first collects a large amount of unlabeled PDF dataset, uses simple heuristic rules to automatically annotate the unlabeled dataset and then train a supervised classifer over the (weakly-labeled) training examples to predict the boundary of table region. The human efforts are almost neglegible in our approach because the unlabeled PDF dataset can be easily acquired from the web and the data annotation is automatically performed.
+
+Our experimental results confirm the promise of our approach. To evaluate our approach, we collected 9,446 PDF files from ACL Anthology and developed a simple heuristic rule to automatically generate training examples from them. Then, a supervised classifier (an ensenble of Logistic Regression, Support Vector Machine and Naive Bayes) was trained over the weakly-labeled datasets to be applied over the test datasets from several different domains. Our evaluation shows that, first, our approach significantly outperforms a state-of-the art algorithm [\cite=klampfl2014comparison] for the ACL test dataset. Furthermore, even for a out-of-domain test dataset (ICDAR 2013 competition dataset [\cite=gobel2013icdar]), our system achieve a significantly higher accuracy than the baseline system, indicating the effectiveness of a large amount of training dataset automatically generated in our approach. We also performed additional experiments to analyze the important features in detecting a table region and to compare different classifiers, and report the results of those experiments.
+
+Related Work
+
+A comprehensive review can be found in the final report of ICDAR 2013 Table Competition [\cite=gobel2013icdar], which announced the performances of recent academic and commercial systems on either table region detection or table structure analysis. Here we restrict our survey on a number of recent methods that attempt to discover table regions within PDF files.
+
+The first effort was the pdf2table system [\cite=Yildiz2005], which used heuristics to detect the table region. It assumed that a table had more than one column, and a table region was formed by merging neighboring multi-lines. However, the algorithm could only handle pages with single-column layouts.
+
+The PDF-TREX system [\cite=Oro2009] considered a set of words as seeds first, and identified tables in a bottom-up manner. Specifically, words were aligned and grouped to lines based on their vertical overlap, and line segments were obtained by applying hierarchical agglomerative clustering to the words. According to the number of segments, a line was categorized into three classes: text lines, table lines, and unknown lines. Then, the table region could be found by combining contiguous table lines or unknown lines.
+
+Supervised classification models were mainly adopted by Liu et al. [\cite=Liu:2008:ITB:1458082.1458255], who designed a table detection method that leveraged heuristics to construct lines from individual characters and to select those sparse lines that occur within a table for training. Starting from a table caption, these sparse lines were then iteratively merged to a table region. This approach is very similar to the state-of-the-art unsupervised method [\cite=klampfl2014comparison] and ours, except that it was built upon labeled text blocks instead of lines.
+
+The up-to-date approach [\cite=klampfl2014comparison] did not rely on annotated data, but used complex heuristics to achieve comparable performances with supervise-based systems. Our system PdfExtra costs free on labeled data but covers large-scale PDF files with varies layouts. Therefore, we mainly compare the performance of system with the state-of-the-art unsupervised method [\cite=klampfl2014comparison].
+
+Paradigm
+
+PdfExtra benefits a lot from the off-the-shelf software Apache PDFBox which can recognize almost all characters within a PDF document. Beyond the characters, the software also provides the horizontal and vertical coordinates, as well as the font style for each of them. Thus each "rich character" can be represented as a tuple: 〈character,x - axis,y - axis,font - type,font - size〉. In addition, Apache PDFBox can merge the characters together into words, and return words in sequence that visually lay in the same line. There is nothing more that it can do to discover tables. Therefore, we leverage the outputs from Apache PDFBox and engage in predicting whether each line belongs to a table or not.
+
+Although we have formulated the table region detection task into a binary classification problem, we still suffer the lack of annotated training data. As illustrated by Figure 1, the paradigm that we have designed to fix the issue contains three phases:
+
+Heuristic annotation
+
+Inspired by the idea of distant supervision [\cite=fan2014distant] [\cite=fan2015distant], we adopt heuristics that can help automatically generate large-scale weakly labeled training examples. More specifically, we create a spider that downloads academic articles from ACL Anthology, in which almost all papers are archived in PDF format. 9,466 literatures in total the year 2000 to 2015 are collected. For a PDF article, we process each page in three steps as follows,
+
+Indicator Recognition: As all camera-ready drafts must conform to a limited number of official templates to be published, the word "Table" or "Tab." that appears in front of a line generally indicates the caption of a table. In other words, we find the lower or the upper boundary of the table region which depends on the templates.
+
+Surrounding Contexts: The caption line plays a role in separating the table from the main body. Because we do not know which portion belongs to a table, we usually extend k lines up and down as the candidate context.
+
+Positive v.s. Negative Examples: After extracting these candidates, we assume that the group of lines with more blanks/margins will more likely locate in a table, rather than the other group. In this way, we can construct a balanced corpus for binary classification, even if it is weakly annotated by heuristics above.
+
+By means of the heuristics we have proposed, a large-scale weakly labeled dataset can be automatically constructed for training. For instance, the rules help us prepare more than 350,000 lines as training examples extracted from ACL Anthology. As each line is a sequence of words in which every "rich character" with its coordinates and font style, we can further process each word to mark its start and end coordinates in the horizontal direction.
+
+Feature identification
+
+The state-of-the-art approach [\cite=klampfl2014comparison] only concerns about the layouts of a PDF document. It iteratively includes a sparse block into a table in the buttom-up manner, where a block is identified as "sparse" if 1) their width is smaller than [formula] of the average width of a text block, or 2) there exists a gap between two consecutive words in the block that is larger than than two times the average width between two words in the document.
+
+However, we believe that both linguistic and layout features are significant. Therefore, we select three kinds of features based on our observation that may contribute to detecting the region of tables. They are:
+
+Normalized Average Margin (NAM): According to the horizontal coordinate of each word in lines, we calculate the average margin between two consecutive words, so that each line is assigned by the feature. In most cases, the average margin between two consecutive words in the main body equals to the size of a space, and that in the tables usually occupies more. However, the average margin differs along with layouts, and generally the one-column layouts generate much larger margin than the two-column formats. Therefore, we normalize the average margin within the same page to be the feature that represents the layouts.
+
+POS Tag Distribution (PTD): It is a common consensus that we prefer displaying information in a more structural and condensed way in tables, rather than flowery language expressed by sentences in the main body of an article. Intuitively, more noun phrases appear in tables, but less adjectives and adverbs are used. This distinction leads to the diverse distribution of the part-of-speech (POS) tags, which we concern as the second feature. There are 5 kinds of part-of-speech tags under our consideration processed by Stanford POS Tagger: NN, VB, JJ, RB and OTHERS.
+
+Named Entity Percentage (NEP): We extend the traditional scope of named entities and include the number and the time. Therefore, 5 kinds of named entity tags, i.e. PERSON, LOCATION, ORGANIZATION, NUMBER and TIME, are recognized by Stanford Named Entity Recognizer. For each kind of named entity, we compute its percentage in each line.
+
+Region detection
+
+Suppose that we have n examples in the weakly labeled training dataset. Each example is a line of "rich characters" mapped into a feature vector [formula] along with its weak label y. We further use xNAM, xPTD and xNEP to denote the three features, i.e. Normalized Average Margin (NAM), POS Tag Distribution (PTD) and Named Entity Percentage (NEP), respectively. Hence, each training example can be represented as [formula], in which [formula] and (i) shows the index.
+
+Here we use three canonical classifiers, i.e. Logistic Regression, Support Vector Machine and Naive Bayes, fed by the training examples above to decide whether a line of "rich characters" provided by Apache PDFBox belongs to a table or not, and explain the details about how we model the classifiers based on the features and the weak labels from the corpora we have constructed:
+
+Logistic Regression (LR) assumes that we can score the i-th example to indicate whether it belongs to a table or not, by approximate its score as a linear function of the feature vector [formula]:
+
+[formula]
+
+where the θ represents the vector of parameters along with the features. Then the classifier chooses the sigmoid function which maps the score into
+
+[formula]
+
+Experiment
+
+We set experiments that conduct comparison between our paradigm and the state-of-the-art Heuristics approach [\cite=klampfl2014comparison] evaluated on two datasets, i.e. ACL Anthology and ICDAR 2013 Table Competition, with standard metrics.
+
+Datasets
+
+We prepare two datasets from different domains. The dataset of ICDAR 2013 Table Competition is the benchmark in which there are 67 ground-truth PDF documents of U.S. and E.U. governments. The size of the other ACL Anthology dataset is much larger, which contains 9,466 academic articles from the year 2000 to 2015. It covers more than 10 top-tier conferences related to Computational Linguistics, such as ACL, EMNLP, COLING, NAACL, etc. Table 1 shows the statistics of ICDAR 2013 and ACL Anthology datasets for evaluation.
+
+ICDAR 2013: We divide the dataset into two parts. 75% files (50 documents) are used as training examples, and 25% files (17 documents) are prepared for testing. After processed by the Heuristic annotation, we get 804 lines left for training. And we manually annotate 224 lines from 17 testing documents for testing.
+
+ACL Anthology: The paper published in 2015 are kept, and we label 346 lines of them as the ground-truth examples for testing. In addition, we gain 357,892 lines from 9,280 academic articles as the weakly labeled training examples.
+
+Metrics
+
+Since we regard the table region detection as binary classification problems, several standard metrics, such as Accuracy, Precision, Recall, F1-measure, are adopted for evaluating the performances. Each ground-truth line for testing is classified based on its features, and the output labels will be + 1 or - 1. As shown in Figure 2, anyone of the testing examples will fall into one of the four cells, i.e. True Positive. For instance, if a system assigns the positive label (+ 1) to a ground-truth testing line which should be regarded as a negative example, that is a false positive (FP).
+
+Accuracy is a metric to measure the overall performance of binary classification. It concerns about all the testing examples, including the positives and the negatives, and indicates the proportion of lines that are made correct predictions. Therefore,
+
+[formula]
+
+Precision and Recall are a pair of metrics that focus on the positive ground-truth lines. Specifically, precision represents the proportion of correct examples regarded as the positives, i.e.,
+
+[formula]
+
+and recall concerns about the proportion of positive predictions within all positive ground-truth examples:
+
+[formula]
+
+F1-measure is a trade-off between precision and recall, which measures the harmonic mean of the two metrics above:
+
+[formula]
+
+Performances
+
+We use the four metrics above to measure the performances of our system PdfExtra, compared with the state-of-the-art approach Heuristics [\cite=klampfl2014comparison]. Both of them are evaluated by two benchmark datasets, i.e. ICDAR 2013 and ACL Anthology. Table 2 and 3 show the results of the experiments, and we find out that PdfExtra achieves significant improvements beyond the latest approach.
+
+Discussion
+
+To deeply analyze the paradigm we have proposed, we discuss the factors that may impact the performance from three perspectives:
+
+Impact of features
+
+We try different combinations of features. They are the layout feature only (NAM), the layout with part-of-speech feature (NAM + PTD) and the combination of all the features (NAM + PTD + NEP). We keep collaboratively using the three classification models to vote the final prediction. Both of Table 4 and 5 demonstrate that pure layout feature does not perform well on detecting the table region, as shown by the experimental results of state-of-the-art Heuristics[\cite=klampfl2014comparison] and PdfExtra (NAM). For ICDAR 2013 dataset, the best feature combination is NAM + PTD. And the other empirical study displays that the feature combination of NAM + PTD + NEP leads to the best performance on ACL Anthology dataset.
+
+Impact of classifiers
+
+Besides the combinations of features, three classifiers may also perform variously, due to their different hypotheses of mathematical modeling. Therefore, we map both ICDAR 2013 and ACL Anthology datasets to the same feature combination (NAM + PTD + NEP) schema, and iteratively select an individual classifier, such as Naive Bayes (PdfExtra(NB)), Logistic Regression (PdfExtra(LR)) or Support Vector Machine (PdfExtra(SVM)), to compare with the voting version (PdfExtra). They are the layout feature only (NAM), the layout with part-of-speech feature (NAM + PTD) and the combination of all the features (NAM + PTD + NEP). Table 6 and 7 show the performances on ICDAR 2013 and ACL Anthology datasets respectively, and Naive Bayes classifier behaves stably on the two benchmark datasets.
+
+Impact of domains
+
+The most significant perspective of our new paradigm that needs to be discussed, is the evaluation on cross-domain datasets. It directly reflects the generality of a paradigm. If it could only outperform the state-of-the-art approaches when trained and tested by the PDF documents in the same or specific domain, the paradigm would still be a trial version that make minor contributions on the research of table region detection. Therefore, An experiment is set in which we feed the training examples of ACL Anthology dataset to our model, and test the performance on the testing set of ICDAR 2013. Fortunately, testing on files of ICDAR 2013 achieves comparable performance with testing on ACL Anthology dataset. Moreover, PdfExtra (ACL) shows the better capability on detecting tables on government documents after trained by academic articles. The reason why our paradigm can handle cross-domain files, is that all the features and classifiers we leverage are independent from the layouts, and even the contents within diverse PDF documents.
+
+Conclusion
+
+In this paper, we have contributed a novel paradigm for detecting the region of tables within PDF documents. It absorbs superiorities from both supervised and unsupervised approaches, and firstly covers almost tens of thousands PDF documents in a different domain. To be specific, it leverages different supervised learning models to adapt varies layouts and linguistic features within tables from large-scale PDF files, but costs free on labeling training corpus. We integrate the paradigm into our system PdfExtra which enhances the off-the-shelf software Apache PDFBox to predict whether a text line belongs to a table or not. Three classification models have been evaluated, which are Logistic Regression, Support Vector Machine, and Naive Bayes. We find out that Naive Bayes performs stable prediction on both two benchmark datasets, and linguistic features bring a great leap forward on the performance. What's more, we prove that our paradigm is robust to table detection on open-domain PDF documents.
+
+However, the idea of weakly labeled paradigm can not avoid bringing noise into training data which impacts the performance of system. In the future, we look forward to exploring the correlation between tables within the same article to filter out the faults.

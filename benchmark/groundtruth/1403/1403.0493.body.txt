@@ -1,0 +1,299 @@
+=1
+
+A packing problem approach to energy-aware load distribution in Clouds
+
+Introduction
+
+The Cloud Computing paradigm consists in providing customers with virtual services of the quality which meets customers' requirements. A cloud service operator is interested in using his infrastructure in the most efficient way while serving customers. Namely, he wishes to diminish the environmental impact of his activities by reducing the amount of energy consumed in his computing servers. Such an attitude allows him to lower his operational cost (electricity bill, carbon footprint tax, etc.) as well.
+
+Three elements are crucial in the energy consumption on a cloud platform: computation (processing), storage, and network infrastructure [\cite=BalAyr+11] [\cite=BelAba+12] [\cite=BelBuy+11] [\cite=BerlGel+10]. We intend to study different techniques to reduce the energy consumption regarding these three elements. We tempt to consolidate applications on servers to keep their utilization at hundred per cent. The consolidation problem was discussed in [\cite=SriKan+08] through an experimental approach based on the intuition as its authors did not propose any formal problem definition.
+
+In this paper we address the challenge of the minimization of energy required for processing by means of proper mathematical modeling and we propose algorithmic solutions to minimize the energy consumption on Cloud Computing platforms. We address here a private Cloud infrastructure which operates with knowledge of resource availability.
+
+We study a theoretical problem adjacent to the minimization of energy required to execute computational tasks. Our working hypotheses are as follows:
+
+any computional task is parallelizable, i.e. it may be executed on several servers; there is, however, a restriction on the number of servers on which a task can be launched,
+
+available servers have different computing capacities,
+
+the computation cost of a server in terms of its energy consumption is monotone, i.e. a unity of computation power is cheaper on a voluminous server than on a less capacious one.
+
+The assumption that all tasks are divisible may sound unrealistic as in practice some tasks cannot be split. We make it in order to formulate theoretical problems and analyze them. In the real world scenario one will rather cope with jobs which either cannot be cut at all or which can be cut one, twice, up to D times. Such a situation corresponds to a problem which is "somewhere between" two extremal cases: no jobs can be split and all jobs can be split D times. As the reader will notice going through this paper, the "real life" problem performance bounds can be deducted from those of the extremal problems.
+
+The three assumptions above lead us to formulate a generalization of the Bin Packing problem [\cite=CofGar+97], which we refer to as the Variable-Sized Bin Packing with Cost and Item Fragmentation Problem (VS-CIF-P). In the general case considered a cost of packing is monotone. This problem models a distribution of computational tasks on Cloud servers which ensures the lowest energy consumption. Its definition is given in Subsection [\ref=mainProblemDefinition]. We point out that the approach through packing problems to the energy-aware load distribution has not yet been proposed.
+
+Confronted with numerous constraints of the VS-CIF-P we decided to start, however, by studying in Subsection [\ref=lessConstrantedProblemDefinition] a less constrained problem, without an explicit cost function, the Variable-Sized Bin Packing and Item Fragmentation Problem (VS-IF-P). This has not yet been studied either. This gradual approach allows us to deduce several theoretical properties of the VS-IF-P which can be then extended to the principal problem.
+
+In Section [\ref=algorithms] we propose customized algorithms to solve the VS-CIF-P. Willing to treat users' demands in bulk, what corresponds to regular dispatching of collected jobs (for instance, hourly) we propose an off-line method (Subsection [\ref=greedyApproach]). An on-line algorithm, dealing with demands on-the-fly is given in Subsection [\ref=algorithmWithPerformanceBounds]. This treatment allows one to launch priority jobs which have to be processed upon their arrivals. Expecting an important practical potential of the VS-CIF-P we also furnish results concerning the theoretical performance bounds of the algorithms we elaborated.
+
+Despite the fact that the problem is approximate with a constant factor, we go further with the performance evaluation of the algorithms we come up with. The empirical performance evaluation is discussed in Section [\ref=numericalResults].
+
+The list of our contributions given above also partially constitutes the description of the paper's organization. We complete this description by saying that in Section [\ref=relatedWorks] we present a survey of related works concerning definitions of the family of bin-packing problems together with their known approximation factors. We also give there an outline of algorithmic approaches used to solve packing problems. Our special attention is put on those which inspired us in our study. We point out that the notation used in the article is also introduced in that section while carrying out our survey.
+
+After giving our contributions in the order announced above we draw conclusions and give directions of our further work.
+
+Related Works
+
+Let L be a list of n items numbered from 1 to n, [formula], where si indicates an item size. Let us also assume for a moment that for all [formula] si∈[0,1]. The classical Bin Packing Problem (BPP) consists in grouping the items of L into k disjoint subsets, called bins, [formula], [formula], such that for any j, [formula], [formula]. The question 'Can I pack all items of L into K, K  ≤  k, bins?' defines the BPP in the decision form. Put differently, we ask whether a packing [formula] for which k is less or equal to a given value K exists. The corresponding optimization problem aims to find the minimal k. Due to its numerous practical applications the BPP, which is NP-hard, was studied exhaustively.
+
+The current basic on-line approaches, Next Fit (NF) and First Fit (FF) give satisfactory results. The asymptotic approximation factor for any on-line algorithm cannot be less than 1.54 [\cite=CofGar+97]. A widely used off-line approach consists in sorting items in decreasing order of their size before packing them. The tight bound for First Fit Decreasing (FFD) is given in [\cite=Dos07].
+
+Variable-Sized Bin Packing with Cost
+
+In the initial problem the capacity of all bins is unitary. The problem may thus be modified by admitting different bin capacities. A bin can have any of m possible capacities bj, [formula]. In other words, we have m bin classes.
+
+If any bin is as good as the others, putting items inside a solution to this problem is trivial, as one will always be interested in using the largest bin. We thus suppose that bin utilization induces a certain cost associated to this bin. This assumption leads to the Variable Sized Bin Packing with Cost Problem (VSBPCP). The reader might already observe that in the BPP the cost of packing is always the same regardless of the bins chosen. This fact explains that the new problem is NP-hard [\cite=KanPar03]. Intuitively, one can consider that the cost of packing varies in function of a bin capacity. From this point of view we are no longer interested in minimizing the number of bins used but in minimizing the global packing cost as a voluminous bin which remains 'almost empty' may be more expensive in use than several little bins 'almost totally' full. Solving the VSBPCP we have at our disposal m classes of bins and the infinite number of bins of any class available.
+
+In the simplest case, the cost is a linear function of a capacity. Packing into bin i costs ci, [formula] and we have as many costs as bin classes available. Similarly to the notation introduced above, we denote a cost of a bin Bj taking part in a packing as (Bj)  =  cl (a bin in position j in a packing costs cl). The goal is thus to find a packing [formula] such that [formula] for which the overall cost, [formula], is minimal.
+
+Without loss of generality one may assume that the cost of using bin i is equal to its capacity, ci = bi, [formula]. For a packing we thus have: (Bj)  =  (Bj).
+
+A monotone cost function signifies that a unity in a bigger bin i is not more expensive than a unity in a smaller one, bin j: [formula], [formula], bi > bj and the cost of a smaller bin is not greater than the cost of a bigger bin, cj  ≤  ci. A linear cost function is a special case of a monotone one.
+
+Monotone cost, off-line approach
+
+Staying in the context of a monotone cost, our attention was attracted by the off-line algorithms from [\cite=KanPar03]. Their main idea consists in applying an iterative approach to a well-known algorithm, for example, FFD which leads to IFFD.
+
+In a nutshell, at the beginning IFFD performs the classical FFD with identical bins of the greatest capacity, max bi(B). The packing obtained is next modified by trying to move (again with FFD) all the items from the last bin into the next biggest bin. The repacking procedure continues by transferring items entirely from the bin of capacity bj, which was the last one filled up, into a bin of size bi, bi < bj and there is not any l such that bi < bl < bj. It stops when any further repacking becomes impossible. Their authors showed that the solutions are approximated with 1.5.
+
+Linear cost, on-line approach
+
+We pay special attention to the on-line algorithm to solve the VSBPCP described in [\cite=KinLan89]. This algorithm deals with a linear cost. Its authors proposed an approach 'in between' the First Fit, using Largest possible bin (FFL) and the First Fit, using Smallest possible bin (FFS) trying to take advantage of both methods with regard to the size of the item to be packed. Their idea is to determine whether an item to be packed occupies a lot of space or not. The decision is taken upon a fill factor f, f∈[0.5,1]. Their algorithm, called FFf, operates in the following way. If item i is small (i.e. si  ≤  0.5), it will be inserted into the first bin in which it enters or into a new bin of unitary capacity when it does not fit into any opened bin (FFL). Otherwise, it will be inserted into the first opened bin into which it enters. If the use of an opened bin is impossible, it will be packed into the smallest bin among those whose capacity is between si and [formula], if it fits inside, or into a new unit-capacity bin if it does not (FFS). The authors of FFf proved that the result it furnishes is approximated by [formula].
+
+Bin Packing with Item Fragmentation
+
+In another variant of the classical BPP one is allowed to fragment items while the identical bin size and bin cost remain preserved, the Bin Packing with Item Fragmentation Problem (BPIFP). Item cutting may reduce the number of bins required. On the other hand, if the item fragmentation is not for free, it may increase the overall cost of packing. In [\cite=MenRom01] [\cite=NaaRom02] [\cite=ShaTam+06], for instance, its authors investigated two possible expenses: the item size growth which results from segmentation and the global limit on the number of items cut. We point out that one may also consider a limit on the number of items permitted to be packed into a bin. A variant of the BPP fixing such a limit was introduced and studied in [\cite=KraShe+75] [\cite=KraShe+77]. It models task scheduling in multiprogramming systems and is known as the Bin Packing with Cardinality Constraints Problem (BPCCP).
+
+From our particular perspective, founded upon the virtualization of computing services in Clouds, we opt to restrain the number of fragments into which an item can be cut. The maximal number of cuts for any item, which models a computation task, is limited to D. As certain items from list L should be fragmented before packing, we do not cope with items i but with their fragments whose sizes are noted as sid, where i indicates an original item i from L and d enumerates fragments of item i. Let Di be a number of cuts of item i made. Obviously, Di = 0 signifies that item i has not been fragmented at all. Moreover, for any i we have Di  ≤  D and [formula]. Thus the solution to the BPIFP with limit D consists in finding an appropriate fragmentation first, which results in a new list of sizes of items to be packed
+
+[formula]
+
+(actually, this a list of lists). The number of items to be packed is now [formula]. Next, the BPP is to be solved with LD as input data.
+
+Survey conclusions
+
+To the best of our knowledge, neither the problem being in the center of our interest, the Variable-Sized Bin Packing with Cost and Item Fragmentation Problem (VS-CIF-P), which we propose to model an energy-aware load distribution nor the less constrained one, the Variable-Sized Bin Packing and Item Fragmentation Problem (VS-IF-P), have been studied yet.
+
+Problem Definitions and Analysis
+
+As announced above, we start by treating the auxiliary problem. It will be generalized after its analysis.
+
+Auxiliary Problem
+
+We suppress the explicit cost function in the general problem. By doing this we expect to be able to find an optimal solution to the auxiliary VS-IF-P with polynomial complexity for certain particular cases. We recall to the reader here that we limit the number of cuts of any individual item.
+
+Variable-Sized Bin Packing with Item Fragmentation Problem (VS-IF-P) Input:
+
+n items to be packed,
+
+sizes of items to be packed [formula], [formula], [formula],
+
+capacities of bins available [formula], [formula], [formula],
+
+a constant D which limits the number of splits authorized for each item, [formula],
+
+a constant k, [formula] which signifies the number of bins used.
+
+Question: Is it possible to find a packing [formula] of items L whose fragment sizes are in LD defined as in Eq. [\eqref=LD] such that K  ≤  k?
+
+In the analysis of the VS-IF-P we appeal to a variant of the BPP coming from the memory allocation modeling [\cite=ChuGra+06] [\cite=EpsSte11]. Its particularity consists in having a limit on the number of items in any bin. This limit holds without regard to whether an item inserted is 'an original one' or results from the item fragmentation itself. Thus this problem may be considered as a variant of the BPCCP (see Subsection [\ref=BPIFP]) with item fragmentation. For our purposes we call it the Memory Allocation with Cuts Problem (MACP) and we give below its formal definition using our notation. We believe that this formal presentation allows the reader to discover a palpable duality existing between the VS-IF-P and the MACP: in the first one there is a limit on the cut number of any item, in the latter we have a limit on the number of 'cuts' in any bin.
+
+As the MACP admits the item fragmentation, the objects which it packs are picked from the following list:
+
+[formula]
+
+where [formula], [formula]. The number of splits of item i, di, is not a priori limited but one cannot cut items at will. The values of di will be determined later on by the constraint restricting the number of pieces in a bin, D'.
+
+Memory Allocation with Cuts Problem (MACP) Input:
+
+n' items to be packed,
+
+sizes of items to be packed [formula], [formula], [formula],
+
+a capacity b' of each bin,
+
+a constant D' which limits the number of items authorized inside each bin (no more than D' + 1 pieces inside a bin), [formula],
+
+a constant k', [formula] which signifies the number of bins used.
+
+Question: Is it possible to find a packing [formula] of elements whose sizes are in L'D' defined as in Eq. [\eqref=LdMACP] such that for each l, [formula], |B'l|  ≤  D' and K'  ≤  k'?
+
+The VS-IF-P is NP-complete in the strong sense.
+
+It is easy to see that the VS-IF-P is in NP. In this proof, as in Def. [\ref=defMACP], we consequently use a prime symbol when referring to an instance of the MACP.
+
+First, we demonstrate that the VS-IF-P is NP-complete in the strong sense by reducing the MACP to it as the NP-completeness in the strong sense of the MACP was shown in [\cite=EpsSte11]. For both instances, I and I', we put D = D'.
+
+Bins of the MACP become k' items to be packed in the VS-IF-P, [formula], n = k'. Items of the MACP are transformed into variable-sized bins, L' = B. Finally, we require that all available bins of the VS-IF-P are used: |L'| = |B| = k. Obviously, this transformation, also illustrated in Figure [\ref=instancesProofVSIFPtheoremNP], can be performed in polynomial time.
+
+We focus our attention on a particular case [formula] in which there is no empty space left in bins forming a solution. It is evident that in this situation the packing of items into bins corresponds to 'inserting' bins into items. If the verification gives a positive answer for one instance, it will give a positive answer for another, too. An illustrative example, D = d' = 1, is given in Figure [\ref=exampleProofVSIFPtheoremNP]. The overall items' mass is 40. Thus we need four bins of capacity 10 to pack L' = (16,15,9) for the instance I' of the MACP depicted on the left of Figure [\ref=exampleProofVSIFPtheoremNP]. The instance I of the VS-IF-P (on the right of Figure [\ref=exampleProofVSIFPtheoremNP]) is composed of four items of size 10 and B = (16,15,9).
+
+Second, we estimate the computational effort required to obtain a positive response to the question whether 'a candidate to be a solution' is a solution. In order to do this we determine a size Ni of the VS-IF-P instances and a size Ns of solutions to it. The greatest elements of both lists determine Ni, which is thus in O( log k  +  (m + n) log  max ( max si(L), max bi(B))). Solutions are made up of bins and 'quantities' of items, possibly split, selected in L. Similarly, we take into account the most voluminous elements of the lists, which leads us to Ns not greater than nm( log m  +   log  max ( max si(L), max bi(B))), being in O(N2i) (a polynomial verification time).
+
+In order to analyze the feasibility of solutions to the VS-IF-P we assume for a moment that fragments resulting from the item splitting are equal in size. We have to be assured that any fragment of the greatest item can be inserted entirely into the highest capacity bin:
+
+[formula]
+
+If we can pack items of an instance of the VS-IF-P with such a fragmentation, we can do the same for the VSBPP instance, whose items to be packed are simply those of the VS-IF-P split. This reasoning allows us to adapt numerous algorithms existing for the VSBPP to solve the VS-IF-P by incorporating cutting. Eq. [\eqref=cutEqualParts] guarantees the existence of a solution even in cases when items are split into 'almost equal' pieces because a single 'over-sized' fragment will be not greater than [formula]. We propose to admit cutting in FF (Cut and FF, CFF). Despite sorting the bin classes in decreasing order of their capacity, the on-line principle is preserved as items are not reordered before their cut and insertion. An illustration of a CFF execution with 'imperfect cuts' is presented in Figure [\ref=exampleCFF]. The discussion above, which exhibits a relationship between instances of the VS-IF-P and the VSBPP allows us to apply FF (or NF). In solutions obtained with these algorithms one bin at most is less than half full.
+
+On the other hand, if bins are of capacity 2s, where s is a natural number, items are of size 2(s + 1) and any item can be cut no more than once, D = 1, we cannot expect a better approximation factor than 2. We visualize this example by imagining in Figure [\ref=exampleCFF] the item size equal to 12 and keeping bin capacity equal to 10. This observation leads us to formulate:
+
+A solution to the VS-IF-P for any D with CFF is tightly bounded by 2.
+
+Main Problem
+
+As stated above, the problem which models the distribution of computation tasks within a private Cloud infrastructure is a bin packing in which bins are of different sizes and tasks can be split over several servers. We assume that all numerical data (item sizes, bin capacities, costs) are natural numbers. We also assume that a task is parallelizable (the discussion of our hypothesis can be found in Section [\ref=introduction]). We allow an item to be cut into no more than D + 1 pieces, i.e. any item may be split at most D times. Indeed, if any number of cuts was admitted, we might cut all tasks into unitary pieces and end up with a trivial packing of [formula] unitary objects being able to fill up any used bin entirely.
+
+As the reader might have already notice while passing through Sections [\ref=introduction] and [\ref=relatedWorks], our problem, the Variable-Sized Bin Packing with Cost and Item Fragmentation Problem (VS-CIF-P), puts together the three problems announced above. To be more precise, we 'mix up' the VSBPCP and BPIFP, the latter with the constraints which have just been discussed. Unless stated differently, the cost function is monotone.
+
+Variable-Sized Bin Packing with Cost and Item Fragmentation Problem (VS-CIF-P) Input:
+
+n items to be packed,
+
+sizes of items to be packed [formula],[formula], [formula],
+
+capacities of bins available [formula], [formula], [formula],
+
+costs of using of bins available [formula], [formula], [formula],
+
+a constant D which limits the number of splits authorized for each item, [formula],
+
+a constant e, [formula] which signifies the cost limit of a packing.
+
+Question: Is it possible to find a packing [formula] of items L whose fragment sizes are in LD defined as in Eq. [\eqref=LD] such that [formula]?
+
+Algorithms
+
+Before introducing our methods to solve the VS-CIF-P (Def. [\ref=defVSLCIFP]) we will discuss the solution to the auxiliary VS-IF-P (Def. [\ref=defVSIFP]), in order to select the algorithmic approaches the best adapted to treat our principal problem. Indeed, as we presumed (Subsection [\ref=lessConstrantedProblemDefinition]), the VS-IF-P can be solved exactly and in polynomial time under a certain hypothesis.
+
+Next Fit with Cuts (NFC) for the auxiliary problem
+
+Let us hypothesize that we are dealing with the instances for which we can always find a bin to pack any entire item (without cutting it). This hypothesis may be expressed by:
+
+[formula]
+
+If this hypothesis is satisfied, we propose a variant of NF, Next Fit with Cuts (NFC) as an algorithmic solution. A similar approach was used for another purpose under the name of NF[formula] in [\cite=MenRom01] [\cite=NaaRom02]. First, the capacities of bin classes are sorted in decreasing order. Next, for each item, if there is some room in a current bin, we pack the item inside, cutting it if necessary, and inserting the second fragment of the item into the next bin. We observe that with Hypothesis [\eqref=StrongH] valid, NFC fragments any item at most once. Moreover, when this hypothesis is satisfied, the packing problem with variable-sized bins and item fragmentation is in P.
+
+Indeed, the verification whether Hypothesis [\eqref=StrongH] holds or not can be performed in O(m) or O(n) depending upon the relationship existing between m and n. An execution of NFC requires O(m log m  +   max (n,m)) operations. Lastly, we observe that the bins used are all totally filled up and they are of the greatest available capacities, which proves the algorithm's optimality.
+
+This discussion leads us to the conclusion:
+
+NFC is optimal and polynomial to solve the VS-IF-P when Hypothesis [\eqref=StrongH] holds.
+
+Off-line Approach to the Main Problem with Monotone Cost
+
+The approach presented here is based upon IFFD (Paragraph [\ref=IFFD]) combined with item cutting. For this reason we refer to it as CIFFD. As before, we assume that bin classes are sorted in decreasing capacity order, [formula].
+
+The initial idea of our algorithm to solve the VS-CIF-P (Algorithm [\ref=greedyForVSLCIFP]) consists in dividing items of L into two categories: those items i which may be possibly packed without fragmentation and those which undoubtedly may not. Such an approach makes our algorithm off-line. We propose to reason here upon item sizes si, not upon their indices i. This mental operation enables us to avoid tedious renumbering of items to be packed, which might deteriorate the text limpidity. At the same time, it does not introduce any ambiguity.
+
+We formally note the two categories as T1 and T+1, respectively: [formula], for all si∈T1 we have si  ≤   max bi(B) = b1, and for all si∈T+1 we have si  >   max bi(B) = b1. Items from T+1 are cut naturally up to D times in order to completely fill up a bin of capacity b1, the remaining fragment whose size is inferior to b1 is stored in T-1 (lines [\ref=feasibilityAlgoOFFLoopBegin]-[\ref=feasibilityAlgoOFFLoopEnd] of Algorithm [\ref=greedyForVSLCIFP]). This loop also allows us to detect the instance infeasibility, i.e. the number of cuts allowed D is too small to insert an item fragmented into the largest bins.
+
+The items whose sizes are in [formula] are then packed according an appropriate algorithm to solve the BPP as we use momentarily bins of identical capacity b1. We have thus a solution which we try to improve iteratively, taking bins in decreasing order of their capacity (for a bin of capacity bj items are divided into Tj and T+j), by consecutive repacking of the contents of the less efficiently used bin into a smaller empty one, if possible (as IFFD described in Paragraph [\ref=IFFD] does). As our algorithm can fragment an item to fill up a bin, its iterative descent may stop when the number of cuts allowed has been reached. A solution which offers the lowest cost among the obtained ones is returned. Finally, an attempt is made to squeeze this solution more (lines [\ref=repackingAlgoOFFLoopBegin]-[\ref=repackingAlgoOFFLoopEnd] of Algorithm [\ref=greedyForVSLCIFP]).
+
+For any item CIFFD looks for an appropriate opened bin. If it does not find one, it will open up the smallest bin into which the item enters. Its complexity is thus O(mn log n).
+
+The VS-CIF-P is 2-approximable with CIFFD.
+
+CIFFD is based upon the consecutive executions of FFD and possibly improving their result due to successful repacking. Taking advantage of Theorem [\ref=theoremApproxCFF] and the fact that the cost is monotone (i.e. a cost of packing is not less than the sum of items to be packed) we obtain also 2-approximation for CIFFD.
+
+On-line Approach to the Main Problems with Linear Cost
+
+The algorithmic on-line method we propose now is founded upon FFf (see Paragraph [\ref=FFf]) with item cuts incorporated (CFFf). As in Subsection [\ref=greedyApproach] and for the same reason, we operate on item sizes, not on item indices. To keep the notation brief, we put bmax  =   max bi(B).
+
+In a nutshell, the CFFf idea is as follows. For items whose sizes are smaller than the largest bin capacity Hypothesis [\ref=StrongH] holds. These items, which form set A, can be therefore packed optimally with NFC (Subsection [\ref=NFC]). Other items, which constitute set A+ = L - A, require a split before packing. For any element t of A we perform a cut into bmax and t - bmax fragments. The remainders t - bmax form set A- and they are packed according to FFf with f indicating a fill factor (Paragraph [\ref=FFf]).
+
+We believe that this explanation is sufficient to implement the algorithm. We propose, however, in Algorithm [\ref=approxForVSLCIFP], a more detailed description which shows explicitly a classification of items from set A- (i.e. items which are the remainders of cuts) into categories which are induced by different manners of item packing. These three categories of items from set A-, which we enumerate and comment on below, play an important role in the approximability proof:
+
+X -- items packed individually into bins of capacity bmax,
+
+Y -- items packed into bins of capacity bmax sharing them with other items,
+
+Z -- items packed into bins of any capacity b, b < bmax.
+
+The computational effort of CFFf is concentrated upon searching an appropriate bin among those which have been already opened and selecting an empty bin with respect to a given fill factor f. For f = 0.5 the complexity of CFFf is O(n( log n  +   log m) + m log m).
+
+We estimate the quality of solution obtained with CFFf for an instance I with list L of items to be packed, (L). We assume here that the cost is linear and, moreover, a bin cost is equal to its capacity, bi = ci, [formula] as stated in Subsection [\ref=VSBPCP]. Any solution cost is always less than or equal to the overall mass of items from L: [formula]. The notation SC indicates later on a sum of item sizes from any set C.
+
+[formula].
+
+As NFC, which packs items from A is exact and polynomial (Theorem [\ref=theoremNFC]), (A)  ≤  SA  +  bmax. We have to estimate the packing quality for items from A- which are divided into three categories: X, Y, and Z (see Algorithm [\ref=approxForVSLCIFP]).
+
+Obviously, as items of category X result from splitting and they occupy bins singly, (X)  =  2|X|bmax and SX  ≥  1.5|X|bmax with exception to at most a single bin, which gives:
+
+[formula]
+
+Let YB stand for these items of Y which are packed into bin B. Analogously, (YB)  =  (|YB| + 1)bmax and [formula] with exception to at most a single bin. This leads to:
+
+[formula]
+
+For a bin of capacity b in which items Zb of Z, Zb  ⊂  Z, are packed we have (Zb)  =  |Zb|bmax  +  b and SZb  >  bmax + fb. Consequently,
+
+[formula]
+
+Combining the inequalities [\eqref=approxX]-[\eqref=approxZ] with f = 0.5 we get
+
+[formula]
+
+which proves the theorem as (L)  =  (A)  +  (A-) as the number of completely filled bins bmax has already been counted.
+
+Performance Evaluation
+
+The goal of the performance analysis is to estimate the difference of results obtained with our approximation algorithms relative to the exact solutions. Moreover, we oppose our methods to two simple reference algorithms, less "intelligent" and less costly in terms of computational effort. We also analyze the impact of the number of bin classes available and the number of cuts allowed D on the approximation ratio of the obtained results.
+
+Experimental Setup
+
+In order to estimate algorithm's approximation ratios we created VS-CIF-P instances from exact solutions artificially made. We also proceeded with the comparaison of algorithms' results for instances whose exact solutions are unknown.
+
+All instances treated are feasible, i.e. the largest item fragmented at most D times can be inserted into bins of the greatest capacity. The numerical experiments were conducted for instances with few (m = 3) and many bin classes (m = 10). We arbitrarily fixed the largest capacity bmax to 100. The capacities of other m - 1 classes are chosen uniformly in the natural interval
+
+[formula]
+
+.
+
+Initial items are generated uniformly in
+
+[formula]
+
+Results
+
+Before presenting the results we explain the simple greedy algorithms which will be brought face to face with our algorithms.
+
+The first of them, called CNFL (this abbreviation is straightforward and will be explained below) is on-line. Its operating mode is two-fold. First, it cuts items up to D times to fit their fragments into largest bins. This is a "modulo bmax cut": D bins are filled up, the last one may be partially filled. Next, it packs them according to the Next Fit principle (Cut and Next Fit, CNF). The reader may refer to Subsection [\ref=lessConstrantedProblemDefinition] and Figure [\ref=exampleCFF] to recall the discussion of the similar CFF based upon "almost equal" cuts. Cost minimizing is obtained by always using the Largest bin (the dual principle to the one seen in Paragraph [\ref=FFf]). Assuming that bin classes are preliminarily sorted, the CNFL complexity is O(n). Its performance will be compared with that of CFFf.
+
+The second one is an off-line mutation of CNFL in which the items, after the preliminary "modulo bmax cut" made as explained above, are sorted in decreasing order. This off-line algorithm, to be confronted with CIFFD, is obviously called CDNFL.
+
+Intuitivelly, the great number of cuts allowed may facilitate packing procedures. We opted thus to confront the algorithms for D = 1. Figures [\ref=compOFFGloutonLinearFunctionBinClasses] and [\ref=compOFFGloutonMonotoneFunctionBinClasses] present the results of the comparison of the approximation ratios obtained with two off-line algorithms in function of the number of bin classes for linear and monotone costs, respectively. Figures [\ref=compONGloutonLinearFunctionBinClasses] and [\ref=compONGloutonMonotoneFunctionBinClasses] do the same for both on-line methods.
+
+Figures [\ref=compOFFGloutonMonotoneFunctionBinClasses] and [\ref=compONGloutonLinearFunctionBinClasses] show at a glance that the algorithms perform much better the theoretical performance bounds given in Theorems [\ref=CIFFD-approxTheorem] and [\ref=CFFf-approxTheorem] for CIFFD with monotone cost and CFFf with linear cost, respectively.
+
+As one may expect, the approximation ratio obtained with CIFFD is significantly better comparing with the one produced by the naive approach for both the analyzed costs (Figures [\ref=compOFFGloutonLinearFunctionBinClasses] and [\ref=compOFFGloutonMonotoneFunctionBinClasses]). As our algorithm is based upon consecutive repacking of a single, the least filled bin, the impact of the number of bin classes available is considerable. CIDDF packs better when having many bin classes at its disposal, in contrast to CDNFL which is insensitive to this parameter.
+
+The on-line approach, CFFf, is not significantly influenced by the number of bin classes. Figures [\ref=compOFFGloutonLinearFunctionBinClasses]-[\ref=compONGloutonMonotoneFunctionBinClasses] put in evidence its strikingly good performance. CFFf, despite being on-line, outperforms even the off-line CIFFD method in certain situations. This interesting phenomenon will be explained below while studying the influence of the number of cuts allowed.
+
+Figures [\ref=relativeLinearFunctionBinClasses] and [\ref=relativeMonotoneFunctionBinClasses] show the performance of the algorithms for the same series of instances whose exact solutions are a priori unknown, with linear and monotone cost, respectively. This experience allowed us to compare the algorithm quality for instances which do not suffer from the imposed form of an exact solution. The smaller value of the average packing cost signifies a higher packing efficiency. As the average total volume of items to be packed is preserved and equal to 10'000, the reader may observe the similar tendency as in the case of the comparison with optimal solutions. It is not astonishing that all algorithms behave better for the linear cost. CIFFD becomes more efficient when the number of bin classes goes up. Again, CFFf performs much better that a greedy off-line method CNFL.
+
+The impact of the limit set on the number of splits permitted is illustrated in Figures [\ref=impactD_OFF_monotoneForDifferentBinClasses] and [\ref=impactD_ON_monotoneForDifferentBinClasses] for the off-line and on-line approaches, respectively. This analysis reveals a secret of the excellent performance of CFFf. As the results for the linear and monotone costs exhibit the same tendency, we restrict the graphical presentation to the latter only. The fragmentation ban (D = 0) signifies that the problem solved is simply the VSBPCP.
+
+The graph in Figure [\ref=impactD_OFF_monotoneForDifferentBinClasses] confirms the intuition that more splits allowed make packing easier. For instance, CIFFD with monotone cost, 10 bin classes and up to 8 cuts often reaches "an almost exact solution".
+
+The behavior of CFFf depicted in Figure [\ref=impactD_ON_monotoneForDifferentBinClasses] does not, however, exhibit the same trend. Before explaining this phenomenon we recall to the reader that the items which satisfy Hypothesis [\eqref=StrongH] are packed optimally with NFC according to Theorem [\ref=theoremNFC]. We also call up that in our experiments the average total volume of items to be packed is preserved regardless the value of D (see Subsection [\ref=experimentalSetup]). It means that for a great D value an instance has less items but they are bigger.
+
+As we see in Figure [\ref=impactD_ON_monotoneForDifferentBinClasses], admitting one cut (D = 1) drastically lowers the solution cost comparing with the situation when the fragmentation is forbidden (the VSBPCP for D = 0). In our experiments, the average item size for D = 1 is 100. The largest bin has the same capacity bmax = 100. A relatively large part of items is therefore inserted into largest bins by NFC (line [\ref=NFCinCFFf] in Algorithm [\ref=approxForVSLCIFP]). When more cuts are allowed, for example D = 2, the average item size is greater, 200, while the largest bin capacity stays unchanged, bmax = 100, the "modulo bmax splitting" made in the repeat loop (lines [\ref=beginRepeatCFFf]-[\ref=endRepeatCFFf] of Algorithm [\ref=approxForVSLCIFP]) takes over. This loop may potentially open up too many largest bins than necessary. Finally, when D is increasing (starting from D = 7 in our experiments) the negative impact of the repeat loop is compensated by the intelligent packing realized in lines [\ref=beginIntelligentPackCFFf]-[\ref=endIntelligentPackCFFf] of Algorithm [\ref=approxForVSLCIFP] and the CFFf performance stabilizes close to an exact solution (between five and ten per cent).
+
+We thus draw a conclusion that the more items CFFf inserts with NFC, the better its performance is.
+
+Conclusions and Perspectives
+
+We proposed the modeling of the energy-aware load balancing of computing servers in networks providing virtual services by a generalization of the Bin Packing problem. As a member of the Bin Packing family, our problem is also approximable with a constant factor. In addition to its theoretical analysis we proposed two algorithms, one off-line and another one on-line, giving their theoretical performance bounds. The empirical performance evaluation we realized showed that the results they provide are significantly below the approximation factor.
+
+On the one hand, this practical observation encourages us to continue looking for a better approximation factor, especially for CIFFD whose performance is much better than predicted theoretically. We will also try to extend the analysis of CFFf to the monotone cost.
+
+On the other hand, we gave the performance evaluation which allows us to consider CIFFD and CFFf as the algorithms with a very good potential for practical applications like energy-aware load balancing, which motivated our work. We emphasize the remarkable efficiency of our on-line approach (CFFf) which outperforms considerably simple off-line algorithms. Notwithstanding, the theoretical result proven only for the linear cost CFFf behaves very well when bin costs are monotone.
+
+The approach presented in this paper is centralized and adapted to private Cloud infrastructures. Another challenge calling into question is the application of our packing approach into a distributed environment when information about resource availability is incomplete.
+
+We believe that the approach through packing is a powerful tool allowing one to perform a load-balancing in Clouds which ensures the realization of tasks with respect to their requirements while consuming the smallest quantity of electrical energy. For this reason we think to use this approach in our further multi-criteria optimization of a Cloud infrastructure. Among other criteria which we find essential to study in this context are the efficient utilization of resources of a telecommunication network (the principle "network-aware Clouds") and the guarantee of meeting the QoS requirements expressed in customers' contracts, concerning, for instance, the task termination before a given dead-line or the task execution time limited by a given make-span.
+
+Acknowledgment
+
+Stéphane Henriot participation in this work was partially financed by the grant 2013-22 of PRES UniverSud Paris.

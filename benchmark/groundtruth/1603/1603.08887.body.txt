@@ -1,0 +1,127 @@
+Learning-Based Single-Document Summarization withCompression and Anaphoricity Constraints
+
+Introduction
+
+While multi-document summarization is well-studied in the NLP literature [\cite=CarbonellGoldstein1998] [\cite=GillickFavre2009] [\cite=LinBilmes2011] [\cite=NenkovaMcKeown2011], single-document summarization [\cite=McKeownEtAl1995] [\cite=Marcu1998] [\cite=Mani2001] [\cite=HiraoEtAl2013] has received less attention in recent years and is generally viewed as more difficult. Content selection is tricky without redundancy across multiple input documents as a guide and simple positional information is often hard to beat [\cite=PennZhu2008]. In this work, we tackle the single-document problem by training an expressive summarization model on a large naturally occurring corpus--the New York Times Annotated Corpus [\cite=Sandhaus2008] which contains around 100,000 news articles with abstractive summaries--learning to select important content with lexical features. This corpus has been explored in related contexts [\cite=DunietzGillick2014] [\cite=HongNenkova2014], but to our knowledge it has not been directly used for single-document summarization.
+
+To increase the expressive capacity of our model we allow more aggressive compression of individual sentences by combining two different formalisms--one syntactic and the other discursive. Additionally, we incorporate a model of anaphora resolution and give our system the ability rewrite pronominal mentions, further increasing expressivity. In order to guide the model, we incorporate (1) constraints from coreference ensuring that critical pronoun references are clear in the final summary and (2) constraints from syntactic and discourse parsers ensuring that sentence realizations are well-formed. Despite the complexity of these additional constraints, we demonstrate an efficient inference procedure using an ILP-based approach. By training our full system end-to-end on a large-scale dataset, we are able to learn a high-capacity structured model of the summarization process, contrasting with past approaches to the single-document task which have typically been heuristic in nature [\cite=DaumeMarcu2002] [\cite=HiraoEtAl2013].
+
+We focus our evaluation on the New York Times Annotated corpus [\cite=Sandhaus2008]. According to ROUGE, our system outperforms a document prefix baseline, a bigram coverage baseline adapted from a strong multi-document system [\cite=GillickFavre2009], and a discourse-informed method from prior work [\cite=YoshidaEtAl2014]. Imposing discursive and referential constraints improves human judgments of clarity of both language and referential structure--outperforming the method of and approaching the clarity of a sentence-extractive baseline--and still achieves substantially higher ROUGE score than either method. These results indicate that our model has the expressive capacity to extract important content, but is sufficiently constrained to ensure fluency is not sacrificed as a result.
+
+Past work has explored various kinds of structure for summarization. Some work has focused on improving content selection using discourse structure [\cite=LouisEtAl2010] [\cite=HiraoEtAl2013], topical structure [\cite=BarzilayLee2004], or related techniques [\cite=MithunKosseim2011]. Other work has used structure primarily to reorder summaries and ensure coherence [\cite=BarzilayEtAl2001] [\cite=BarzilayLapata2008] [\cite=LouisNenkova2012] [\cite=ChristensenEtAl2013] or to represent content for sentence fusion or abstraction [\cite=ThadaniMcKeown2013] [\cite=PighinEtAl2014]. Similar to these approaches, we appeal to structures from upstream NLP tasks (syntactic parsing, RST parsing, and coreference) to restrict our model's capacity to generate. However, we go further by optimizing for ROUGE subject to these constraints with end-to-end learning.
+
+Model
+
+Our model is shown in Figure [\ref=fig:model]. Broadly, our ILP takes a set of textual units [formula] from a document and finds the highest-scoring extractive summary by optimizing over variables [formula], which are binary indicators of whether each unit is included. Textual units are contiguous parts of sentences that serve as the fundamental units of extraction in our model. For a sentence-extractive model, these would be entire sentences, but for our compressive models we will have more fine-grained units, as shown in Figure [\ref=fig:compression] and described in Section [\ref=sec:grammaticality]. Textual units are scored according to features [formula] and model parameters [formula] learned on training data. Finally, the extraction process is subject to a length constraint of k words. This approach is similar in spirit to ILP formulations of multi-document summarization systems, though in those systems content is typically modeled in terms of bigrams [\cite=GillickFavre2009] [\cite=BergKirkpatrickEtAl2011] [\cite=HongNenkova2014] [\cite=LiEtAl2015]. For our model, type-level n-gram scoring only arises when we compute our loss function in max-margin training (see Section [\ref=sec:learning]).
+
+In Section [\ref=sec:grammaticality], we discuss grammaticality constraints, which take the form of introducing dependencies between textual units, as shown in Figure [\ref=fig:compression]. If one textual unit requires another, it cannot be included unless its prerequisite is. We will show that different sets of requirements can capture both syntactic and discourse-based compression schemes.
+
+Furthermore, we introduce anaphora constraints (Section [\ref=sec:anaphora]) via a new set of variables that capture the process of rewriting pronouns to make them explicit mentions. That is, [formula] = 1 if we should rewrite the jth pronoun in the ith unit with its antecedent. These pronoun rewrites are scored in the objective and introduced into the length constraint to make sure they do not cause our summary to be too long. Finally, constraints on these variables control when they are used and also require the model to include antecedents of pronouns when the model is not confident enough to rewrite them.
+
+Grammaticality Constraints
+
+Following work on isolated sentence compression [\cite=McDonald2006] [\cite=ClarkeLapata2008] and compressive summarization [\cite=Lin2003] [\cite=MartinsSmith2009] [\cite=BergKirkpatrickEtAl2011] [\cite=WoodsendLapata2012] [\cite=AlmeidaMartins2013], we wish to be able to compress sentences so we can pack more information into a summary. During training, our model learns how to take advantage of available compression options and select content to match human generated summaries as closely possible. We explore two ways of deriving units for compression: the RST-based compressions of and the syntactic compressions of .
+
+RST compressions
+
+Figure [\ref=fig:compression]a shows how to derive compressions from Rhetorical Structure Theory [\cite=MannThompson1988] [\cite=CarlsonEtAl2001]. We show a sentence broken into elementary discourse units (EDUs) with RST relations between them. Units marked as Same-Unit must both be kept or both be deleted, but other nodes in the tree structure can be deleted as long as we do not delete the parent of an included node. For example, we can delete the Elaboration clause, but we can delete neither the first nor last EDU. Arrows depict the constraints this gives rise to in the ILP (see Figure [\ref=fig:model]): u2 requires u1, and u1 and u3 mutually require each other. This is a more constrained form of compression than was used in past work [\cite=HiraoEtAl2013], but we find that it improves human judgments of fluency (Section [\ref=sec:nyt_results]).
+
+Syntactic compressions
+
+Figure [\ref=fig:compression]b shows two examples of compressions arising from syntactic patterns [\cite=BergKirkpatrickEtAl2011]: deletion of the second part of a coordinated NP and deletion of a PP modifier to an NP. These patterns were curated to leave sentences as grammatical after being compressed, though perhaps with damaged fluency or semantic content.
+
+Combined compressions
+
+Figure [\ref=fig:compression]c shows the textual units and requirement relations yielded by combining these two types of compression. On this example, the two schemes capture orthogonal compressions, and more generally we find that they stack to give better results for our final system (see Section [\ref=sec:nyt_results]). To actually synthesize textual units and the constraints between them, we start from the set of RST textual units and introduce syntactic compressions as new children when they don't cross existing brackets; because syntactic compressions are typically narrower in scope, they are usually completely contained in EDUs. Figure [\ref=fig:compression]d shows an example of this process: the possible deletion of with Aetna is grafted onto the textual unit and appropriate requirement relations are introduced. The net effect is that the textual unit is wholly included, partially included (with Aetna removed), or not at all.
+
+Formally, we define an RST tree as [formula] where [formula] is a set of EDU spans (i,j) and π:S  →  2S is a mapping from each EDU span to EDU spans it depends on. Syntactic compressions can be expressed in a similar way with trees [formula]. These compressions are typically smaller-scale than EDU-based compressions, so we use the following modification scheme. Denote by T(kl) a nontrivial (supports some compression) subtree of [formula] that is completely contained in an EDU (i,j). We build the following combined compression tree, which we refer to as the augmentation of [formula] with T(kl):
+
+[formula]
+
+That is, we maintain the existing tree structure except for the EDU (i,j), which is broken into three parts: the outer two depend on each other (is a claims adjuster and . from Figure [\ref=fig:compression]d) and the inner one depends on the others and preserves the tree structure from [formula]. We augment [formula] with all maximal subtrees of [formula], i.e. all trees that are not contained in other trees that are used in the augmentation process.
+
+This is broadly similar to the combined compression scheme in but we use a different set of constraints that more strictly enforce grammaticality.
+
+Anaphora Constraints
+
+What kind of cross-sentential coherence do we need to ensure for the kinds of summaries our system produces? Many notions of coherence are useful, including centering theory [\cite=GroszEtAl1995] and lexical cohesion [\cite=NishikawaEtAl2014], but one of the most pressing phenomena to deal with is pronoun anaphora [\cite=ClarkeLapata2010]. Cases of pronouns being "orphaned" during extraction (their antecedents are deleted) are relatively common: they occur in roughly 60% of examples produced by our summarizer when no anaphora constraints are enforced. This kind of error is particularly concerning for summary interpretation and impedes the ability of summaries to convey information effectively [\cite=Grice1975]. Our solution is to explicitly impose constraints on the model based on pronoun anaphora resolution.
+
+Figure [\ref=fig:pronouns] shows an example of a problem case. If we extract only the second textual unit shown, the pronoun it will lose its antecedent, which in this case is Kellogg. We explore two types of constraints for dealing with this: rewriting the pronoun explicitly, or constraining the summary to include the pronoun's antecedent.
+
+Pronoun Replacement
+
+One way of dealing with these pronoun reference issues is to explicitly replace the pronoun with what it refers to. This replacement allows us to maintain maximal extraction flexibility, since we can make an isolated textual unit meaningful even if it contains a pronoun. Figure [\ref=fig:pronouns] shows how this process works. We run the Berkeley Entity Resolution System [\cite=DurrettKlein2014] and compute posteriors over possible links for the pronoun. If the coreference system is sufficiently confident in its prediction (i.e. max ipi  >  α for a specified threshold [formula]), we allow ourselves to replace the pronoun with the first mention of the entity corresponding to the pronoun's most likely antecedent. In Figure [\ref=fig:pronouns], if the system correctly determines that Kellogg is the correct antecedent with high probability, we enable the first replacement shown there, which is used if u2 is included the summary without u1.
+
+As shown in the ILP in Figure [\ref=fig:model], we instantiate corresponding pronoun replacement variables [formula] where [formula] implies that the jth pronoun in the ith sentence should be replaced in the summary. We use a candidate pronoun replacement if and only if the pronoun's corresponding (predicted) entity hasn't been mentioned previously in the summary. Because we are generally replacing pronouns with longer mentions, we also need to modify the length constraint to take this into account. Finally, we incorporate features on pronoun replacements in the objective, which helps the model learn to prefer pronoun replacements that help it to more closely match the human summaries.
+
+Pronoun Antecedent Constraints
+
+Explicitly replacing pronouns is risky: if the coreference system makes an incorrect prediction, the intended meaning of the summary may be damaged. Fortunately, the coreference model's posterior probabilities have been shown to be well-calibrated [\cite=NguyenOConnor2015], meaning that cases where it is likely to make errors are signaled by flatter posterior distributions. In this case, we enable a more conservative set of constraints that include additional content in the summary to make the pronoun reference clear without explicitly replacing it. This is done by requiring the inclusion of any textual unit which contains possible pronoun references whose posteriors sum to at least a threshold parameter β. Figure [\ref=fig:pronouns] shows that this constraint can force the inclusion of u1 to provide additional context. Although this could still lead to unclear pronouns if text is stitched together in an ambiguous or even misleading way, in practice we observe that the textual units we force to be added almost always occur very recently before the pronoun, giving enough additional context for a human reader to figure out the pronoun's antecedent unambiguously.
+
+Features
+
+The features in our model (see Figure [\ref=fig:model]) consist of a set of surface indicators capturing mostly lexical and configurational information. Their primary role is to identify important document content. The first three types of features fire over textual units, the last over pronoun replacements.
+
+Lexical
+
+These include indicator features on non-stopwords in the textual unit that appear at least five times in the training set and analogous POS features. We also use lexical features on the first, last, preceding, and following words for each textual unit. Finally, we conjoin each of these features with an indicator of bucketed position in the document (the index of the sentence containing the textual unit).
+
+Structural
+
+These features include various conjunctions of the position of the textual unit in the document, its length, the length of its corresponding sentence, the index of the paragraph it occurs in, and whether it starts a new paragraph (all values are bucketed).
+
+Centrality
+
+These features capture rough information about the centrality of content: they consist of bucketed word counts conjoined with bucketed sentence index in the document. We also fire features on the number of times of each entity mentioned in the sentence is mentioned in the rest of the document (according to a coreference system), the number of entities mentioned in the sentence, and surface properties of mentions including type and length
+
+Pronoun replacement
+
+These target properties of the pronoun replacement such as its length, its sentence distance from the current mention, its type (nominal or proper), and the identity of the pronoun being replaced.
+
+Learning
+
+We learn weights [formula] for our model by training on a large corpus of documents [formula] paired with reference summaries [formula]. We formulate our learning problem as a standard instance of structured SVM where our loss function is the ROUGE score of the predicted summary with respect to the reference (human) summary. We refer the reader to for an introduction to structured SVM. We train the model via stochastic subgradient descent on the primal [\cite=RatliffEtAl2007] [\cite=KummerfeldEtAl2015]. In order to compute the subgradient for a given training example, we need to find the most violated constraint on the given instance through a cost-augmented decode, which generally takes the form [formula]. To use ROUGE as our loss function, we take
+
+i.e. the difference between the predicted ROUGE score and the oracle ROUGE score achievable under the model (including constraints). Here [formula] are indicator variables that track, for each n-gram type in the reference summary, whether that n-gram is present in the system summary. These are the sufficient statistics for computing ROUGE.
+
+During training, we use an extended version of our ILP in Figure [\ref=fig:model] that is augmented to explicitly track type-level n-grams during inference:
+
+[formula]
+
+These kinds of variables and constraints are common in multi-document summarization systems that score bigrams (Gillick and Favre, 2009 inter alia). Note that since ROUGE is only computed over non-stopword n-grams and pronoun replacements only replace pronouns, pronoun replacement can never remove an n-gram that would otherwise be included.
+
+For all experiments, we optimize our objective using AdaGrad [\cite=DuchiEtAl2011] with [formula] regularization (λ  =  10- 8, chosen by grid search), with a step size of 0.1 and a minibatch size of 1. We train for 10 iterations on the training data, at which point held-out model performance no longer improves. Finally, we set the anaphora thresholds α  =  0.8 and β  =  0.6 (see Section [\ref=sec:anaphora]). The values of these and other hyperparameters were determined on a held-out development set from our New York Times training data. All ILPs are solved using GLPK version 4.55.
+
+Experiments
+
+We primarily evaluate our model on a 3000-document evaluation set from the New York Times Annotated Corpus [\cite=Sandhaus2008]. We also investigate its performance on the RST Discourse Treebank [\cite=CarlsonEtAl2001], but because this dataset is only 30 documents it provides much less robust estimates of performance. Throughout this section, we set the word budget for our summarizer to be the same length as the reference summaries, following previous work [\cite=HiraoEtAl2013] [\cite=YoshidaEtAl2014].
+
+Preprocessing
+
+We preprocess all data using the Berkeley Parser [\cite=PetrovEtAl2006], specifically the GPU-accelerated version of the parser from , and the Berkeley Entity Resolution System [\cite=DurrettKlein2014]. For RST discourse analysis, we segment text into EDUs using a semi-Markov CRF trained on the RST treebank with features on boundaries similar to those of , plus novel features on spans including span length and span identity for short spans.
+
+To follow the conditions of as closely as possible, we also build a discourse parser in the style described in , since their parser is not publicly available. Specifically, we use the first-order projective parsing model of and features from , , and . When using the same head annotation scheme as , we outperform their discourse dependency parser on unlabeled dependency accuracy, getting 56% as opposed to 53%.
+
+New York Times Corpus
+
+We now provide some details about the New York Times Annotated corpus. This dataset contains 110,540 articles with abstractive summaries; we split these into 100,834 training and 9706 test examples, based on date of publication (test is all articles published on January 1, 2007 or later). Examples of two documents from this dataset are shown in Figure [\ref=fig:example]. The bottom example demonstrates that some summaries are extremely short and formulaic (especially those for obituaries and editorials). To counter this, we filter the raw dataset by removing all documents with summaries that are shorter than 50 words. One benefit of filtering is that the length distribution of our resulting dataset is more in line with standard summarization evaluations like DUC; it also ensures a sufficient number of tokens in the budget to produce nontrivial summaries. This filtered test set, which we call NYT50, includes 3,452 test examples out of the original 9,706.
+
+New York Times Results
+
+We evaluate our system along two axes: first, on content selection, using ROUGE [\cite=LinHovy2003], and second, on clarity of language and referential structure, using annotators from Amazon Mechanical Turk. We follow the method of for this evaluation and ask Turkers to rate a summary on how grammatical it is using a 10-point Likert scale. Furthermore, we ask how many unclear pronouns references there were in the text. The Turkers do not see the original document or the reference summary, and rate each summary in isolation. showed that for linguistic quality judgments (as opposed to content judgments), Turkers reproduced the ranking of systems according to expert judgments.
+
+To speed up preprocessing and training time on this corpus, we further restrict our training set to only contain documents with fewer than 100 EDUs. All told, the final system takes roughly 20 hours to make 10 passes through the subsampled training data (22,000 documents) on a single core of an Amazon EC2 r3.4xlarge instance.
+
+Table [\ref=table:nyt_test] shows the results on the NYT50 corpus. We compare several variants of our system and baselines. For baselines, we use two variants of first k: one which must stop on a sentence boundary (which gives better linguistic quality) and one which always consumes k tokens (which gives better ROUGE). We also use a heuristic sentence-extractive baseline that maximizes the document counts (term frequency) of bigrams covered by the summary, similar in spirit to the multi-document method of . We also compare to our implementation of the Tree Knapsack method of , which matches their results very closely on the RST Discourse Treebank when discourse trees are controlled for. Finally, we compare several variants of our system: purely extractive systems operating over sentences and EDUs respectively, our grammatically-constrained extractive and compressive system, and our full system that further incorporates pronoun constraints and pronoun replacement.
+
+In terms of content selection, we see that all of the systems that incorporate end-to-end learning (under "This work") substantially outperform our various heuristic baselines. Our full system using the full compression scheme is substantially better on ROUGE than ablations where the syntactic or discourse compressions are removed. These improvements reflect the fact that more compression options give the system more flexibility to include key content words. Removing the anaphora resolution constraints actually causes ROUGE to increase slightly (as a result of granting the model flexibility), but has a negative impact on the linguistic quality metrics.
+
+On our linguistic quality metrics, it is no surprise that the sentence prefix baseline performs the best. Our sentence-extractive system also does well on these metrics. Compared to the EDU-extractive system with no constraints, our constrained compression method improves substantially on both linguistic quality and reduces the number of unclear pronouns, and adding the pronoun anaphora constraints gives further improvement. Our final system is approaches the sentence-extractive baseline, particularly on unclear pronouns, and achieves substantially higher ROUGE score.
+
+RST Treebank
+
+We also evaluate on the RST Discourse Treebank, of which 30 documents have abstractive summaries. Following , we use the gold EDU segmentation from the RST corpus but automatic RST trees. We break this into a 10-document development set and a 20-document test set. Table [\ref=table:rst_test] shows the results on the RST corpus. Our system is roughly comparable to Tree Knapsack here, and we note that none of the differences in the table are statistically significant. We also observed significant variation between multiple runs on this corpus, with scores changing by 1-2 ROUGE points for slightly different system variants.
+
+Conclusion
+
+We presented a single-document summarization system trained end-to-end on a large corpus. We integrate a compression model that enforces grammaticality as well as pronoun anaphoricity constraints that enforce coherence. Our system improves substantially over baseline systems on ROUGE while still maintaining good linguistic quality.

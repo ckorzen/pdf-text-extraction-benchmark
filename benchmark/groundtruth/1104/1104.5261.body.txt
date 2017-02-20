@@ -1,0 +1,221 @@
+Conjecture Question Corollary Lemma Proposition Exercise Problem Claim
+
+Isomorph-free generation of 2-connected graphs with applications
+
+Department of Mathematics Department of Computer Science University of Nebraska-Lincoln s-dstolee1@math.unl.edu
+
+Introduction
+
+If a connected graph G has a vertex x so that G  -  x is disconnected or a single vertex, then G is separable. Otherwise, G is 2-connected, and there is no single vertex whose removal disconnects the graph. Many interesting graph families contain only 2-connected graphs, so we devise a generation technique that exploits the structure of 2-connected graphs.
+
+A fundamental and well known property of 2-connected graphs is that they have an ear decomposition. An ear is a path [formula] so that x0 and xk have degree at least three and xi has degree exactly two for all [formula]. An ear augmentation on a graph G is the addition of a path with at least one edge between two vertices of G. The augmentation process is also invertible: an ear deletion takes an ear [formula] in a graph and deletes all vertices [formula] (or the edge x0x1 if k  =  1). Every 2-connected graph G has a sequence of subgraphs [formula] so that G1 is a cycle and for all [formula], Gi + 1 is the result of an ear augmentation of Gi [\cite=dougwest].
+
+In Section [\ref=sec:technique], we describe a method for generating 2-connected graphs using ear augmentations. While we wish to generate unlabeled graphs, any computer implementation must store an explicit labeling of the graph. Without explicitly controlling the number of times an isomorphism class appears, a singe unlabeled graph may appear up to n! times. An isomorph-free generation scheme for a class of combinatorial objects visits each isomorphism class exactly once. To achieve this goal, our strategy will make explicit use of isomorphisms, automorphisms, and orbits. The technique used in this work is an implementation of McKay's isomorph-free generation technique [\cite=McKayIsomorphFree], which is sometimes called "canonical augmentation" or "canonical deletion". See [\cite=ClassificationAlgorithms] for a discussion of similar techniques. We implement this technique to generate only 2-connected graphs using ear augmentations.
+
+Almost all graphs are 2-connected [\cite=almostallkconn], even for graphs with a small number of vertices, so as a method of generating all 2-connected graphs, this method cannot significantly reduce computation compared to generating all graphs and ignoring the separable graphs. The strength of the method lies in its application to search over ear-monotone properties and to use the structure of the search to reduce computation. These strengths are emphasized in two applications presented in this work.
+
+In Section [\ref=sec:saturation], we search for graphs that are uniquely Kr-saturated. These graphs contain no Kr and adding any edge from the complement creates a unique copy of Kr. This pair of constraints reduces the number of graphs that are visited while searching for uniquely Kr-saturated graphs. The graphs found with this method support the current conjectures on these graphs.
+
+In Section [\ref=sec:reconstruction], we verify the Edge Reconstruction Conjecture on small 2-connected graphs. The structure of the search allows for a reduced number of pairwise comparisons between edge decks. Also, it is known that the Reconstruction Conjecture holds if all 2-connected graphs are reconstructible. Since graphs with more than 1 +  log (n!) edges are edge-reconstructible, we focus only on 2-connected graphs with at most this number of edges, providing a sparse set of graphs to examine. This verifies the conjecture on all 2-connected graphs up to 12 vertices, extending previous results [\cite=McKaySmallReconstruction].
+
+Notation
+
+In this work, H and G are graphs, all of which will are simple: there are no loops or multi-edges. For a graph G, V(G) is the vertex set and E(G) is the edge set. The number of vertices is denoted n(G), while e(G) is the number of edges. The complement graph [formula] is the graph on vertices V(G) with a vertex pair xy in [formula] if and only if xy∉E(G).
+
+For a 2-connected graph, a vertex of degree at least three is a branch vertex. Vertices of degree two are internal vertices, as they are contained between the endpoints of an ear. Ears will be denoted with ε. For an ear ε, the length of ε is the number of edges between the endpoints and its order is the number of internal vertices between the endpoints. We will focus on the order of an ear. An ear of order 0 (length 1) is a single edge, called a trivial ear. Ears of larger order are non-trivial.
+
+Given a graph G and an ear [formula], the ear deletion G - ε is the graph [formula], where all internal vertices of ε are removed. For an ear [formula] where x0,xk∈V(G) but [formula] are not vertices in G, the ear augmentation G + ε is given by adding the internal vertices of ε to G and adding the edges xixi + 1 for [formula].
+
+Isomorph-Free Generation via Ear Decompositions
+
+In this section, we describe a general method for performing isomorph-free generation in specific families of 2-connected graphs.
+
+The search space and ear augmentation
+
+Consider a family F of unlabeled 2-connected graphs. We say F is deletion-closed if every graph G in F which is not a cycle has an ear ε so that the ear deletion G  -  ε is also in F. For an integer N  ≥  3, FN is the set of graphs in F with at most N vertices.
+
+This requirement implies that for every graph G∈F, there exists a sequence [formula] of ear deletions Gi + 1  =  Gi  -  εi where each graph Gi is in F and the sequence {Gi} terminates at some cycle Ck∈F. By selecting an ear deletion which is invariant to the representation of each Gi, we define a canonical sequence of ear-deletions that terminates at such a cycle. While generating graphs of F, we shall only follow augmentations that correspond to these canonical deletions, giving a single sequence of augmentations for each isomorphism class in F. This allows us to visit each isomorphism class in F exactly once using a backtracking search and without storing a list of previously visited graphs.
+
+The search structure is that of a rooted tree: the root node is an empty graph, with the first level of the tree given by each cycle Ck in FN. Each subsequent search node is extended upwards by all canonical ear augmentations. Since the search does not require a list of previously visited graphs, disjoint subtrees are independent and can be run concurrently without communication. This leads to a search method which can be massively parallelized without a significant increase in overhead.
+
+Note that being deletion-closed does not imply that every ear ε in G has G - ε in the family. In fact, this does not even hold for the family of 2-connected graphs, as removing some ears leave the graph separable. See Figure [\ref=fig:EarSeparable] for an example of such an ear deletion.
+
+Also, if F is deletion-closed, then so is FN. While the algorithms described could operate over F, a specific implementation will have a bounded number (N) of vertices to consider. Operating over FN allows for a finite number of possible ear augmentations at each step.
+
+To augment a given labeled graph G, enumerate all pairs of vertices x,y∈V(G) and orders r  ≥  0 so that |V(G)| + r  ≤  N and attempt adding an ear between x and y of order r. If an edge exists between x and y, then adding an ear of order 0 will immediately fail. However, all other orders produce valid 2-connected graphs. We then test if the augmentation G + ε is in F, discarding graphs which are not in the family.
+
+Augmenting by orbits
+
+By considering the automorphisms of a given graph, we can reduce the number of attempted ear augmentations. First, note that between a given pair of vertices, multiple ears of the same order are in orbit with each other. Second, if ε1 is an ear between x1 and y1 and ε2 is an ear between x2 and y2, then ε1 and ε2 are in orbit if and only if they have the same order and the vertex sets {x1,y1}, {x2,y2} are in orbit under the automorphism group of G. Third, if the sets of vertices {x1,y1} and {x2,y2} are in orbit under the automorphism group of G, then the augmentations formed by adding an ear of order r between x1 and y1 is isomorphic to adding an ear of order r between x2 and y2.
+
+This redundancy under graphs with non-trivial automorphism group is removed by computing the orbits of vertex pairs, then only augmenting ears between a single representative of a pair orbit. Pair orbits are computed by applying the generators of the automorphism group of G to the set of vertex pairs.
+
+Canonical deletion of ears
+
+While augmenting by orbits reduces the number of generated graphs, a canonical deletion is defined to guarantee that each unlabeled graph in FN is enumerated exactly once. This selects a unique ear [formula] so that G - ε is in F and ε is invariant to the labeling of G. That is, if G1 and G2 are isomorphic graphs with deletions [formula] and [formula], then there is an isomorphism π from G1 to G2 so that π maps ε1 to ε2.
+
+In order to compute a representative [formula] that is invariant to the labels of G, a canonical labeling of V(G) is computed. A canonical labeling is a map [formula] which maps graphs G to permutations [formula] so that for every labeled graph [formula], the map φ:V(G)  →  V(G') given by φ(v)  =  π- 1G'(πG(v)) for each v∈V(G) is an isomorphism from G to G'. In this sense, the map πG is invariant to the labels of V(G). McKay's nauty library [\cite=nauty] [\cite=HRnauty] is used to compute this canonical labeling.
+
+Once the canonical labeling is computed, the canonical deletion can be chosen by considering all ears ε whose deletion (G - ε) remains in FN, and selecting the ear with (a) minimum length, and (b) lexicographically-least canonical label of branch vertices. Algorithm [\ref=alg:CanonDelete] details this selection procedure.
+
+Full implementation
+
+This isomorph-free generation scheme is formalized by the recursive algorithm SearchF(G,N), given in Algorithm [\ref=alg:FullSearch]. The full algorithm SearchF(N) searches over all graphs of order at most N in F and is initialized by calling SearchF(Ck,N) for each [formula]. Since the recursive calls to SearchF(G,N) are independent, they can be run concurrently without communication.
+
+For some applications, it is possible to determine that no solutions are reachable under any sequence of ear augmentations. In such a case, the algorithm can stop searching at the current node to avoid computing all augmentations and canonical deletions. Let PruneF(G) be the subroutine which detects if such a pruning is possible.
+
+The framework for Algorithm [\ref=alg:FullSearch] was implemented in the TreeSearch library [\cite=TreeSearch], a C++ library for managing a distributed search using the Condor scheduler [\cite=condor-practice]. This implementation was executed on the Open Science Grid [\cite=OpenScienceGrid] using the University of Nebraska Campus Grid [\cite=WeitzelMS]. Performance calculations in this paper are based on the accumulated CPU time over this heterogeneous set of computation servers. For example, the nodes available on the University of Nebraska Campus Grid consist of Xeon and Opteron processors with a speed range of 2.0-2.8 GHz. All code and documentation written for this paper are available in a GitHub repository.
+
+Generating all 2-connected graphs
+
+Using the isomorph-free generation scheme of canonical ear deletions, we can generate all unlabeled 2-connected graphs on N vertices or graphs on N vertices with exactly E edges.
+
+Let N and E be integers. Set gN to be the number of unlabeled 2-connected graphs on N vertices and gN,E to be the number of unlabeled 2-connected graphs on N vertices and E edges. GN is the family of 2-connected graphs on up to N vertices. GN,E is the family of 2-connected graphs on up to N vertices and up to E edges.
+
+Robinson [\cite=robinson1970enumeration] computed the values of gN and gN,E, listed in [\cite=OEIS2connected] [\cite=RobinsonTables]. Note that GN and GN,E are deletion-closed families, and can be searched using isomorph-free generation via ear augmentations. We revisit the three main behaviors of the algorithm: canonical deletion, pruning, and determining solutions.
+
+Canonical Deletion: The canonical deletion algorithm in Algorithm [\ref=alg:CanonDelete] suffices for the class of 2-connected graphs. Recall this algorithm selects from ears ε so that G - ε remains 2-connected, selecting one of minimum length and breaking ties by using the canonical labels of the endpoints.
+
+Pruning: If the number of edges is fixed to be E, a graph with more than E edges should be pruned. Also, a graph on n(G)  <  N vertices must add at least N - n(G) + 1 edges during ear augmentations in order to achieve N total vertices. If e(G)  +  (N - n(G) + 1)  >  E, then no graph on N vertices with at most E edges can be reached by ear augmentations from G. In this case, the node can be pruned.
+
+Solutions: A 2-connected graph is a solution if and only if n(G)  =  N, and if E is specified then e(G)  =  E must also hold.
+
+Table [\ref=tab:2connectedTime] compares the number of 2-connected graphs of order N and the CPU time to enumerate all such graphs. Both the computation times and the sizes of the sets grow exponentially. Since the number of 2-connected graphs on N vertices grows so quickly, to test the performance for larger orders, the number of edges was also fixed to be slightly more than N. Table [\ref=tab:CNE] shows these computation times.
+
+Application 1: Uniquely H-Saturated Graphs
+
+Our first application forbids certain subgraphs, which decreases the number of graphs to enumerate. We investigate uniquely H-saturated graphs.
+
+Let H and G be graphs. G is H-saturated if G contains no copy of H and for every edge [formula] there is at least one copy of H in G + e. G is uniquely H-saturated if G contains no copy of H and for every edge [formula], there is a unique copy of H in G  +  e.
+
+While it is easy to see that H-saturated graphs always exist, being uniquely H-saturated is a very strict condition. In fact, not all H admit any graph which is uniquely H-saturated. For k∈{6,7,8}, no uniquely Ck-saturated graphs exist [\cite=WengerDiss]. For other graphs H, there is a very limited list of uniquely H-saturated graphs. If G is uniquely C3-saturated, then G is either a star (K1,n) or a Moore graph of diameter two and girth five: G has no triangles and every pair of non-adjacent vertices have exactly one common neighbor. There are at least three Moore graphs: C5, the Petersen graph, the Hoffman-Singleton graph, and possibly some 57-regular graphs on 3250 vertices [\cite=MooreGraph]. There are exactly ten uniquely C4-saturated graphs [\cite=UniqueC4Saturation]. If G is uniquely C5-saturated, then G is either a friendship graph (every pair of vertices have exactly one common neighbor) or one of a finite number of other examples [\cite=WengerDiss]. The only friendship graphs are the windmills: [formula] triangles sharing a common vertex [\cite=FriendshipGraphs].
+
+Uniquely Kr-saturated graphs
+
+Historically, the first host graph H where the extremal problems on H-saturated graphs were solved was the complete graph Kr [\cite=Turan] [\cite=KrSaturation]. However, uniquely Kr-saturated graphs have evaded attempts at classification. Only empty graphs are uniquely K2-saturated, and uniquely K3-saturated graphs are stars and Moore graphs (since [formula]). There are two known infinite families of uniquely Kr-saturated graphs: books and cycle complements.
+
+The t-book on n vertices is a complete graph Kt (the spine) joined with an independent set on n - t vertices (the pages). The (r - 2)-book has cliques of size at most r - 1 and all non-edges are in the independent set. Adding any edge in the independent set forms exactly one Kr by using the two endpoints and the r - 2 vertices in the spine. Figures [\ref=subfig:uk3-b], [\ref=subfig:uk4-b], and [\ref=subfig:uk5-b] are examples of (r - 2)-books for r∈{3,4,5}. For r  =  3, note that the (r - 2)-book with n pages is isomorphic to the star K1,n with n leaves.
+
+The complement of the (2r - 1)-cycle is also uniquely Kr-saturated. All pairs of vertices in a clique of [formula] are at distance at least two in the original cycle. Such a set must have size at most r - 1. However, adding an edge from the cycle to its complement creates a unique copy of Kr. Figures [\ref=subfig:cycle-5], [\ref=subfig:cycle-7], and [\ref=subfig:cycle-9] are examples of cycle complements for r∈{3,4,5}. Note that for r  =  3, the complemented (2r - 1)-cycle is isomorphic to C5, one of the Moore graphs.
+
+The cycle complement construction differs from the book in that it gives exactly one uniquely Kr-saturated graph for each r. Also of note is that the cycle complement has no dominating vertex (a vertex adjacent to all other vertices) and is regular.
+
+Given a uniquely Kr-saturated graph G, adding a dominating vertex to G results in a uniquely Kr + 1-saturated graph. This process is reversible: given a uniquely Kr-saturated graph with a dominating vertex, remove that vertex to find a uniquely Kr - 1-saturated graph. Repeating this process will eventually result in a graph with no dominating vertex. Starting with the t-book, this process terminates in an independent set, which is uniquely K2-saturated. This motivates the question: which uniquely Kr-saturated graphs have no dominating vertex?
+
+For each r, there are a finite number of uniquely Kr-saturated graphs with no dominating vertex.
+
+In an effort to generate more evidence for this conjecture, examples of such graphs are generated. All known examples happen to be regular, which motivates the following conjecture.
+
+For each r, a uniquely Kr-saturated graph with no dominating vertex is regular.
+
+For r  ≥  3, a uniquely Kr-saturated graph has diameter two, and is 2-connected. We apply our generation technique with an application-specific pruning mechanism to find these graphs.
+
+The Search
+
+In order to apply isomorph-free generation using ear augmentations, we must show that uniquely Kr-saturated graphs are 2-connected. In fact, we prove a stronger statement using k-connectivity. A graph G is k-connected if there exists no set S of k - 1 vertices so that either G - S is disconnected or G - S consists of a single vertex.
+
+For all r  ≥  4, if G is a Kr-saturated graph on at least r + 1 vertices, then G is (r - 2)-connected.
+
+If G is not (r - 2)-connected, there is a set [formula] of r - 3 vertices so that G - S has at least two components. Let u and v be vertices in two different components. Then, uv is not an edge in G. Since there is a copy of Kr in G + uv, then there is a clique [formula] of order r - 2 so that each vertex yi in the clique is adjacent to both u and v. At least one of the vertices yi is not in S, so in G - S, u and v are in the same component. This contradicts the assumption that G - S is disconnected, and hence G is (r - 2)-connected.
+
+Let Ur be the class of 2-connected graphs G with no copy of Kr as a subgraph and for every edge [formula], there is at most one copy of Kr in G + e. These constraints are ear-monotone in that every G satisfying the constraints and any ear ε has G  -  ε satisfying the constraints (except possibly 2-connectedness). To enumerate Ur, we use the default canonical deletion, DeleteU(G). Since this deletion always removes a deletable ear of minimum length, and we are searching for uniquely Kr-saturated graphs with no dominating vertex, we can prune whenever our graph has a dominating vertex. Further, since Ur is defined by an ear-monotone property, we prune whenever that property is violated.
+
+The cases for r∈{2,3} are solved, outside of the missing Moore graph of degree 57. Hence, we run our search for r∈{4,5,6}, where we are guaranteed to have at least one uniquely Kr-saturated graph with no dominating vertex of order at most 12. Enumerating U412, U511, and U611 resulted in the following theorems.
+
+There are exactly three uniquely K4-saturated graphs of order at most 12 without a dominating vertex:
+
+There is exactly one uniquely K5-saturated graph of order at most 11 without a dominating vertex: [formula], on 9 vertices of degree 6 (Figure [\ref=subfig:cycle-9]).
+
+There is exactly one uniquely K6-saturated graph of order at most 11 without a dominating vertex: [formula], on 11 vertices of degree 8.
+
+While these graphs were known, an exhaustive search had previously been completed for up to only nine vertices [\cite=CooperCommunication].
+
+The search required about 155 days of computation time to search for uniquely K4-saturated graphs on up to 12 vertices. Timing statistics for smaller N are available in Table [\ref=tab:UniqueK4Time]. Notice that as r increases, the uniquely Kr-saturated graphs become more dense and the restriction on Ur requires more graphs to be generated, leading to longer search times. This caused the generation of uniquely K5-saturated and uniquely K6-saturated graphs on twelve vertices to be left incomplete.
+
+Application 2: The Edge Reconstruction Conjecture
+
+In the second application, we restrict the search to sparse 2-connected graphs and utilize the structure of the search tree in order to minimize pairwise comparisons among the list of generated graphs.
+
+Background
+
+The Reconstruction Conjecture and Edge Reconstruction Conjecture are two of the oldest unsolved problems in graph theory. Given a graph G, the vertex deck of G is the multiset of unlabeled graphs given by the vertex-deleted subgraphs {G  -  v:v∈V(G)}. The edge deck of G is the multiset of unlabeled graphs given by the edge-deleted subgraphs {G  -  e:e∈E(G)}. A graph G is reconstructible if all graphs with the same vertex deck are isomorphic to G. G is edge reconstructible if all graphs with the same edge deck are isomorphic to G.
+
+Every graph on at least three vertices is reconstructible.
+
+Every graph with at least four edges is edge reconstructible.
+
+Bondy's survey [\cite=ReconstructorsManual] discusses many classic results on this topic. Greenwell [\cite=VertexImpliesEdge] showed that the vertex deck is reconstructible from the edge deck, so a reconstructible graph is also edge reconstructible. Therefore, the Edge Reconstruction Conjecture is weaker than the Reconstruction Conjecture.
+
+Yang [\cite=Reconstruct2Connected] showed that the Reconstruction Conjecture can be restricted to 2-connected graphs.
+
+If all 2-connected graphs are reconstructible, then all graphs are reconstructible.
+
+The proof considers a separable graph G and tests if the complement [formula] is 2-connected. If [formula] is 2-connected, [formula] is reconstructible (by hypothesis) and since the vertex deck of [formula] is reconstructible from the vertex deck of G, G is also reconstructible. If [formula] is not 2-connected, Yang reconstructs G directly using a number of possible cases for the structure of G. There has been work to make Yang's theorem unconditional by reconstructing separable graphs such as trees [\cite=ManvelReconstructTrees], cacti [\cite=ReconstructCacti] [\cite=ReconstructCactiRevisited], and separable graphs with no vertices of degree one [\cite=ManvelSeparable], but separable graphs with vertices of degree one have not been proven to be reconstructible.
+
+Verifying the Reconstruction Conjecture requires that every pair of non-isomorphic graphs have non-isomorphic decks. Running a pair-wise comparison on every pair of isomorphism classes on n vertices is quickly intractable. McKay [\cite=McKaySmallReconstruction] avoided this issue and verified the conjecture on graphs up to 11 vertices by incorporating the vertex deck as part of the canonical deletion. McKay used vertex augmentations to generate the graphs, so a canonical deletion in this search is essentially selecting a canonical vertex-deleted subgraph. His technique selects the deletion based only on the vertex deck, so two graphs with the same vertex deck would be immediate siblings in the search tree. With this observation, only siblings require pairwise comparison, making the verification a reasonable computation. We use a modification of McKay's technique within the context of 2-connected graphs to test the Edge Reconstruction Conjecture on small graphs. This strategy was first proposed in unpublished work of Hartke, Kolb, Nishikawa, and Stolee [\cite=HKNS09].
+
+The Search Space
+
+To search for pairs of non-isomorphic graphs with the same edge deck, we adapt McKay's sibling-comparison strategy as well as a density argument. If a graph has sufficiently high density, then the graph is edge reconstructible.
+
+A graph on N vertices and E edges with either [formula] or E  >  1  +   log 2(N!) is edge reconstructible.
+
+Note that for all N  ≥  11, [formula].
+
+Let RN be the class of 2-connected graphs G with at most N vertices and at most 1 +  log 2(N!) edges.
+
+Note that this definition of RN bounds the number of edges as a function of N which is independent of the number of vertices of a specific graph.
+
+For N  ≥  11, all 2-connected graphs G with at most N vertices and G∉RN are edge reconstructible.
+
+We shall use RN as our search space. It is deletion-closed, since removing an ear will always decrease the number of edges.
+
+Within the context of the ear-augmentation generation algorithm, we generate 2-connected graphs. When trivial ears are added, these are the same as edge-augmentations. We will show that if a non-trivial ear is added, then the resulting graph is edge reconstructible and its edge deck does not need to be compared to other edge decks. Hence, an edge deck must be compared only when the final augmentation that generated the graph is an edge augmentation, where the canonical deletion can be selected using the edge deck.
+
+We begin by discussing graphs which are known to be reconstructible or edge reconstructible.
+
+A 2-connected graph G is edge reconstructible if any of the following hold:
+
+(1) By reconstructing the degree sequence, we recognize that all vertices have degree at least two. Since there is an ear with at least two internal vertices, there is an edge internal to that ear with endpoints of degree two. In that edge-deleted card, there are exactly two vertices of degree one, which must be connected by the missing edge, giving G.
+
+(2) Let d be the degree of v. By reconstructing the vertex deck, we can recognize that the card for G - v is missing a vertex of degree d and that there are d vertices of degree one in G - v. Attaching v to these vertices reconstructs G.
+
+(3) For a d-regular graph G, every edge-deleted subgraph G - e has exactly two vertices of degree d - 1 corresponding to the endpoints of e.
+
+Graphs satisfying any of the conditions of Proposition [\ref=prop:detectablyreconstructable] are called detectably edge reconstructible graphs.
+
+Canonical deletion in RN
+
+In this section, we describe a method for selecting a canonical ear to delete from a graph in RN.
+
+If we are able to determine that G is edge reconstructible, then the canonical deletion does not need to be generated from the edge deck. In such a case, we default to the canonical deletion algorithm DeleteF(G), where the canonical labeling of G gives the lex-first ear ε of minimum length so that G - ε 2-connected.
+
+If G is not detectably edge reconstructible, then all ears of G have at most one internal vertex, and every branch vertex is incident to at least one trivial ear. These properties allow us to find either a trivial ear or an ear of order one whose deletion remains 2-connected. Compute the minimum r so that there exists an ear ε in G of order r so that G - ε is 2-connected. We prefer to select a trivial ear when available.
+
+Out of the choices of possible order-r ear deletions, count the multiplicities for the degree set of the ear endpoints. Find the pair {d1,d2} of endpoint degrees which has minimum multiplicity over all deletable ears of order r in G breaking ties by using the lexicographic order. Out of the deletable ears of order r and endpoint degrees {d1,d2}, we must select a canonical ear using the edge deck. If r  =  0, any trivial deletable ear ε corresponds to the edge-deleted subgraph G - ε. By computing the canonical labels of these cards and selecting the lexicographically-least canonical string, we can select a canonical edge. If r  =  1, there are two edges in the ear that can be deleted to form edge-deleted subgraphs with a single vertex of degree 1 connected to a 2-connected graph. We compute the canonical labels of both cards, select the lexicographically-least canonical string, then find the lex-least string of those strings.
+
+Due to the nature of the reconstruction problem, this canonical deletion procedure is not perfect. There are graphs G containing trivial ears ε1,ε2 whose deletions G - ε1 and G - ε2 are isomorphic, but ε1 and ε2 are not in orbit within G. If the edge-deleted subgraph G - ε1 is selected as the canonical edge card, the deletion algorithm must accept both ε1 and ε2 as canonical deletions. This leads to a duplication of G in the search tree, but only in the limited case of a graph G which is not detectably edge reconstructible and such ambiguity appears. A similar concern occurs for the vertex-deletion case, but is not explained in [\cite=McKaySmallReconstruction].
+
+To compare graphs with the same canonical deletion, we use three comparisons. The first compares the degree sequences. The second compares a custom reconstructible invariant, which is based on the degree sequence of the neighborhood of each vertex. The third and final check compares the sorted list of canonical strings for the edge-deleted subgraphs. During the search, there was no pair of graphs which satisfied all three of these checks.
+
+Results
+
+With the canonical deletion DeleteR(G), RN was generated and checked for collisions in the edge decks of graphs which are not detectably reconstructible. Table [\ref=tab:ReconstructionTime] describes the computation time for [formula].
+
+With this computation, we have the following theorem.
+
+All 2-connected graphs on at most 12 vertices are edge reconstructible.
+
+This computation extends the previous result that all graphs of order at most 11 are vertex reconstructible [\cite=McKaySmallReconstruction]. To remove the 2-connected condition of Theorem [\ref=thm:2connreconst12], there are three possible methods. First, prove Yang's Theorem (Theorem [\ref=thm:2connreconstruct]) for the edge reconstruction problem. Second, Yang's Theorem could be made unconditional by proving that separable graphs are reconstructible or edge reconstructible. Third, a second stage of search could be designed to combine a list of two-connected graphs to form sparse separable graphs and test edge reconstruction on those cases.
+
+Conclusion
+
+Generating 2-connected graphs by ear augmentations and removing isomorphs by canonical ear deletion is an effective and general technique. The computation times show that the technique is more effective in the case of ear-monotone properties such as uniquely K4-saturated graphs or when the structure of the ear decomposition is essential to the problem at hand, such as verifying the edge reconstruction conjecture on small graphs.
+
+A forthcoming work [\cite=pExtremal] applies the generation technique to search for dense graphs with a fixed number of perfect matchings (see [\cite=DudekSchmitt] and [\cite=HSWY] for background). Previous work [\cite=HSWY] classified the infinite family of graphs into a particular combination of finite pieces, which can be found through our generation process. This results in exact structure theorems for a larger class of parameters, where the exact structure is computationally generated. Our implementation is general enough to allow for such extensions to generate other families of 2-connected graphs, and is concurrent to allow for large computations to be run quickly in real time.
+
+Acknowledgements
+
+The author thanks Stephen G. Hartke, Hannah Kolb, Jared Nishikawa, Kathryn T. Stolee, and Paul Wenger for interesting discussions concerning the problems addressed in this work and for improving the quality of this work. Special thanks to Joshua Cooper for Figure [\ref=subfig:uk4-10].
+
+This work was completed utilizing the Holland Computing Center of the University of Nebraska. Thanks to the Holland Computing Center faculty and staff including Brian Bockelman, Derek Weitzel, and David Swanson. Thanks to the Open Science Grid for access to significant computer resources. The Open Science Grid is supported by the National Science Foundation and the U.S. Department of Energy's Office of Science.

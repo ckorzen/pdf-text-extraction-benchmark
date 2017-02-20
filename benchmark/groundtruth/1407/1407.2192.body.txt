@@ -1,0 +1,215 @@
+An ensemble Kushner-Stratonovich-Poisson filter for recursive estimation in nonlinear dynamical systems
+
+Introduction
+
+filters aim at estimating the (hidden) states of a dynamical system based on a few partial and potentially noisy observations (or measurements) of the system. Stochastic filtering has gained popularity over the recent years owing to their applicability in solving a large class of problems that range from signal processing, control and radar tracking to atmospheric data assimilation. Despite the striking prospects, the Kalman filter (KF) [\cite=kalman] remains to date the sole filter that provides closed form analytical expressions for estimating the states/parameters referred to as the process variables in filtering. The KF is a recursive minimum mean square estimator that provides optimal estimates under the assumptions of drift linearity in process and measurement equations, additive Gaussian noises and negligible model uncertainties. However most practical applications of interest are described accurately by non-linear process/measurement models. Attempts at extending the theory of Kalman filtering led to the development of the Extended Kalman filter (EKF) [\cite=j]. The EKF provides non-optimal estimates to the process variables via suitable linearizations of the underlying non-linear models. Notwithstanding the numerous applications of the KF and its variants (see [\cite=s] and the references therein), these filters typically require elaborate tuning of the process/measurement noise covariances so as to stabilise the simulation models. Moreover, the calculation of Jacobians in highly non-linear large dimensional systems could be tedious and erroneous.
+
+The sequential Monte Carlo (SMC) methods [\cite=dga]-[\cite=amgc], on the other hand, are well-equipped to handle non-linear and non-Gaussian models, albeit at the cost of more computational power. A realization of the states at a given time is called a particle within a Monte Carlo (MC) set-up. The SMC-based filters, popularly known as the particle filters (PFs), employ Bayesian algorithms to empirically describe the target conditional densities/distributions via an ensemble, which is a finite set of weighted particles. As the size of the ensemble increases, the above set of realizations provide an equivalent representation of the density/distribution with the error reducing at a rate proportional to [formula] [\cite=c], ne being the ensemble size. Although with the advancements in computing, the implementation of PFs is now numerically feasible, weight-based filters are typically cursed with the problem of sample degeneracy [\cite=amgc], i.e. the sequential collapse of the weights to a point mass. Indeed, the ensemble size required to prevent filter divergence through sample degeneracy increases exponentially with the system dimension as is shown in [\cite=sbba]. Although numerous techniques such as the Markov chain Monte Carlo (MCMC) [\cite=gt] and implicit sampling [\cite=ct] are developed to improve the SMC-based schemes, these methods still remain computationally infeasible in solving large dimensional problems.
+
+The evolution of the target distribution of the states conditioned on the measurement history is described by the Zakai equation [\cite=z]-[\cite=kallianpur] or the normalized Kushner-Stratonovich (KS) equation [\cite=kushner]-[\cite=b] in non-linear filtering. Both the Zakai and the KS equations are derived sequentially following an Itô's expansion of the Kallianpur-Striebel formula [\cite=ks], to arrive at an additive update to the evolving conditional distribution as opposed to the usual multiplicative one. There have been many attempts at solving the linear Zakai equation in literature [\cite=bk1]-[\cite=gppp]. However, the numerical solution of the equation is fraught with serious deficiencies [\cite=ir] which are bypassed by its non-linear counterpart, the KS equation. Nevertheless, closed form analytical solutions to the KS equation exist only in cases of linear, Gaussian models [\cite=kb]. In order to account for more general cases, approximate MC-based methods that are convergent in distribution to the solution of the KS equation have been developed in [\cite=cl]-[\cite=cdml]. These methods employ weighted/branching particle systems for filtering and are therefore not free from the scourge of particle collapse. On the other hand, MC-based filters that incorporate the additive update obtainable from the KS equation were formulated and applied successfully in [\cite=scvvr], [\cite=rrv]. An additive update attempts at 'healing' every particle of the ensemble through a gain-like term that drives the particle towards reducing its corresponding measurement-prediction misfit. Thus, the additive gain-based updates perform the functionality of the multiplicative weights but without the effective reduction in the ensemble size, witnessed in typical SMC-based filters.
+
+Interestingly, all the filters discussed so far assume continuously varying measurements as inputs. However, in many applications that range from packet traffic analysis on computer networks and modelling of communication systems to filtering of biomedical signals, the measurements may simply be a sequence of discrete events in time. The rate of occurrence of these possibly identical events usually contains information on important parameters of interest. For instance, the rate at which photons strike a photodetector depends on the intensity of light. In such cases, it is required to estimate the desired parameters that modulate the rate of the observed events, which are modelled as doubly stochastic Poisson processes in literature [\cite=snyder]-[\cite=mke]. Although there have been many attempts at devising filtering schemes based on Poisson measurements [\cite=snyder]-[\cite=mje], all of them were designed for specific and limited applications. To the best of the authors' knowledge, a full-blown stochastic filtering scheme based on Poisson measurements applicable to a general class of filtering problems has not yet been formulated.
+
+In this paper, we propose a Monte Carlo filter based on the KS equation, that is appropriately derived to account for Poisson measurements. As will be shown in the sections to follow, the filtered estimate gives the evolving conditional distribution of the (hidden) states that modulate the instantaneous rate of the observed Poisson process. By employing a gain-based additive particle-wise update, obtained directly from a time-discretized ensemble approximation of the modified KS equation, the proposed filter is free of the weight collapse encountered in most variants of Bayesian filtering. Through illustrative examples, we demonstrate the competence of the filter in estimating the states/ parameters of multi-dimensional dynamical systems, wherein only a few states contribute to the rate modulation of the observed Poisson process. This may be contrasted with the existing schemes in which the filter estimation is limited to the Poisson rate or at most a scalar state variable. In addition, we show that the same filtering scheme may also be applied to solve the conventional filtering problems involving diffusion-type measurements. Thus, we present a unified filter, henceforth referred to as an ensemble KS-Poisson filter (EKSPF) that may be applied for the recursive estimation of diffusion processes in the dual cases of diffusion and/or Poisson-type measurements.
+
+The rest of the paper is organized as follows. Section II gives a brief introduction to the filtering problem in general followed by an outline of the derivation of the KS equation for Poisson measurements. The detailed formulation of the proposed filter for Poisson-type and diffusion-type measurements is given in Section III. Pseudo-codes for both the cases are also included for clarity. Section IV demonstrates the performance of the proposed filter through numerical examples and Section V presents the concluding remarks.
+
+Problem Statement and Model Formulation
+
+Within a complete probability space [\cite=kallianpur], say, [formula], equipped with the filtration {Ft}t   ≥   0 such that Fs  ⊆  Ft  ⊆  F for s  ≤  t, the stochastic differential equation (SDE) describing the evolution of the process may be written as
+
+[formula]
+
+Here, [formula] is the process vector, [formula] the nonlinear drift function, [formula] is the diffusion matrix and [formula] is an nb-dimensional standard [formula]-Brownian motion. The measurement SDE may be written as
+
+[formula]
+
+where [formula] is a counting process (see [\cite=klebaner] for a formal definition of counting/Poisson processes) with bounded non-negative intensity (or rate) [formula] and [formula] a Poisson martingale. Note that [formula] is a Borel measurable function with the stochastic process [formula] as one of its arguments and hence [formula] is referred to as 'a doubly stochastic' Poisson process. The existence of solution to SDE ([\ref=eq2]) is guaranteed by the Doob-Meyer decomposition of semi-martingales [\cite=klebaner]. It is assumed that [formula] and [formula] are Ft-adapted processes and the coefficients [formula], [formula] and [formula] are bounded and Lipschitz and further that the necessary conditions for the existence of strong solutions to SDEs ([\ref=eq1]) and ([\ref=eq2]) hold. Denoting by Fyt the sub-filtration generated by [formula], the aim of filtering is to determine the measure-valued filtered conditional estimate, [formula] of a scalar-valued function [formula] (bounded and twice continuously differentiable) of [formula]. Here, [formula] denotes the expectation operator with respect to the measure [formula].
+
+In the theoretical formulations and derivations to follow, we assume nx  =  ny  =  nb  =  1 for clarity of exposition (and the non-bold symbols in the rest of the section indicate scalar-valued processes). Consistent with the conventional filtering schemes, in the present context of Poisson-type measurements, the update step must be so devised as to ensure that the innovation process [formula] is driven to a [formula]-Poisson martingale. This is accomplished through a Girsanov change of measures for counting processes that transforms the observed [formula]-Poisson process to a unit intensity Poisson process with respect to a new measure, say [formula]. Specifically, we have the following theorem:
+
+Let Yt be an Ft-adapted unit Poisson process on [formula]. If λ is an Ft-adapted non-negative predictable process such that [formula], for t  ≥  0, then
+
+[formula]
+
+is a [formula]-martingale. Furthermore, if for t  ≥  0, [formula] and we define dt  =  Ztdt on Ft, then   ≪   and [formula] is a [formula]-martingale.
+
+Note here that the Radon-Nikodym derivative Zt is the likelihood ratio which when multiplied to the predictions form the filtered estimate. Denoting the unnormalized filtered estimate as [formula], the filtered estimate may be written as (Kallianpur-Striebel formula)
+
+[formula]
+
+However, a multiplicative update, as noted earlier suffers from sample degeneracy especially in higher dimensional filtering problems. Hence, an Itô's expansion of the multiplicative update is effected to arrive at a nonlinear gain-like correction term that may simply be added to the predictions to obtain the corresponding updates.
+
+Using the expression for [formula] in the Kallianpur-Striebel formula yields the normalized filtered estimate. The following theorem gives the expression for the evolving conditional distribution of the states conditioned on the Poisson observation history.
+
+(Kushner-Stratonovich-Poisson equation)
+
+In the next section, the Kushner-Stratonovich-Poisson (KSP) equation is written in a more general form to accommodate vector-valued processes and measurements. The filtering algorithm is then put forth and elaborated upon through the prediction-update steps, first for Poisson-type and then for diffusion-type measurements.
+
+Filtering Strategy
+
+Given a partition 0  =  t0  <  t1...  <  tnt  =  T of the time interval of interest, a time-discretized version of the generalized KSP equation is given by: for t∈(ti,ti   +   1], where [formula] and [formula]. Moreover,
+
+[formula]
+
+where [formula], μl denotes the lth component of the vector [formula] and [formula] the [formula] element of the matrix [formula]. Owing to the inherent difficulties involved in the evaluation of the integrals appearing in the KSP equation, a further simplification is effected through an Euler-Maruyama (EM) approximation as follows: where Δt  =  tk   +   1  -  tk is assumed to be uniform for k  =  0,...,nt  -  1 and ΔYlti  =  Ylti   +   1  -  Ylti. Note that [formula].
+
+Filtering scheme for Poisson-type measurements
+
+The measurement equation applicable here would be given by ([\ref=eq2]), wherein the actual measurement is a non-homogeneous point process whose rate is instantaneously modulated by the (hidden) states that need to be estimated. Once again, for expositional clarity, we consider [formula]. As is evident from ([\ref=eq8]), the first two terms on the RHS correspond to the prediction step with the last available solution at ti serving as the initial condition. In the MC set-up that we adopt here, the filtered estimate in ([\ref=eq8]) is arrived at empirically via an ensemble of independent realizations of the state. Assuming that ne denotes the ensemble size, let [formula] be the updated set of particles at time ti. Then, the filter algorithm obtaining the solution at the time instant ti  +  1 consists of the following two steps. Prediction: The prediction equation is obtained from the process SDE ([\ref=eq1]) through a time-discretized EM approximation (or a higher order integrator for SDEs if available), which may be used to propagate each particle separately as follows: where the superscript tilde denotes prediction and [formula]. Update: The particle-wise update obtainable from the third term in ([\ref=eq8]) may be written as where [formula] and, as before, the superscript tilde represents the predicted particles. Specifically, we have [formula]. The step-by-step algorithm is provided below for further clarity. Algorithm 1 Given a partition of the time interval of interest, say as 0  =  t0  <  t1...  <  tnt  =  T, and the measurements, [formula]. Assume that [formula]. Note, however that the actual Poisson events may be registered at unequal time intervals based on their respective intensities. Nevertheless, the filtering may be carried out at the above set time intervals. Also, set the ensemble size, ne. 1) Generate the initial ensemble of states, [formula], drawn for instance from a Gaussian distribution of zero-mean and assumed covariance. Set i  =  0,t0  =  0. 2) (Prediction) Obtain the predicted set of particles, [formula] for time [formula] using ([\ref=eq9]). 3) Compute [formula] for j  =  1,...,ne. 4) Evaluate each column of the gain matrix, [formula] as
+
+[formula]
+
+for l  =  1,...,ny. 5) (Update) Update each particle separately according to the formula
+
+[formula]
+
+for j  =  1,...,ne. 6) Calculate the state estimate at ti   +   1 as
+
+[formula]
+
+7) Set i  →  i  +  1. If ti  =  T, then stop the algorithm; else, go to step 2.
+
+Filtering scheme for diffusion-type measurements
+
+The discrete-time evolution of diffusion-type measurements may be written in an algebraic form as follows
+
+[formula]
+
+where, for [formula], [formula] denotes the measurement, [formula] the measurement operator, possibly nonlinear and [formula] is an nm-dimensional non-standard Brownian motion representing the measurement noise. Also, [formula]. The process SDE in this case remains the same as ([\ref=eq1]). Based on the actual measurements, [formula], we generate virtual Poisson measurements whose rates are appropriately defined functions of the measurements. (Measurements obtained from certain transduction elements, e.g. photon current from a photomultiplier tube with shot noise added, comes with an added Poisson-type noise.) The typical rate functions chosen in our numerical examples are of the form
+
+[formula]
+
+where [formula] is the modulus operator that imposes the non-negativity condition on [formula]. Also, [formula] is a diagonal matrix with scalar entries [formula] that ensure that each of the rate components in the vector, [formula] are sufficiently high to simulate realistic Poisson processes (e.g. the arrival of packets in computer networks). The slight change in the notation of the intensity function above is to highlight the fact that the above expression is employed merely to generate the Poisson measurements. The actual expression for [formula] that would be used throughout the filtering steps is given by
+
+[formula]
+
+We now generate Poisson processes for the time duration for which the measurements, [formula] are available. The new Poisson-type measurement equation that incorporates the actual measurements in the virtual Poisson intensities may then be given as follows:
+
+[formula]
+
+which is the same equation as ([\ref=eq2]). Nevertheless, in this case, [formula] denotes a virtual Poisson observation constructed from the actual diffusion-type measurements.
+
+The prediction-update steps are essentially the same as in the earlier case of Poisson-measurements and are therefore not repeated here. However, an algorithm is given below to clarify the steps involved in the present filtering scheme. Algorithm 2 Consider a partition of the time interval of interest based on the availability of measurements, say as 0  =  t0  <  t1...  <  tnt  =  T and the measurements, [formula]. Assume that the time interval between any two successive measurements is a constant, i.e. Δti  =  ti   +   1  -  ti  =  Δt,i  =  0,...,nt  -  1. Set the ensemble size, ne. Choose [formula] based on the relative magnitudes of the scalar components of [formula]. 1) Generate the virtual Poisson measurements, [formula] based on the intensity vector, [formula] calculated as follows:
+
+[formula]
+
+for i  =  1,....,nt and l  =  1,...,nm. Also, [formula]. We take [formula]. A pseudo-code to generate the Poisson measurements is given after the algorithm. 2) Generate the initial ensemble of states, [formula] according to an appropriate distribution, e.g. zero-mean Gaussian with a given covariance. Set i  =  0,t0  =  0. 3) (Prediction) Obtain the predicted set of particles, [formula] for time [formula] using ([\ref=eq9]). 4) Compute [formula] for j  =  1,...,ne. 5) Evaluate each column of the gain matrix, [formula] as
+
+[formula]
+
+for l  =  1,...,ny. 6) (Update) Update each particle separately according to the formula
+
+[formula]
+
+for j  =  1,...,ne. 7) Calculate the state estimate at ti   +   1 according to the formula in ([\ref=eq11]). 8) Set i  →  i  +  1. If ti  =  T, then stop the algorithm; else, go to step 3.
+
+Finally, we end this section with a pseudo-code to generate the Poisson measurements in numerical simulations. Pseudo-code to generate a Poisson process Assume ny/nm  =  1. Set
+
+[formula]
+
+1) Set i  →  i  +  1. If ti  =  T, then stop the algorithm; else, go to step 2. 2) If ti  <    =  arrival_time, then
+
+[formula]
+
+else go to step 3. 3) Set Yti  =  count. Go to step 1. For ease of reference, the proposed filtering approach will sometimes be called the Ensemble Kushner-Stratonovich-Poisson Filter (EKSPF).
+
+Numerical Illustrations
+
+We consider three different nonlinear estimation problems to numerically demonstrate the performance of the EKSPF. The first problem is on target tracking involving only diffusion-type measurements. The second example involves the state/parameter estimation of a 5-storey shear frame, a mechanical oscillator, under harmonic dynamic loading. This problem is posed as one with strictly Poisson-type measurement noises to assess the filter performance in this case. In both the cases, the numerical results are compared to a particle-wise update version of the unbiased ensemble square root filter [\cite=ldn] (henceforth referred to as the PUESRF), which is known to generally outperform the typical SMC-based filters in large-dimensional system identification problems. It must however be noted that a comparison with the PUESRF is strictly valid only for the first example, as the PUESRF can treat only diffusion-type measurements. Nevertheless, in the second problem, the performance comparison of the two filters is reported after allowing for a low-intensity diffusive measurement noise whilst applying the PUESRF. The third example, which involves no explicit measurement equation, is on active structural control wherein the filter algorithm estimates the control force that minimizes the structural responses under external loading. Further details pertaining to the last example are given later. The ensemble size ne is kept at 200 for both the filters in all examples.
+
+Target Tracking
+
+In this problem, we estimate the trajectory of a manoeuvering target from the noisy sensor data (bearing and range). The discrete-time process model of the target may be written as
+
+[formula]
+
+where [formula] represents the state vector comprising of the positions and velocities in the x- and y- directions respectively. Also, [formula] and [formula]. Moreover, Δt is the sampling time period, [formula] is the random acceleration vector currently characterized as Brownian and [formula] is non-zero only at the manoeuvering time instants. The sensor is assumed to be at the origin [formula] and the measured bearing and range may be written in a time-discrete form as follows:
+
+[formula]
+
+The initial state of the target is at [formula] and over the course of its trajectory, it experiences a 4-leg manoeuvering sequence at 20s, 30s, 60s and 80s respectively with accelerations [formula], [formula], [formula] and [formula]. The target moves along straight lines in between the manoeuvers and the trajectory ends at 100s. Here the measurements are generated synthetically by adding 5% standard Gaussian noise to the bearing and range data constructed from the above trajectory.
+
+Virtual Poisson measurements are generated for the EKSPF as per the algorithm in the previous section with α1  =  105 and α2  =  104. The process models for both the filters are as given above with the accelerations, [formula] and [formula] characterized as zero-mean Brownian motions with intensities 0.1 and 100 for i  =  1,...,nt. Fig. 1 shows the trajectories estimated by the EKSPF and the PUESRF when the initial position of the target is known. In spite of an added modulus-type nonlinearity in the generation of the virtual measurements, the EKSPF is seen to closely follow the manoeuvering target. In particular, the EKSPF latches on to the trajectory much faster in comparison to the PUESRF when the tracking is initiated from a faraway point as shown in Fig. 2. A possible reason for this could be the inability of the PUESRF to resolve sources of non-Gaussianity in the data. Figs. 3 and 4 plot the time histories of the root mean square error (RMSE) in the estimation of the x- and y- coordinates respectively for the case in Fig. 2. The RMSE is computed over 100 independent MC runs of the EKSPF and the PUESRF. Fig. 5 is a further demonstration of the ability of the EKSPF in tracking a circular trajectory.
+
+State and parameter estimation of a mechanical oscillator under dynamic loading
+
+In this problem, we estimate the states and parameters of a multi-degree of freedom (MDOF) shear frame model. This problem is posed as one with Poisson-type measurements to assess the performance of the filter in such a case. The Poisson measurements are generated in the numerical simulations by allowing its rate to be modulated by a few of the (hidden) states to be estimated. The governing differential equation describing the system model of the MDOF oscillator is given by
+
+[formula]
+
+where the viscous damping matrix is of the form [formula]. The stiffness matrix [formula] is of the same form as [formula] with Kis replacing Cis. Note that Ci and Ki denote the damping and stiffness parameters respectively of the ith floor and [formula] where [formula] is the deterministic force applied at the ith floor. Moreover, the diffusion matrix [formula] is diagonal and [formula] is a standard Brownian motion. For the present problem, the state/parameter vector to be estimated is given by
+
+[formula]
+
+The synthetic Poisson measurements for the EKSPF are generated by constructing the rate function as, [formula] with [formula] where αi  =  106. The measurement equation then takes the form of ([\ref=eq2]) and is of a purely non-diffusive type. The synthetic measurements for the PUESRF are however generated by adding 1% standard Gaussian noise to the displacement vector, [formula], the solution obtained from the governing differential equation, whilst assuming the stiffness/damping parameters to be known. Such values of the various parameters (taken as the reference) used for the simulations are as follows: f0  =  30N, ω  =  1rad / s, Ci  =  5Ns / m, Ki  =  100N / m for i  =  1,...,5. The diagonal entries in [formula] are 0.01.
+
+The performance of the EKSPF is compared with the PUESRF although both the filters take different forms of measurements as input. While Figs. 6 and 7 show the damping parameter estimates of the EKSPF and the PUESRF, Figs. 8 and 9 give the respective plots for the stiffness parameters. Clearly, the EKSPF provides a better estimation of the parameters in comparison to the PUESRF. This is further highlighted in the RMSE plots. As in the previous example, the RMSE is calculated from 100 MC runs of both filters. For brevity, the plots are shown only for the parameters.
+
+Through this example, we have numerically shown the efficacy of the EKSPF in the recursive estimation of states in multi-dimensional nonlinear systems with Poisson measurements. The proposed filtering scheme may be contrasted with the existing ones employing Poisson-type measurements [\cite=snyder]-[\cite=mje] wherein numerical demonstrations are limited to low-dimensional filtering problems, e.g. those involving a maximum of only 2 unknowns. We have also numerically demonstrated that the EKSPF is a viable filtering tool for diffusion-type measurements as well. Finally, in the next subsection, we pose a problem of active structural control in a filtering framework.
+
+Active structural control of a mechanical oscillator
+
+Many engineering structures must be so designed as to withstand the ever-changing dynamical consequences of the environment such as the winds, earthquakes etc. In such cases, the passive control elements alone might prove insufficient to restrict the structural responses within safe limits. This has led to the development of various active control schemes, for both linear and nonlinear systems. Some of these schemes are gain scheduling, sliding mode control, feedback linearization and the state-dependent Riccati equation method (see [\cite=soong]-[\cite=cloutier] and the references therein). However, as pointed out in [\cite=gj], the mathematical models developed in these schemes result in inadequate control algorithms when the uncertainties (such as measurement noises) involved are considerable. This is because these schemes are programmed to carry out specific control tasks based on the system analysis. On the other hand, a neural network based control algorithm can learn to adapt to the changing dynamical patterns on the go. Nevertheless, research is still under way in developing neurocontroller-based schemes as the initial training procedure is not straightforward. We pose the problem of active control within a filtering framework wherein the goal is to estimate the control force that extremizes an appropriately chosen performance index. The details pertaining to such a characterization are given next along with the accompanying equations. The (nonlinear) problem chosen for the present study is to minimize the structural response of a duffing oscillator under external forcing.
+
+The governing differential equation of the nonlinear (Duffing) oscillator, subjected to base acceleration and external forcing is given by
+
+[formula]
+
+where D denotes a scalar value, [formula] the base acceleration and [formula] the control force that needs to be estimated. Note that the remaining symbols appearing in the above equation denote the states/parameters similar to the MDOF problem of the previous subsection and that the non-bold letters signify scalar variables. In the present study, the performance index considered below is of a typical form employed in instantaneous control algorithms [\cite=soong]
+
+[formula]
+
+where [formula] and [formula] are weighting matrices which are assigned according to the relative importance attached to the states and the control forces in the minimization. The aim here is to estimate the control force, Ut so as to minimize Jt at each time instant. The minimization may be attempted in a filtering framework by posing the unknown control force as the state vector to be estimated by conditioning on the available minimum of the performance index providing the measurement. Subject to the mean-square integrability of all the stochastic processes involved, this is equivalent to projecting the control force on the available minimum of the performance index. In such a characterization, the only missing link is a precise form of the 'measurement innovation' that is naturally available in a conventional filtering problem. Here, considering the MC set-up employed in our numerical scheme, we take Mt  -  Jt as the measurement innovation term, where [formula] denotes the available empirical minimum of Jt at time t. Thus, at any given time instant, the update step of filtering drives all the particles so as to render the above innovation a zero-mean martingale. However given the nonlinearity of the innovation term in the control force Ut and the ensemble being a necessarily finite representation of the sample space, an update procedure at any given time should ideally be iterative. Accordingly, at time t, we introduce inner iterations, the aim of which is to iteratively guide the updates so as to impart to Mt - Jt the structure of a zero-mean Poisson martingale as a function of the iterations. Note that the problem of functional minimization has been considered as a Brownian martingale problem in a recent article by the third author and co-workers [\cite=psdrr].
+
+Having defined the filtering scheme as adapted to the control problem and treating the 'measurement innovation' to be of the diffusion-type, the problem can be solved using Algorithm 2, presently with α  =  104. The various parameter values are as follows: C  =  5Ns / m, K  =  100N / m, f0  =  20N, ω  =  5rad / s , Σ  =  0.01 and [formula] with Xg0  =  0.05m and ωg  =  4rad / s. In the absence of a process model, we use the following prediction equation for Ut,
+
+[formula]
+
+where Σ is taken as 50. In the present problem, the inner iterations involving steps 4-6 of Algorithm 2 are repeated 5 times at every time step, such that at the ith inner iteration, the predicted values are given by the [formula] update values. In the first iteration, however, the predicted solution at the current time is made use of.
+
+While Figs. 14 and 15 show the time histories of the uncontrolled and controlled displacements and velocities respectively of the oscillator, Fig. 16 plots the estimated control force against the external force applied. The controlled nature of the system response is evident in these figures.
+
+Conclusion
+
+A novel proposal for Monte Carlo filtering, applicable to state/parameter estimation of nonlinear dynamical systems with Poisson measurement noises, is set forth in this study. Motivated by the form of the governing nonlinear filtering equation of the integro-differential form, herein referred to as the Kushner-Stratonovich-Poisson (KSP) equation, a gain-like additive update is applied to the predicted particles. The update is derived based on a change of measures that aim at rendering the measurement-prediction mismatch, also called the innovation, a zero-mean Poisson martingale. The additive nature of the update, in lieu of the weight-based multiplicative updates employed with many Monte Carlo schemes, ameliorates the problem of particle impoverishment and hence enables applying the present scheme to higher dimensional filtering problems. As demonstrated in this work, the proposed approach admits a ready extension to filtering problems involving purely diffusive measurement noise and, by appropriately redefining the innovation term, even to automatic control problems that demand an estimation of the active control force.
+
+Proof of the KSP Equation
+
+From Lemma 1, we have
+
+[formula]
+
+and
+
+[formula]
+
+Now denote [formula] by [formula]. Then, we have
+
+[formula]
+
+where [formula]. Comparing this expression with the one as above for [formula], we obtain [formula]. Since, [formula], the next step is to find [formula]. Towards this, we recall Itô's formula for semimartingales [\cite=klebaner], which, for a semimartingale, [formula] and a [formula] function f may be given as Now, suppose that a jump occurs at time t; then we have [formula]. Hence, for any time t, [formula]. Then,
+
+[formula]
+
+and
+
+[formula]
+
+This gives Also,
+
+[formula]
+
+Now combining all the above terms and noting that [formula] and [formula], we have
+
+[formula]
+
+Again, by Itô's formula,
+
+[formula]
+
+Using [formula] and [formula] and through simple rearrangements, we obtain the KSP equation Now, for a general case where [formula], the aim of filtering is to drive [formula] to Poisson-martingales. Accordingly, we have the Radon-Nikodym derivatives,
+
+[formula]
+
+and the corresponding change of measures that ensure that each of the component innovation processes are driven to Poisson martingales under the original measure [formula]. Since it is cumbersome to write an integral expression for the combined Radon-Nikodym derivative, we extend the KSP equation in the one-dimensional case to account for the general case of ny dimensions. In that case, the gain matrix, after discretization and ensemble approximation, has ny columns instead of one.

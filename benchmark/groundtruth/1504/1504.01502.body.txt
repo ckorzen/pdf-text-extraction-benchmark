@@ -1,0 +1,189 @@
+Separable time-causal and time-recursive spatio-temporal receptive fields
+
+<
+
+Introduction
+
+Spatio-temporal receptive fields constitute an essential concept in biological vision (Hubel and Wiesel [\cite=HubWie05-book]; DeAngelis et al. [\cite=DeAngOhzFre95-TINS] [\cite=deAngAnz04-VisNeuroSci]) and for expressing computer vision methods on video data (Adelson and Bergen [\cite=AdeBer85-JOSA]; Zelnik-Manor and Irani [\cite=ZelIra01-CVPR]; Laptev and Lindeberg [\cite=LapLin04-ECCVWS]; Jhuang et al. [\cite=JhuSerWolPog07-ICCV]; Shabani et al. [\cite=ShaClaZel12-BMVC]). For off-line processing of pre-recorded video, non-causal Gaussian or Gabor-based spatio-temporal receptive fields may in some cases be sufficient. When operating on video data in a real-time setting or when modelling biological vision computationally, one does however need to take into explicit account the fact that the future cannot be accessed and that the underlying spatio-temporal receptive fields must be time-causal. For computational efficiency and for keeping down memory requirements, it is also desirable that the computations should be time-recursive, so that it is sufficient to keep a limited memory of the past that can be recursively updated over time.
+
+The subject of this article is to present an improved scale-space model for spatio-temporal receptive fields based on time-causal temporal scale-space kernels in terms of first-order integrators coupled in cascade, which can also be transferred to a discrete implementation in terms of recursive filters. The model builds on previous work by (Fleet and Langley [\cite=FleLan95-PAMI]; Lindeberg and Fagerström [\cite=LF96-ECCV]; Lindeberg [\cite=Lin10-JMIV] [\cite=Lin13-BICY]) which is here complemented by a better design for the degrees of freedom in the choice of time constants for intermediate temporal scale levels, an analysis of the resulting temporal response dynamics and details for discrete implementation in a spatio-temporal visual front-end.
+
+Spatio-temporal receptive fields
+
+The theoretical structure that we start from is a general result from axiomatic derivations of a spatio-temporal scale-space based on assumptions of non-enhancement of local extrema and the existence of a continuous temporal scale parameter, which states that the spatio-temporal receptive fields should be based on spatio-temporal smoothing kernels of the form (see overviews in Lindeberg [\cite=Lin10-JMIV] [\cite=Lin13-BICY]):
+
+[formula]
+
+where
+
+x  =  (x1,x2)T denotes the image coordinates,
+
+t denotes time,
+
+s denotes the spatial scale,
+
+τ denotes the temporal scale,
+
+v  =  (v1,v2)T denotes a local image velocity,
+
+Σ denotes a spatial covariance matrix determining the spatial shape of an affine Gaussian kernel [formula],
+
+g(x1  -  v1t,x2  -  v2t;  s,Σ) denotes a spatial affine Gaussian kernel that moves with image velocity v  =  (v1,v2) in space-time and
+
+h(t;  τ) is a temporal smoothing kernel over time.
+
+For simplicity, we shall here restrict the family of affine Gaussian kernels over the spatial domain to rotationally symmetric Gaussians of different size s, by setting the covariance matrix Σ to a unit matrix. We shall mainly restrict ourselves to space-time separable receptive fields by setting the image velocity v to zero.
+
+A conceptual difference that we shall pursue is by relaxing the requirement of a continuous temporal scale parameter in the above axiomatic derivations by a discrete temporal scale parameter. We shall also replace the previous axiom about non-creation of new image structures with increasing scale in terms of non-enhancement of local extrema (which requires a continuous scale parameter) by the requirement that the temporal smoothing process, when seen as an operation along a one-dimensional temporal axis only, must not increase the number of local extrema or zero-crossings in the signal. Then, another family of time-causal scale-space kernels becomes permissible and uniquely determined, in terms of first-order integrators or truncated exponential filters coupled in cascade.
+
+The main topics of this paper are to handle the remaining degrees of freedom resulting from this construction about: (i) choosing and parameterizing the distribution of temporal scale levels, (ii) analysing the resulting temporal dynamics and (iii) describing how this model can be transferred to a discrete implementation while retaining discrete scale-space properties.
+
+Time-causal temporal scale-space
+
+When constructing a system for real-time processing of sensory data, a fundamental constraint on the temporal smoothing kernels is that they have to be time-causal. The ad hoc solution of using a truncated symmetric filter of finite temporal extent in combination with a temporal delay is not appropriate in a time-critical context. Because of computational and memory efficiency, the computations should furthermore be based on a compact temporal buffer that contains sufficient information for representing sensory information at multiple temporal scales and computing features therefrom. Corresponding requirements are necessary in computational modelling of biological perception.
+
+Time-causal scale-space kernels for pure temporal domain.
+
+Given the requirement on temporal scale-space kernels by non-creation of local extrema over a pure temporal domain, truncated exponential kernels
+
+[formula]
+
+can be shown to constitute the only class of time-causal scale-space kernels over a continuous temporal domain in this sense (Lindeberg [\cite=Lin90-PAMI]; Lindeberg and Fagerström [\cite=LF96-ECCV]). The Laplace transform of such a kernel is given by
+
+[formula]
+
+and coupling K such kernels in cascade leads to a composed filter
+
+[formula]
+
+having a Laplace transform of the form
+
+[formula]
+
+The composed filter has temporal mean and variance
+
+[formula]
+
+In terms of physical models, repeated convolution with such kernels corresponds to coupling a series of first-order integrators with time constants μk in cascade
+
+[formula]
+
+with L(t;  0)  =  f(t). These temporal smoothing kernels satisfy scale-space properties in the sense that the number of local extrema or the number of zero-crossings in the temporal signal are guaranteed to not increase with the temporal scale. In this respect, these kernels have a desirable and well-founded smoothing property that can be used for defining multi-scale observations over time. A constraint on this type of temporal scale-space representation, however, is that the scale levels are required to be discrete and that the scale-space representation does hence not admit a continuous scale parameter. Computationally, however, the scale-space representation based on truncated exponential kernels can be highly efficient and admits for direct implementation in terms of hardware (or wetware) that emulates first-order integration over time, and where the temporal scale levels together also serve as a sufficient time-recursive memory of the past.
+
+When implementing this temporal scale-space concept, a set of intermediate scale levels τk has to be distributed between some minimum and maximum scale levels τmin  =  τ1 and τmax  =  τK. Assuming that a total number of K scale levels is to be used, it is natural to distribute the temporal scale levels according to a geometric series, corresponding to a uniform distribution in units of effective temporal scale τeff  =   log τ. Using such a logarithmic distribution of the temporal scale levels, the different levels in the temporal scale-space representation at increasing temporal scales will serve as a logarithmic memory of the past, with qualitative similarity to the mapping of the past onto a logarithmic time axis in the scale-time model by Koenderink [\cite=Koe88-BC]. If we have the freedom of choosing τmin freely, a natural way of parameterizing these temporal scale levels using a distribution parameter c  >  1
+
+[formula]
+
+which by equation ([\ref=eq-mean-var-trunc-exp-filters]) implies that time constants of the individual first-order integrators will be given by
+
+[formula]
+
+If the temporal signal is on the other hand given at some minimum temporal scale level τmin, we can instead determine [formula] in ([\ref=eq-distr-tau-values]) such that τ1  =  τmin and add K  -  1 temporal scales with μk according to ([\ref=eq-muk-log-distr]). Alternatively, if one chooses a uniform distribution of the intermediate temporal scale levels
+
+[formula]
+
+then the time constants are given by [formula].
+
+Figure [\ref=fig-trunc-exp-kernels-1D] shows graphs of such kernels that correspond to the same value of the composed variance, using either a uniform distribution or a logarithmic distribution of the intermediate scale levels. Generally, these kernels are highly asymmetric for small values of K, whereas they become gradually more symmetric as K increases. The degree of continuity at the origin and the smoothness of transition phenomena increase with K such that coupling of K  ≥  2 kernels in cascade implies a CK - 2-continuity of the temporal scale-space kernel. Specifically, the kernels based on a logarithmic distribution of the intermediate scale levels allow for faster temporal dynamics compared to the kernels based on a uniform distribution of the intermediate scale levels.
+
+Figure [\ref=fig-biol-model-simple-cells-rec-filters-over-time] shows the result of modelling the spatio-temporal receptive fields of simple cells in V1 in this way, using the general idealized model of spatio-temporal receptive fields in equation ([\ref=eq-spat-temp-RF-model]) in combination with a temporal smoothing kernel obtained by coupling a set of first-order integrators/truncated exponential kernels in cascade. This result complements the general theoretical model for visual receptive fields in [\cite=Lin13-BICY] with explicit modelling results and a theory for choosing and parameterizing the intermediate discrete temporal scale levels.
+
+Temporal dynamics of the time-causal kernels
+
+For the time-causal filters obtained by coupling truncated exponential kernels in cascade, there will be an inevitable temporal delay depending on the time constants μk of the individual filters. A straightforward way of estimating this delay is by using the additive property of mean values under convolution [formula] according to ([\ref=eq-mean-var-trunc-exp-filters]). In the special case when all the time constants are equal [formula], this measure is given by
+
+[formula]
+
+showing that the temporal delay increases if the temporal smoothing operation is divided into a larger number of smaller individual smoothing steps.
+
+In the special case when the intermediate temporal scale levels are instead distributed logarithmically according to ([\ref=eq-distr-tau-values]), with the individual time constants given by ([\ref=eq-mu1-log-distr]) and ([\ref=eq-muk-log-distr]), this measure for the temporal delay is given by
+
+[formula]
+
+with the limit value [formula] when the number of filters tends to infinity.
+
+By comparing equations ([\ref=eq-delta-recfilt-uni]) and ([\ref=eq-delta-recfilt-log]) including the limit value of the latter, we can specifically note that with increasing number of intermediate temporal scale levels, a logarithmic distribution of the intermediate scales implies shorter temporal delays than a uniform distribution of the intermediate scales.
+
+Table [\ref=tab-tmean-uni-log-compare] shows numerical values of these measures for different values of K and c. As can be seen, the logarithmic distribution of the intermediate scales allows for significantly faster temporal dynamics than a uniform distribution.
+
+Additional temporal characteristics.
+
+Because of the asymmetric tails of the time-causal temporal smoothing kernels, temporal delay estimation by the mean value may however lead to substantial overestimates compared to e.g. the position of the local maximum. To provide more precise characteristics in the case of a uniform distribution of the intermediate temporal scale levels, for which a compact closed form expression is available for the composed kernel
+
+[formula]
+
+let us differentiate this function [formula] and solve for the positions of the local maximum
+
+[formula]
+
+Table [\ref=tab-tmax-uni-log-compare] shows numerical values for the position of the local maximum for both types of time-causal kernels. As can be seen from the data, the temporal response properties are significantly faster for a logarithmic distribution of the intermediate scale levels compared to a uniform distribution and the difference increases rapidly with K. These temporal delay estimates are also significantly shorter than the temporal mean values, in particular for the logarithmic distribution.
+
+If we consider a temporal event that occurs as a step function over time ( e.g. a new object appearing in the field of view) and if the time of this event is estimated from the local maximum over time in the first-order temporal derivative response, then the temporal variation in the response over time will be given by the shape of the temporal smoothing kernel. The local maximum over time will occur at a time delay equal to the time at which the temporal kernel has its maximum over time. Thus, the position of the maximum over time of the temporal smoothing kernel is highly relevant for quantifying the temporal response dynamics.
+
+Computational implementation
+
+The computational model for spatio-temporal receptive fields presented here is based on spatio-temporal image data that are assumed to be continuous over time. When implementing this model on sampled video data, the continuous theory must be transferred to discrete space and discrete time.
+
+In this section we describe how the temporal and spatio-temporal receptive fields can be implemented in terms of corresponding discrete scale-space kernels that possess scale-space properties over discrete spatio-temporal domains.
+
+Discrete temporal scale-space kernels based on recursive filters
+
+Given video data that has been sampled by some temporal frame rate r, the temporal scale σt in the continuous model in units of seconds is first transformed to a variance τ relative to a unit time sampling
+
+[formula]
+
+where r may typically be either 25 Hz or 50 Hz. Then, a discrete set of intermediate temporal scale levels τk is defined by ([\ref=eq-distr-tau-values]) or ([\ref=eq-distr-tau-values-uni]) with the difference between successive scale levels according to Δτk  =  τk  -  τk - 1 (with τ0  =  0).
+
+For implementing the temporal smoothing operation between two such adjacent scale levels (with the lower level in each pair of adjacent scales referred to as fin and the upper level as fout), we make use of a first-order recursive filter
+
+[formula]
+
+with generating function
+
+[formula]
+
+which is a time-causal kernel and satisfies discrete scale-space properties of guaranteeing that the number of local extrema or zero-crossings in the signal will not increase with increasing scale (Lindeberg [\cite=Lin90-PAMI]; Lindeberg and Fagerström [\cite=LF96-ECCV]). Each such filter has temporal mean value mk  =  μk and temporal variance Δτk  =  μ2k  +  μk, and we compute μk from Δτk according to
+
+[formula]
+
+By the additive property of variances under convolution, the discrete variances of the discrete temporal scale-space kernels will perfectly match those of the continuous model, whereas the mean values and the temporal delays may differ somewhat. If the temporal scale τk is large relative to the temporal sampling density, the discrete model should be a good approximation in this respect.
+
+By the time-recursive formulation of this temporal scale-space concept, the computations can be performed based on a compact temporal buffer over time, which contains the temporal scale-space representations at temporal scales τk and with no need for storing any additional temporal buffer of what has occurred in the past to perform the corresponding temporal operations.
+
+Discrete implementation of spatial Gaussian smoothing
+
+To implement the spatial Gaussian operation on discrete sampled data, we do first transform a spatial scale parameter σx in units of e.g. degrees of visual angle to a spatial variance s relative to a unit sampling density according to
+
+[formula]
+
+where p is the number of pixels per spatial unit e.g. in terms of degrees of visual angle at the image center. Then, we convolve the image data with the separable two-dimensional discrete analogue of the Gaussian kernel (Lindeberg [\cite=Lin90-PAMI])
+
+[formula]
+
+where In denotes the modified Bessel functions of integer order and which corresponds to the solution of the semi-discrete diffusion equation
+
+[formula]
+
+where [formula] denotes the five-point discrete Laplacian operator defined by [formula]. These kernels constitute the natural way to define a scale-space concept for discrete signals corresponding to the Gaussian scale-space over a symmetric domain in the sense of guaranteeing non-enhancement of local extrema, while also ensuring a semi-group property T(  ·  ,  ·  ;  s1)  *  T(  ·  ,  ·  ;  s2)  =  T(  ·  ,  ·  ;  s1  +  s2) over the discrete domain which implies that representations at coarser scales can be computed from representations at finer scales using a cascade property.
+
+This operation can be implemented either by explicit spatial convolution with spatially truncated kernels [formula] for small ε of the order 10- 8 to 10- 6 with mirroring at the image boundaries (adiabatic boundary conditions) or using the closed-form expression of the Fourier transform [formula].
+
+Discrete implementation of spatio-temporal receptive fields
+
+For separable spatio-temporal receptive fields, we implement the spatio-temporal smoothing operation by separable combination of the spatial and temporal scale-space concepts in sections [\ref=app-disc-temp-smooth] and [\ref=app-disc-gauss-smooth]. From this representation, spatio-temporal derivative approximations are then computed from difference operators
+
+[formula]
+
+expressed over the appropriate dimension. From the general theory in (Lindeberg [\cite=Lin93-JMIV]) it follows that the scale-space properties for the original zero-order signal will be transferred to such derivative approximations, thereby implying theoretically well-founded implementation of discrete derivative approximations.
+
+For non-separable spatio-temporal receptive fields corresponding to a non-zero image velocity v  =  (v1,v2)T, we implement the spatio-temporal smoothing operation by first warping the video data (x1',x2')T  =  (x1  -  v1t,x2  -  v2t)T using spline interpolation. Then, we apply separable spatio-temporal smoothing in the transformed domain and unwarp the result back to the original domain. Over a continuous domain, such an operation is equivalent to convolution with corresponding velocity-adapted spatio-temporal receptive fields, while being significantly faster in a discrete implementation than corresponding explicit convolution with non-separable receptive fields over three dimensions.
+
+In addition to a transfer of the scale-space properties from the continuous model to the discrete implementation, all the components in this discretization, the discrete Gaussian kernel, the time-recursive filters and the discrete derivative approximations, can be seen as mathematical approximations of the corresponding continuous counterparts. Thereby, the behaviour of the discrete implementation will approach the corresponding continuous model.
+
+Summary and discussion
+
+We have presented an improved computational model for spatio-temporal receptive fields based on time-causal and time-recursive spatio-temporal scale-space representation defined from a set of first-order integrators or truncated exponential filters coupled in cascade over the temporal domain in combination with a Gaussian scale-space concept over the spatial domain. This model can be efficiently implemented in terms of recursive filters and we have shown how the continuous model can be transferred to a discrete implementation while retaining discrete scale-space properties. Specifically, we have analysed how remaining design parameters within the theory, in terms of the number of first-order integrators coupled in cascade and a distribution parameter of a logarithmic distribution, affect the temporal response dynamics in terms of temporal delays.
+
+Compared to other spatial and temporal scale-space representations based on continuous scale parameters, a conceptual difference with the temporal scale-space representation underlying the proposed spatio-temporal receptive fields, is that the temporal scale levels have to be discrete. Thereby, we sacrifice scale invariance as resulting from Gaussian scale-space concepts based on causality or non-enhancement of local extrema (Koenderink [\cite=Koe84]; Lindeberg [\cite=Lin10-JMIV]) or used as a scale-space axiom in certain axiomatic scale-space formulations (Iijima [\cite=Iij62]; Florack et al. [\cite=FloRom92-IVC]; Pauwels et al. [\cite=PauFidMooGoo95-PAMI]; Weickert et al. [\cite=WeiIshImi96-ScSp]; Duits et al. [\cite=DuiFloGraRom04-JMIV]; Fagerström [\cite=Fag07-ScSp]); see also Koenderink and van Doorn [\cite=KoeDoo90-BC], Florack et al. [\cite=FloRomKoeVie92-ECCV] and Tschirsich and Kuijper [\cite=TscKui15-JMIV] for other scale-space approaches closely related to this work. For a vision system intended to operate in real time using no other explicit storage of visual data from the past than a compact time-recursive buffer of spatio-temporal scale-space at different temporal scales, the loss of a continuous temporal scale parameter may however be less of a practical constraint, since one would anyway have to discretize the temporal scale levels in advance to be able to register the image data to perform any computations at all.
+
+In the special case when all the time constants of the first-order integrators are equal, the resulting temporal smoothing kernels in the continuous model ([\ref=eq-composed-all-mu-equal]) correspond to Laguerre functions, which have been previously used for modelling the temporal response properties of neurons in the visual system (den Brinker and Roufs [\cite=BriRou92-BC]) and for computing spatio-temporal image features in computer vision (Rivero-Moreno and Bres [\cite=RivBre04-ImAnalRec]; Berg et al. [\cite=BerReyRid14-SensMEMSElOptSyst]). Regarding the corresponding discrete model with all time constants equal, the corresponding discrete temporal smoothing kernels approach Poisson kernels when the number of temporal smoothing steps increases while keeping the variance of the composed kernel fixed (Lindeberg and Fagerström [\cite=LF96-ECCV]). Such Poisson kernels have also been used for modelling biological vision (Fourtes and Hodgkin [\cite=FouHod64-JPhys]). Compared to the special case with all time constants equal, a logarithmic distribution of the intermediate temporal scale levels ([\ref=eq-distr-tau-values]) does on the other hand allow for larger flexibility in the trade-off between temporal smoothing and temporal response characteristics, specifically enabling faster temporal responses (shorter temporal delays) and higher computational efficiency when computing multiple temporal or spatio-temporal receptive field responses involving coarser temporal scales.

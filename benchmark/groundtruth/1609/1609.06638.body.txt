@@ -1,0 +1,141 @@
+Compressive imaging using fast transform coding
+
+Introduction
+
+Recent advances in sparse inverse problems, often referred to as compressive sensing [\cite=donoho] [\cite=robust], have led to new methods and technologies for compressive image reconstruction. The central idea is to design encoded, subsampled linear measurements which allow for accurate optimization-based decoding which assumes sparsity in some transform domain such as wavelets or curvelets [\cite=mallat]. Applications of interest include fluorescence microscopy [\cite=studer], infrared microscopy [\cite=gallet] and astronomy, for example the single-pixel telescopic system [\cite=yu].
+
+Intensity measurements, in which a pixel array is sampled using a binary 'on-off' mask, are often considered an attractive choice. For example, in the case of the single-pixel camera [\cite=spc], a spatial light modulator (SLM) in the form of a digital micromirror device is typically used for image acquisition, and binary measurements are simplest to encode into hardware. Meanwhile, it is important for the computational efficiency of the optimization-based reconstruction that the measurement matrix can be implemented as a fast transform. The Walsh-Hadamard Transform (WHT) [\cite=walsh_paley], which involves a measurement matrix consisting of ±  1 entries, is therefore an attractive solution, and so measurement schemes are often based upon it (see for example each of the references given above).
+
+One of the central tenets of compressive sensing is that uniform, random, subsampling is optimal for reconstructing signals whose sparsity pattern is unstructured [\cite=robust]. However, wavelet transforms have an inherent multi-scale structure, and the sparsity patterns associated with the wavelet transforms of natural images are in consequence highly structured, with signal energy being concentrated in the coarse (low frequency) scales. In fact, the WHT itself has a multi-scale interpretation, and it has now been established that improvements in reconstruction accuracy result from subsampling the WHT at a variable rate; and in particular, more aggressively at finer (higher frequency) scales [\cite=quest].
+
+Practical schemes incorporating the above principles typically involve randomly subsampling the WHT coefficients, while varying the subsampling rate with scale [\cite=quest]. Implementation of this approach requires the locations of the selected random coefficients to be stored and the full WHT to be repeatedly computed within the reconstruction algorithm.
+
+In this paper, we consider an entirely deterministic approach to variable, multi-scale, ±  1 sampling. The scheme leads to comparable reconstruction performance, but without the need to rely upon randomness. As a result, no locations of randomly selected coefficients need to be stored, and full WHTs can be replaced with more efficient transforms which directly compute the subsampled coefficients. The sampling scheme is based upon a family of matrices that have been shown both theoretically and empirically to be effective measurement matrices for compressive sampling: Delsarte-Goethals frames [\cite=strip] [\cite=structured]. We will consider one particular instantiation of Delsarte-Goethals frames: real Kerdock matrices. The contributions of this paper can be summarized as follows.
+
+We show that applying a Kerdock matrix to a signal results in multi-scale measurements, where the measurements at a given scale sample only a single scale of the Haar wavelet transform of the signal. In other words, the Kerdock transform is scale-preserving.
+
+Based on these new insights, we propose a new deterministic strategy for variable, multi-scale, ±  1 sampling. We present experimental evidence that the new strategy leads to improved image reconstruction performance compared to the uniformly subsampled WHT.
+
+The structure of the rest of the paper is as follows. In Section [\ref=kerdock], we give details on the real Kerdock transform, and in Section [\ref=scale], we establish the scale-preserving properties of the transform and make the connection to the Haar wavelet transform. We then propose our new deterministic multi-scale sampling strategy in Section [\ref=strategy]. Numerical image reconstruction experiments can be found in Section [\ref=experiments], comparing the deterministic approach with other subsampling strategies.
+
+The Kerdock transform
+
+In this section, we give the essential form of the Kerdock transform and refer the interested reader to  for further technical details. We define a 2m  ×  2m + p Kerdock matrix Km,p as
+
+[formula]
+
+where Hm is a 2m  ×  2m normalized Hadamard matrix and Di, for [formula], is a diagonal matrix with ±  1 entries on the diagonal. These diagonal entries are determined by binary quadratic codes known as Kerdock codes (see  for further details).
+
+The Kerdock matrix Km,p is a union of orthobases, and it is instructive to consider how it operates on a vector divided into 2p subvectors of length 2m. Writing
+
+[formula]
+
+we have
+
+[formula]
+
+In other words, it is a weighted sum of the WHTs of the subvectors {xi}. It follows immediately that there exists an O(m  ·  2m + p) transform for computing a matrix-vector product with Km,p: divide the input vector into subvectors, apply the WHT to each, then apply the necessary componentwise sign changes to the resulting outputs and sum them. We will call this transform the 1D Kerdock transform, and denote it by Km,p.
+
+The parameter p controls the compression factor of the transform, which is 2p. The ability to vary the parameter p for different wavelet scales will be essential for designing a variable, multi-scale sampling strategy. We note that there is an upper bound on p imposed by the underlying Kerdock codes: we must have p  ≤  m - 1 (see ).
+
+The extension to a 2D Kerdock transform is achieved using the usual Cartesian product. Given a 2m + p  ×  2m + p image X, define the 2D Kerdock transform Km,p(2) to be
+
+[formula]
+
+The scale-preserving property of the Kerdock transform
+
+The aim of this section is to show that applying a Kerdock matrix to a signal results in multi-scale measurements, where the measurements at a given scale sample only a single scale of the Haar wavelet transform of the signal. In other words, the Kerdock transform is scale-preserving. We restrict our focus in this section to the 1D Kerdock transform, though the analysis extends naturally to the 2D Kerdock transform and images.
+
+Our starting point is a striking result about the relationship between the Walsh-Hadamard Transfrom (WHT) and the Haar wavelet transform. Given m  ≥  0, let Hm be the 2m  ×  2m Hadamard matrix with columns in dyadic/Paley order [\cite=walsh_relations] [\cite=walsh_paley], and let Ψm be the matrix whose rows are the Haar wavelet basis elements ordered in the usual way from coarse to fine scales, so that multiplication by Ψm gives the discrete Haar wavelet transform. The matrix product HmΨTm has the following block-diagonal decomposition.
+
+Theorem 1.
+
+[formula]
+
+The result appears implicitly in the literature, for example in , but appears explicitly here for the first time, to the authors' best knowledge. A proof is given in Appendix [\ref=proof]. The result can also be viewed as a statement about the mutual coherence of the Hadamard and Haar bases. Since the magnitude of the coefficients decays with scale, it is an example of the asymptotic incoherence described in .
+
+Now consider the Kerdock transform of a signal [formula] (see Section [\ref=kerdock]), and write
+
+[formula]
+
+for the decomposition of x into 2p subsignals, so that
+
+[formula]
+
+Let w = Ψm + px be the Haar wavelet transform of x, and write
+
+[formula]
+
+for its Haar wavelet decomposition by scales. Write wi  =  Ψmxi for the Haar wavelet transform of each subsignal xi, [formula], and
+
+[formula]
+
+for their respective Haar wavelet decompositions by scales. Also write
+
+[formula]
+
+for each diagonal matrix Di, [formula], where the submatrices correspond in size to the wavelet scales. Then we have
+
+[formula]
+
+But Haar wavelets have a nested property: if we divide a signal x into 2p subsignals xi, the Haar wavelet coefficients of x at scale j + p are nothing other than the Haar wavelet coefficients of each of the subsignals at scale j, that is,
+
+[formula]
+
+It follows that, writing
+
+[formula]
+
+for the decomposition of the output measurements by scale, we have, for [formula],
+
+[formula]
+
+The output measurements at a given scale j are thus seen to be nothing other than a weighted sum of the Haar wavelet coefficients at scale j + p.
+
+A deterministic strategy for multi-scale sampling
+
+We can summarize the implications of the previous section as follows.
+
+The Kerdock transform Km,p performs uniform sampling of the finest m Haar wavelet scales and gathers no information from the first p wavelet scales. It can therefore be combined with direct sampling of the coarsest p wavelet scales to give a two-level sampling scheme. Note the desirable property that the coarsest p scales, for which full samples are computed, are not further sampled unnecessarily by the Kerdock transform.
+
+The subsampling factor 2p can be chosen for each scale independently by computing measurements at each scale using whichever Km,p transform is desirable. An important remaining question is how to efficiently implement this multi-scale sampling scheme, and we leave this question as future work.
+
+Based on these observations, we propose a deterministic multi-scale sampling scheme for 1D signals.
+
+Note that the required user tuning is straightforward and intuitive: simply provide a vector P of integers, the entries of which give the power of 2 by which the signal will be subsampled at each scale. Let us write KP for this 1D multi-scale Kerdock transform, and KP for the corresponding measurement matrix.
+
+The extension to 2D images immediately follows as in Section [\ref=kerdock]. Given a 2m  ×  2m image X, define the 2D multi-scale Kerdock transform KP(2) to be
+
+[formula]
+
+Numerical experiments
+
+We present a comparison of image reconstruction using different schemes for ±  1 sampling. We sample the 1024x1024 'Man' test image by taking m = 3202 samples (a subsampling factor of 10.24). Writing [formula] (n = 10242) for the vectorized 2D Haar wavelet coefficients of the image, we can represent the linear measurements in the form [formula], where A is an m  ×  n matrix. We then use the spgl1 code [\cite=spgl1] to solve the optimization problem
+
+[formula]
+
+We measure accuracy of reconstruction using the signal-to-noise ratio (SNR), defined as
+
+[formula]
+
+We present results for three sampling schemes in Figure [\ref=image_plots]. Schemes 1 and 2 are subsamplings of the 2D WHT, taking m = 3202 randomly chosen coefficients (scheme 1) and the first (lowest frequency) m = 3202 coefficients (scheme 2) respectively. We see that the performance of random subsampling (scheme 1) is, as the research consensus would now expect, disastrous, while the low frequency sampling (scheme 2) represents a baseline with which to compare.
+
+Scheme 3 is a version of the Kerdock sampling scheme described in this paper, in which we directly sample the first 7 scales of the WHT, and then use Kerdock matrices to subsample scales 8 to 10, using p = 1 for scale 8, p = 2 for scale 9, and p = 3 for scale 10 (see Section [\ref=kerdock]), again giving m = 3202. We observe that the reconstruction accuracy using scheme 3 represents a significant improvement over scheme 2, demonstrating the effectiveness of a deterministic multi-scale sampling strategy with a number of different subsampling factors across scales (in this case four).
+
+Proof of Theorem 1
+
+Given m  ≥  0, the 2m  ×  2m Hadamard matrix with columns in dyadic/Paley order [\cite=walsh_relations] [\cite=walsh_paley], Hm, is defined by the recursion
+
+[formula]
+
+where [formula] denotes the usual Kronecker product. Given m  ≥  0, the 2m  ×  2m Haar transform matrix [\cite=walsh_paley], Ψm, may be defined by the recursion
+
+[formula]
+
+where Im is the 2m  ×  2m identity matrix.
+
+The proof of Theorem 1 is by induction on m. Noting that ([\ref=coherence]) holds trivially for m = 0, assume ([\ref=coherence]) holds for m = r  ≥  0. Using ([\ref=walsh_dyadic]) and ([\ref=haar]), and by symmetry of Φm, we have
+
+[formula]
+
+and ([\ref=coherence]) now follows for m = r + 1, and hence for all m  ≥  0 by induction.[formula]

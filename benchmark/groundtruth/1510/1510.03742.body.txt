@@ -1,0 +1,251 @@
+Fast graph operations in quantum computation
+
+Introduction
+
+A key motivation for the development of quantum information processing technologies is the promise of faster algorithms for computational problems. Such algorithms have been exemplified by the discovery of a polynomial time quantum algorithm for factoring integers [\cite=shor1], as well as algorithms for search [\cite=grover1997] and other problems which offer a provable advantage over their classical counterparts. Despite these successes, progress in developing quantum algorithms remained relatively slow for a number of years. A common feature of many early quantum algorithms is that although they all act in quantum ways procedurally, the data acted upon is essentially classical. More recently, several algorithms have emerged which achieve greater efficiency than their classical counterparts by representing problem instances in a fundamentally quantum manner within the computation, as is the case in the quantum algorithms for linear algebra [\cite=harrow2009quantum] and estimating knot invariants [\cite=aharonov2009polynomial]. As the representation of the problem in terms of quantum states appears fundamental to the success of these algorithms, the question then arises as to what uniquely quantum data structures exist.
+
+In this paper we explore data structures for graphs based on quantum states which confer a provable advantage over classical data structures in terms of the efficiency with which the graphs can be manipulated and compared. We draw on the well studied connection between graphs and certain entangled states, known as graph states, which have been heavily studied in the context of measurement-based quantum computation [\cite=raussendorf2001one] [\cite=raussendorf2003measurement] [\cite=briegel2009measurement] [\cite=browne2006oneway]. However, whereas most prior work has explored the relationship from the point of view of utilising graphs to represent quantum states [\cite=hein2004multiparty] [\cite=van2004graphical] [\cite=van2004efficient] [\cite=hein2006entanglement], we proceed in the reverse direction and consider the use of graph states as a representation of graphs, an approach which has so far received little attention.
+
+Notation and preliminary definitions
+
+In this paper we use the standard notation for graphs commonly used in both physics and computer science. We understand a graph to be a tuple G  =  {V,E}, where the first member V is a set of vertices and the second member is a subset of the cartesian product of the first with itself, E  ⊆  V  ×  V, corresponding to the set of edges. We will focus only on undirected graphs, where if {vi,vj}∈E then also {vj,vi}∈E. For any vertex v0∈V, we will call vi a neighbour of v0 if {v0,vi}∈E. The set of all neighbours of a vertex v0 is referred to as its neighbourhood and is denoted by N(v0). The number of edges incident on a vertex v0 is called its degree. Sometimes, in graph theory, graphs with multiple edges between the same pair of vertices, or with self-loops (edges from one vertex to itself) are considered. These are often referred to as multigraphs, whereas graphs without self-loops ore multiple edges are called simple graphs. Here, we will consider multigraphs with (singular) self-loops, but will not consider multiple edges.
+
+Given a graph G, a quantum graph state |G〉 representing G is a pure quantum state on N  =  |V| qubits, such that
+
+[formula]
+
+where [formula], where Xu (Zu) denotes the Pauli X (Pauli Z) operator acting on the qubit labelled u [\cite=hein2004multiparty]. The set of operators KvG generate a group, called the stabiliser, of operators that act trivially on |G〉.
+
+Intuitively, the most common way to think of a graph state is to picture an N-qubit system, one qubit representing each vertex, initially in the state [formula] (where [formula]), to which are then applied controlled-Z ([formula]) operators between every two qubits representing neighbouring vertices in the graph G. In fact, one can prepare graph states in such a way. This is known as the constructive definition of a graph state [\cite=browne2006oneway], and is equivalent to the stabiliser definition. From this latter definition it is tempting to believe that different graphs necessarily lead to states which are entangled in different ways. This is not the case, however, as graph states generated from different graphs may be equivalent up to local operations. If a graph state |〉 can be obtained from a graph state |G〉 by applying solely local Clifford group operators, then the two graph states are said to be LC-equivalent [\cite=van2005local].
+
+In this paper we will extend the usual definitions of graph states to include graphs with edges which connect a vertex to itself. In the constructive definition, such a self-edge will take the form of a Z gate applied to the qubit corresponding to the vertex in question. Since this is effectively a CZ gate with the same control and target qubit, we will use the convention [formula] is taken to mean Zi. The generators of the stabilizer for a graph containing self-edges are then given by
+
+[formula]
+
+In this paper we will be using heavily an operation not usually studied in classical graph data-structures, that we refer to as edge-complementation. This operation adds an edge (u,v) if it does not currently exist in the graph, and removes if it does. We will find it useful to introduce mathematical notation for this operation. If G  =  {V,E}, then [formula] will be understood to be the resulting graph after complementing the edge (u,v) in G.
+
+Representation of data
+
+Given the one to one correspondence between graph states and graphs, it is natural to think of such states as a quantum representation of the corresponding graph. A barrier to directly using such states in place of classical data structures, such as adjacency matrices or edge lists [\cite=mchugh1990algorithmic], is that graph states are not orthogonal to one another, and hence it is not possible to manipulate them in an arbitrary manner. In order to operate non-destructively on non-orthogonal quantum states, it is necessary that the applied operations act unitarily on the space spanned by the graph states. Thus, only reversible manipulations of the underlying graph are allowed. Furthermore, since the operations cannot change the inner product between graph states, not all reversible manipulations of the graph are allowed. Despite these constraints, however, the structure of graph states allows for a wide range of manipulations of the underlying graph via unitary gates.
+
+In fact, since a graph state requires only N qubits to represent any N vertex graph, it is more efficient than any classical data structure, while still allowing for comparison operations both between graphs and between subsets of vertices within the same graph. This is because any classical data structure which can uniquely identify an arbitrary N-vertex undirected graph requires at least one bit per edge in the graph, and so requires a minimum of N2 bits.
+
+In what follows we present the basic manipulations and comparison operations possible on graphs represented as graph states. In counting the resources required for each operation we consider the number of elementary gates required in the circuit model, for an arbitrary universal gate set of one- and two-qubit gates with no locality restrictions.
+
+Preparation of graph states
+
+Given a classical description of a graph G = (V,E), the constructive definition of graph states provides a prescription for how to prepare the corresponding quantum state: prepare |V| qubits in state | + 〉, each corresponding to a vertex in the graph, and then apply [formula] operations between any pair corresponding to an element of E. This takes a total of O(|V| + |E|). Many graph states can, in fact, be prepared more efficiently by making use of some combination of local complementation and edge operations as described later. Perhaps the best example of this is the graph state corresponding to the complete graph. Following the above procedure required O(|V|2) operations, whereas the same state can be prepared in O(|V|) steps by applying the intraset complementation procedure described in Section [\ref=sec:intra-comp]. This should not come as a surprise, since graph state in question is locally equivalent to a GHZ state [\cite=hein2004multiparty].
+
+The efficient preparation of graph states corresponding to predetermined graphs, using either deterministic [\cite=mhalla2004complexity] [\cite=hoyer2006resources] [\cite=cabello2011optimal] or probabilistic operations [\cite=barrett2005efficient] [\cite=benjamin2005comment] [\cite=duan2005efficient] [\cite=chen2006efficient] [\cite=benjamin2006brokered] [\cite=campbell2007adaptive] [\cite=campbell2007efficient] [\cite=browne2008phase] [\cite=matsuzaki2010probabilistic] [\cite=fujii2010fault] [\cite=li2010fault], has been heavily studied in the literature. However, any process which determines the sequence of quantum operations necessary to construct the graph state after first reading in the classical description of the graph is fundamentally limited in efficiency once both classical and quantum operations are taken into account. This is because there are [formula] graphs with the same number of vertices and edges as G, in the worst case it is necessary to read at least [formula] bits, and so the efficiency of the process cannot be faster than quadratic in the number of vertices for an arbitrary graph.
+
+It is, however, possible to circumvent this limit to prepare arbitrary graph states with O(|V|) operations provided that the initial classical representation of the graph is chosen appropriately. To see this we consider the problem of constructing a graph using queries to a oracle O. We define O as a unitary operator which acts on a system of |V| + 1 qubits, such that given a subset S of V, specified by the location of ones in the first |V| qubits, the oracle applies X|ES| to the final qubit, where ES is the edge set of the subgraph of G induced by S. It is possible to take advantage of the structure of O to create |G〉 using a single query with the state [formula]. To see this note that for a computational basis state |S〉, [formula] if the number of [formula] operations applied between the qubits corresponding to the location of ones in |S〉 is odd, and otherwise [formula]. Thus |S〉 can be thought of as specifying a subset of the vertices of V through the location of ones. Querying O with [formula] results in
+
+[formula]
+
+which is equal to |G〉.
+
+Basic manipulation
+
+It has previously been established that all stabilizer states are locally equivalent to graph states [\cite=hein2006entanglement], and hence Clifford operations give rise to transitions between graph states up to local operations. In this section we explore a set of basic operations which map graph states onto other graph states. In all cases these operations can be identified with a simple transformation of the graph, which can be viewed in terms of edge complementation operations. In the next section these operations will be used to construct compound operations for achieving natural operations on the graph.
+
+Tensor product
+
+Perhaps the simplest operation which can be performed is to consider the joint state of two graph states represented by distinct sets of qubits. From the definition of graph states, it immediately follows that the joint state of such a system is itself a graph state, with the associated graph corresponding to the union of the two graphs underlying the initial graph states. Here the set of vertices in each graph is taken to be distinct. Thus we have the rule
+
+[formula]
+
+where the two initial graphs are taken to be G1  =  (V1,E1) and G2  =  (V2,E2).
+
+Since this operation applies for any pair of graphs, vertices can be added to a graph simply by preparing ancilla qubits in the state | + 〉, which corresponds to graph state for a single disconnected vertex. Barring considerations like limited memory, garbage collection, or quantum specific issues like cooling and fault tolerance this operation can be reasonably be expected to take O(1) in most quantum computing architectures.
+
+On the other hand, removal of a vertex cannot be accomplished deterministically, since this is a non-reversible operation. However, it is possible to delete a vertex with constant probability of success. In order to delete a vertex we proceed by measuring it in the Z basis. If the measurement output is 0, then the operation succeeds. Otherwise, in order to bring the state of the data structure back into a graph state one would need to apply a Z correction on all neighbouring vertices. This is simply an application of the Pauli measurement rules studied in [\cite=hein2004multiparty]. Without access to a classical structure (or some other method) detailing which vertices neighbour which, the Z correction becomes impossible. Thus, we consider vertex deletion to be a probabilistic method. If one expects the need to delete vertices, then multiple copies of the graph state would usually be needed. However, as we shall see later, there are certain circumstances in which this operation is useful as part of more complex deterministic operations.
+
+Pauli operations
+
+In our extension of graph states to include self-loops, such loops were represented in the constructive definition by an additional Z gate applied to the qubit corresponding to the vertex in question. Thus, since Pauli operators are self-adjoint, applying Za to the graph has the effect of adding a self-loop if one is not present on vertex a, and removing one if it was initially present. We will refer to this graph operation as loop-complementation. Furthermore, since the stabilizer contains an element KaG, which is proportional to the product of Xa with Z operators on the neighbourhood of a (less any self-loops), applying Xa is equivalent, up to global phase, to applying Zv for every [formula]. The effect of this on the underlying graph is to perform loop-complementation on the neighbourhood of a, excluding a itself. Since Ya is proportional to the product of Za and Xa, the effect of Ya on the underlying graph is simply to apply loop-complementation to every vertex in [formula]. These operations can be expressed via their action on the vertex and edge sets of the underlying graph as follows:
+
+[formula]
+
+[formula] operations
+
+The next operation we consider is a [formula] gate applied between qubits a and b in the graph state. When considered from the point of view of the constructive definition, the application of a [formula] operation to an existing graph state simply cancels the [formula] from a pre-existing edge if present, removing it. Otherwise, it can simply be considered an extension of the state preparation corresponding to the addition of an edge between the chosen vertices. This is because the [formula] operation is self-adjoint, and hence performing two such operations between a pair of qubits is equivalent to performing the identity operation. Thus the [formula] operation implements the transformation
+
+[formula]
+
+This [formula] operation then corresponds to the operation of edge complementation, which interchanges the presence and absence of a particular edge. Aside from complementing the edge between a pair of vertices, it is also possible to efficiently complement larger sets of edges efficiently, as we shall see next.
+
+[formula] operations
+
+Given two vertices a and b, the effect of a [formula] operator controlled by a and targeted on b is to complement the edges between a and the neighbourhood of b (other than b itself). In order to prove that this is indeed the case, we consider the stabiliser for an arbitrary graph G. If the corresponding graph state |G〉 undergoes a unitary transformation U, the generators of the stabiliser group for the new state U|G〉 are given by [formula] for 1  ≤  v  ≤  N [\cite=browne2006oneway]. Since the unitary transformation applied in this case is a CNOT controlled by the qubit corresponding to vertex a and targeted on the qubit corresponding to vertex b, the only generators of the stabiliser which are altered by this operation are those which either act as Z on vertex b (those for which v∈N(b)) or as X on vertex a (the single case of v = a). Thus, the transformed generators are given by
+
+[formula]
+
+Now, consider the graph G' obtained from G by complementing the edges between a and the neighbours of b, other than b, and adding a self-loop to a if b has a self-loop. In this case b  =  KbG', c  =  KcG' and d  =  KdG'. Furthermore,
+
+[formula]
+
+where [formula]. Hence, [formula] as stated. It is worth noting that the presence of a ( - 1) in the stabiliser corresponding to a vertex v denotes the presence of a self-loop on v. Thus, a CNOT operator acting vertices a and b affects the vertex and edge sets of the underlying graph according to the following rule:
+
+[formula]
+
+[formula] operations
+
+The final basic manipulation we look at is the [formula] quantum operator, defined as [formula]. Unlike previous basic manipulation operations, [formula] is only well defined when the vertices a and b are not neighbours in G. If a and b are neighbours in G then [formula] maps G outside the state of valid graph states, and is therefore left undefined as an operation on graphs. However, if (a,b) is not an edge in G, the operation has the effect of complementing all edges between the neighbourhoods of the two vertices, a and b.
+
+More formally, take [formula], [formula] and [formula], and assume that there is no edge between vertices a and b. Then, for every [formula] and every [formula], the operator [formula] complements the edge (v,u). This, implies that all v∈F will be self-loop complemented. The operator [formula] also has the effect that if a (b) has a self-loop then all elements of [formula] ([formula]) will be self-loop complemented. Also, because every edge (v,u) for u,v∈F is acted on twice, the net effect is that no edge is complemented in this case. In short, the operator [formula] has the following effect regarding self-loops. If neither a nor b have self-loops, then [formula] complements self-loops on F. If a (b) has a self-loop but not b (a), then self-loops are complemented on D (C). Finally, if both a and b have self-loops then self-loops are complemented on all of C, D and F.
+
+The above can proven as follows. Since there is no edge between a and b, KaG and KbG commute with [formula] and hence are also generators of the stabiliser of FZab|G〉. Therefore, a  =  KaG and b  =  KbG. The same is true for KuG for all [formula]. Thus the only generators of the stabiliser altered by [formula] are those corresponding to vertices in C, D or E.
+
+For a vertex c∈C, KcG is transformed to
+
+[formula]
+
+Similarly, for d∈D
+
+[formula]
+
+and for f∈F
+
+[formula]
+
+where [formula]. Taking G' to be the graph obtained from G by complementing every edge which connects a vertex in N(a) to a vertex in N(b), and performing the self-loop complementations described before, we have
+
+[formula]
+
+Hence, [formula] has the following effect,
+
+[formula]
+
+However, it is important to note that this operation only results in a valid graph state provided that there is no edge between vertices a and b. If such an edge exists, it must be removed before the [formula] is applied and added again afterwards, so that the total operation applied is [formula]. This means that when the presence of an edge is known, such as may be the case when dealing with bipartite graphs, it is possible to complement the neighbourhoods of two vertices with a single operation.
+
+Ancilla driven manipulations
+
+It is possible to extend the set of useful operations by temporarily enlarging the graph, and then carefully choosing operations so that the new vertices are disconnected from the rest of the graph at the end of the manipulation. In such a case, the qubits corresponding to the ancillary vertices are left in a product state with the rest of the graph state, and can be discarded while leaving the remain qubits in a valid graph state.
+
+Interset complementation
+
+Given two disjoint sets of vertices S1 and S2, it is possible to implement an operator [formula] that complements the edges connecting vertices in S1 to vertices S2 using only O(|S1| + |S2|) operations.
+
+[formula]
+
+To achieve this, two ancillary vertices, a and b, are added to the graph. Edge complementation is then performed between a and each vertex in S1. Since a is initially disconnected, this has the result of adding an edge from a to each vertex in S1. Similarly, edge complementation is performed between b and each vertex in S2. After these operations have been applied, N(a)  =  S1 and N(b)  =  S2. Since a∉N(b) and b∉N(a), applying [formula] complements the edges between S1 and S2. If edge complementation is then performed between a and S1 and between b and S2, all edges to vertices a and b are removed, resulting in the desired set-set complementation being performed. The ancilla vertices have no incident edges, and hence from the constructive definition of graph states must be in the state | + 〉, unentangled with the rest of the graph. Thus the ancilla vertices can be deterministically removed from the graph simply by removing the corresponding qubits from the graph state.
+
+Intraset complementation
+
+Given a set of vertices S, it is possible to implement an operator [formula] that complements edges between all distinct vertices in S using only O(|S|) operations:
+
+[formula]
+
+In order to achieve this, we make use of the local complementation operation [\cite=van2004graphical] [\cite=hein2004multiparty], When applied to a graph state |G〉, this operation results in a new graph state |G'〉 where G' is the graph obtained from G by complementing edges between all pairs of distinct vertices in [formula]. At the same time, if a has a self-loop, then all vertices in [formula] are self-loop complemented. Due to the presence of N(a) in the description of Ua, this operation cannot generally be used to implement local complementation on a graph state, unless N(a) is known.
+
+Intraset complementation can be achieved by adding a new vertex a, and then performing edge complementation to each vertex in S. As in the interset complementation procedure, this has the effect of adding an edge between a and each vertex in S, and hence N(a) = S. Then, Ua can be applied, since N(a) is known. Since this performs local complementation about the vertex a, this has the result of complementing all edges between all pairs of distinct vertices in S. Edge complementation can then be performed between a and each vertex in S to remove all edges incident on a, allowing the qubit corresponding to a to be removed from the graph state, as before. The result, then, is a new graph state where all edges between distinct vertices in S have been complemented.
+
+Comparison operations
+
+Comparing graphs
+
+Given two graph states representing graphs G1 and G2, an important operation is to determine whether or not these two graphs are equal. As the graph states used to represent graphs are not orthogonal, this cannot be achieved deterministically. However, since every graph state is a stabiliser state, the overlap between graph states corresponding to distinct graphs, G and G', is bounded by [formula] [\cite=aaronson2004improved]. As a result, it is possible to determine whether two graphs are equal or not, with constant bounded error, using O(N) operations.
+
+The graphs represented by two graph states |G〉 and |G'〉 are necessarily different if the number of qubits comprising each state is different, since there is a one to one correspondence between qubits and vertices. As such, it suffices to provide a test only for graphs of equal size. This is achieved by means of a controlled-SWAP test [\cite=NielsenChuang] as follows. An ancilla qubit is prepared in the state | + 〉, and then for each vertex i in G a controlled-swap (Fredkin gate [\cite=NielsenChuang]) gate is applied, controlled by the ancilla qubit and acting on the ith qubit of |G〉 and |G'〉. Together, these controlled-swap gates have the effect of swapping |G〉 and |G'〉 if the ancilla qubit is in state |1〉, and acting as the identity if the ancilla is in state |0〉. The ancillary qubit is then measured in the X basis, and the graphs are deemed equal if the measurement results in | + 〉.
+
+In the case where G = G', the controlled-swap procedure leaves the system invariant, since swapping the graph states is equivalent to the identity operations, and hence the ancilla is left unchanged in the state | + 〉. Thus if two graph states are equal, this test will always result in a measurement of | + 〉. If however G  ≠  G', the above procedure will result in | - 〉 with probability [formula]. Since [formula], this comparison operation yields an incorrect result with probability at most [formula]. Thus it is possible to compare graphs via their corresponding graph states with one-sided error of at most [formula].
+
+Automorphism testing
+
+Given a graph state |G〉 corresponding to graph G, and a permutation of vertices P, it is possible to determine whether P is an automorphism on G with constant one-sided error, using a similar approach to the graph comparison test. In order to do this, a single ancilla is prepared in state | + 〉, and a permutation of the qubits according to P, conditioned on the ancilla qubit being in state |1〉. The ancilla qubit is then measured in the X basis.
+
+If P is an automorphism on G, then the graph state is invariant under this permutation, and so the controlled permutation operator acts as the identity, and so the measurement must result in + 1. If, on the other hand, P is not an automorphism on G, the state of the system prior to measurement is [formula], where G' is the graph obtained by applying P to G. In this case, the X measurement results in - 1 with probability given by [formula]. As before, since [formula], this comparison operation yields an incorrect result with probability at most [formula]. This gives an automorphism test with one-sided error of at most [formula].
+
+Vertex comparison
+
+Comparing two vertices is a special case of automorphism testing, where the permutation applied is a simple pairwise swap between the vertices, and hence can be achieved using the previous procedure. However, in this case, a procedure that gives test with a one sided error of at most 1 / 2 exists.
+
+Suppose, for now, that the two vertices, a and b do not share an edge, and that swapping a and b is an automorphism on G. Then, the two vertices share the exact same neighbours, other than self-loops. Also, if a has a self-loop, then so does b. Therefore the observable XaXb is in the stabiliser of the graph state. This can be seen by simply multiplying KaG by KbG. Thus, a measurement of this operator is guaranteed to result in + 1. Now, suppose swapping a and b is not an automorphism. Then either [formula], or one of a and b has a self-loop where the other does not. In the first case, there is an element of the stabiliser of the state that anti-commutes with the observable XaXb. In such a case, N(a)ΔN(b) (here Δ represents the symmetric difference between two sets [formula]) is not empty, and for any vertex u in this set, the operator KuG necessarily acts as Z on either a or b and as identity on the other. Thus KuG anti-commutes with XaXb, and hence the expectation value for the measurement is 0. On the other hand, if [formula], but one of a and b has a self-loop where the other doesn't, then - XaXb is a stabiliser of the graph state. In either case, measuring the observable XaXb, gives the result - 1 with probability of at least 1 / 2. Hence, individual vertices can be compared with one-sided error probability of [formula].
+
+Now consider the case where vertices a and b do share an edge. In this case, XaXb is no longer in the stabiliser under any circumstance, since it anti-commutes with KaG. However, if swapping a and b is an automorphism, then YaYb is in the stabiliser of |G〉, since this is simply the product of KaG and KbG. Hence, measuring the observable YaYb will determine whether swapping a and b is automorphism while (a,b)∈V. Since both tests require only two single-qubit measurements, they can be accomplished with O(1) operations.
+
+Read-out operations
+
+Degree parity test
+
+In graph theory, an Euler graph is one whose every vertex is of even degree, meaning that each vertex has an even number of neighbours. Similar to the previous section we can devise a simple probabilistic algorithm that tests whether a graph is Eulerian, in O(n) time, although this procedure requires two copies of the graph state.
+
+For sake of clarity, let us consider first the simplified case where the graph tested is promised to not include any self-loops. Then, it is necessarily the case that
+
+[formula]
+
+is a stabiliser of the graph state if and only if the parity of every vertex is even. Hence, performing this measurement on an Euler graph will always give the measurement outcome + 1. On the other hand, if the graph is not Eulerian, there exists at least one vertex v∈V such that [formula]. Then, the stabiliser
+
+[formula]
+
+anti-commutes with the observable [formula]. Hence, performing the measurement in Eq. [\ref=eq:euler-stab] on a non-Euler graph state gives the measurement outcomes + 1 and - 1 with equal probability. Hence, by performing said measurement on the graph state, we can distinguish these two cases with one-sided error of [formula]. This gives an O(n) run-time algorithm.
+
+Now, let us consider the general case in the (possible) presence of self-loops. A self-loop adds two to the degree of the vertex to which it is incident. This entails that a multigraph G with self-loops is Eulerian if and only if the simple graph G' obtained from G by removing all self-loops is Eulerian. Recall that a self-loop on a vertex v is represented in our quantum data structure simply as a Pauli Z operator acting on v. Hence, an Euler graph G has a stabiliser of the form
+
+[formula]
+
+where s is the number of self-loops in G. Hence, in the general case one can still proceed with the procedure outlined above of measuring the observable in Eq. [\ref=eq:euler-stab] on two copies of G. If the graph is Eulerian, then the measurement results will be consistently either + 1 or - 1--depending on s, but always one or the other on all copies of G. And, for non-Euler graphs the measurement result will be randomly and independently + 1 or - 1, resulting in mismatched results with probability [formula]. Hence, this procedure provides a test of whether or not the graph is Eulerian with one-sided error of [formula]. Furthermore, the procedure also gives one extra bit of information beyond whether the graph is Eulerian or not, namely the parity of s.
+
+A similar algorithm for testing whether the degree of every vertex is odd can also be devised by substituting the observable in Eq. [\ref=eq:euler-stab] with the operator [formula].
+
+Recovering classical representation
+
+Finally, we turn to the issue of recovering the encoded graph for a particular graph state |G〉. As any classical data structure for an arbitrary graph of |V| vertices and |E| edges requires at least [formula] bits to uniquely label the graph, and to encode all graphs of |V| vertices requires |V|2 bits. As a result, Nayak's theorem [\cite=nayak99] implies that the probability of correctly identifying the graph encoded by |G〉 is exponentially small in |V|. Even if multiple copies of the graph state are given, the joint states are not in general perfectly orthogonal for different graphs, and hence the encoded graph cannot be deterministically decided [\cite=chefles2000quantum]. However, we now show that it is possible to recover the encoded graph with high probability given a number of copies of |G〉 linear in |V|.
+
+The procedure is presented as Algorithm [\ref=alg:readout]. The algorithm proceeds in three main steps. First, a maximal set of linear equations over GF(2) is constructed via repeated measurements of copies of the state |G〉. This is achieved by first linking two copies of the graph state using [formula] operators via an intermediary set of ancilla qubits. Then all qubits are all measured in the X basis. In the second step, these measurement results are used to recover the adjacency matrix (less self-edges) for G using linear algebra. The final step recovers the self edges via an additional adapted measurement on |G〉.
+
+We now analyse the number of copies of the graph state required by the algorithm. Whether an execution of the main loop adds a new vector to S depends on the measurement outcomes on the ancilla qubits, stored in the bit vector bk, and on S. Since each measurement has the same probability of resulting in either 0 or 1, and the number of distinct non-zero vectors which can be generated from linear combinations of the vectors in S is 2|S| - 1, the probability that a random set of measurements vector linearly independent from those already in S is 1  -  2|S| - |V|. Hence, the expected number of times the loop must iterate in order to add a single vector to S is (1  -  2|S| - |V|)- 1. Adding over all values of |S| from 0 to |V| - 1 gives a total expected runtime for the first loop of
+
+[formula]
+
+Hence, the total expected number of copies of the state |G〉 needed is bounded from above by 4|V| + 1.
+
+The correctness of the algorithm can be verified by analysing a single run through the first loop. After step [\ref=step:graph-linked] the state of unmeasured qubits is
+
+[formula]
+
+where [formula] represents the product of [formula] operations wherever there is an edge in G (i.e. [formula]), and [formula] where ZN(bik) represents a Z operator on all neighbours in G' of vertex i if and only if bik  =  1. The graph G' is taken to be the result of removing all self-edges from G.
+
+Hence, measuring |ΦG〉 and recording the results as ck gives results in
+
+[formula]
+
+where the vector xi is defined such that xji  =  1 if and only if j is a neighbour of i in G'. Thus, Λ is the adjacency matrix of G'. Since bk are linearly independent, the system of equations has a unique solution, and hence Λ can always be found.
+
+Step [\ref=step:detangle] determines the location of the self-edges in G by removing all edges in common between G and G'. The resulting state is a tensor product of X eigenstates, such that dk  =  1 if and only if vertex k has a self-edge. Thus D is the adjacency matrix for the graph obtained from G by removing all edges which join vertices to other vertices, leaving only self-edges. Combining D and Λ by addition, then, results in the adjacency matrix for G.
+
+Comparison to classical data structures
+
+Introducing a quantum data structure for classical information raises the obvious question of whether it presents any advantages over using traditional classical data structures--in the case of graphs, a quantum data structure would be expected to offer advantages over adjacency matrices, incidence lists and other classical graph representations. It is certainly the case that the use of graph states is competive with the most widely studied classical graph data structures in terms of the operations studied here. In particular graph states offer more efficient comparison and complementation operations than either incidence matices, incidence lists, adjacency lists or adjacency matrices, while at the same time remaining more space efficient. However, the set of operations implementable with a single copy of a graph state are more limited than those allowed by such classical structures, and it is natural to ask whether some specialized classical structure could offer similar or better performance for the set of operations admitted by graph states. We now answer this question in the negative.
+
+No classical graph data structure requiring O(N2 - ε) space can allow for comparison between arbitrary graphs of N vertices with error bounded below [formula] for any constant ε > 0.
+
+The proof of this statement follows from a simple counting argument. There are N2 possible edges within a graph, and each of these can be either present or absent, leading to a total of 2N2 graphs of N vertices. If the graph is represented using a string of n bits, for n < N2, then there must exist a single string which corresponds to ⌈2N2 - n⌉ distinct graphs. These graphs are hence indistinguishable. Thus, only representations requiring at least N2 bits can allow for unambiguous discrimination of all graphs even with bounded error.
+
+No classical graph data structure can have both an edge complementation operation and a vertex comparison operation that require only O(1) elementary gates.
+
+We proceed by contradiction. Consider a graph of N vertices. If complementing an edge requires O(1) gates, this means that every complementation operator, regardless of input, acts on at most k bits for some constant k. Likewise, if vertex comparison requires O(1) gates, then every comparison operator, regardless of input, acts on at most c bits for some constant c. We label the k-bit set that the complementation operator acts upon, when input the vertices A and B as Se(A,B). Similarly, the c-bit set that the comparison operator acts upon when input the vertices A and B we will call Sc(A,B).
+
+Now, when an edge incident to vertex A is complemented, it can change whether swapping it with B is a graph automorphism (except for the case where the edge being complemented is also incident to B). Therefore, the set Sc(A,B) must include at least one of the k bits in set Se(A,X) for every vertex X. Hence, the average number of times a bit in Sc(A,X) is in Se(A,Y), taken over all values of X and Y, is at least (N - 1) / c. Although the sum of the cardinality of the Se sets is [formula], the previous constraint implies that the cardinality of the union of Se(A,B) over all A and B is linear in N, and hence the number of bits examined by the comparison operations is also linear in N.
+
+We now show that this is too few bits to determine whether swapping a pair of vertices is a graph automorphism, by counting the number of ways in which vertices can be partitioned such that swapping vertices within a partition constitutes an automorphism on the graph. If there are m distinct types of vertices, then the number of ways to partition N vertices into m sets is giving by
+
+[formula]
+
+Thus [formula] bits are required to determine the partitioning uniquely, which is required in order to correctly determine which swaps are automorphisms. Consider the case when ni = 2 for i = 1,2,...m, then we have
+
+[formula]
+
+Expanding this equation using Stirling's approximation, we find that the dominant term scales is [formula], and hence the number of bits required to describe such a partitioning scales superlinearly in N. Hence we have a contradiction with our earlier requirement that this quantity scale linearly in N.
+
+Similar dichotomy results can be proven for other operations on classical data structures which are permitted on graph states.
+
+Conclusions
+
+Graph states, with their close connection to graphs, represent a class of quantum states for which very naturally embody a mathematical structure common to many computational tasks. Here we have shown that this representation allows for efficient manipulation of this structure, and hence such states can be used as a data-structure which outperforms any possible classical counterpart. While the range of operations are more limited than in the case of classical data-structures, due to linearity constraints, we believe that this approach offers a new primitive for quantum algorithms.
+
+Most quantum data structures have a classical counterpart upon which they are based, e.g. the qubit is the quantum analogue of the classical bit. In contrast, there is no classical analogue of quantum graph state. We believe this motivates the further study of (intrinsically) quantum data structures. It is possible that further study into these structures may uncover further problems for which--like factoring--quantum computers offer a definite advantage.
+
+Acknowledgements
+
+The authors thank Simon Perdrix for useful discussions, and Yingkai Ouyang and Joshua Kettlewell for helpful comments on the manuscript. This material is based on research funded by the Singapore National Research Foundation under NRF Award NRF-NRFF2013-01.

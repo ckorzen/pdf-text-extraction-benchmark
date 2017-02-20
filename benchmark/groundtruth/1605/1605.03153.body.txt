@@ -1,0 +1,97 @@
+Wind Turbine Large-Eddy Simulations on Very Coarse Grid Resolutions using an Actuator Line Model
+
+,  Richard J.A.M. Stevens
+
+and  Charles Meneveau
+
+Johns Hopkins University, Baltimore, MD, 21210, USA
+
+Introduction
+
+Wind farm simulations require intensive computational resources and advanced turbine models in order to capture rich amounts of information such as loads along the blades, aerodynamic forces, and power output accurately [\cite=churchfield_large-eddy_2012] [\cite=martinez-tossas_large_2014]. The Actuator Line Model (ALM) is known to depend on a high grid resolution (on the order of 50 grid points per rotor) when using Large-Eddy Simulations (LES) to provide grid-converged results [\cite=sorensen_numerical_2002] [\cite=martinez-tossas_large_2014]. However, in order to study large wind farms and the associated large-scale properties of coupling with the atmospheric boundary layer, wind farms consisting of many turbines must be considered [\cite=Calafetal10] [\cite=Stevensetal14a] [\cite=Stevensetal14b]. When many turbines must be included in the computational domain, fine spatial resolution on each rotor is often not affordable, especially if one wishes to repeat the LES varying flow conditions, rotor designs, etc. It is thus of interest to study and better understand the performance of the ALM approach when using very coarse discretization (on the order of 10 LES grid-points per rotor diameter).
+
+It has been seen that power extracted from an ALM in LES is very dependent on the grid resolution and the width of the kernel used to smear the forces [\cite=martinez-tossas_large_2014]. The wake structures are also affected by means of the spatial filter in the velocity field which is not able to resolve the structures smaller than the grid size. The subgrid-scale closure of the LES models the smaller scales of the flow, but because of the spatially filtered velocity may differ from the real unsmoothed velocity, differences of predicted forces and power at the rotor blade can exist. The axial induction can be affected by the smearing of the velocity field.
+
+Here, we study the implementation of an ALM in coarse simulations (14 LES grid-points per rotor). First, we examine the performance of the ALM model for a single wind turbine with turbulent inflow conditions for which detailed wind tunnel experimental data are available. Second, a formulation is presented to address differences in power caused by the width of the kernel being used. A single turbine in uniform inflow is studied to document the effect of the smearing kernel on blade loads and power production.
+
+Numerics
+
+Solver
+
+The current study uses LESGO, [\cite=Calafetal10] [\cite=Stevensetal14b] the Johns Hopkins Turbulence Research Group's Large-Eddy Simulations framework including a recent implementation of the ALM. [\cite=martinez_wake_2015] LESGO solves the filtered Navier-Stokes Equations for very large Reynolds number
+
+[formula]
+
+where [formula] denotes spatial filtering, [formula] is the velocity, p is pressure, ρ is density, [formula] is the subgrid scale stress tensor, and [formula] is the body force. The code uses pseudo-spectral representation in the two horizontal directions with the third (vertical) direction using second-order centered finite differencing. The approach is kinetic-energy conserving. Time advancement is done using a second order Adams-Bashforth scheme. Subgrid-scale modeling is based on an eddy viscosity type scale-dependent Lagrangian dynamic model [\cite=bouzeid_2005]. The model represents the deviatoric part of the SGS stress tensor, τdij, as
+
+[formula]
+
+where CS is the dynamically computed Smagorinsky coefficient, Δ is the grid resolution, and [formula] is the symmetric part of the resolved velocity gradient tensor [\cite=pope_2000].
+
+Actuator Line Model (ALM) and Turbine Design
+
+The ALM implementation in LESGO [\cite=martinez_wake_2015] incorporates a wind turbine into the Navier-Stokes Equation, see Eq. [\ref=eq:NS], as a body force term [\cite=sorensen_numerical_2002]. This body force is calculated dynamically depending on the local velocity at the location of each actuator point. The actuator points are used to calculate the blade forces with a high accuracy before they are projected on the computational grid used to calculate the flow field. Lift and drag are calculated based on tabulated airfoil data and then smeared onto the flow field as body forces by means of a Gaussian kernel
+
+[formula]
+
+where r is the distance from the actuator point, and ε establishes the width of the kernel. The two turbines used for this study are the turbine used in the experiments from the group at Ecole Polytechnique Federale de Lausanne (EPFL) which has a 0.15 m diameter, [\cite=wu_simulation_2012] and the NREL 5MW Reference, which has a 126 m rotor diameter [\cite=jonkman].
+
+The turbine used by the group at EPFL is a GWS/EP-6030. [\cite=wu_simulation_2012] [\cite=wu2010]. The chord and pitch angle along the blades are found in their previous work [\cite=wu2010]. The lift and drag coefficient tables were obtained by using a cambered airfoil, i.e. we used airfoil (9) from the work by Sunada et al. [\cite=sunada] In order to match the wake profiles close to the center of the wake, a nacelle has to be included in the model. Power and thrust coefficient curves have been obtained using Blade Element Momentum Theory and are shown in Figure [\ref=fig:cpct]. It can be observed that this turbine provides a poor performance in terms of power, i.e. low CP value, compared to a large scale turbine which operates on a range closer to the Betz limit. The thrust coefficient, however, is closer to typical values observed for operational large scale turbines.
+
+Results
+
+Comparisons with wind tunnel data with turbulent inflow
+
+We now present simulation of a wind turbine with turbulent inflow. We use the experiment from the EPFL group [\cite=wu_simulation_2012], here focusing on the single-turbine case. The inflow condition is matched by using a concurrent-precursor simulation matching the given roughness height and friction velocity of the experiment [\cite=wu_simulation_2012]. The tip speed ratio of the turbine is set to λ = 4 as in the experiment. As a first step we compare the current implementation of the actuator line model (ALM) with and without the effects of the nacelle. Here the LES uses a coarse discretization, 14 points across the rotor. The ALM has been tested with and without a nacelle and tower modeled as drag objects with CD coefficients of 1.0 and 0.5 respectively.
+
+Figures [\ref=fig:multiplotU] and [\ref=fig:multiplotupup] show streamwise velocity and turbulence intensity profiles across the wake for a single turbine in a turbulent boundary layer. The non-dimensional scale used is the hub-height velocity UH. It is to be noted that in order to obtain good agreement between the experiments and simulations a nacelle model needs to be included. The current implementations provides excellent agreement for the velocity profiles of the wake. The turbulence intensity computed in the LES under-predicts the experimental measurements. This is expected from LES, since some of the scales are filtered, thus reducing the fluctuations. The overall trends agree quite well, and it can be observed that at 2-3D downstream the wake of the nacelle and tower have a big influence in both the mean velocity and turbulence intensity.
+
+The wake profiles obtained agree very well with the experiments. However, quantities at the turbine, such as power and thrust, are very dependent on the grid resolution and the value of the kernel width ε. [\cite=martinez-tossas_large_2014] The power coefficient obtained from the simulation for this turbine is CP = 0.3. This power coefficient is significantly higher than what is predicted by the turbine design using BEM (Figure [\ref=fig:cpct]). While the overall thrust may be realistic (since the wake profiles agree well), the differences between the predicted CP and the expected CP from BEM points to possible problems due to the smearing of velocity inherent in ALM with very coarse LES resolutions. In order to better understand the discrepancy, first we perform a simulation under uniform inflow, and then present some initial thoughts of how the model inaccuracies may be remedied.
+
+Simulations of NREL turbine with uniform inflow
+
+We consider the simulation of the NREL wind turbine with laminar uniform inflow. We use LES with a grid resolution of Δ  =   4 m in each direction, an inflow velocity of 8 (m/s), a prescribed tip-speed ratio of λ  =  7.5, and vary the Gaussian kernel width ε. It is known that wind turbine loads along the blades depend significantly on the filtering size of the Gaussian kernel used to smear the forces of the turbine. Figure [\ref=fig:bem] shows angle of attack, axial velocity, lift and drag along the blade for an NREL 5MW Reference turbine modeled as an actuator line with different kernel widths (ε). From this figure we can see that the largest difference is in axial velocity. This difference will cause differences in the lift and drag curves, that are more pronounced as we move further towards the tip. These differences change the total power that the turbine is extracting from the flow.
+
+Effects of filtering
+
+Next, we present some analytical considerations focusing on the effects of the spatial filtering inherent in LES and its impacts on the ALM computations of forces. We take the lift component of the body force term per unit width in a 2D frame and write it (simplifying) as:
+
+[formula]
+
+where c is the chord, ρ is the density, CL is the lift coefficient, and U is the magnitude of the local velocity on the reference frame of the moving airfoil section. The CL coefficient is a function of U through its dependence on angle of attack. For small angle of attack, sin(α)  ≈  α and thus the angle of attack can be expressed as α  ≈  Ua  /  U, where Ua is the axial velocity. The lift coefficient for small angles of attack is given by CL  =  B(α  +  α0) where B is a constant and α0 is an offset. We will assume α0 <  < α so that
+
+[formula]
+
+The filtered body force can be defined as
+
+[formula]
+
+Now we can also write a similar equation for the unfiltered force:
+
+[formula]
+
+and from here:
+
+[formula]
+
+If we use the argument that the velocity magnitude U is dominated by the rotational component of the velocity vector (which is valid for high TSR's) then we can take the velocity magnitude out of the filtering operation and we obtain
+
+[formula]
+
+The relationship in Eq. [\ref=eq:ratio] enables us to interpret the results shown in Fig. [\ref=fig:bem] (top right) in the sense that the ratio of unfiltered force equals the ratio of unfiltered to filtered axial velocity. We wish to determine the unfiltered force but only know the filtered force. If we can model ratio of unfiltered and filtered axial velocity, Eq [\ref=eq:ratio] would enable us to determine the correct (unfiltered) force.
+
+While the derivation of Eq. [\ref=eq:ratio] was based on spatial filtering, we now interpret variables filtered at a scale ε as the variables one obtains by running LES and ALM with a kernel width ε. While this assumption cannot be firmly established on theoretical grounds, in practice it is a useful assumption and is commonly made in LES. For example, if we denote the axial velocity and force obtained in a simulation with a kernel ε as Uεa and fε, and associate the scale ε with the filtering scale, then [formula] and [formula]. As a next step, we filter Eq. [\ref=eq:ratio] at another filter scale εmin  <  ε and assume that the ε-variables are not affected by this smaller-scale filtering. Then one can rewrite Eq. [\ref=eq:ratio] according to
+
+[formula]
+
+We can use simulations performed at various ε's to test this relationship, as a first step in establishing possible correction strategies for the ALM approach.
+
+Returning to our simulations of the NREL case, we consider ε min  =  8m, and attempt to use the results from the other 4 runs with ε  >  ε min to rescale the force fε min. If Eq. [\ref=eq:ua2] holds, the distribution of Uε mina should coincide with the RHS of Eq. [\ref=eq:ua2], i.e. with Uε min  *a, regardless of ε  >  ε min chosen. The first region of the blade is made of cylindrical sections which produce no lift, thus the approach presented is not used in this section. As seen in Figure [\ref=fig:ua] the curves collapse through most of the blade except close to the tip. The reason for this is that near the tip, the 3D effects of the kernel become more noticeable.
+
+Conclusion
+
+The ALM has been validated on a relatively coarse resolution with experimental measurements from the group at EPFL [\cite=wu2010] [\cite=wu_simulation_2012]. The LES provides good agreement with the experiments, but a nacelle and tower model are required to obtain the proper wake deficit. When analyzing power output computed by the ALM, the values are higher than those predicted by Blade Element Momentum Theory. A theoretical analysis is presented that attempts to relate filtered forces to filtered velocities, highlighting the impact of filtering of the axial velocity on the force distribution. The derived relationship is tested based on simulations done at various ε values and is seen to hold rather well, except when approaching the tip of the blade. The results imply that one may be able to predict the fine-grained force corresponding to an ε smaller than that of the simulation, if one were able to deduce the corresponding axial velocity from the data at coarser ε. Such a model-based defiltering operation is the focus of ongoing investigations.
+
+Acknowledgments
+
+LAMT was supported by NSF (IGERT), while international travel and CM were supported by NSF (IIA 124382, the WINDINSPIRE project). RJAMS is supported by the research program Fellowships for Young Energy Scientists (YES!) of the Foundation for Fundamental Research on Matter (FOM) supported by the Netherlands Organization for Scientific Research (NWO).

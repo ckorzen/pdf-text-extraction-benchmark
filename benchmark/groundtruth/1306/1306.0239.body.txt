@@ -1,0 +1,133 @@
+Introduction
+
+Deep learning using neural networks have claimed state-of-the-art performances in a wide range of tasks. These include (but not limited to) speech [\cite=MohamedDH09] [\cite=DahlRMH10] and vision [\cite=JarrettKRL09] [\cite=CiresanMMGS11] [\cite=RifaiDVBM11] [\cite=KrizhevskySH12]. All of the above mentioned papers use the softmax activation function (also known as multinomial logistic regression) for classification.
+
+Support vector machine is an widely used alternative to softmax for classification [\cite=BoserGV92]. Using SVMs (especially linear) in combination with convolutional nets have been proposed in the past as part of a multistage process. In particular, a deep convolutional net is first trained using supervised/unsupervised objectives to learn good invariant hidden latent representations. The corresponding hidden variables of data samples are then treated as input and fed into linear (or kernel) SVMs [\cite=HuangL06] [\cite=LeeGR09] [\cite=LeTiled10] [\cite=CoatesNL11]. This technique usually improves performance but the drawback is that lower level features are not been fine-tuned w.r.t. the SVM's objective.
+
+Other papers have also proposed similar models but with joint training of weights at lower layers using both standard neural nets as well as convolutional neural nets [\cite=ZhongG00] [\cite=CollobertB04] [\cite=NagiDGG12]. In other related works, [\citet=WestonR08] proposed a semi-supervised embedding algorithm for deep learning where the hinge loss is combined with the "contrastive loss" from siamese networks [\cite=Hadsell06]. Lower layer weights are learned using stochastic gradient descent. [\citet=VinyalsNIPS12] learns a recursive representation using linear SVMs at every layer, but without joint fine-tuning of the hidden representation.
+
+In this paper, we show that for some deep architectures, a linear SVM top layer instead of a softmax is beneficial. We optimize the primal problem of the SVM and the gradients can be backpropagated to learn lower level features. Our models are essentially same as the ones proposed in [\cite=ZhongG00] [\cite=NagiDGG12], with the minor novelty of using the loss from the L2-SVM instead of the standard hinge loss. Unlike the hinge loss of a standard SVM, the loss for the L2-SVM is differentiable and penalizes errors much heavily. The primal L2-SVM objective was proposed 3 years before the invention of SVMs [\cite=Hinton89]! A similar objective and its optimization are also discussed by [\cite=LeeM01].
+
+Compared to nets using a top layer softmax, we demonstrate superior performance on MNIST, CIFAR-10, and on a recent Kaggle competition on recognizing face expressions. Optimization is done using stochastic gradient descent on small minibatches. Comparing the two models in Sec. [\ref=sec:regu], we believe the performance gain is largely due to the superior regularization effects of the SVM loss function, rather than an advantage from better parameter optimization.
+
+The model
+
+Softmax
+
+For classification problems using deep learning techniques, it is standard to use the softmax or 1-of-K encoding at the top. For example, given 10 possible classes, the softmax layer has 10 nodes denoted by pi, where [formula]. pi specifies a discrete probability distribution, therefore, [formula].
+
+Let [formula] be the activation of the penultimate layer nodes, [formula] is the weight connecting the penultimate layer to the softmax layer, the total input into a softmax layer, given by [formula], is
+
+[formula]
+
+then we have
+
+[formula]
+
+The predicted class î would be
+
+[formula]
+
+Support Vector Machines
+
+Linear support vector machines (SVM) is originally formulated for binary classification. Given training data and its corresponding labels [formula], [formula], [formula], tn∈{ - 1, + 1}, SVMs learning consists of the following constrained optimization:
+
+[formula]
+
+ξn are slack variables which penalizes data points which violate the margin requirements. Note that we can include the bias by augment all data vectors [formula] with a scalar value of 1. The corresponding unconstrained optimization problem is the following:
+
+[formula]
+
+The objective of Eq. [\ref=eq:l1svm] is known as the primal form problem of L1-SVM, with the standard hinge loss. Since L1-SVM is not differentiable, a popular variation is known as the L2-SVM which minimizes the squared hinge loss:
+
+[formula]
+
+L2-SVM is differentiable and imposes a bigger (quadratic vs. linear) loss for points which violate the margin. To predict the class label of a test data [formula]:
+
+[formula]
+
+For Kernel SVMs, optimization must be performed in the dual. However, scalability is a problem with Kernel SVMs, and in this paper we will be only using linear SVMs with standard deep learning models.
+
+Multiclass SVMs
+
+The simplest way to extend SVMs for multiclass problems is using the so-called one-vs-rest approach [\cite=Vapnik95]. For K class problems, K linear SVMs will be trained independently, where the data from the other classes form the negative cases.  [\citet=HsuL02] discusses other alternative multiclass SVM approaches, but we leave those to future work.
+
+Denoting the output of the k-th SVM as
+
+[formula]
+
+The predicted class is
+
+[formula]
+
+Note that prediction using SVMs is exactly the same as using a softmax Eq. [\ref=eq:softmaxpred]. The only difference between softmax and multiclass SVMs is in their objectives parametrized by all of the weight matrices [formula]. Softmax layer minimizes cross-entropy or maximizes the log-likelihood, while SVMs simply try to find the maximum margin between data points of different classes.
+
+Deep Learning with Support Vector Machines
+
+Most deep learning methods for classification using fully connected layers and convolutional layers have used softmax layer objective to learn the lower level parameters. There are exceptions, notably in papers by [\cite=ZhongG00] [\cite=CollobertB04] [\cite=NagiDGG12], supervised embedding with nonlinear NCA [\cite=SalakH07], and semi-supervised deep embedding [\cite=WestonR08]. In this paper, we use L2-SVM's objective to train deep neural nets for classification. Lower layer weights are learned by backpropagating the gradients from the top layer linear SVM. To do this, we need to differentiate the SVM objective with respect to the activation of the penultimate layer. Let the objective in Eq. [\ref=eq:l1svm] be [formula], and the input [formula] is replaced with the penultimate activation [formula],
+
+[formula]
+
+Where [formula] is the indicator function. Likewise, for the L2-SVM, we have
+
+[formula]
+
+From this point on, backpropagation algorithm is exactly the same as the standard softmax-based deep learning networks. We found L2-SVM to be slightly better than L1-SVM most of the time and will use the L2-SVM in the experiments section.
+
+Experiments
+
+Facial Expression Recognition
+
+This competition/challenge was hosted by the ICML 2013 workshop on representation learning, organized by the LISA at University of Montreal. The contest itself was hosted on Kaggle with over 120 competing teams during the initial developmental period.
+
+The data consist of 28,709 48x48 images of faces under 7 different types of expression. See Fig [\ref=fig:faceexp] for examples and their corresponding expression category. The validation and test sets consist of 3,589 images and this is a classification task.
+
+Our submission consists of using a simple Convolutional Neural Network with linear one-vs-all SVM at the top. Stochastic gradient descent with momentum is used for training and several models are averaged to slightly improve the generalization capabilities. Data preprocessing consisted of first subtracting the mean value of each image and then setting the image norm to be 100. Each pixels is then standardized by removing its mean and dividing its value by the standard deviation of that pixel, across all training images.
+
+Our implementation is in C++ and CUDA, with ports to Matlab using MEX files. Our convolution routines used fast CUDA kernels written by Alex Krizhevsky. The exact model parameters and code is provided on by the author at https://code.google.com/p/deep-learning-faces.
+
+Softmax vs. DLSVM
+
+We compared performances of softmax with the deep learning using L2-SVMs (DLSVM). Both models are tested using an 8 split/fold cross validation, with a image mirroring layer, similarity transformation layer, two convolutional filtering+pooling stages, followed by a fully connected layer with 3072 hidden penultimate hidden units. The hidden layers are all of the rectified linear type. other hyperparameters such as weight decay are selected using cross validation.
+
+We can also look at the validation curve of the Softmax vs L2-SVMs as a function of weight updates in Fig. [\ref=fig:facecurve]. As learning rate is lowered during the latter half of training, DLSVM maintains a small yet clear performance gain.
+
+We also plotted the 1st layer convolutional filters of the two models:
+
+While not much can be gain from looking at these filters, SVM trained conv net appears to have more textured filters.
+
+MNIST
+
+MNIST is a standard handwritten digit classification dataset and has been widely used as a benchmark dataset in deep learning. It is a 10 class classification problem with 60,000 training examples and 10,000 test cases.
+
+We used a simple fully connected model by first performing PCA from 784 dimensions down to 70 dimensions. Two hidden layers of 512 units each is followed by a softmax or a L2-SVM. The data is then divided up into 300 minibatches of 200 samples each. We trained using stochastic gradient descent with momentum on these 300 minibatches for over 400 epochs, totaling 120K weight updates. Learning rate is linearly decayed from 0.1 to 0.0. The L2 weight cost on the softmax layer is set to 0.001. To prevent overfitting and critical to achieving good results, a lot of Gaussian noise is added to the input. Noise of standard deviation of 1.0 (linearly decayed to 0) is added. The idea of adding Gaussian noise is taken from these papers [\cite=RaikoVL12] [\cite=RifaiGBV11].
+
+Our learning algorithm is permutation invariant without any unsupervised pretraining and obtains these results: Softmax: 0.99%     DLSVM: 0.87%
+
+An error of 0.87% on MNIST is probably (at this time) state-of-the-art for the above learning setting. The only difference between softmax and DLSVM is the last layer. This experiment is mainly to demonstrate the effectiveness of the last linear SVM layer vs. the softmax, we have not exhaustively explored other commonly used tricks such as Dropout, weight constraints, hidden unit sparsity, adding more hidden layers and increasing the layer size.
+
+CIFAR-10
+
+Canadian Institute For Advanced Research 10 dataset is a 10 class object dataset with 50,000 images for training and 10,000 for testing. The colored images are in resolution. We trained a Convolutional Neural Net with two alternating pooling and filtering layers. Horizontal reflection and jitter is applied to the data randomly before the weight is updated using a minibatch of 128 data cases.
+
+The Convolutional Net part of both the model is fairly standard, the first C layer had 32 filters with Relu hidden units, the second C layer has 64 filters. Both pooling layers used max pooling and downsampled by a factor of 2.
+
+The penultimate layer has 3072 hidden nodes and uses Relu activation with a dropout rate of 0.2. The difference between the Convnet+Softmax and ConvNet with L2-SVM is the mainly in the SVM's C constant, the Softmax's weight decay constant, and the learning rate. We selected the values of these hyperparameters for each model separately using validation.
+
+In literature, the state-of-the-art (at the time of writing) result is around 9.5% by (Snoeck et al. 2012). However, that model is different as it includes contrast normalization layers as well as used Bayesian optimization to tune its hyperparameters.
+
+Regularization or Optimization
+
+To see whether the gain in DLSVM is due to the superiority of the objective function or to the ability to better optimize, We looked at the two final models' loss under its own objective functions as well as the other objective. The results are in Table [\ref=tab:ro].
+
+It is interesting to note here that lower cross entropy actually led a higher error in the middle row. In addition, we also initialized a ConvNet+Softmax model with the weights of the DLSVM that had 11.9% error. As further training is performed, the network's error rate gradually increased towards 14%.
+
+This gives limited evidence that the gain of DLSVM is largely due to a better objective function.
+
+Conclusions
+
+In conclusion, we have shown that DLSVM works better than softmax on 2 standard datasets and a recent dataset. Switching from softmax to SVMs is incredibly simple and appears to be useful for classification tasks. Further research is needed to explore other multiclass SVM formulations and better understand where and how much the gain is obtained.
+
+Acknowledgment
+
+Thanks to Alex Krizhevsky for making his very fast CUDA Conv kernels available! Many thanks to Relu Patrascu for making running experiments possible! Thanks to Ian Goodfellow, Dumitru Erhan, and Yoshua Bengio for organizing the contests.

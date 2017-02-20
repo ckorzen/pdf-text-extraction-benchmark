@@ -1,0 +1,95 @@
+SGDR: Stochastic Gradient Descent with Restarts
+
+Introduction
+
+Deep neural networks (DNNs) are currently the best-performing method for many classification problems, such as object recognition from images [\citep=Krizhevsky2012] [\citep=Donahue_ICML2014] or speech recognition from audio data [\citep=Deng13newtypes]. Their training on large datasets (where DNNs perform particularly well) is the main computational bottleneck: it often requires several days, even on high-performance GPUs, and any speedups would be of substantial value.
+
+The training of a DNN with n free parameters can be formulated as the problem of minimizing a function [formula]. The commonly used procedure to optimize f is to iteratively adjust [formula] (the parameter vector at time step t) using gradient information [formula] obtained on a relatively small t-th batch of b datapoints. The Stochastic Gradient Descent (SGD) procedure then becomes an extension of the Gradient Descent (GD) to stochastic optimization of f as follows:
+
+[formula]
+
+where ηt is a learning rate. One would like to consider second-order information
+
+[formula]
+
+but this is often infeasible since the computation and storage of the inverse Hessian - 1t is intractable for large n. The usual way to deal with this problem by using limited-memory quasi-Newton methods such as L-BFGS [\citep=liu1989limited] is not currently in favor in deep learning, not the least due to (i) the stochasticity of [formula], (ii) ill-conditioning of f and (iii) the presence of saddle points as a result of the hierarchical geometric structure of the parameter space [\citep=fukumizu2000local]. Despite some recent progress in understanding and addressing the latter problems [\citep=bordes2009sgd] [\citep=dauphin2014identifying] [\citep=choromanska2014loss] [\citep=dauphin2015rmsprop], state-of-the-art optimization techniques tend to approximate the inverse Hessian in a reduced way, e.g., by considering only its diagonal to achieve adaptive learning rates. AdaDelta [\citep=zeiler2012adadelta] and Adam [\citep=kingma2014adam] are notable examples of such methods.
+
+Intriguingly enough, the current state-of-the-art results on CIFAR-10, CIFAR-100, SVHN, ImageNet, PASCAL VOC and MS COCO datasets were obtained by Residual Neural Networks [\citep=he2015deep] [\citep=huang2016deep] [\citep=he2016identity] [\citep=zagoruyko2016wide] trained without the use of advanced methods such as AdaDelta and Adam. Instead, they simply use SGD with momentum :
+
+[formula]
+
+where t is a velocity vector initially set to 0, ηt is a decreasing learning rate and μt is a momentum rate which defines the trade-off between the current and past observations of [formula]. The main difficulty in training a DNN is then associated with the scheduling of the learning rate and the amount of L2 weight decay regularization employed. A common learning rate schedule is to use a constant learning rate and divide it by a fixed constant in (approximately) regular intervals. The blue line in Figure [\ref=Figure1] shows an example of such a schedule, as used by [\cite=zagoruyko2016wide] to obtain the current state-of-the-art results on CIFAR-10, CIFAR-100 and SVHN datasets.
+
+In this paper, we propose to periodically simulate restarts of SGD, where in each restart the learning rate is initialized to some value and is scheduled to decrease. Four different instantiations of this new learning rate schedule are visualized in Figure [\ref=Figure1] Our empirical results suggest that SGD with restarts requires 2×   to 4×   fewer epochs than the currently-used learning rate schedule schemes to achieve comparable or even better results. Using this technique, we obtain new state-of-the-art error rates below 4% for CIFAR-10 and below 19% for CIFAR-100.
+
+Related Work
+
+Restarts in gradient-free optimization
+
+When optimizing multimodal functions one may want to find all global and local optima. The tractability of this task depends on the landscape of the function at hand and the budget of function evaluations. Gradient-free optimization approaches based on niching methods [\citep=preuss2015niching] usually can deal with this task by covering the search space with dynamically allocated niches of local optimizers. However, these methods usually work only for relatively small search spaces, e.g., n  <  10, and do not scale up due to the curse of dimensionality [\citep=preuss2010niching]. Instead, the current state-of-the-art gradient-free optimizers employ various restart mechanisms [\citep=hansen2009benchmarking] [\citep=loshchilov2012alternative]. One way to deal with multimodal functions is to iteratively sample a large number λ of candidate solutions, make a step towards better solutions and slowly shape the sampling distribution to maximize the likelihood of successful steps to appear again [\citep=hansen2004evaluating]. The larger the λ, the more global search is performed requiring more function evaluations. In order to achieve good anytime performance, it is common to start with a small λ and increase it (e.g., by doubling) after each restart. This approach works best on multimodal functions with a global funnel structure and also improves the results on ill-conditioned problems where numerical issues might lead to premature convergence when λ is small [\citep=hansen2009benchmarking].
+
+Restarts in gradient-based optimization
+
+Gradient-based optimization algorithms such as BFGS also perform restarts to deal with multimodal functions [\citep=ros2009benchmarking]. In large-scale settings when the usual number of variables n is on the order of 103 - 109, the availability of gradient information provides a speedup of a factor of n w.r.t. gradient-free approaches. Restarts are usually employed to improve the convergence rate rather than to deal with multimodality: often it is sufficient to approach any local optimum to a given precision and in many cases the problem at hand is unimodal. [\cite=fletcher1964function] proposed to flesh the history of conjugate gradient. the conjugate gradient method every n or (n  +  1) iterations. [\cite=powell1977restart] proposed to check whether enough orthogonality between [formula] and [formula] has been lost to warrant another restart. Recently, [\cite=o2012adaptive] noted that the iterates of accelerated gradient schemes proposed by [\cite=nesterov1983method] [\cite=nesterov2013introductory] exhibit a periodic behavior if momentum is overused. The period of the oscillations is proportional to the square root of the local condition number of the (smooth convex) objective function. The authors showed that fixed restarts of the algorithm with a period proportional to the conditional number achieves the optimal linear convergence rate of the original accelerated gradient scheme. Since the condition number is an unknown parameter and its value may vary during the search, they proposed two adaptive restart techniques [\citep=o2012adaptive]:
+
+The function scheme restarts whenever the objective function increases.
+
+The gradient scheme restarts whenever the angle between the momentum term and the negative gradient is obtuse, i.e, when the momentum seems to be taking us in a bad direction, as measured by the negative gradient at that point. This scheme resembles the one of [\cite=powell1977restart] for the conjugate gradient method.
+
+[\cite=o2012adaptive] showed (and it was confirmed in a set of follow-up works) that these simple schemes provide an acceleration on smooth functions and can be adjusted to accelerate state-of-the-art methods such as FISTA on nonsmooth functions.
+
+[\cite=smith2015no] recently introduced cyclical learning rates for deep learning, his approach is closely-related to our approach in its spirit and formulation but does not focus on restarts.
+
+Stochastic Gradient Descent with restarts (SGDR)
+
+The existing restart techniques can also be used for stochastic gradient descent if the stochasticity is taken into account. Since gradients and loss values can vary widely from one batch of the data to another, one should denoise the incoming information: by considering averaged gradients and losses, e.g., once per epoch, the above-mentioned restart techniques can be used again.
+
+In this work, we consider one of the simplest restart approaches. We simulate a new warm-started run / restart of SGD once Ti epochs are performed, where i is the index of the run. Importantly, the restarts are not performed from scratch but emulated by increasing the learning rate ηt while the old value of t is used as an initial solution. The amount of this increase controls to which extent the previously acquired information (e.g., momentum) is used.
+
+Within the i-th run, we decay the learning rate for each batch as follows:
+
+[formula]
+
+where ηimin and ηimax are ranges for the learning rate, and Tcur accounts for how many epochs have been performed since the last restart. Thus, ηt  =  ηimax when t = 0 and Tcur = 0. Once Tcur = Ti, the [formula] function will output - 1 and thus set ηt  =  ηimin. The decrease of the learning rate is shown in Figure [\ref=Figure1] for fixed Ti = 50 and Ti = 100; note that the logarithmic axis obfuscates the typical shape of the cosine function.
+
+In order to improve any-time performance, we suggest an option to start with an initially small Ti and increase it by a factor of Tmult at every restart (see, e.g., Figure [\ref=Figure1] for T0 = 1,Tmult = 2 and T0 = 10,Tmult = 2). It might be of great interest to decrease ηimax and ηimin at every new restart. However, for the sake of simplicity, here, we keep ηimax and ηimin the same for every i to reduce the number of hyperparameters involved.
+
+Since our simulated restarts (the increase of the learning rate) often temporarily worsen performance, we do not always use the last t as our recommendation for the best solution (also called the incumbent solution). While our recommendation during the first run (before the first restart) is indeed the last t, our recommendation after this is a solution obtained at the end of the last performed run at ηt  =  ηimin. We emphasize that with the help of this strategy, our method does not require a separate validation data set to determine a recommendation.
+
+Experimental results
+
+Experimental settings
+
+We consider the problem of training Wide Residual Neural Networks (WRNs; see [\cite=zagoruyko2016wide] for details) on the CIFAR-10 and CIFAR-100 datasets [\citep=krizhevsky2009learning]. We will use the abbreviation WRN-d-k to denote a WRN with depth d and width k. [\cite=zagoruyko2016wide] obtained the best results with a WRN-28-10 architecture, i.e., a Residual Neural Network with d = 28 layers and k = 10 times more filters per layer than used in the original Residual Neural Networks [\citep=he2015deep] [\citep=he2016identity].
+
+The CIFAR-10 and CIFAR-100 datasets [\citep=krizhevsky2009learning] consist of 32×  32 color images drawn from 10 and 100 classes, respectively, split into 50,000 train and 10,000 test images. For image preprocessing [\cite=zagoruyko2016wide] performed global contrast normalization and ZCA whitening. For data augmentation they performed horizontal flips and random crops from the image padded by 4 pixels on each side, filling missing pixels with reflections of the original image.
+
+For training, [\cite=zagoruyko2016wide] used SGD with Nesterov's momentum with initial learning rate set to η0 = 0.1, weight decay to 0.0005, dampening to 0, momentum to 0.9 and minibatch size to 128. The learning rate is dropped by a factor of 0.2 at 60, 120 and 160 epochs, with a total budget of 200 epochs. We reproduce the results of [\cite=zagoruyko2016wide] with the same settings except that i) we subtract per-pixel mean only and do not use ZCA whitening; ii) we use SGD with momentum as described by eq. ([\ref=eq:moms1]-[\ref=eq:moms2]) and not Nesterov's momentum.
+
+The schedule of ηt used by [\cite=zagoruyko2016wide] is depicted by the blue line in Figure [\ref=Figure1]. The same schedule but with η0 = 0.05 is depicted by the red line. The schedule of ηt used in SGDR is also shown in Figure [\ref=Figure1], with two initial learning rates T0 and two restart doubling periods.
+
+Results
+
+Table 1 shows that our experiments reproduce the results given by [\cite=zagoruyko2016wide] for WRN-28-10 both on CIFAR-10 and CIFAR-100. These "default" experiments with η0 = 0.1 and η0 = 0.05 correspond to the blue and red lines in Figure [\ref=Figure2]. The results for η0 = 0.05 show better performance, and therefore we use η0 = 0.05 in our later experiments.
+
+SGDR with T0 = 50,Tmult = 1 and T0 = 100,Tmult = 1 performs restarts every 50 and 100 epochs, respectively. A single run of SGD with the schedule given by eq. ([\ref=eq:t]) for T0 = 100 show the best results suggesting that the original schedule of WRNs might be suboptimal w.r.t. the test error in these settings.
+
+SGDR with T0 = 1,Tmult = 2 and T0 = 10,Tmult = 2 performs its first restart after 1 and 10 epochs, respectively. Then, it doubles the maximum number of epochs for every new restart. The main purpose of this doubling is to reach good test error as soon as possible, i.e., achieve good anytime performance. Figure [\ref=Figure2] shows that this is achieved and test errors around 4% on CIFAR-10 and around 20% on CIFAR-100 can be obtained about 2-4 times faster than with the default schedule used by [\cite=zagoruyko2016wide].
+
+Since SGDR achieves good performance faster, it may allow us to train larger networks. We therefore investigated whether results on CIFAR-10 and CIFAR-100 can be further improved by making WRNs two times wider, i.e., by training WRN-28-20 instead of WRN-28-10. Table 1 shows that the results indeed improved, by about 0.25% on CIFAR-10 and by about 0.5-1.0% on CIFAR-100. While network architecture WRN-28-20 requires roughly four times more computation than WRN-28-10, the aggressive learning rate reduction of SGDR nevertheless allowed us to achieve a better error rate in the same time on WRN-28-20 as we spent on 200 epochs of training on WRN-28-10. Specifically, Figure [\ref=Figure2] (right middle and right bottom) show that after only 50 epochs, SGDR (even without restarts, using T0 = 50,Tmult = 1) achieved an error rate below 19% (whereas none of the learning methods performed better than 19.5% on WRN-28-10). We therefore have hope that - by enabling researchers to test new architectures faster - SGDR's good anytime performance may also lead to improvements of the state of the art.
+
+In a final experiment, Figure [\ref=Figure3] compares SGDR and the default schedule with respect to training and test performance. As the figure shows, SGDR optimizes training loss faster than the standard default schedule until about epoch 120. After this, the default schedule overfits, as can be seen by an increase of the test error both on CIFAR-10 and CIFAR-100 (see, e.g., the right middle plot of Figure [\ref=Figure3]). In contrast, we only witnessed very mild overfitting for SGDR.
+
+Discussion
+
+Our results suggest that even without any restarts the proposed aggressive learning rate schedule given by eq. ([\ref=eq:t]) is competitive w.r.t. the default schedule when training WRNs on the CIFAR-10 and CIFAR-100 datasets. In practice, the proposed schedule requires only two hyper-parameters to be defined: the initial learning rate and the total number of epochs.
+
+One should not suppose that the parameter values used in this study and many other works with (Residual) Neural Networks are selected to demonstrate the fastest decrease of the training error. Instead, the best validation or/and test errors are in focus. Notably, the validation error is rarely used when training Residual Neural Networks because the recommendation is defined by the final solution (in our approach, the final solution of each run). One could use the validation error to determine the optimal initial learning rate and then run on the whole dataset; this could further improve results.
+
+The main purpose of the proposed restart scheme for SGD is to improve its any-time performance. While we mentioned that restarts can be useful to deal with multi-modal functions, we do not claim that we observe any effect related to multi-modality.
+
+As we noted earlier, one could decrease ηimax and ηimin at every new simulated restart to control the amount of divergence. If new restarts are worse than the old ones w.r.t. validation error, then one might also consider to go back to the last best solution and perform a new restart with adjusted hyperparameters.
+
+Conclusion
+
+In this paper, we investigated a simple restart mechanism for SGD to accelerate the training of DNNs. Our SGDR simulates restarts by scheduling the learning rate to achieve competitive results on CIFAR-10 and CIFAR-100 roughly two to four times faster. We also achieved new state-of-the-art results with SGDR, mainly by using even wider WRNs. Future empirical studies should also consider the ImageNet and MS COCO datasets, for which Residual Neural Networks showed the best results so far. Alternative network structures should be also considered; e.g., [\cite=2016arXiv160802908Z] just reported results that are basically the same as our best ones (with T0 = 10,Tmult = 2) on CIFAR-10 and (only) one percent worse than ours on CIFAR-100. Their new variant of Residual Neural Networks is very promising since it requires less parameters to achieve the same performance as WRNs and thus it should be tested whether our results can be further improved by using it instead of WRNs.

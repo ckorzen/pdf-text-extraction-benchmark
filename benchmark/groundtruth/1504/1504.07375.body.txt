@@ -1,0 +1,261 @@
+Quantum Walk Search with Time-Reversal Symmetry Breaking
+
+Introduction
+
+Continuous-time quantum walks [\cite=FG1998b] [\cite=Kempe2003] are analogues of continuous-time classical Markov chains. In them, probability amplitude flows from one vertex of a graph to another by evolving by Schrödinger's equation
+
+[formula]
+
+with Hamiltonian
+
+[formula]
+
+where L  =  A - D is the graph Laplacian, which is composed of the adjacency matrix A for which Aij  =  1 when vertices i and j are connected (and zero otherwise) and the diagonal degree matrix D for which Dii  =   deg(i). The real parameter γ is the jumping rate, or amplitude per time. This evolution causes probability amplitude to transition between adjacent vertices.
+
+For example, consider the quantum walk on the complete graph of N vertices, an example of which is shown in . Then the vertices label computational basis states [formula] of an N-dimensional Hilbert space. Since each vertex is connected to the N - 1 others, the Laplacian is an N  ×  N matrix with - (N - 1) on the diagonal and 1 everywhere else:
+
+[formula]
+
+If the system starts in the equal superposition over all the vertices
+
+[formula]
+
+then the system stays in this equilibrium state, up to a global phase, when evolving by the quantum walk.
+
+To construct a search algorithm from the quantum walk, we include an additional term in the Hamiltonian
+
+[formula]
+
+which marks a basis state [formula] and acts as an oracle [\cite=Mochon2007]. The goal is to find [formula] by evolving with this Hamiltonian, and we begin in [formula] to express our initial lack of knowledge of which vertex [formula] might be. Note that the complete graph is homogeneous, so which particular vertex is marked does not change the dynamics. Also, each vertex is connected to every other, and there is no additional structure to the problem. Thus this is the quantum walk formulation of the unstructured, black-box search problem that Grover's algorithm [\cite=Grover1996] famously solves.
+
+This formulation of Grover's algorithm is quite easy to solve, as shown by Childs and Goldstone [\cite=CG2004], and which we summarize here. Since the unmarked vertices evolve identically, the system evolves in a 2D subspace. As shown in , when γ takes its critical value of γc  =  1 / N, this 2D subspace is spanned by eigenstates of H
+
+[formula]
+
+which have an energy gap of [formula]. Thus the system evolves from [formula] to [formula] with probability 1 in time [formula], and a detailed calculation showing this is available in Section III of [\cite=Wong2015b]. The evolution of the success probability with time is shown in , and it reaches 1 at [formula], as expected.
+
+Such quantum walks are the basis of several of quantum algorithms [\cite=SKW2003] [\cite=FGG2008] and even universal computation [\cite=Childs2009], and they preserve time-reversal symmetry, meaning the probability at each vertex at time t is the same as at time - t. Recently, Zimborás et al. introduced chiral quantum walks [\cite=ZFKWLB2013], which break time-reversal symmetry by walking on directed, weighted graphs, where transitioning in one direction has some phase [formula], and transitioning in the opposite direction has the conjugate phase [formula]. We introduce a graphic notation for this in , where a dotted arrow from vertex i to j indicates a directed edge from i to j with weight [formula], and from j to i with weight [formula].
+
+By breaking time-reversal symmetry, Zimborás et al. attained significant speedups in quantum transport, indicating that such breaking may be a useful tool in engineering hardware to efficiently transport energy or information. While faster transport with a directed quantum walk [\cite=HM2009] is unsurprising since allowing transitions in just one direction provides immense control over the flow of amplitude, speedups with chiral quantum walks are novel because the conjugate relationship that opposite directions must maintain prevents one from eliminating one direction of the walk entirely. Chiral quantum walks have also been investigated in discrete-time [\cite=LBLLJBFZLBL2014], but here we focus on the continuous-time formulation.
+
+Given the speedups obtained by Zimborás et al. in quantum transport, one might hope to achieve similar speedups algorithmically. In this paper, we conduct the first algorithmic investigation of chiral quantum walks, showing how breaking time-reversal symmetry affects quantum search. While the [formula] optimality [\cite=FG1998a] of the continuous-time search Hamiltonian prevents time-reversal symmetry breaking from improving the runtime scaling, it is possible that it improves the constant factor. Of course, it is also possible that it makes the search slower. We show that neither of these occur, that the runtime is unchanged from [formula] for large swathes of θ. In spite of this, the value of γ must be chosen differently, and the system may not evolve in its lowest two energy eigenstates.
+
+In particular, we modify the complete graph as shown in . Assuming throughout the paper that N is odd, we arrange the vertices in a circular pattern. Then using our graphic notation in for chiral quantum walks, each vertex has a dotted arrow going from it to the (N - 1) / 2 vertices ahead (in a clockwise direction) of it, and the (N - 1) / 2 vertices behind it have dotted arrows coming into the vertex. Thus each vertex has half its dotted arrows going out and half coming in, but in such a way that the graph is homogeneous, so it makes no difference as to which vertex is marked for search.
+
+To further illuminate the chiral quantum walk we have defined on the modified complete graph in , the graph Laplacian L for it when N  =  5 is
+
+[formula]
+
+where N1  =  N - 1. Generalizing this to arbitrary N is straightforward--the first column starts with - (N - 1) cos θ, is followed by (N - 1) / 2 terms that are [formula], and ends with (N - 1) / 2 terms that are [formula]. The remaining columns are given by cyclic permutations of this first column, so L is a circulant matrix [\cite=Davis1994]. Note that the equal superposition [formula] is still the equilibrium distribution of this chiral quantum walk , as in the case of the normal (θ  =  0) quantum walk.
+
+The symmetry of this graph Laplacian L restricts the values of θ we must consider. For example, when θ  >  π, then [formula], so we can simply use θ  -  π  ≤  π and reverse all the arrows in , which is an equivalent definition of the walk. Thus we can restrict θ to the interval
+
+[formula]
+
+, which we do for the rest of the paper.
+
+To turn this chiral quantum walk into a search algorithm, we again include an additional oracle term in the Hamiltonian that marks the vertex to search for. When θ  >  0, the unmarked vertices no longer evolve identically, and so the system no longer evolves in an exact 2D subspace. Thus finding the runtime and success probability of the algorithm by finding the eigenstates and eigenvalues of H is non-trivial. Nonetheless, we solve this problem using the method of Childs and Goldstone [\cite=CG2004], where various sums involving the eigenvalues of the negative Laplacian - L can be used to determine the critical γ, as well as the runtime and success probability of the algorithm. We summarize this method in the next section. Afterward, we solve search by chiral quantum walk, showing that the system still evolves in an approximate 2D subspace, but the value of θ can cause the support of the subspace by the eigenvectors of H to change. Away from the critical θ's at which the support changes, breaking time-reversal symmetry does not affect the search algorithm, so it still succeeds with probability 1 at time [formula].
+
+Review of Childs and Goldstone's Method
+
+We begin by reviewing Childs and Goldstone's [\cite=CG2004] method, which they used to solve spatial search on arbitrary-dimensional cubic lattices by quantum walk. We will not rederive it, but simply state how to use it. Recall that the search Hamiltonian has two terms: the quantum walk term -  γL and the oracle [formula]. In general, the eigenvalues and eigenvectors of the search Hamiltonian are hard to find, but often they are easy to find for the walk term alone because of the symmetry of the graph.
+
+In particular, let Ej be the eigenvalues of - L, with [formula] labeling the eigenvalues. Then consider the sum from Childs and Goldstone's (33):
+
+[formula]
+
+From their analysis in Section IV.B., the critical γ corresponds to S1 for large N:
+
+[formula]
+
+As shown in , when γ  <  γc, the initial equal superposition state [formula] is approximately an eigenstate of H, and when γ  >  γc, it is approximately another eigenstate of H. Thus the overlap of [formula] with the eigenstates of H exhibits a phase transition at γc.
+
+As an example, for the normal quantum walk on the complete graph (which is the chiral quantum walk with θ  =  0), - L has eigenvalues 0 with multiplicity 1 and N with multiplicity N - 1 [\cite=Chung1997]. Then
+
+[formula]
+
+which is the expected γc from the introduction.
+
+From Childs and Goldstone's (96), the success probability is approximately
+
+[formula]
+
+at time
+
+[formula]
+
+Continuing the above example of normal quantum walk search on the complete graph, we already have S1. The other sum is
+
+[formula]
+
+Thus [formula], and so the success probability roughly reaches 1 at time [formula], as expected from the introduction.
+
+Chiral Quantum Search
+
+Now we apply the method of Childs and Goldstone, which we summarized in the previous section, to the chiral quantum walk search algorithm.
+
+Eigenvalues of - L
+
+To calculate the sums S1 and S2, we need the eigenvalues of - L. Since - L is a circulant matrix, its eigenvalues Ej can be expressed in terms of roots of unity ωj  =  e2πij / N [\cite=Davis1994]:
+
+[formula]
+
+where [formula],
+
+[formula]
+
+is the sum of the roots of unity in the upper-half complex plane, and
+
+[formula]
+
+is its conjugate and corresponds to the sum of the roots of unity in the lower-half complex plane. Note that ω0  =  1, and so E0  =  0. Since [formula] is a geometric series, when j  ≠  0,
+
+[formula]
+
+To further simplify this sum, we multiply the top and bottom of it by 1  -  ω*j:
+
+[formula]
+
+where we have defined
+
+[formula]
+
+We will further simplify αj in a moment, but first let us show how this expression for [formula] simplifies our expression for the eigenvalues of - L with j  ≠  0:
+
+[formula]
+
+Thus we have a simple expression for the eigenvalues of - L.
+
+Now let us return to simplifying αj. For its first sine term, we use sin (2u)  =  2 sin (u) cos (u). For its second sine term, note that it equals sin (πj  -  πj / N), so we can use sin (u + v)  =   sin (u) cos (v)  -   sin (v) cos (u), for which the first piece is zero:
+
+[formula]
+
+Now we factor 2 sin (πj / N) in the numerator and use 2 sin 2(u / 2)  =  1  -   cos (u) in the denominator:
+
+[formula]
+
+Note that cos (πj)  =  1 when j is even and - 1 when j is odd. So we write each case separately:
+
+[formula]
+
+Plugging these into gives simple expressions for Ej  ≠  0.
+
+Critical Thetas
+
+Now that we have the eigenvalues Ej of - L, we can find the sum
+
+[formula]
+
+which is approximately the critical γ for large N . Since E0  =  0, we exclude the j  =  0 term in the sum. But for certain "critical" values of θ, there are other eigenvalues [formula] that are also zero, at which S1 diverges. This is shown in ; S1 diverges at several critical values of θ, and they are more frequent as θ approaches π / 2.
+
+We can analytically find the θc's corresponding to these divergences. Since αj,odd is always positive and αj,even is always negative, [formula] can only be zero when j is odd. Setting Ej,odd  =  0 and solving for θ, we get
+
+[formula]
+
+This can be further simplified when j scales less than N by Taylor expanding αj,odd  ≈  2N / (πj) for large N. Then the critical θ's are
+
+[formula]
+
+Since j is odd in this expression, let us call these values θc1,θc3,θc5, and so on. Note that they are independent of N, and they correspond to the divergences of S1 in .
+
+Critical Gamma
+
+Now let us return to finding the sum S1, which is approximately the critical γ for large N . We assume that θ is away from its critical values. Otherwise, S1 would diverge, and γc would also diverge, which is unphysical since γ is the jumping rate of the randomly walking quantum particle. In particular, we prove below for large N that away from the θc's,
+
+[formula]
+
+as shown in . Note when θ  =  0, this yields γc  =  1 / N, as expected from the introduction.
+
+To begin the proof of , first note from and that αN - j  =    -  αj. Then using , we can rewrite the sum as
+
+[formula]
+
+The summand takes the form
+
+[formula]
+
+so the sum is
+
+[formula]
+
+Let us consider this for different ranges of θ. When it is less than its first critical value (i.e., θ  <  θc1  ≈  1.0039), then the denominator is dominated by N2 cos 2θ, yielding
+
+[formula]
+
+which is . Now consider when θ is between two consecutive critical values θcJ and θc(J + 2) with J odd. Note that J is small compared to N, otherwise θ would approach π / 2 where S1 diverges (see ). In this case, we split S1 into two sums with odd and even j's,
+
+[formula]
+
+and show that each contributes 1 / (2N cos θ) to the total sum. For concreteness, we have assumed (N - 1) / 2 to be odd, but our proof still holds when it is even. Beginning with the odd sum, when j  ≤  J, the α2j sin 2θ term dominates the denominator, while for j  >  J, the N2 cos 2θ term dominates:
+
+[formula]
+
+We want to show that the second sum in the parenthesis dominates the first. To do this, we bound each of them. The first can be upper bounded by replacing θ by θc1:
+
+[formula]
+
+where we used αj  ≈  2N / (πj) for small j, [formula], and [formula]. The second sum in the parenthesis can be lower bounded by replacing θ by θc1:
+
+[formula]
+
+where we used [formula] and that the sum has (N - 2J - 1) / 4 terms. From these, we see that the second sum in the parenthesis dominates over the first when [formula], which is true so that θ is not near its critical values. Thus the leading-order behavior of the odd sum is
+
+[formula]
+
+Now to complete the proof that S1  ≈  1 / (N cos θ), we note that the even sum S1,even is always dominated by N2 cos 2θ in its denominator when θ does not approach π / 2. Then it is also approximately 1 / (2N cos θ) for large N, which when combined with the odd sum yields . [formula]
+
+For nonzero values of θ, some overlap plots similar to are shown in . Let us discuss each of them. In , we have θ  =  0.8, and our formula yields the critical γcN  ≈  S1N  ≈  1.44. This corresponds to where the ground and first excited states of the Hamiltonian are proportional to [formula], so the system rotates from [formula] to [formula], as desired. In the next plot, shows a similar behavior when θ  =  1.2, but now at γcN  ≈  S1N  ≈  2.76 and with the first and second excited states. So we still expect the system to rotate from [formula] to [formula], but the evolution approximately occurs in the 2D subspace spanned by [formula] and [formula] instead of [formula] and [formula]. Similarly in , for which θ  =  1.4, the 2D support has shifted again, this time to [formula] and [formula] at the critical γcN  ≈  S1N  ≈  5.88. Next, we will explain why these shifts occur as θ increases and derive the critical θ's at which these transitions occur.
+
+2D Subspace Support
+
+To explain why the energy levels that support the system change with θ, we must look at some details of Childs and Goldstone's [\cite=CG2004] method, which we ignored in our summary in Section [\ref=Section:CG]. From their (26), the eigenvalues Ej of - L can be used to find the eigenenergies Ea of the search Hamiltonian by solving
+
+[formula]
+
+where
+
+[formula]
+
+An example of F(E) is plotted in , and we give some properties of it that were identified by Childs and Goldstone. F(E) has poles where E  =  γEj, F'(E)  >  0 everywhere (except at the poles), and F(E)  →  0 as E  →    ±    ∞  . So there exists an eigenvalue Ea of H between every adjacent pair of poles, and one left of the smallest pole. If θ is sufficiently small so that E0  =  0 is the lowest eigenvalue of - L, then the ground state energy is negative, and the other eigenenergies are positive.
+
+As θ increases, however, then and imply that Ej decreases when j is odd. In particular, Ej  =  0 at the critical θ's from earlier:
+
+[formula]
+
+at which a level crossing (degeneracy) occurs in the eigenenergies of H. As θ continues to increase beyond critical values, eigenenergies of H become negative, and the system approximately evolves in higher and higher energy eigenstates of H.
+
+The lowest six eigenenergies of H are shown in as θ is increased. When θ is sufficiently below the first critical value of 1.0039, the system remains in its ground and first excited states. Since the energy gap is constant throughout this region, the runtime is unaffected by θ. When θ crosses the first critical value so that it is sufficiently between 1.0039 and 1.3617, the system transitions to being in the first and second excited states, with the same energy gap as before. So the runtime is unchanged, even though higher energy eigenstates of H support the evolution. This continues as each θc is crossed, until the critical values occur so close together that there is no opportunity for the system to settle into a 2D subspace. Note that the sharp behavior near each θc is because we used γ  =  S1, which diverges at the critical θ's (recall ).
+
+Childs and Goldstone's method follows the two eigenenergies closest to 0, which is evident from the derivation of their method [\cite=CG2004]. So as the eigenenergies become more and more negative, they "drop out," and the method continues to track the two correct energy eigenstates.
+
+Success Probability and Runtime
+
+From and its description in the previous section, we see that the energy gap between the two relevant eigenstates is constant away from the critical θ's. So the success probability should reach 1 at time [formula]. To prove this analytically, we use and , for which we need the sum
+
+[formula]
+
+Finding the behavior of this for θ away from its critical values follows the same procedure as our proof of S1 , yielding
+
+[formula]
+
+A plot of S2 with this approximation is shown in . Note when θ  =  0, this yields S2  =  1 / N2, as expected from the introduction.
+
+Now that we have expressions for both S1 and S2 , the success probability of the chiral quantum walk search algorithm reaches
+
+[formula]
+
+at time
+
+[formula]
+
+So even with time-reversal symmetry broken, the runtime and success probability is unchanged, so long as we are away from the critical θ's at which the eigenvectors of H that support the evolution change.
+
+These success probabilities and runtimes are confirmed in , where we plot the evolution of the success probability using the same values of θ that we used in . The success probabilities roughly reach 1 at time [formula]. The last figure with θ  =  1.4 is a little short because our approximations for S1 and S2 are less accurate as each critical θ is passed, so bigger N is needed for the probability to near 1.
+
+Conclusion
+
+Time-reversal symmetry breaking in quantum walks was first exploited for quantum transport, yielding significant speedups. Here, however, we considered the first algorithmic investigation of such chiral quantum walks, defining an unstructured search problem on a modified complete graph that retains the homogeneity of the search problem. While breaking time-reversal symmetry does affect the jumping rate γ that must be used, and can also change the energy eigenstates in which the system evolves, it does not change the runtime of the search for large swathes of θ. Thus quantum search is robust against time-reversal symmetry breaking in the model we have introduced.
+
+Thanks to Jacob Biamonte for useful discussions. This work was supported by the European Union Seventh Framework Programme (FP7/2007-2013) under the QALGO (Grant Agreement No. 600700) project, and the ERC Advanced Grant MQC.
+
+References

@@ -1,0 +1,231 @@
+Quickest Paths in Simulations of Pedestrians
+
+Introduction
+
+Motivation: Travel Time matters for Pedestrians
+
+In traffic planning for vehicular traffic it is common sense for more than half a century that - provided origin-destination matrices are known - traffic demand on the links of the network cannot be predicted based on the assumption that drivers follow the shortest path between their origin and their destination, but that one has to calculate an equilibrium where "no driver could reduce his or her travel time by selecting a different route" [\cite=Wardrop1952]. This statement has been modified by shifting from travel time to "generalized costs" as decisive quantity for the equilibrium calculation, but nevertheless travel time in general has a heavy weight within the generalized costs. It is probably needless to say that the travel time is heavily influenced by the distribution of all the other participants of traffic, be it vehicular or pedestrian traffic.
+
+There has been much less awareness for this issue on the side of pedestrians. This might be because pedestrians move not on a network as vehicles do, but freely in two spatial dimensions. As an effect micro simulation models of pedestrians are computationally more costly than simulations of vehicular dynamics and macro models of pedestrian dynamics are more difficult to be formulated. In result the iterative approach to finding an equilibrium (be it macro or micro) appears to be a tough case.
+
+There are however situations in which travel time matters a lot for pedestrians, which is why they must base their movement decisions on the criterion which direction at some given point in time appears to promise the smallest remaining travel time. Pedestrians hustling through a station hall as they are late for a train have already been mentioned. Another situation would be an infrastructure providing two differently long paths through two distinct bottlenecks separated by at least a few meters. If the demand exceeds the capacity of the shorter path, but is below the capacity of both paths, after some time the jam on the shorter path will be large enough to produce delays that will or at least could make pedestrians familiar with the place detour on the longer path. As the geometry of the longer path can be arbitrarily complicated, this example makes it immediately clear that a model of pedestrian dynamics, which is based on movement along the shortest path plus elements that make pedestrians evade each other can never - no matter what the basic approach and construction principle of the model is - in general produce the desired behavior.
+
+Following this line of motivation, we explicitly note here that the proposed method is not seen as a general improvement of the Social Force Model for all movement situations. It is rather an alternative way to calculate the direction of the desired velocity. Depending on the situation this can yield more realistic results, in others less realistic results, and in many cases similar results as a calculation based on the assumption of movement on the shortest path. In the latter case (comparable results) it is better to not apply it, as it is computationally more costly.
+
+The Social Force Model
+
+For a general overview on simulation of pedestrian dynamics and its history, as well as other modeling approaches apart from force based see [\cite=Schadschneider2009]. In this subsection we focus on a short introduction of the Social Force Model itself.
+
+The Social Force Model is one of the most discussed models of pedestrian dynamics. Since it was introduced originally by Helbing et al. [\cite=Helbing1995] [\cite=Helbing2000b] Helbing and members of his group have proposed a number of extensions [\cite=Werner2003] [\cite=Johansson2007] [\cite=Helbing2009] [\cite=Moussaid2010], but also other authors have developed their own ideas based on the Social Force Model [\cite=Yu2005] [\cite=Lakoba2005] [\cite=Pelechano2007] [\cite=VISSIM2010] [\cite=Steffen2010] [\cite=Chraibi2010] [\cite=Zainuddin2010] [\cite=Kretz2011d]
+
+It is a bit of a surprise that discussions of the Social Force Model more often deal with the forces between the agents than with the driving force term, although it is the driving force that sets the basic dynamics and although without the driving force one would be faced only with a diffusion process. Especially one particular issue has received only few attention in introducing as well as improving publications: how is the direction of the desired velocity calculated? With v0 as desired speed, 0 as direction (unit vector) of the desired velocity, [formula] as current velocity, and τ as inertia time parameter, the basic equation is
+
+[formula]
+
+The reason for this is probably that in (geometric) models built to investigate the properties of the (dynamic) model, the desired direction usually is obvious. Typical geometries to test these properties - like straight corridors - do not need an elaborate method to calculate the direction of the desired velocity, as different methods of calculation would yield very similar directions. Studies in which this question has been addressed deal with panic situations and the question, if pedestrians follow others or their individual plan to reach the destination (on the shortest path) [\cite=Helbing2000b] [\cite=Lakoba2005] [\cite=Zainuddin2010], something which lies entirely outside the scope of this work. There are exceptions from this focus on panic in dealing with the direction of the desired velocity as for example [\cite=Freialdenhoven2010] [\cite=Patil2010], and very recently [\cite=Moussaid2011].
+
+An obvious first idea for the direction of the desired velocity in arbitrary geometries is that it points into the direction of the shortest path to the destination. This can be achieved either by calculating a navigation graph - probably the best of which is the visibility graph [\cite=DeBerg1997] - or by calculating a distance map (a.k.a. "look up table of distances", "static potential" or "static floor field") [\cite=Burstedde2001] and receive the direction by calculating the gradient of the potential. We will make use of the distance map approach in the following and generalize the "distance" to an estimated remaining travel time.
+
+The desired direction continuously can take any value between [formula] and [formula]. The proposed numerical procedure implies some discreteness in the choices. However, the direction choice method proposed in this paper is still continuous in the sense that no geometric analysis is undertaken that creates a navigation graph on which discrete choices (e.g. "pass an obstacle to the left or right?") are made [\cite=Bluemel2008] [\cite=Hoecker2010] [\cite=Guy2010]; no spatial semantics with rooms and doors or links and nodes is produced.
+
+Distance Maps
+
+A distance map can be calculated in a number of ways, often trading precision for computation time [\cite=Kretz2010a]. Very fast naïve flood fill methods can only result in metrics with norm p = 1 or p  →    ∞  .
+
+[formula]
+
+If one wants a nearly exact method - i.e. distance in Euclidean metric (vector norm p = 2) under consideration of obstacles - the distance map can be computed by solving the Eikonal Equation [\cite=Bruns1895] [\cite=Frank1927]
+
+[formula]
+
+[formula] is the distance map (shortest distance to the destination area under consideration of obstacles). For a distance calculation f is a constant to receive the distance with the desired units. Here we are only concerned with the direction of the gradient of the resulting field, which does not depend on units or a global factor of the field and may choose [formula] for walkable areas and f  →  0 for areas obstructed by obstacles.
+
+Equation ([\ref=eq:eikonalS]) alone is not sufficient but one needs to add a boundary condition which fixes the values of S on the edge of the destination area (calling the edge of the destination area δAd, it is usually defined S(δAd)  =  0). Inside obstacles S is initialized with ∞   - implemented in a computer program by using a numerical value with equivalent effect.
+
+"Solving the Eikonal Equation numerically" can be imagined as placing a discrete lattice in the background, begin at the grid points of δAd and drive outward a front which sets the values of S on all other grid points by summing up the distances between the grid points over which it is "flowing". Simple flood fill methods result in Manhattan metric (vector norm p = 1) or Chessboard metric (vector norm p  →    ∞  ). Desired and to be called "error free" is the Euclidean metric (vector norm p = 2). Numerical methods to solve the Eikonal Equation efficiently, which result in a Euclidean metric, are for example the Fast Marching Method [\cite=_Sethian1999] and the Fast Iterative Method[\cite=Jeong2007].
+
+In our simulations we use a lattice point spacing between 15 and 20 cm, i.e. the lower range of human body diameters. Larger lattice point spacings lead to unrealistic artifacts and produce problems at narrow building infrastructure, smaller lattice point spacings do not yield advantages, but occupy more com�puter memory.
+
+No matter if a naïve flood fill method or an Eikonal Equation Solver is used, once S has been calculated, the direction of the desired velocity is obtained from the gradient of [formula]:
+
+[formula]
+
+where the desired speed v0 is an external parameter to be set by the scenario modeler and technically "gradient" is to be understood as discrete gradient, as the field S is not continuous but only defined on the points of a grid.
+
+With the motivation of this paper, it is clear that a "distance map" cannot be the end of the story. What we need is a "map of estimated remaining travel times" or at least a map which is different from such a map just by a global factor. Mathematically it is only a small step from the computation of the shortest to the quickest path: in equation ([\ref=eq:eikonalS]) f is not to be taken constant, but proportional to the speed expected at that spot. If the travel speed is expected to be the same everywhere then the estimated remaining travel time is different from the distance to destination only by a global factor (which is the speed). However, if at different spots different travel speeds are expected, the value of f at the spots needs to take this into account: f is no longer a global constant, but it is a grid (a field) itself, a grid of expected travel speeds.
+
+Recently it has been shown that the field of gradients of the distance map can be calculated without explicitly calculating the distance map [\cite=Schultz2010a]. The method might even be faster than the fastest Eikonal Equation Solver, yet it is not suited to compute the gradient field of a map of travel times.
+
+Normally this would be the place to have a discussion of preceding work, but as with some of these an in-depth discussion of the details is done, it appears that it makes more sense if first the model extension is introduced.
+
+Calculating the Direction of the Quickest Path
+
+To calculate the current direction of estimated least travel time (shorter: "dynamic potential") comprises of three steps:
+
+First a map of expected or estimated walking speeds for small areas must be calculated which takes account for the distribution of obstacles, agents and other properties like walking surface quality that may influence speed. If - as in this work - the small areas are tiles of a regular grid, the inverse of the estimated walking speeds is proportional to the travel times over the tiles. This is the traffic science part of the method.
+
+Second: Beginning at the destination area all the travel times of the tiles are numerically integrated using a numerical Eikonal equation solver. The result is the desired field of estimated remaining travel times to the destination area. For each grid point there is now such a value available for further usage in the pedestrian dynamics model. This is the mathematical part of the method. It also presents the major challenge for the implementation of the method, as for most models of pedestrian dynamics this new method will imply a relevant additional amount of computation time. It is therefore advisable to think well about an efficient implementation.
+
+The third step is to calculate the gradients in the dynamic potential for at least all grid points which are occupied by an agent which is heading for the destination of that particular dynamic potential.
+
+Step One: Estimating Walking Speeds
+
+As noted above, this contribution will only deal with the effect of the distribution of the agents on the estimated walking speed. As the relevant result - the field of gradients - is invariant to a global factor on the dynamic potential, for any unoccupied grid point at walkable space the value of f for that grid point is set unit-less to f = 1. If on the contrary a grid point at walkable space is occupied by an agent, f is set to a value [formula] according to:
+
+[formula]
+
+S is the distance map of the corresponding destination, the gradient is taken at the corresponding grid point. [formula] is the current velocity of the agent that occupies the grid point and g and h are free parameters of the method: g sets the general impact strength of the method (g = 0 means 1 / f = 1, i.e. the dynamic potential becomes a static map of distances) and h sets the impact of the moving direction of an agent. For further considerations on the role and numerical values of g and h see subsection [\ref=subsec:gh].
+
+It would be desirable to calculate a dynamic potential for each agent individually. Then v0 would be the desired speed of the agent for which the dynamic potential is calculated. However, for simulation scenarios of reasonable size this would imply unacceptable computation times and memory demand on computers as they are available off-the-shell today. Until this has changed the simplest compromise is to calculate one dynamic potential for all agents heading to the same destination and use as value for v0 the average of desired speeds of all these agents. The implications of this compromise and possible more elaborate compromises are discussed in subsection [\ref=subsec:OpenIssues].
+
+At this point there might be some confusion: one might think that using the Eikonal Equation to calculate temporal distances can easiest be achieved, f in the right hand side of equation ([\ref=eq:eikonalS]) is set to be the current speed of a pedestrian for all locations which are occupied by pedestrians heading for this destination. However, this simple approach cannot work out, as the example of an agent at rest shows: this would result in 1 / f = 1 / 0. In principle that could be handled in the algorithm by handling agents at rest exactly as if they were solid, static obstacles. Then, however, it could happen that agents at rest block the numerical integration before all grid points have been assigned a value for the estimated remaining travel time. A line of agents at rest from one wall of a corridor to the opposing one would result in an infinitely large travel time through this corridor, which is an unrealistic estimation. Therefore the speed of the agent at the grid point cannot be used directly, but an equation as ([\ref=eq:f1]) is needed, which prevents 1 / f from diverging. A second reason against directly using the current speed of the agent as value for f is that the agent occupying the spot might head for an entirely different direction, even opposing all the agents that are longing for the destination for which the dynamic potential is calculated. Then, even if their speed is desirable, they are counted to probably cause a specially large delay for agents that might have to pass that spot on their way to the destination of the dynamic potential. Finally a third reason why a measured speed cannot be used as value for f - even in uni-directional movement to one single destination - is the experience in macroscopic traffic planning: high demand implies jams, jams imply vehicles which are at rest at certain times, nevertheless do the common capacity restraint functions not have a pole, i.e. travel time grows fast but infinitely large only with infinitely large demand (i.e. there is no singularity in the function) [\cite=helbing2009b], which for the matter of space requirement of a single vehicle is not possible.
+
+To develop an intuition of equation ([\ref=eq:f1]) assume that agent j is influenced by a dynamic potential and j is somehow behind (upstream) another agent i and both are heading into the same direction toward the destination along the shortest path, i.e. [formula] and [formula] point into opposite directions (the gradient always points upstream, away from the destination). Further set h = 1 for this example. Then equation ([\ref=eq:f1]) simplifies to
+
+[formula]
+
+for the value for 1 / f at the position of agent i.
+
+If i is faster than j wants to walk (vi > v0; v0 is the desired speed of the agent who is influenced by the dynamic potential, i.e. agent j) then there is no need for j to deviate from the shortest path and consequently equation ([\ref=eq:f2]) gives f = 1, as if the spot, where agent i is located was unoccupied. But if j wants to walk faster than i, at some point j needs to start an overtaking maneuver, i.e. evade from the shortest path and indeed in this case ([\ref=eq:f2]) gives f < 1. If agent i would even oppose agent j and walk exactly upstream in the static potential S heading for some different destination, then ([\ref=eq:f1]) would read
+
+[formula]
+
+for the value for 1 / f at the position of agent i.
+
+For a speed of vi this is the largest value 1 / f can take, i.e. agent i with its presence and movement exerts the maximum possible effect on the value of f.
+
+Figure [\ref=fig:oneoverf] illustrates this velocity dependent impact of the agents on 1 / f.
+
+As stated above for reasons of computational effort we only calculate one dynamic potential per destination. Therefore v0 is the average desired speed of all agents being affected by that particular dynamic potential. This is discussed further below.
+
+Step Two: Numerical Integration for the Travel Time Map
+
+In mathematical terms one receives the map T of estimated travel times to the destination by solving the Eikonal Equation with the estimated speed [formula] of an agent on a spot [formula] on the right side:
+
+[formula]
+
+Numerical methods to solve the Eikonal Equation efficiently and resulting in a Euclidean metric are the well-established Fast Marching Method (FMM) [\cite=Kimmel1998] [\cite=_Sethian1999], which is widely used for various applications, and the less known and more recent Fast Iterative Method (FIM) [\cite=Jeong2007] [\cite=Jeong2007b] [\cite=Jeong2008] [\cite=Jeong2008b]. The major difference between both is, that the FMM has a better worst case computation time behavior, while the FIM algorithm is much more easy calculated in a multi-threaded way and therefore often has smaller computation times.
+
+Once the dynamic potential T has been calculated, the direction of the desired velocity follows from it as the gradient:
+
+[formula]
+
+The mathematical process sketched in this subsection is illustrated in figures [\ref=fig:statpot] to [\ref=fig:right].
+
+Examples
+
+A U-Turn
+
+Figure [\ref=fig:U-Turn] shows a crowd of agents walking around a u-turn. The demand increases over time from 1 to 7 agents per second.
+
+The u-turn example shows why a sequence of destination lines as it has been investigated in [\cite=Freialdenhoven2010] along the radii of the turn does not help to achieve the desired agent behavior: a sequence of destination lines would also make agents walk on larger radii around the corner when there is only a very low agent demand and density. If, however, only for example each ten seconds one agents walks around the corner, it should walk closely to the globally shortest path. Figure [\ref=fig:U-Turn-Counts] compares the arrival flows without and with dynamic potential.
+
+Station Hall
+
+This example demonstrates the efficiency of the method and - compared to other situations where the method can be helpful - it is a forgiving example as the results are stable over a wide range of parameters and a number of model variants. The basic idea is that of a station hall, where some people need to hurry to catch their train (travel time is the single-most important movement factor) and others have plenty of time lingering around in groups in the hall. Figure [\ref=fig:stationhall] shows an example with only one waiting group (blue agents) that grows over time. The red agents are heading directly to the red area on the right side.
+
+If the dynamic potential is not activated the red agents get stuck in the group of blue ones as the repulsive forces between agents are not sufficient to make them evade the large group early enough, and those agents that do make it around the group of blue agents are subject to considerable delay. With the dynamic potential the red agents make a detour around the blue group - no matter how large it grows - and by avoiding to get stuck in the jam manage to reach the destination in reasonable time, which should be close to the minimal realistic travel time under given circumstances. Figure [\ref=fig:pot] shows the dynamic potential after 600 seconds.
+
+The station hall example also shows why the improved behavior cannot be achieved with an increased strength of the repulsive inter-agent forces while keeping the direction of the shortest path as desired direction: the bunch of blue agents is about symmetric where the red agents enter the hall. Therefore the deviating forces from the left and right side would cancel at least partially. Realistically there will never be an exact cancellation along the whole central line toward the group of blue agents, thus the red agents will deviate to one side. Nevertheless, there where they have to deviate (at the entrance) the forces would cancel mutually, while when a red pedestrian is exactly to the side of the blue group and no additional deviation would be needed, the forces from the blue ones would add for further deviation of the red one.
+
+Movement around a 90 Degree Corner
+
+This example is modeled after the geometry of the walking path between the station "Messe Süd (Eichkamp)" and the southern entrance of Berlin's International Congress Center (ICC). This was chosen so that for many readers there is a chance to have been there themselves. It is not exactly a laboratory example, as the corner is rounded and has a bit less than 90 degree. However, the trains set a pulsed demand and with the stairs upper end one can assume that there is a line that by most people is experienced to have equal utility everywhere which means that probably no one on the stairs is thinking of the upcoming corner and moving to either side to improve the position with respect to the corner.
+
+In the simulation it has been assumed that two trains with 800 passengers each arrive at about the same time. On the platform level in both cases (with dynamic potential and with static potential only) the population of agents is identical and the pattern how they leave the trains is identical as well. This means that the initial conditions are identical. The two scenarios start to diverge when the first agents have climbed the stairs. See figure [\ref=fig:ICC].
+
+For this and the next example compare [\cite=Rogsch2010].
+
+Computation Times
+
+To give an impression of the computational effort we regard an example where pedestrians walk uni-directional from one edge of a 50 m X 50 m square to the other one (parallel to the other two edges). This has been done with various demands from 0.1 to 40 pedestrians per second. Pedestrians are set into the simulation statistically equally distributed over time. The simulation starts with an empty scenario and it is measured how long it takes to simulate from simulation second t0 = 100 to t1 = 200. The dynamic potential is recalculated each 0.1 seconds. Figure [\ref=fig:computationtimes] shows the results.
+
+Discussion
+
+Open Issues
+
+With the examples of the last section it has been demonstrated that the method proposed in this contribution brings improvements for the simulation of pedestrians in various situations. However, there can be objections from basic theoretical considerations as well as possible variants for elements of the method. These are now discussed which makes this subsection a combination of "Limitations" and "Future Work".
+
+First and foremost - if the method is seen as one to approximate the equilibrium of travel times - it is a non-iterative approach. With regard to an equilibrium it can for fundamental reasons not yield a "correct" solution. This is a correct objection, it can only be countered by noticing that a method needs to bring an improvement not perfection to justify its application. A second reply is that it is not yet clarified how close real pedestrian traffic comes to a user-equilibrium. In principle it might be that the agents' behavior as produced by this method has a higher degree of realism than an exact equilibrium. Nevertheless would it be interesting to have a method that is able to produce a user-equilibrium and a system optimum for pedestrian traffic to lay out for example an optimal emergency egress plan. A theoretically profound solution for this issue is not available. A pragmatic approach would be to find parameters g and h or even a different functional form for equation ([\ref=eq:f1]) - maybe using a genetic optimization approach - that demonstrate in a number of cases that the travel times they estimate are close to the actual travel times (compared after the simulation).
+
+Second, the impact of an agent's presence and velocity at some spot can have an instantaneous effect on all positions with higher value of the dynamic potential (upstream positions). In this way strictly speaking it is modeled that an agent that is still far away from that spot, but whose path might come close to it, assumes that the situation there will stay like this until it is there. This objection is correct, however in many situations it is not relevant. The impact of a single agent quickly diminishes with distance. The impact on any position more than a few meters aways is marginal and negligible. Only the impact of groups of (jammed) agents is propagated further. However, if there is a jam somewhere it will need some time until it dissolves. It might even be that the system is in a steady-state and the size of the jam remains about constant. Therefore it is justified that a whole group of agents has a longer reaching effect, also affecting agents that would pass by there only later.
+
+Another issue that calls for an iterative approach is that in equation ([\ref=eq:f1]) the scalar product of the agent's velocity with the static potential is calculated. The idea of this scalar product is to get a numerical value if an agent walks along the main direction of the dynamic potential or if it comes across. For this, however, the scalar product would have to be calculated of the velocity with the dynamic potential. Yet at this point of the method this is not possible as it is a step in the calculation of the dynamic potential, which therefore is not available yet. The solution would be to calculate the dynamic potential iteratively for a single time step and use the gradient of the dynamic potential of the preceding iteration for the calculation of the next iteration. At the current stage of the implementation of the method this is not done, as it would imply even longer computation times and as the method as it is already has shown to be helpful. If the iterative process will converge to a stable solution for the dynamic potential is another story.
+
+A problem that has shortly been mentioned in the description of the method is that in the current implementation there is only one dynamic potential per destination instead of one per agent. This blurs the effect that equation ([\ref=eq:f1]) should depend on the desired speed of the agent on which the dynamic potential is to act. A solution to avoid to have a dynamic potential for each agent is to have dynamic potentials for ranges of desired speeds. This would still increase the computation time by a factor of two to ten, but it would be manageable. Yet there is another reason why one would like to have one potential per affected agent: only in this way could an agent be affected by a potential on which it has not had an impact on before. In the method as it is proposed each agent has an impact on the dynamic potential and later is influenced by that same potential. This implies that the agent in its movement is affected by its own presence and velocity (compare section 6.1 of [\cite=Kretz2009a]). This can lead to undesired side-effects, which can only be guaranteed to be controlled if parameter g is kept to moderate values of approximately g < 3.0 m/s (with grid spacing constant 20 cm and above mentioned radius of influence).
+
+It is possible to use values of g that are larger, if one takes care that the undesired side-effects are suppressed. One way to do this is to use a mix of the direction of the shortest path and the direction of the estimated least travel time as direction of the desired velocity:
+
+[formula]
+
+with 0  ≤  p  ≤  1. This allows to continuously switch from static to dynamic potential. Another method is to forbid that for a particular agent the angle between the desired velocity and the direction of the shortest path changes too much within a time step, i.e. if the angle between [formula] and [formula] increases too much from one simulation time step to the next, not [formula] is used as direction of the desired velocity, but a direction that is closer to [formula].
+
+In the method as proposed each agent individually has a roughly circle-shaped impact on the field of f. From this follows in the field of f many steps from 1 / f = 1 (outside the circles) to a larger value (inside a circle). For the movement of the agents this can result in small but frequent changes in the velocity. Smoother movement might be received if first a density field is calculated for the whole walkable area and then from these densities f is calculated. As long as the density field consists of Voronoi cells [\cite=Steffen2010b] [\cite=Liddle2011] the individual and locatable information of walking velocity remains preserved, if the density is calculated in the way of a probability density [\cite=Johansson2008] [\cite=Hanebeck2008] one could expect even smoother movements, but runs into trouble with locating the velocities.
+
+It has already been stated that equation ([\ref=eq:f1]) is not strictly derived, but rather chosen by plausibility. It is not the simplest equation one can think of, this would be f =  < 1 for all grid points marked as occupied. Equation ([\ref=eq:f1]) is a rather simple one under the constraint that one wants to consider the velocity of the agent at that spot and that one wants to be able to calibrate both: the dependence of the velocity (via h) and the general strength of the impact of an agent (via g). From this follows that equation ([\ref=eq:f1]) is not guaranteed to be the best choice for this purpose, but it suggests itself as a starting point. An alternative idea would be to make use of a common capacity restraint function from macroscopic transportation planning instead [\cite=VISUM2010]. However, this is problematic as capacity restraint functions use the capacity of a link as explicit input. As pedestrian walking infrastructure can be arbitrarily complicated it is not trivial in general to give a capacity although not always impossible [\cite=Lew2009] [\cite=Schomborg2011] [\cite=Hamacher2011a] [\cite=Hamacher2011b] [\cite=Kneidl2011].
+
+Additional Applications
+
+It should shortly be mentioned here that the method as proposed can perfectly be used to model a few other phenomenons.
+
+The repulsive effect of walls and corners (beyond preventing agents and walls to overlap) can be modeled by assigning a value f < 1 to grid points, which are close to walls.
+
+Areas with variant average movement speed (a conveyor belt or a sand beach) can directly be taken into account by setting f = vvariant / vnormalf0 (with f0 applying outside the special area). This will attract or repulse agents in the surrounding to detour to use that area or to avoid it. Note: This does not cause agents on that area to change their desired speed automatically, this needs to be defined in the simulation scenario separately.
+
+Areas like bike or vehicle lanes that are avoided by pedestrians if the density on the walkway is sufficiently low, but which do not cause a change in walking speed, can nevertheless be modeled in the same way. The value of f for these needs to be set such that inundation of pedestrians to the lanes begins at an empirically verified density on the walkway [\cite=Lew2009]. f is then more of a gauge parameter whose value cannot be interpreted directly, but depends on the other settings of the scenario. Needless to say that it is also possible to model specifically preferred areas (e.g. a roofed path on a rainy or hot day) just in the same manner.
+
+Choosing the Values of g and h
+
+Parameter g has the role of setting the overall strength of the dynamic potential. If g = 0 then a static potential is calculated that gives the distances to the destination. If g  →    ∞   then the agents are handled as if they were static obstacles. The experience with the method has been that 0  <  g  <  1 leads to effects which are barely noticeable, i.e. agents walk more or less on the shortest path. A good value appears to be g = 1.5 where a positive effect is visible, while undesired side-effects hold off. For difficult situations as a u-turn or situations with discrete choices (ticket gates in a bending) a value of g = 1.5 might be too weak and increasing it to about g = 3.0 is an option. Above that value the side-effects become annoyingly visible.
+
+A large value of g can also induce a problem in combination with the fact that the gradient calculation is a difference and not a differential quotient. If g is large then it may happen that the dynamic potential flows into the area occupied by the agent from the front and from the back. The center will always be reached from the front, but if the grid point used for gradient calculation which lies to the back is reached from the back, the gradient might reverse its direction and by that result in entirely unrealistic directions of the desired velocity. This problem is reduced, when the grid point spacing is reduced and it would vanish, if there was one potential per agent and each agent would not have an impact on the potential which it is influenced by.
+
+Parameter h determines how much the velocity of an agent is taken into account, when its impact on the field of f is calculated. With h = 0 there is no impact, with h = 1 there is a full impact as so far as an agent has no impact on the field of f when it moves with v0 exactly in the direction of the static potential. It does not cause problems to set h > 1, although it probably does also not help. The experience with h so far is that good values lie in 0.6  ≤  h  ≤  0.8. At the upper end agents appear to mainly react on existing jams, while at the lower end of the interval agents seem to expect that a dense but still moving crowd soon will form a jam. The latter case gives the impression of stronger foresight but also introduces more disturbance while the crowd is moving.
+
+Existing Work
+
+This section is to sharpen the profile and intentions of this contribution by distinguishing it from related existing work.
+
+In [\cite=Hoogendoorn2004] Hoogendoorn and Bovy introduced a very profound theory of pedestrian dynamics based on utility maximization. The (dis)utilities affecting the route choice are travel time, kinetic energy (i.e. walking speed), nearby obstacles, density as determinant of unwanted contacts, and the stimulation of the environment. Hoogendoorn and Bovy take higher walking speeds as disutilities into account just as higher travel times. A time-pressure coëfficient controls exogenously, if a pedestrian rather accepts the disutility of higher walking speeds or higher travel times. Additionally the desired walking speed is affected by the absolute value of the gradient of the utility field: if the utility to be at another nearby spot is not much different from the utility of the current spot then the agent walks slower. In our method the absolute value of the gradient of the field of remaining walking times does not have an impact on the desired walking speed. Only the normalized direction is used for the desired walking direction. This has three reasons: first off, the desired speed is a more manifest parameter than a time-pressure coëfficient. And second, it needs to be shown, if pedestrians really slow down, if utility cannot be increased much now, as long as there is a chance for a steeper increase in utility later.
+
+Treuille et al [\cite=Treuille2006] also have introduced a model with (dis-)utility as determinant of the movement. There however it is not stated which value of f is used at occupied spots. As the authors do not discuss this issue, one can assume that it is globally a constant value, maybe even f = 0, i.e. that occupied spots are treated as if they were walls.
+
+The work of Hughes [\cite=Hughes2002] [\cite=Hughes2003] is more similar to this contribution as it closely links travel time and density and focuses on travel time as the determining factor. However, it is a macroscopic first-order theory and as such only loosely related to our intention to enhance a microscopic simulation of pedestrian dynamics.
+
+There is other preceding work [\cite=Kretz2009a] [\cite=Kretz2009c] [\cite=Kretz2010c] [\cite=Kretz2010a] [\cite=Kretz2010b] which adopted a very similar approach for a discrete-space ("cellular automata type") model but used a different method to calculate the direction determining fields, the reason for this being a very high computational efficiency of that method. As a downside the field suffers from deviations from Euclidean metric, even if there is not a single agent present. Anyhow it is possible to transfer the insight gained in these works to the usage of the method with the Social Force Model.
+
+In the field of robotics a related work has been introduced by Shopf et al. [\cite=Shopf2008]. They have used the same Eikonal Equation solver and implemented it for execution on a GPU. Differences to our approach are that the model for agent dynamics is a different one which was formulated for robot path planning [\cite=Fiorini1998]. As the trajectories of robots do not need to resemble those of humans, this is not sufficient for our task. For example will robots moving according to this model only decelerate if the time to collision is less than the time step of the simulation (the inverse of the number of simulation steps per second). This resembles to the Nagel-Schreckenberg-Modell with p = 0 [\cite=Nagel1992]. With such a computationally cheap movement model and the Eikonal Equation solver's computational complexity being dependent only on area size and not agent number, the authors manage to simulate 65,000 agents in real time. Under given circumstances this high computation speed might only be possible by having dense crowds (compare Bleiweiss [\cite=Bleiweiss2009]). At the same time a real-time simulation capability of 180,000 agents in a model without Eikonal Solver [\cite=Kretz2010b] shows that inevitably the method will have a major share of the computation time, no matter how efficiently computed and no matter what model it is used with.
+
+Kirik et al have considered and modeled the issue of quickest path movement in a simulation of pedestrians in a cellular automata-derived model [\cite=Kirik2009] [\cite=Kirik2011].
+
+The FMM was used in at least two more models of pedestrian dynamics to calculate a static potential [\cite=Venel2010] [\cite=Hartmann2010].
+
+Dressler et al [\cite=Dressler2010] approached the problem of quickest paths in microscopic simulations of pedestrians by relating route choice to previously calculated network flows.
+
+Lämmel et al [\cite=Lammel2010] have approached the problem of quickest paths for pedestrians with a network-based micro simulation.
+
+Guy et al [\cite=Guy2010] based pedestrian navigation not on a principle of least remaining travel time, but on least effort.
+
+Ondej et al have published a model, where for agent navigation the vision process is directly modeled [\cite=Ondrej2010]. In this aspect the model is similar to the very recent Social Force Model update by Moussaïd et al [\cite=Moussaid2011], however, Ondej et al do not base their model on forces.
+
+Kemloh et al have introduced an event-based method that allows local as well as global quickest path egress strategies [\cite=Kemloh2011].
+
+Summary and Conclusions
+
+In this contribution we have introduced a non-iterative method that estimates the direction of the quickest path for the movement of pedestrians in a microscopic simulation. The method and therefore the calculated direction is continuous with regard to space. We have used the results of the method as input for the Social Force Model of pedestrian dynamics and presented the effect in four different examples. All examples have in common that for many agents the direction of the shortest and the direction of the quickest path differ considerably for relevant time spans. We think it is clearly visible already from the still images in this contribution that calculating the direction of the desired velocity along the quickest path according to the new method gives better results. Having in this way demonstrated the benefit of the method we engaged in a discussion of limitations and possible variants and improvements.
+
+Supplemental Material
+
+The illustrating example of section [\ref=sec:Method], the examples of section [\ref=sec:Examples] plus some additional examples are available as animation at . The pedestrian simulation model and the extension proposed in this contribution have been implemented in VISSIM [\cite=VISSIM2010] [\cite=Fellendorf2010] and are available for download as a trial version including all functionality relevant for this paper.
+
+Numerical Values for Parameters and Properties of the Simulation: We have found the following values useful and feasible for typical applications:
+
+Time step of the pedestrian simulation (Social Force Model): 0.05 seconds.
+
+Recalculation time interval for the dynamic potential: 0.1 seconds.
+
+Lattice spacing of map of distances as well as dynamic potential (map of estimated remaining travel times): 15 to 20 cm.
+
+Parameter g: 1.0 to 2.5, if in equation ([\ref=eq:transgression]) parameter p = 1, else g can be larger.
+
+Parameter h: 0.0 to 2.0.

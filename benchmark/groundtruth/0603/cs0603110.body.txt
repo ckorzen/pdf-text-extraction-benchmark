@@ -1,0 +1,235 @@
+=0pt =0pt
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu
+
+Corollary Lemma Proposition Claim Definition
+
+Technical Report IDSIA-09-06 height5pt Asymptotic Learnability of Reinforcement Problems with Arbitrary Dependence height2pt
+
+{daniil,marcus}  http://www.idsia.ch/~ {daniil,marcus}
+
+Introduction
+
+Many real-world "learning" problems (like learning to drive a car or playing a game) can be modelled as an agent π that interacts with an environment μ and is (occasionally) rewarded for its behavior. We are interested in agents which perform well in the sense of having high long-term reward, also called the value V(μ,π) of agent π in environment μ. If μ is known, it is a pure (non-learning) computational problem to determine the optimal agent πμ: =  arg  max πV(μ,π). It is far less clear what an "optimal" agent means, if μ is unknown. A reasonable objective is to have a single policy π with high value simultaneously in many environments. We will formalize and call this criterion self-optimizing later.
+
+Learning approaches in reactive worlds. Reinforcement learning, sequential decision theory, adaptive control theory, and active expert advice, are theories dealing with this problem. They overlap but have different core focus: Reinforcement learning algorithms [\cite=Sutton:98] are developed to learn μ or directly its value. Temporal difference learning is computationally very efficient, but has slow asymptotic guarantees (only) in (effectively) small observable MDPs. Others have faster guarantee in finite state MDPs [\cite=Brafman:01]. There are algorithms [\cite=EvenDar:05] which are optimal for any finite connected POMDP, and this is apparently the largest class of environments considered. In sequential decision theory, a Bayes-optimal agent π* that maximizes V(ξ,π) is considered, where ξ is a mixture of environments ν∈C and C is a class of environments that contains the true environment μ∈C [\cite=Hutter:04uaibook]. Policy π* is self-optimizing in an arbitrary class C, provided C allows for self-optimizingness [\cite=Hutter:02selfopt]. Adaptive control theory [\cite=Kumar:86] considers very simple (from an AI perspective) or special systems (e.g. linear with quadratic loss function), which sometimes allow computationally and data efficient solutions. Action with expert advice [\cite=Farias:03] [\cite=Poland:05dule] [\cite=Poland:05aixifoe] [\cite=Cesa:06] constructs an agent (called master) that performs nearly as well as the best agent (best expert in hindsight) from some class of experts, in any environment ν. The important special case of passive sequence prediction in arbitrary unknown environments, where the actions=predictions do not affect the environment is comparably easy [\cite=Hutter:03optisp] [\cite=Hutter:04expert].
+
+The difficulty in active learning problems can be identified (at least, for countable classes) with traps in the environments. Initially the agent does not know μ, so has asymptotically to be forgiven in taking initial "wrong" actions. A well-studied such class are ergodic MDPs which guarantee that, from any action history, every state can be (re)visited [\cite=Hutter:02selfopt].
+
+What's new. The aim of this paper is to characterize as general as possible classes C in which self-optimizing behaviour is possible, more general than POMDPs. To do this we need to characterize classes of environments that forgive. For instance, exact state recovery is unnecessarily strong; it is sufficient being able to recover high rewards, from whatever states. Further, in many real world problems there is no information available about the "states" of the environment (e.g. in POMDPs) or the environment may exhibit long history dependencies.
+
+Rather than trying to model an environment (e.g. by MDP) we try to identify the conditions sufficient for learning. Towards this aim, we propose to consider only environments in which, after any arbitrary finite sequence of actions, the best value is still achievable. The performance criterion here is asymptotic average reward. Thus we consider such environments for which there exists a policy whose asymptotic average reward exists and upper-bounds asymptotic average reward of any other policy. Moreover, the same property should hold after any finite sequence of actions has been taken (no traps).
+
+Yet this property in itself is not sufficient for identifying optimal behavior. We require further that, from any sequence of k actions, it is possible to return to the optimal level of reward in o(k) steps. (The above conditions will be formulated in a probabilistic form.) Environments which possess this property are called (strongly) value-stable.
+
+We show that for any countable class of value-stable environments there exists a policy which achieves best possible value in any of the environments from the class (i.e. is self-optimizing for this class). We also show that strong value-stability is in a certain sense necessary.
+
+We also consider examples of environments which possess strong value-stability. In particular, any ergodic MDP can be easily shown to have this property. A mixing-type condition which implies value-stability is also demonstrated. Finally, we provide a construction allowing to build examples of value-stable environments which are not isomorphic to a finite POMDP, thus demonstrating that the class of value-stable environments is quite general.
+
+It is important in our argument that the class of environments for which we seek a self-optimizing policy is countable, although the class of all value-stable environments is uncountable. To find a set of conditions necessary and sufficient for learning which do not rely on countability of the class is yet an open problem. However, from a computational perspective countable classes are sufficiently large (e.g. the class of all computable probability measures is countable).
+
+Contents. The paper is organized as follows. Section [\ref=secNot] introduces necessary notation of the agent framework. In Section [\ref=secSetup] we define and explain the notion of value-stability, which is central in the paper. Section [\ref=secMain] presents the theorem about self-optimizing policies for classes of value-stable environments, and illustrates the applicability of the theorem by providing examples of strongly value-stable environments. In Section [\ref=sec:nec] we discuss necessity of the conditions of the main theorem. Section [\ref=secDisc] provides some discussion of the results and an outlook to future research. The formal proof of the main theorem is given in the appendix, while Section [\ref=secMain] contains only intuitive explanations.
+
+Notation & Definitions
+
+We essentially follow the notation of [\cite=Hutter:02selfopt] [\cite=Hutter:04uaibook].
+
+Strings and probabilities. We use letters [formula] for natural numbers, and denote the cardinality of sets S by #  S. We write X* for the set of finite strings over some alphabet X, and X∞ for the set of infinite sequences. For a string x∈X* of length [formula] we write x1x2...xn with xt∈X and further abbreviate xk:n: = xkxk + 1...xn - 1xn and x< n: = x1...xn - 1. Finally, we define xk..n: = xk + ... + xn, provided elements of X can be added.
+
+We assume that sequence ω  =  ω1:  ∞∈X∞ is sampled from the "true" probability measure μ, i.e. [formula]. We denote expectations w.r.t. μ by [formula], i.e. for a function [formula], [formula]. When we use probabilities and expectations with respect to other measures we make the notation explicit, e.g. [formula] is the expectation with respect to ν. Measures ν1 and ν2 are called singular if there exists a set A such that ν1(A) = 0 and ν2(A) = 1.
+
+The agent framework is general enough to allow modelling nearly any kind of (intelligent) system [\cite=Russell:95]. In cycle k, an agent performs action yk∈Y (output) which results in observation ok∈O and reward rk∈R, followed by cycle k + 1 and so on. We assume that the action space Y, the observation space O, and the reward space [formula] are finite, w.l.g. [formula]. We abbreviate zk: = ykrkok∈Z: = Y  ×  R  ×  O and xk = rkok∈X: = R  ×  O. An agent is identified with a (probabilistic) policy π. Given history z< k, the probability that agent π acts yk in cycle k is (by definition) π(yk|z< k). Thereafter, environment μ provides (probabilistic) reward rk and observation ok, i.e. the probability that the agent perceives xk is (by definition) μ(xk|z< kyk). Note that policy and environment are allowed to depend on the complete history. We do not make any MDP or POMDP assumption here, and we don't talk about states of the environment, only about observations. Each (policy,environment) pair (π,μ) generates an I/O sequence zπμ1zπμ2.... Mathematically, history zπμ1:k is a random variable with probability = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu Since value optimizing policies can always be chosen deterministic, there is no real need to consider probabilistic policies, and henceforth we consider deterministic policies p. We assume that μ∈C is the true, but unknown, environment, and ν∈C a generic environment.
+
+Setup
+
+For an environment ν and a policy p define random variables (lower and upper average value) = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu where [formula]. If there exists a constant V such that = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu then we say that the limiting average value exists and denote it by V(ν,p) = :V.
+
+An environment ν is explorable if there exists a policy pν such that V(ν,pν) exists and [formula] with probability 1 for every policy p. In this case define V*ν: = V(ν,pν).
+
+A policy p is self-optimizing for a set of environments C if V(ν,p) = V*ν for every ν∈C.
+
+An explorable environment ν is (strongly) value-stable if there exist a sequence of numbers rνi∈[0,rmax] and two functions dν(k,ε) and φν(n,ε) such that [formula], dν(k,ε) = o(k), [formula] for every fixed ε, and for every k and every history z< k there exists a policy p = pz< kν such that = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu
+
+First of all, this condition means that the strong law of large numbers for rewards holds uniformly over histories z< k; the numbers rνi here can be thought of as expected rewards of an optimal policy. Furthermore, from any (bad) sequence of k actions it is possible (knowing the environment) to recover up to o(k) reward loss; to recover means to reach the level of reward obtained by the optimal policy which from the beginning was taking only optimal actions. That is, suppose that a person A has made k possibly suboptimal actions and after that "realized" what the true environment was and how to act optimally in it. Suppose that a person B was from the beginning taking only optimal actions. We want to compare the performance of A and B on first n steps after the step k. An environment is strongly value stable if A can catch up with B except for o(k) gain. The numbers rνi can be thought of as expected rewards of B; A can catch up with B up to the reward loss dν(k,ε) with probability φν(n,ε), where the latter does not depend on past actions and observations (the law of large numbers holds uniformly).
+
+In the next section after presenting the main theorem we consider examples of families of strongly-values stable environments.
+
+Main Results
+
+In this section we present the main self-optimizingness result along with an informal explanation of its proof, and illustrate the applicability of this result with examples of classes of value-stable environments.
+
+For any countable class C of strongly value-stable environments, there exists a policy which is self-optimizing for C.
+
+A formal proof is given in the appendix; here we give some intuitive justification. Suppose that all environments in C are deterministic. We will construct a self-optimizing policy p as follows: Let νt be the first environment in C. The algorithm assumes that the true environment is νt and tries to get ε-close to its optimal value for some (small) ε. This is called an exploitation part. If it succeeds, it does some exploration as follows. It picks the first environment νe which has higher average asymptotic value than νt (V*νe > V*νt) and tries to get ε-close to this value acting optimally under νe. If it can not get close to the νe-optimal value then νe is not the true environment, and the next environment can be picked for exploration (here we call "exploration" successive attempts to exploit an environment which differs from the current hypothesis about the true environment and has a higher average reward). If it can, then it switches to exploitation of νt, exploits it until it is ε'-close to V*νt, ε' < ε and switches to νe again this time trying to get ε'-close to Vνe; and so on. This can happen only a finite number of times if the true environment is νt, since V*νt < V*νe. Thus after exploration either νt or νe is found to be inconsistent with the current history. If it is νe then just the next environment νe such that V*νe > V*νt is picked for exploration. If it is νt then the first consistent environment is picked for exploitation (and denoted νt). This in turn can happen only a finite number of times before the true environment ν is picked as νt. After this, the algorithm still continues its exploration attempts, but can always keep within [formula] of the optimal value. This is ensured by d(k) = o(k).
+
+The probabilistic case is somewhat more complicated since we can not say whether an environment is "consistent" with the current history. Instead we test each environment for consistency as follows. Let ξ be a mixture of all environments in C. Observe that together with some fixed policy each environment μ can be considered as a measure on Z∞. Moreover, it can be shown that (for any fixed policy) the ratio [formula] is bounded away from zero if ν is the true environment μ and tends to zero if ν is singular with μ (in fact, here singularity is a probabilistic analogue of inconsistency). The exploration part of the algorithm ensures that at least one of the environments νt and νe is singular with ν on the current history, and a succession of tests [formula] with [formula] is used to exclude such environments from consideration.
+
+The next proposition provides some conditions on mixing rates which are sufficient for value-stability; we do not intend to provide sharp conditions on mixing rates but rather to illustrate the relation of value-stability with mixing conditions.
+
+We say that a stochastic process hk, [formula] satisfies strong α-mixing conditions with coefficients α(k) if (see e.g. [\cite=Bosq:96]) = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu where σ() stands for the sigma-algebra generated by the random variables in brackets. Loosely speaking, mixing coefficients α reflect the speed with which the process "forgets" about its past.
+
+Suppose that an explorable environment ν is such that there exist a sequence of numbers rνi and a function d(k) such that [formula], d(k) = o(k), and for each z< k there exists a policy p such that the sequence rpνi satisfies strong α-mixing conditions with coefficients [formula] for some ε > 0 and = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu for any n. Then ν is value-stable.
+
+Using the union bound we obtain = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu The first term equals 0 by assumption and the second term for each ε can be shown to be summable using [\cite=Bosq:96]: For a sequence of uniformly bounded zero-mean random variables ri satisfying strong α-mixing conditions the following bound holds true for any integer q∈[1,n  /  2]: = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu for some constant c; in our case we just set [formula].
+
+(PO)MDPs. Applicability of Theorem [\ref=th:main] and Proposition [\ref=prop:mix] can be illustrated on (PO)MDPs. We note that self-optimizing policies for (uncountable) classes of finite ergodic MDPs and POMDPs are known [\cite=Brafman:01] [\cite=EvenDar:05]; the aim of the present section is to show that value-stability is a weaker requirement than the requirements of these models, and also to illustrate applicability of our results. We call μ a (stationary) Markov decision process (MDP) if the probability of perceiving xk∈X, given history z< kyk only depends on yk∈Y and xk - 1. In this case xk∈X is called a state, X the state space. An MDP μ is called ergodic if there exists a policy under which every state is visited infinitely often with probability 1. An MDP with a stationary policy forms a Markov chain.
+
+An environment is called a (finite) partially observable MDP (POMDP) if there is a sequence of random variables sk taking values in a finite space S called the state space, such that xk depends only on sk and yk, and sk + 1 is independent of s< k given sk. Abusing notation the sequence s1:k is called the underlying Markov chain. A POMDP is called ergodic if there exists a policy such that the underlying Markov chain visits each state infinitely often with probability 1.
+
+In particular, any ergodic POMDP ν satisfies strong α-mixing conditions with coefficients decaying exponentially fast in case there is a set H  ⊂  R such that ν(ri∈H) = 1 and ν(ri = r|si = s,yi = y)  ≠  0 for each [formula]. Thus for any such POMDP ν we can use Proposition [\ref=prop:mix] with d(k,ε) a constant function to show that ν is strongly value-stable:
+
+Suppose that a POMDP ν is ergodic and there exists a set H  ⊂  R such that ν(ri∈H) = 1 and ν(ri = r|si = s,yi = y)  ≠  0 for each y∈Y,h∈S,r∈H, where S is the finite state space of the underlying Markov chain. Then ν is strongly value-stable.
+
+However, it is illustrative to obtain this result for MDPs directly, and in a slightly stronger form.
+
+Any finite-state ergodic MDP ν is a strongly value-stable environment.
+
+Let d(k,ε) = 0. Denote by μ the true environment, let z< k be the current history and let the current state (the observation xk) of the environment be a∈X, where X is the set of all possible states. Observe that for an MDP there is an optimal policy which depends only on the current state. Moreover, such a policy is optimal for any history. Let pμ be such a policy. Let rμi be the expected reward of pμ on step i. Let l(a,b) =  min {n:xk + n = b|xk = a}. By ergodicity of μ there exists a policy p for which [formula] is finite (and does not depend on k). A policy p needs to get from the state b to one of the states visited by an optimal policy, and then acts according to pμ. Let [formula]. We have = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu In the last term we have the deviation of the reward attained by the optimal policy from its expectation. Clearly, both terms are bounded exponentially in n.
+
+In the examples above the function d(k,ε) is a constant and φ(n,ε) decays exponentially fast. This suggests that the class of value-stable environments stretches beyond finite (PO)MDPs. We illustrate this guess by the construction that follows.
+
+An example of a value-stable environment: infinitely armed bandit. Next we present a construction of environments which can not be modelled as finite POMDPs but are value-stable. Consider the following environment ν. There is a countable family [formula] of arms, that is, sources generating i.i.d. rewards 0 and 1 (and, say, empty observations) with some probability δi of the reward being 1. The action space Y consists of three actions Y  =  {g,u,d}. To get the next reward from the current arm ζi an agent can use the action g. At the beginning the current arm is ζ0 and then the agent can move between arms as follows: it can move one arm "up" using the action u or move "down" to the first environment using the action d. The reward for actions u and d is 0.
+
+Clearly, ν is a POMDP with countably infinite number of states in the underlying Markov chain, which (in general) is not isomorphic to a finite POMDP.
+
+The environment ν just constructed is value-stable.
+
+Let [formula]. Clearly, [formula] with probability 1 for any policy p' . A policy p which, knowing all the probabilities δi, achieves [formula] a.s., can be easily constructed. Indeed, find a sequence ζ'j, [formula], where for each j there is i = :ij such that ζ'j  =  ζi, satisfying lim j  →    ∞δij  =  δ. The policy p should carefully exploit one by one the arms ζj, staying with each arm long enough to ensure that the average reward is close to the expected reward with εj probability, where εj quickly tends to 0, and so that switching between arms has a negligible impact on the average reward. Thus ν can be shown to be explorable. Moreover, a policy p just sketched can be made independent on (observation and) rewards.
+
+Furthermore, one can modify the policy p (possibly allowing it to exploit each arm longer) so that on each time step t (from some t on) we have [formula], where j(t) is the number of the current arm on step t. Thus, after any actions-perceptions history z< k one needs about [formula] actions (one action u and enough actions d) to catch up with p. So, ([\ref=eq:svs]) can be shown to hold with [formula], ri the expected reward of p on step i (since p is independent of rewards, rpνi are independent), and the rates φ(n,ε) exponential in n.
+
+In the above construction we can also allow the action d to bring the agent d(i) < i steps down, where i is the number of the current environment ζ, according to some (possibly randomized) function d(i), thus changing the function dν(k,ε) and possibly making it non-constant in ε and as close as desirable to linear.
+
+Necessity of value-stability
+
+Now we turn to the question of how tight the conditions of strong value-stability are. The following proposition shows that the requirement d(k,ε) = o(k) in ([\ref=eq:svs]) can not be relaxed.
+
+There exists a countable family of deterministic explorable environments C such that
+
+for any ν∈C for any sequence of actions y< k there exists a policy p such that = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu where rνi are the rewards attained by an optimal policy pν (which from the beginning was acting optimally), but
+
+for any policy p there exists an environment ν∈C such that ν,p)  <  V*ν.
+
+Clearly, each environment from such a class C satisfies the value stability conditions with [formula] except d(k,ε) = k  ≠  o(k).
+
+There are two possible actions yi∈{a,b}, three possible rewards ri∈{0,1,2} and no observations.
+
+Construct the environment ν0 as follows: if yi = a then ri = 1 and if yi = b then ri = 0 for any [formula].
+
+For each i let ni denote the number of actions a taken up to step i: ni: =   #  {j  ≤  i:yj = a}. For each s > 0 construct the environment νs as follows: ri(a) = 1 for any i, ri(b) = 2 if the longest consecutive sequence of action b taken has length greater than ni and ni  ≥  s; otherwise ri(b) = 0.
+
+Suppose that there exists a policy p such that νi,p)  =  V*νi for each i > 0 and let the true environment be ν0. By assumption, for each s there exists such n that = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu which implies ν0,p)  ≤  1 / 2 < 1 = V*ν0.
+
+It is also easy to show that the uniformity of convergence in ([\ref=eq:svs]) can not be dropped. That is, if in the definition of value-stability we allow the function φ(n,ε) to depend additionally on the past history z< k then Theorem [\ref=th:main] does not hold. This can be shown with the same example as constructed in the proof of Proposition [\ref=th:tight], letting [formula] but instead allowing φ(n,ε,z< k) to take values 0 and 1 according to the number of actions a taken, achieving the same behaviour as in the example provided in the last proof.
+
+Finally, we show that the requirement that the class C to be learnt is countable can not be easily withdrawn. Indeed, consider the following simple class of environments. An environment is called passive if the observations and rewards are independent of actions. Sequence prediction task is a well-studied (and perhaps the only reasonable) class of passive environments: in this task an agent gets the reward 1 if yi = oi + 1 and the reward 0 otherwise. Clearly, any deterministic passive environment ν is strongly value-stable with [formula], [formula] and rνi = 1 for all i. Obviously, the class of all deterministic passive environments is not countable. Since for every policy p there is an environment on which p errs exactly on each step,
+
+The class of all deterministic passive environments can not be learned.
+
+Discussion
+
+We have proposed a set of conditions on environments, called value-stability, such that any countable class of value-stable environments admits a self-optimizing policy. It was also shown that these conditions are in a certain sense tight. The class of all value-stable environments includes ergodic MDPs, certain class of finite POMDPs, passive environments, and (provably) other and more environments. So the concept of value-stability allows to characterize self-optimizing environment classes, and proving value-stability is typically much easier than proving self-optimizingness directly.
+
+We considered only countable environment classes C. From a computational perspective such classes are sufficiently large (e.g. the class of all computable probability measures is countable). On the other hand, countability excludes continuously parameterized families (like all ergodic MDPs), common in statistical practice. So perhaps the main open problem is to find under which conditions the requirement of countability of the class can be lifted. Ideally, we would like to have some necessary and sufficient conditions such that the class of all environments that satisfy this condition admits a self-optimizing policy.
+
+Another question concerns the uniformity of forgetfulness of the environment. Currently in the definition of value-stability ([\ref=eq:svs]) we have the function φ(n,ε) which is the same for all histories z< k, that is, both for all actions histories y< k and observations-rewards histories x< k. Probably it is possible to differentiate between two types of forgetfulness, one for actions and one for perceptions. In particular, any countable class of passive environments (i.e. such that perceptions are independent of actions) is learnable, suggesting that uniform forgetfulness in perceptions may not be necessary.
+
+Proof of Theorem [\ref=th:main]
+
+A self-optimizing policy p will be constructed as follows. On each step we will have two polices: pt which exploits and pe which explores; for each i the policy p either takes an action according to pt (p(z< i) = pt(z< i)) or according to pe (p(z< i) = pe(z< i)), as will be specified below. When the policy p has been defined up to a step k, each environment μ, endowed with this policy, can be considered as a measure on Zk. We assume this meaning when we use environments as measures on Zk (e.g. μ(z< i)).
+
+In the algorithm below, i denotes the number of the current step in the sequence of actions-observations. Let n = 1, s = 1, and jt = je = 0. Let also αs = 2- s for [formula]. For each environment ν, find such a sequence of real numbers ενn that [formula] and [formula].
+
+Let ı:I  N  →  C be such a numbering that each ν∈C has infinitely many indices. For all i > 1 define a measure ξ as follows
+
+[formula]
+
+where wν∈R are (any) such numbers that [formula] and wν > 0 for all ν∈C.
+
+Define T. On each step i let = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu
+
+Define νt. Set νt to be the first environment in T with index greater than ı(jt). In case this is impossible (that is, if T is empty), increment s, (re)define T and try again. Increment jt.
+
+Define νe. Set νe to be the first environment with index greater than ı(je) such that V*νe > V*νt and νe(z< k) > 0, if such an environment exists. Otherwise proceed one step (according to pt) and try again. Increment je.
+
+Consistency. On each step i (re)define T. If νt∉T, define νt, increment s and iterate the infinite loop. (Thus s is incremented only if νt is not in T or if T is empty.)
+
+Start the infinite loop. Increment n.
+
+Let δ: = (V*νe - V*νt) / 2. Let ε: = ενtn. If ε  <  δ set δ  =  ε. Let h = je.
+
+Prepare for exploration.
+
+Increment h. The index h is incremented with each next attempt of exploring νe. Each attempt will be at least h steps in length.
+
+Let pt = py< iνt and set p = pt.
+
+Let ih be the current step. Find k1 such that = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu Find k2 > 2ih such that for all m > k2 = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu Find k3 such that
+
+[formula]
+
+Find k4 such that for all m > k4 = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu Moreover, it is always possible to find such k >  max {k1,k2,k3,k4} that = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu
+
+Iterate up to the step k.
+
+Exploration. Set pe = py< nνe. Iterate h steps according to p = pe. Iterate further until either of the following conditions breaks
+
+[formula],
+
+i < 3k.
+
+νe∈T.
+
+Observe that either (i) or (ii) is necessarily broken.
+
+If on some step νt is excluded from T then the infinite loop is iterated. If after exploration νe is not in T then redefine νe and iterate the infinite loop. If both νt and νe are still in T then return to "Prepare for exploration" (otherwise the loop is iterated with either νt or νe changed).
+
+End of the infinite loop and the algorithm.
+
+Let us show that with probability 1 the "Exploration" part is iterated only a finite number of times in a row with the same νt and νe.
+
+Suppose the contrary, that is, suppose that (with some non-zero probability) the "Exploration" part is iterated infinitely often while νt,νe∈T. Observe that ([\ref=eq:svs]) implies that the νe-probability that (i) breaks is not greater than φνe(i - k,ε / 4); hence by Borel-Cantelli lemma the event that (i) breaks infinitely often has probability 0 under νe.
+
+Suppose that (i) holds almost every time. Then (ii) should be broken except for a finite number of times. We can use ([\ref=eq:k1]), ([\ref=eq:k2]), ([\ref=eq:d]) and ([\ref=eq:k]) to show that with probability at least 1 - φνt(k - ih,ε / 4) under νt we have [formula]. Again using Borel-Cantelli lemma and k > 2ih we obtain that the event that (ii) breaks infinitely often has probability 0 under νt.
+
+Thus (at least) one of the environments νt and νe is singular with respect to the true environment ν given the described policy and current history. Denote this environment by ν'. It is known (see e.g. [\cite=CsiszarShields:04]) that if measures μ and ν are mutually singular then [formula] μ-a.s. Thus = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu
+
+[formula]
+
+= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu Observe that (by definition of ξ) [formula] is bounded. Hence using ([\ref=eq:sing]) we can see that = 3mu plus 0mu minus 2mu = 4mu plus 2mu minus 2mu =5mu plus 5mu minus 2mu= 0mu = 1mu plus 1mu minus 1mu =2mu plus 3mu minus 1mu Since s and αs are not changed during the exploration phase this implies that on some step ν' will be excluded from T according to the "consistency" condition, which contradicts the assumption. Thus the "Exploration" part is iterated only a finite number of times in a row with the same νt and νe.
+
+Observe that s is incremented only a finite number of times since [formula] is bounded away from 0 where ν' is either the true environment ν or any environment from C which is equivalent to ν on the current history. The latter follows from the fact that [formula] is a submartingale with bounded expectation, and hence, by the submartingale convergence theorem (see e.g. [\cite=Doob:53]) converges with ν-probability 1.
+
+Let us show that from some step on ν (or an environment equivalent to it) is always in T and selected as νt. Consider the environment νt on some step i. If V*νt > V*ν then νt will be excluded from T since on any optimal for νt sequence of actions (policy) measures ν and νt are singular. If V*νt < V*ν than νe will be equal to ν at some point, and, after this happens sufficient number of times, νt will be excluded from T by the "exploration" part of the algorithm, s will be decremented and ν will be included into T. Finally, if V*νt = V*ν then either the optimal value V*ν is (asymptotically) attained by the policy pt of the algorithm, or (if pνt is suboptimal for ν) [formula] infinitely often for some ε, which has probability 0 under νt and consequently νt is excluded from T.
+
+Thus, the exploration part ensures that all environments not equivalent to ν with indices smaller than ı(ν) are removed from T and so from some step on νt is equal to (an environment equivalent to) the true environment ν.
+
+We have shown in the "Exploration" part that n  →    ∞  , and so [formula]. Finally, using the same argument as before (Borel-Cantelli lemma, (i) and the definition of k) we can show that in the "exploration" and "prepare for exploration" parts of the algorithm the average value is within ενtn of V*νt provided the true environment is (equivalent to) νt. [formula]

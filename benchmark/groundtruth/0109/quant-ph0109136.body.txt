@@ -1,0 +1,653 @@
+Exact results for accepting probabilities of quantum automata
+
+Introduction
+
+A quantum finite automaton (QFA) is a model for a quantum computer with a finite memory. QFAs can recognize the same languages as classical finite automata but they can be exponentially more space efficient than their classical counterparts [\cite=AF_98].
+
+To recognize an arbitrary regular language, QFAs need to be able to perform general measurements after reading every input symbol, as in [\cite=AW_01] [\cite=C_01] [\cite=P_99]. If we restrict QFAs to unitary evolution and one measurement at the end of computation (which might be easier to implement experimentally), their power decreases considerably. Namely [\cite=CM_97] [\cite=BP_99], they can only recognize the languages recognized by permutation automata, a classical model in which the transitions between the states have to be fully reversible.
+
+Similar decreases of the computational power have been observed in several other contexts. Quantum error correction is possible if we have a supply of quantum bits initialized to [formula] at any moment of computation (see chapter 10 of [\cite=NC_00]). Yet, if the number of quantum bits is fixed and it is not allowed to re-initialize them by measurements, error correction becomes difficult [\cite=ABIN_96]. Simulating a probabilistic Turing machine by a quantum Turing machine is trivial if we allow to measure and reinitialize qubits but quite difficult if the number of qubits is fixed and they cannot be reinitialized [\cite=W_98].
+
+Thus, the availability of measurements is very important for quantum automata. What happens if the measurements are allowed but restricted? How can we use the measurements of a restricted form to enhance the abilities of quantum automata? Can quantum effects be used to recognize languages that are not recognizable by classical automata with the same reversibility requirements?
+
+In this paper, we look at those questions for "measure-many" QFA model by Kondacs and Watrous [\cite=KW_97]. This model allows intermediate measurements during the computation but these measurements have to be of a restricted type. More specifically, they can have 3 outcomes: "accept", "reject", "don't halt" and if one gets "accept" or "reject", the computation ends and this is the result of computation. The reason for allowing measurements of this type was that the states of a QFA then have a simple description of the form [formula] where pa is the probability that the QFA has accepted, pr is the probability that the QFA has rejected and [formula] is the remaining state if the automaton has not accepted or rejected. Allowing more general measurements would make the remaining state a mixed state ρ instead of a pure state [formula]. Having a mixed state as the current state of a QFA is very reasonable physically but the mathematical apparatus for handling pure states is simpler than one for mixed states.
+
+For this model, it is known that [\cite=AF_98]
+
+Any language recognizable by a QFA with a probability 7 / 9 + ε, ε > 0 is recognizable by a reversible finite automaton (RFA).
+
+The language a*b* can be recognized with probability 0.6822.. but cannot be recognized by an RFA.
+
+Thus, the quantum automata in this model have an advantage over their classical counterparts (RFAs) with the same reversibility requirements but this advantage only allows to recognize languages with probabilities at most 7/9, not 1 - ε with arbitrary ε > 0. This is a quite unusual property because, in almost any other computational model, the accepting probability can be increased by repeating the computation in parallel. As we see, this is not the case for QFAs.
+
+In this paper, we develop a method for determining the maximum probability with which a QFA can recognize a given language. Our method is based on the quantum counterpart of classification of states of a Markov chain into ergodic and transient states [\cite=KS_76]. We use this classification of states to transform the problem of determining the maximum accepting probability of a QFA into a quadratic optimization problem. Then, we solve this problem (analytically in simpler cases, by computer in more difficult cases).
+
+Compared to previous work, our new method has two advantages. First, it gives a systematic way of calculating the maximum accepting probabilities. Second, solving the optimization problems usually gives the maximum probability exactly. Most of previous work [\cite=AF_98] [\cite=ABFK_99] used approaches depending on the language and required two different methods: one for bounding the probability from below, another for bounding it from above. Often, using two different approaches gave an upper and a lower bound with a gap between them (like 0.6822... vs. 7 / 9 + ε mentioned above). With the new approach, we are able to close those gaps.
+
+We use our method to calculate the maximum accepting probabilities for a variety of languages (and classes of languages).
+
+First, we construct a quadratic optimization problem for the maximum accepting probability by a QFA of a language that is not recognizable by an RFA. Solving the problem gives the probability [formula]. This probability can be achieved for the language a+ in the two-letter alphabet {a,b} but no language that is no recognizable by a RFA can be recognized with a higher probability. This improves the 7 / 9 + ε result of [\cite=AF_98].
+
+This result can be phrased in a more general way. Namely, we can find the property of a language which makes it impossible to recognize the language by an RFA. This property can be nicely stated in the form of the minimal deterministic automaton containing a fragment of a certain form.
+
+We call such a fragment a "non-reversible construction". It turns out that there are many different "non-reversible constructions" and they have different influence on the accepting probability. The one contained in the a+ language makes the language not recognizable by an RFA but the language is still recognizable by a QFA with probability 0.7726.... In contrast, some constructions analyzed in [\cite=BP_99] [\cite=AKV_01] make the language not recognizable with probability 1 / 2 + ε for any ε > 0.
+
+In the rest of this paper, we look at different "non-reversible constructions" and their effects on the accepting probabilities of QFAs. We consider three constructions: "two cycles in a row", "k cycles in parallel" and a variant of the a+ construction. The best probabilities with which one can recognize languages containing these constructions are 0.6894..., k / (2k - 1) and 0.7324..., respectively.
+
+The solution of the optimization problem for "two cycles in a row" gives a new QFA for the language a*b* that recognizes it with probability 0.6894..., improving the result of [\cite=AF_98]. Again, using the solution of the optimization problem gives a better QFA that was previously missed because of disregarding some parameters.
+
+Preliminaries
+
+Quantum automata
+
+We define the Kondacs-Watrous ("measure-many") model of QFAs [\cite=KW_97].
+
+A QFA is a tuple M = (Q;Σ;V;q0;Qacc;Qrej) where Q is a finite set of states, Σ is an input alphabet, V is a transition function (explained below), q0  ∈  Q is a starting state, and Qacc  ⊆  Q and Qrej  ⊆  Q are sets of accepting and rejecting states ([formula]). The states in Qacc and Qrej, are called halting states and the states in [formula] are called non halting states.
+
+States of M. The state of M can be any superposition of states in Q (i. e., any linear combination of them with complex coefficients). We use [formula] to denote the superposition consisting of state q only. l2(Q) denotes the linear space consisting of all superpositions, with l2-distance on this linear space.
+
+Endmarkers. Let κ and $ be symbols that do not belong to Σ. We use κ and $ as the left and the right endmarker, respectively. We call [formula] the working alphabet of M.
+
+Transition function. The transition function V is a mapping from Γ  ×  l2(Q) to l2(Q) such that, for every a  ∈  Γ, the function [formula] defined by Va(x) = V(a,x) is a unitary transformation (a linear transformation on l2(Q) that preserves l2 norm).
+
+Computation. The computation of a QFA starts in the superposition [formula]. Then transformations corresponding to the left endmarker κ, the letters of the input word x and the right endmarker $ are applied. The transformation corresponding to a  ∈  Γ consists of two steps.
+
+1. First, Va is applied. The new superposition [formula] is Va(ψ) where ψ is the superposition before this step.
+
+2. Then, [formula] is observed with respect to Eacc,Erej,Enon where Eacc = span{|q〉:q  ∈  Qacc}, Erej = span{|q〉:q  ∈  Qrej}, Enon = span{|q〉:q  ∈  Qnon}. It means that if the system's state before the measurement was
+
+[formula]
+
+then the measurement accepts ψ' with probability pa  =  Σα2i, rejects with probability pr  =  Σβ2j and continues the computation (applies transformations corresponding to next letters) with probability pc  =  Σγ2k with the system having the (normalized) state [formula] where [formula].
+
+We regard these two transformations as reading a letter a.
+
+Notation. We use V'a to denote the transformation consisting of Va followed by projection to Enon. This is the transformation mapping ψ to the non-halting part of Va(ψ). We use Vw' to denote the product of transformations [formula], where ai is the i-th letter of the word w.
+
+We also use ψw to denote the (unnormalized) non-halting part of QFA's state after reading the left endmarker κ and the word w  ∈  Σ*. From the notation it follows that [formula].
+
+Recognition of languages. We will say that an automaton recognizes a language L with probability p [formula] if it accepts any word x  ∈  L with probability ≥  p and rejects any word x  ∉  L with probability ≥  p.
+
+Useful lemmas
+
+For classical Markov chains, one can classify the states of a Markov chain into ergodic sets and transient sets [\cite=KS_76]. If the Markov chain is in an ergodic set, it never leaves it. If it is in a transient set, it leaves it with probability 1 - ε for an arbitrary ε > 0 after sufficiently many steps.
+
+A quantum counterpart of a Markov chain is a quantum system to which we repeatedly apply a transformation that depends on the current state of the system but does not depend on previous states. In particular, it can be a QFA that repeatedly reads the same word x. Then, the state after reading x k + 1 times depends on the state after reading x k times but not on any of the states before that. The next lemma gives the classification of states for such QFAs.
+
+[\cite=AF_98] Let x∈Σ+. There are subspaces E1, E2 such that [formula] and
+
+If ψ∈E1, then V'x(ψ)∈E1 and [formula],
+
+If ψ∈E2, then [formula] when k  →    ∞  .
+
+Instead of ergodic and transient sets, we have subspaces E1 and E2. The subspace E1 is a counterpart of an ergodic set: if the quantum process defined by repeated reading of x is in a state ψ∈E1, it stays in E1. E2 is a counterpart of a transient set: if the state is ψ∈E2, E2 is left (for an accepting or rejecting state) with probability arbitrarily close to 1 after sufficiently many x's.
+
+In some of proofs we also use a generalization of Lemma [\ref=LemmaAF] to the case of two (or more) words x and y:
+
+[\cite=AKV_01] Let x,y∈Σ+. There are subspaces E1, E2 such that [formula] and
+
+If ψ∈E1, then V'x(ψ)∈E1 and V'y(ψ)∈E1 and [formula] and [formula],
+
+If ψ∈E2, then for any ε > 0, there exists t∈(x|y)* such that [formula].
+
+We also use a lemma from [\cite=BV_97].
+
+[\cite=BV_97] If ψ and φ are two quantum states and [formula] then the total variational distance between probability distributions generated by the same measurement on ψ and φ is at most 2ε.
+
+QFAs vs. RFAs
+
+Ambainis and Freivalds [\cite=AF_98] characterized the languages recognized by RFAs as follows.
+
+[\cite=AF_98] Let L be a language and M be its minimal automaton. L is recognizable by a RFA if and only if there is no q1,q2,x such that
+
+q1  ≠  q2,
+
+If M starts in the state q1 and reads x, it passes to q2,
+
+If M starts in the state q2 and reads x, it passes to q2, and
+
+q2 is neither "all-accepting" state, nor "all-rejecting" state,
+
+An RFA is a special case of a QFA that outputs the correct answer with probability 1. Thus, any language that does not contain the construction of Theorem [\ref=AFTheorem] can be recognized by a QFA that always outputs the correct answer. Ambainis and Freivalds [\cite=AF_98] also showed the reverse of this: any language L with the minimal automaton containing the construction of Theorem [\ref=AFTheorem] cannot be recognized by a QFA with probability 7 / 9 + ε.
+
+We consider the question: what is the maximum probability of correct answer than can be achieved by a QFA for a language that cannot be recognized by an RFA? The answer is:
+
+Let L be a language and M be its minimal automaton.
+
+If M contains the construction of Theorem [\ref=AFTheorem], L cannot be recognized by a 1-way QFA with probability more than [formula].
+
+There is a language L with the minimal automaton M containing the construction of Theorem [\ref=AFTheorem] that can be recognized by a QFA with probability [formula].
+
+Proof. We consider the following optimization problem.
+
+Optimization problem 1. Find the maximum p such that there is a finite dimensional vector space Eopt, subspaces Ea, Er such that [formula], vectors v1, v2 such that [formula] and [formula] and probabilities p1, p2 such that [formula] and
+
+[formula],
+
+[formula],
+
+p2  ≤  1 - p.
+
+We sketch the relation between a QFA recognizing L and this optimization problem. Let Q be a QFA recognizing L. Let pmin be the minimum probability of the correct answer for Q, over all words. We use Q to construct an instance of the optimization problem above with p  ≥  pmin.
+
+Namely, we look at Q reading an infinite (or very long finite) sequence of letters x. By Lemma [\ref=LemmaAF], we can decompose the starting state ψ into 2 parts ψ1∈E1 and ψ2∈E2. Define v1  =  ψ1 and v2  =  ψ2. Let p1 and p2 be the probabilities of getting into an accepting (for p1) or rejecting (for p2) state while reading an infinite sequence of x's starting from the state v2. The second part of Lemma [\ref=LemmaAF] implies that [formula].
+
+Since q1 and q2 are different states of the minimal automaton M, there is a word y that is accepted in one of them but not in the other. Without loss of generality, we assume that y is accepted if M is started in q1 but not if M is started in q2. Also, since q2 is not an "all-accepting" state, there must be a word z that is rejected if M is started in the state q2.
+
+We choose Ea and Er so that the square of the projection Pa (Pr) of a vector v on Ea (Er) is equal to the accepting (rejecting) probability of Q if we run Q on the starting state v and input y and the right endmarker $.
+
+Finally, we set p equal to the inf  of the set consisting of the probabilities of correct answer of Q on the words y and xiy, xiz for all [formula].
+
+Then, Condition 1 of the optimization problem, [formula] is true because the word y must be accepted and the accepting probability for it is exactly the square of the projection of the starting state (v1 + v2) to Pa.
+
+Condition 2 follows from running Q on a word xiy for some large i. By Lemma [\ref=LemmaAF], if i > k for some k, [formula]. Also, v1, V'x(v1), V'x2(v1), [formula] is an infinite sequence in a finite-dimensional space. Therefore, it has a limit point and there are i,j, i  ≥  k such that
+
+[formula]
+
+We have
+
+[formula]
+
+Since [formula] for ψ∈E1, [formula] and we have
+
+[formula]
+
+Thus, reading xi has the following effect:
+
+v1 gets mapped to a state that is at most ε-away (in l2 norm) from v1,
+
+v2 gets mapped to an accepting/rejecting state and most ε fraction of it stays on the non-halting states.
+
+Together, these two requirements mean that the state of Q after reading xi is at most 2ε-away from v1. Also, the probabilities of Q accepting and rejecting while reading xi differ from p1 and p2 by at most ε.
+
+Let pxiy be the probability of Q rejecting xiy. Since reading y in q2 leads to a rejection, xiy must be rejected and pxiy  ≥  p. The probability pxiy consists of two parts: the probability of rejection during xi and the probability of rejection during y. The first part differs from p2 by at most ε, the second part differs from [formula] by at most 4ε (because the state of Q when starting to read y differs from v1 by at most 2ε and, by Lemma [\ref=BVLemma], the accepting probabilities differ by at most twice that). Therefore,
+
+[formula]
+
+Since pxiy  ≥  p, this implies [formula]. By appropriately choosing i, we can make this true for any ε > 0. Therefore, we have [formula] which is Condition 2.
+
+Condition 3 is true by considering xiz. This word must be accepted with probability p. Therefore, for any i, Q can only reject during xi with probability 1 - p and p2  ≤  1 - p.
+
+This shows that no QFA can achieve a probability of correct answer more than the solution of optimization problem 1. It remains to solve this problem.
+
+Solving Optimization problem 1.
+
+The key idea is to show that it is enough to consider 2-dimensional instances of the problem.
+
+Since [formula], the vectors v1,v2,v1 + v2 form a right-angled triangle. This means that [formula], [formula] where β is the angle between v1 and v1 + v2. Let w1 and w2 be the normalized versions of v1 and v2: [formula], [formula]. Then, v1  =   cos βw1 and v2  =   sin βw2.
+
+Consider the two-dimensional subspace spanned by Pa(w1) and Pr(w1). Since the accepting and the rejecting subspaces Ea and Er are orthogonal, Pa(w1) and Pr(w1) are orthogonal. Therefore, the vectors [formula] and [formula] form an orthonormal basis. We write the vectors w1, v1 and v1 + v2 in this basis. The vector w1 is ( cos α, sin α) where α is the angle between w1 and wa. The vector v1  =   cos βw1 is equal to ( cos β cos α, cos β sin α).
+
+Next, we look at the vector v1 + v2. We fix α, β and v1 and try to find the v2 which maximizes p for the fixed α, β and v1. The only place where v2 appears in the optimization problem 1 is [formula] on the left hand side of Condition 1. Therefore, we should find v2 that maximizes [formula]. We have two cases:
+
+α  ≥  β.
+
+The angle between v1 + v2 and wa is at least α  -  β (because the angle between v1 and wa is α and the angle between v1 + v2 and v1 is β). Therefore, the projection of v1 + v2 to wa is at most cos (α  -  β). Since wr is a part of the rejecting subspace Er, this means that [formula]. The maximum [formula] is achieved if we put v1 + v2 in the plane spanned by wa and wr: v1 + v2  =  ( cos (α  -  β), sin (α  -  β)).
+
+Next, we can rewrite Condition 3 of the optimization problem as 1 - p2  ≥  p. Then, Conditions 1-3 together mean that
+
+[formula]
+
+To solve the optimization problem, we have to maximize ([\ref=eq1]) subject to the conditions of the problem. From the expressions for v1 and v1 + v2 above, it follows that ([\ref=eq1]) is equal to
+
+[formula]
+
+First, we maximize min ( sin 2α cos 2β + p2,1 - p2). The first term is increasing in p2, the second is decreasing. Therefore, the maximum is achieved when both become equal which happens when [formula]. Then, both sin 2α cos 2β + p2 and 1 - p2 are [formula]. Now, we have to maximize
+
+[formula]
+
+We first fix α  -  β and try to optimize the second term. Since [formula] (a standard trigonometric identity), it is maximized when [formula] and sin (α  +  β) = 1. Then, [formula] and ([\ref=eq3]) becomes
+
+[formula]
+
+The first term is increasing in α, the second is decreasing. The maximum is achieved when
+
+[formula]
+
+The left hand side of ([\ref=eq5]) is equal to 4 sin 2α cos 2α  =  4 sin 2α(1 -  sin 2α). Therefore, if we denote sin 2α by y, ([\ref=eq5]) becomes a quadratic equation in y:
+
+[formula]
+
+Solving this equation gives [formula] and [formula].
+
+α  <  β.
+
+We consider [formula]. Since the minimum of two quantities is at most their average, this is at most
+
+[formula]
+
+Since α  <  β, we have sin α  <   sin β and ([\ref=eq6]) is at most [formula]. This is maximized by sin 2β = 1 / 2. Then, we get [formula] which is less than p = 0.7726... which we got in the first case.
+
+This proves the first part of the theorem.
+
+Construction of a QFA.
+
+This part is proven by taking the solution of optimization problem 1 and using it to construct a QFA for the language a+ in a two-letter alphabet {a,b}. The state q1 is just the starting state of the minimal automaton, q2 is the state to which it gets after reading a, x = a, y is the empty word and z = b.
+
+Let α be the solution of ([\ref=eq5]). Then, [formula], [formula], [formula], [formula] and [formula]. sin 22α is the probability of correct answer for our QFA described below.
+
+The QFA M has 5 states: q0,q1,qacc, qrej and qrej1. Qacc  =  {qacc}, Qrej  =  {qrej,qrej1}. The initial state is sin α|q0〉  +   cos α|q1〉. The transition function is
+
+[formula]
+
+[formula]
+
+[formula]
+
+To recognize L, M must accept all words of the form ai for i > 0 and reject the empty word and any word that contains the letter b.
+
+The empty word.
+
+The only tranformation applied to the starting state is V$. Therefore, the final superposition is
+
+[formula]
+
+The amplitude of |qrej〉 in the final superposition is 2 sin α cos α  =   sin 2α and the word is rejected with a probability sin 22α = 0.772....
+
+ai for i > 0.
+
+First, Va maps the cos |q1〉 component to
+
+[formula]
+
+The probability of accepting at this point is [formula]. The other component of the superposition, sin α|q0〉 stays unchanged until V$ maps it to
+
+[formula]
+
+The probability of accepting at this point is sin 4α. The total probability of accepting is
+
+[formula]
+
+By equation ([\ref=eq6]), this is equal to sin 22α.
+
+A word containing at least one b.
+
+If b is the first letter of the word, the entire superposition is mapped to rejecting states and the word is rejected with probability 1. Otherwise, the first letter is a, it maps cos α|q1〉 to [formula]. The probability of accepting at this point is cos 2α(1 +  sin 2α) / 2 = (1 -  sin 2α)(1 +  sin 2α) / 2 = (1 -  sin 4α) / 2. By equation ([\ref=eq6]), this is the same as 1 -  sin 22α. After that, the remaining component (sin α|q0〉) is not changed by next as and mapped to a rejecting state by the first b. Therefore, the total probability of accepting is also 1 -  sin 22α and the correct answer (rejection) is given with a probability sin 22α.
+
+Non-reversible constructions
+
+We now look at fragments of the minimal automaton that imply that a language cannot be recognized with probability more than p, for some p. We call such fragments "non-reversible constructions". The simplest such construction is the one of Theorem [\ref=AFTheorem]. In this section, we present 3 other "non-reversible constructions" that imply that a language can be recognized with probability at most 0.7324..., 0.6894... and k / (2k - 1). This shows that different constructions are "non-reversible" to different extent. Comparing these 4 "non-reversible" constructions helps to understand what makes one of them harder for QFA (i.e., recognizable with worse probability of correct answer)
+
+"Two cycles in a row"
+
+The first construction comes from the language a*b* considered in Ambainis and Freivalds [\cite=AF_98]. This language was the first example of a language that can be recognized by a QFA with some probability (0.6822...) but not with another (7 / 9 + ε). We find the "non-reversible" construction for this language and construct the QFA with the best possible accepting probability.
+
+Let L be a language and M its minimal automaton.
+
+If M contains states q1, q2 and q3 such that, for some words x and y,
+
+if M reads x in the state q1, it passes to q1,
+
+if M reads y in the state q1, it passes to q2,
+
+if M reads y in the state q2, it passes to q2,
+
+if M reads x in the state q2, it passes to q3,
+
+if M reads x in the state q3, it passes to q3
+
+then L cannot be recognized by a QFA with probability more than 0.6894....
+
+The language a*b* (the minimal automaton of which contains the construction above) can be recognized by a QFA with probability 0.6894....
+
+Proof. By a reduction to the following optimization problem.
+
+Optimization problem 2. Find the maximum p such that there is a finite-dimensional space E, subspaces Ea, Er such that [formula], vectors v1, v2 and v3 and probabilities pa1, pr1, pa2, pr2 such that
+
+[formula],
+
+[formula],
+
+[formula],
+
+[formula].
+
+[formula];
+
+[formula];
+
+[formula];
+
+[formula];
+
+[formula].
+
+We use a theorem from [\cite=BP_99].
+
+Let L be a language and M be its minimal automaton. Assume that there is a word x such that M contains states q1, q2 satisfying:
+
+q1  ≠  q2,
+
+If M starts in the state q1 and reads x, it passes to q2,
+
+If M starts in the state q2 and reads x, it passes to q2, and
+
+There is a word y such that if M starts in q2 and reads y, it passes to q1,
+
+then L cannot be recognized by any 1-way quantum finite automaton.
+
+Let Q be a QFA recognizing L. Let q4 be state where the minimal automaton M goes if it reads y in the state q3. In case when q2 = q4 we get the forbidden construction of Theorem [\ref=T13]. In case when q2  ≠  q4 states q2 and q4 are different states of the minimal automaton M. Therefore, there is a word z that is accepted in one of them but not in the other. Without loss of generality, we assume that y is accepted if M is started in q2 but not if M is started in q4.
+
+We choose Ea so that the square of the projection Pa of a vector v on Ea is equal to the accepting probability of Q if we run Q on the starting state v and input yz and the right endmarker $.
+
+We use Lemma [\ref=LemmaAF]. Let Ex1 be E1 and Ex2 be E2 for word x and let Ey1 be Ey and Ey2 be Ey for word y.
+
+Without loss of generality we can assume that q1 is a starting state of M. Let ψκ be the starting superposition for Q. We can also assume that reading x in this state does not decrease the norm of this superposition. We divide ψκ into three parts: v1, v2 and v3 so that v1 + v2∈Ey1 and v3∈Ey2, V1∈Ex1 and v2∈Ex2. Due to v1 + v2 + v3 is the starting superposition we have ||v1 + v2 + v3|| = 1(Condition 1).
+
+Since v1 + v2 + v3∈Ex1 we get that [formula](Condition 3) due to v2∈Ex2. Similarly [formula](Condition 4) and [formula](Condition 2).
+
+It is easy to get that ||Pa(v1 + v2 + v3)||2  ≥  p(Condition 7) because reading yz in the state q1 leads to accepting state.
+
+Let pa1(pr1) be the accepting(rejecting) probability while reading an infinite sequence of letters y in the state v1 + v2 + v3. Then pa1 + pr1 = ||v3||2(Condition 5) due to v1 + v2∈Ey1 and v3∈Ey2.
+
+Let pa2(pr2) be the accepting(rejecting) probability while reading an infinite sequence of letters x in the state v1 + v2. Then pa2 + pr2 = ||v2||2(Condition 6) due to v1∈Ex1 and v2∈Ex2.
+
+We find an integer i such that after reading yi the norm of ψκyi - (v1 + v2) is at most some fixed ε > 0. Now similarly to Theorem [\ref=T1] we can get Condition 8: ||Pa(v1 + v2)||2 + pa1  ≥  p.
+
+Let ψκyi  =  ψ1  +  ψ2, ψ1∈Ex1, ψ2∈Ex2. We find an integer j such that after reading xj the norm of ψκyixj  -  ψ1 is at most ε. Since [formula] then ||ψ1 - v1||2 + ||ψ2 - v2||2 = ||ψκyi - (v1 + v2)||2  <  ε2. Therefore, ||ψ1 - v1|| < ε. Then ||ψκyixj - v1||  ≤  ||ψκyixj  -  ψ1|| + ||ψ1 - v1|| < 2ε due to previous inequalities. Now similarly to Theorem [\ref=T1] we can get Condition 9: ||Pa(v1)||2 + pa1 + pa2  ≤  1 - p.
+
+We have constructed our second optimization problem. We solve the problem by computer. Using this solution we can easily construct corresponding quantum automaton.
+
+k cycles in parallel
+
+Let k  ≥  2.
+
+Let L be a language. If there are words [formula] such that its minimal automaton M contains states [formula] satisfying:
+
+if M starts in the state q0 and reads xi, it passes to qi,
+
+if M starts in the state qi(i  ≥  1) and reads xj, it passes to qi,
+
+for each i the state qi is not "all-rejecting" state,
+
+Then L cannot be recognized by a QFA with probability greater than [formula].
+
+There is a language such that its minimal deterministic automaton contains this construction and the language can be recognized by a QFA with probability [formula].
+
+For k = 2, a related construction was considered in [\cite=AKV_01]. There is a subtle difference between the two constructions (the one considered here for k = 2 and the one in [\cite=AKV_01]). The "non-reversible construction" in [\cite=AKV_01] requires the sets of words accepted from q1 and q2 to be incomparable. This extra requirement makes it much harder: no QFA can recognize a language with the "non-reversible construction" of [\cite=AKV_01] even with the probability 1 / 2 + ε.
+
+Proof.
+
+Impossibility result. This is the only proof in this paper that does not use a reduction to an optimization problem. Instead, we use a variant of the classification of states (Lemma [\ref=AKVLemma]) directly.
+
+We only consider the case when the sets of words accepted from qi and qj are not incomparable. (The other case follows from the impossibility result in [\cite=AKV_01].)
+
+Let Li be the set of words accepted from qi(i  ≥  1). This means that for each i,j we have either Li  ⊂  Lj or Lj  ⊂  Li. Without loss of generality we can assume that [formula]. Now we can choose k words [formula] such that [formula] and [formula]. The word z1 exists due to the condition (c).
+
+We use a generalization of Lemma [\ref=AKVLemma].
+
+Let [formula]. There are subspaces E1, E2 such that [formula] and
+
+If ψ∈E1, then V'x1(ψ)∈E1, [formula] V'xk(ψ)∈E1 and [formula] [formula] [formula]
+
+If ψ∈E2, then for any ε > 0, there exists a word [formula] such that [formula].
+
+The proof is similar to lemma [\ref=AKVLemma].
+
+Let L be a language such that its minimal automaton M contains the "non reversible construction" from Theorem [\ref=TF5] and Mq be a QFA. Let p be the accepting probability of Mq. We show that [formula].
+
+Let w be a word such that after reading it M is in the state q0. Let ψw  =  ψ1w  +  ψ2w, ψ1w∈E1, ψ2w∈E2. We find a word [formula] such that after reading x1a1 the norm of ψ2wx1a1 = V'a1(ψ2wx1) is at most some fixed ε > 0. (Such word exists due to Lemma [\ref=Lemma2].) We also find words [formula] such that [formula], [formula], [formula].
+
+Because of unitarity of V'x1, [formula], V'xk on E1 (part (i) of Lemma [\ref=Lemma2]), there exist integers [formula] such that [formula], [formula] [formula].
+
+Let pw be the probability of Mq accepting while reading κw. Let [formula] be the probabilities of accepting while reading [formula] with a starting state ψw and and [formula] be the probabilities of accepting while reading [formula] with a starting state ψ1w.
+
+Let us consider 2k - 1 words: κw(x1a1)i1zk$, κw(x2a2)i2zk$, κw(x2a2)i2zk - 1$, κw(x3a3)i3zk - 1$, [formula] κw(xk - 1ak - 1)ik - 1z2$, κw(xkak)ikz2$, κw(xkak)ikz1$.
+
+Mq accepts κw(x1a1)i1zk$ with probability at least pw + p1 + p'k - 4ε and at most pw + p1 + p'k + 4ε.
+
+Proof. The probability of accepting while reading κw is pw. After that, Mq is in the state ψw and reading (x1a1)i1 in this state causes it to accept with probability p1.
+
+The remaining state is ψw(x1a1)i1  =  ψ1w(x1a1)i1  +  ψ2w(x1a1)i1. If it was ψ1w, the probability of accepting while reading the rest of the word (zk$) would be exactly p'k. It is not quite ψ1w but it is close to ψ1w. Namely, we have
+
+[formula]
+
+By Lemma [\ref=BVLemma], this means that the probability of accepting during zk$ is between p'k - 4ε and p'k + 4ε.
+
+This Lemma implies that pw + p1 + p'k + 4ε  ≥  p because of x1zk∈L. Similarly, 1 - pw - p2 - p'k + 4ε  ≥  p because of x2zk∉L. Finally, we have 2k - 1 inequalities: pw + p1 + p'k + 4ε  ≥  p, 1 - pw - p2 - p'k + 4ε  ≥  p, pw + p2 + p'k - 1 + 4ε  ≥  p, 1 - pw - p3 - p'k - 1 + 4ε  ≥  p, [formula] pw + pk - 1 + p'2 + 4ε  ≥  p, 1 - pw - pk - p'2 + 4ε  ≥  p, pw + pk + p'1 + 4ε  ≥  p.
+
+By adding up these inequalities we get k - 1 + pw + p1 + p'1 + 4(2k - 1)ε  ≥  (2k - 1)p. We can notice that pw + p1 + p'1  ≤  1. (This is due to the facts that p1  ≤  ||ψ2w||2, p'1  ≤  ||ψ1w||2 and 1 - pw  ≤  ||ψw||2 = ||ψ2w||2 + ||ψ1w||2.) Hence, [formula]. Since such 2k - 1 words can be constructed for arbitrarily small ε, this means that Mq does not recognize L with probability greater than [formula].
+
+Constructing a quantum automaton.
+
+We consider a language L1 in the alphabet [formula] such that its minimal automaton has accepting states [formula] and rejecting state qrej and the transition function V1 is defined as follows:
+
+V1(q0,bi) = qi, V1(q0,zi) = q1, V1(qi,bj) = qi(i > 1), V1(qi,zj) = q1(i + j  ≤  k + 1), V1(qi,zj) = qrej(i + j > k + 1), V1(qrej,bi) = qrej, V1(qrej,zi) = qrej).
+
+It can be checked that this automaton contains the "non reversible construction" from Theorem 4. Hence, this language cannot be recognized by a QFA with probability greater than [formula].
+
+Next, we construct a QFA Mq that accepts this language with such probability.
+
+The automaton has 3(k + 1) states: [formula], [formula], [formula] qrk. [formula], [formula]. The initial state is
+
+[formula]
+
+The transition function is
+
+[formula]
+
+[formula]
+
+[formula]
+
+The empty word.
+
+The only tranformation applied to the starting state is V$. Therefore, the final superposition is
+
+[formula]
+
+and the word is accepted with probability 1.
+
+The word starts with zi.
+
+Reading zi maps |q'0〉 to |qa0〉. Therefore, this word is accepted with probability at least [formula].
+
+Word is in form [formula]. The superposition after reading bi is
+
+[formula]
+
+At this moment Mq accepts with probability [formula] and rejects with probability [formula]. The computation continues in the superposition
+
+[formula]
+
+Clearly, that reading of all remaining letters does not change this superposition. Since V$ maps each |q'j〉 to an accepting state then Mq rejects this word with probability at most [formula]
+
+Word x starts with [formula]. Before reading zj the superposition is
+
+[formula]
+
+Case 1. i + j > k + 1. x∉L1. Since i + j > k + 1 then reading zj maps at least k - i + 1 states of [formula] to rejecting states. This means that Mq rejects with probability at least
+
+[formula]
+
+Case 2. i + j  ≤  k + 1. x∈L1. Since i + j  ≤  k + 1 then reading zj maps at least i - 1 states of [formula] to accepting states. This means that Mq accepts with probability at least
+
+[formula]
+
+0.7324... construction
+
+Let L be a language.
+
+If there are words x, z1, z2 such that its minimal automaton M contains states q1 and q2 satisfying:
+
+if M starts in the state q1 and reads x, it passes to q2,
+
+if M starts in the state q2 and reads x, it passes to q2,
+
+if M starts in the state q1 and reads z1, it passes to an accepting state,
+
+if M starts in the state q1 and reads z2, it passes to a rejecting state,
+
+if M starts in the state q2 and reads z1, it passes to a rejecting state,
+
+if M starts in the state q2 and reads z2, it passes to an accepting state.
+
+Then L cannot be recognized by a QFA with probability greater than [formula].
+
+There is a language L with the minimum automaton containing this construction that can be recognized with probability [formula].
+
+Proof.
+
+Impossibility result.
+
+The construction of optimization problem is similar to the construction of Optimization problem 1. For this reason, we omit it and just give the optimization problem and show how to solve it.
+
+Optimization problem 3. Find the maximum p such that there is a finite dimensional vector space Eopt, subspaces Ea, Er (unlike in previous optimization problems, Ea and Er do not have to be orthogonal) and vectors v1, v2 such that [formula] and [formula] and probabilities p1, p2 such that [formula] and
+
+[formula],
+
+[formula],
+
+[formula],
+
+[formula].
+
+Solving optimization problem 3.
+
+Without loss of generality we can assume that [formula]. Then these four inequalities can be replaced with only three inequalities
+
+[formula],
+
+[formula],
+
+[formula].
+
+Clearly that p is maximized by [formula]. Therefore, we have
+
+[formula],
+
+[formula].
+
+Next we show that it is enough to consider only instances of small dimension. We denote Eopt - Ea as Eb. First, we restrict Ea to the subspace E'a generated by projections of v1 and v2 to Ea. This subspace is at most 2-dimensional. Similarly, we restrict Eb to the subspace E'b generated by projections of v1 and v2 to Eb. The lengths of all projections are still the same. We fix an orthonormal basis for Eopt so that Pa(v1) and Pb(v1) are both parallel to some basis vectors. Then, v1 = (x1,0,x3,0) and v2 = (y1,y2,y3,y4) where the first two coordinates correspond to basis vectors of E'a and the last two coordinates correspond to basis vectors of E'b. We can assume that x1 and x3 are both non-negative. (Otherwise, just invert the direction of one of basis vectors.)
+
+Let [formula]. Then, there is α∈[0,π  /  2] such that x1  =  Δ cos α, x3  =  Δ sin α. Let [formula]. Then, y1  =  δ sin α, y3 =  - δ cos α because x1y1 + x3y3 = 0 due to [formula]. If y4  ≠  0, we can change y1 and y3 to δ' sin α and -  δ' cos α where [formula] and this only increases [formula]. Hence, we can assume that y4 = 0. We denote ε = y2. Then, v1 = (Δ cos α,0,Δ sin α,0), v2 = (δ sin α,ε,  -  δ cos α,0).
+
+Let [formula]. Then, Δ  =  E sin β and δ  =  E cos β for some β∈[0,π  /  2] and E2  +  ε2 = 1. This gives
+
+[formula],
+
+[formula].
+
+Then after some calculations we get
+
+1 - E2 cos 2(α  +  β)  ≥  p,
+
+[formula].
+
+If we fix α  +  β and vary β, then [formula] (and, hence, [formula]) is maximized by β = 2α  -  π / 2. This means that we can assume β = 2α  -  π / 2 and we have
+
+1 - E2 sin 2(3α)  ≥  p,
+
+[formula].
+
+If we consider cos 2α  ≥  1 / 2 then [formula]. This means that we are only interested in cos 2α  <  1 / 2.
+
+Let f(E2,α) = 1 - E2 sin 2(3α) and [formula]. If we fix α and vary E2, then f and g are linear functions in E2 and f(0,α) > g(0,α). We consider two cases. Case 1. f(1,α)  ≥  g(1,α). (This gives f(E2,α)  ≥  g(E2,α) for each E2. Therefore, in this case we only need to maximize the function g.) This means that
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+So that cos 2α  <  1 / 2, we have
+
+[formula]
+
+This means that cos 2α∈[null].
+
+Since [formula], g is maximized by E2 = 1 and [formula]. This gives p equal to [formula].
+
+Case 2. f(1,α)  ≤  g(1,α). (This is equivalent to cos 2α∈[null].) This means that p is maximized by f(E2,α) = g(E2,α). Therefore,
+
+1 - E2 sin 2(3α) = p,
+
+[formula].
+
+Let y be -   cos 2α = 1 - 2 cos 2α. Then y∈[null] and [formula]. Therefore,
+
+2 - E2(4y3 - 3y + 1) = 2p,
+
+1 + E2y3 = 2p.
+
+Now we express p using only y. We get [formula]. Finally, if we vary y through the interval
+
+[formula]
+
+. It can be checked that [formula], [formula], [formula], [formula].
+
+The automaton has 4 states: q0,q1,qacc and qrej. Qacc  =  {qacc}, Qrej  =  {qrej}. The initial state is cos (3α)|q0〉  +   sin (3α)|q1〉. The transition function is
+
+[formula]
+
+[formula]
+
+[formula]
+
+[formula]
+
+The empty word.
+
+The only tranformation applied to the starting state is V$. Therefore, the final superposition is cos (3α)|qacc〉  +   sin (3α)|qrej〉 and the word is accepted with probability [formula].
+
+[formula].
+
+After reading b the superposition is sin (3α)|qacc〉  +   cos (3α)|qrej〉 and word is rejected with probability [formula].
+
+a+.
+
+After reading the first a the superposition becomes
+
+[formula]
+
+At this moment M accepts with probability [formula] and rejects with probability [formula]. The computation continues in the superposition
+
+[formula]
+
+It is easy to see that reading all of remaining letters does not change this superposition.
+
+Therefore, the final superposition (after reading $) is
+
+[formula]
+
+This means that M rejects with probability
+
+[formula]
+
+.
+
+[formula].
+
+Before reading the first b the superposition is
+
+[formula]
+
+and reading this b changes this superposition to
+
+[formula]
+
+This means that M accepts with probability
+
+[formula]
+
+Conclusion
+
+Quantum finite automata (QFA) can recognize all regular languages if arbitrary intermediate measurements are allowed. If they are restricted to be unitary, the computational power drops dramatically, to languages recognizable by permutation automata [\cite=CM_97] [\cite=BP_99]. In this paper, we studied an intermediate case in which measurements are allowed but restricted to "accept-reject-continue" form (as in [\cite=KW_97] [\cite=AF_98] [\cite=BP_99]).
+
+Quantum automata of this type can recognize several languages not recognizable by the corresponding classical model (reversible finite automata). In all of those cases, those languages cannot be recognized with probability 1 or 1 - ε, but can be recognized with some fixed probability p > 1 / 2. This is an unusual feature of this model because, in most other computational models a probability of correct answer p > 1 / 2 can be easily amplified to 1 - ε for arbitrary ε > 0.
+
+In this paper, we study maximal probabilities of correct answer achievable for several languages. Those probabilities are related to "forbidden constructions" in the minimal automaton. A "forbidden construction" being present in the minimal automaton implies that the language cannot be recognized with a probability higher than a certain p > 1 / 2.
+
+The basic construction is "one cycle" in figure [\ref=F1]. Composing it with itself sequentially (figure [\ref=F4]) or in parallel (figure [\ref=F5]) gives "forbidden constructions" with a smaller probability p. The achievable probability also depends on whether the sets of words accepted from the different states of the construction are subsets of one another (as in figure [\ref=F1]) or incomparable (as in figure [\ref=F2]). The constructions with incomparable sets usually imply smaller probabilities p.
+
+The accepting probabilities p quantify the degree of non-reversibility present in the "forbidden construction". Lower probability p means that the language is more difficult for QFA and thus, the "construction" has higher degree of non-reversibility. In our paper, we gave a method for calculating this probability and used it to calculate the probabilities p for several "constructions". The method should apply to a wide class of constructions but solving the optimization problems can become difficult if the construction contains more states (as for language [formula] studied in [\cite=ABFK_99]). In this case, it would be good to have methods for calculating the accepting probabilities approximately.
+
+A more general problem suggested by this work is: how do we quantify non-reversibility? Accepting probabilities of QFAs provide one way of comparing the degree of non-reversibility in different "constructions". What are the other ways of quantifying it? And what are the other settings in which similar questions can be studied?

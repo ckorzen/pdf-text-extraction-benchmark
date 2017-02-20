@@ -1,0 +1,209 @@
+Numerical Object Oriented Quantum Field Theory Calculations
+
+Introduction
+
+It is often desirable to describe particle physics processes using a covariant tensor formalism. This formalism contains Dirac spinors and matrices, polarization and orbital angular momentum tensors, etc. For cases involving higher spin particles or large values of orbital angular momentum, the presence of high rank tensors can make explicit calculation of the desired quantities (typically scattering or decay amplitudes) cumbersome at best and impossible at worst.
+
+A common approach is to perform algebraic manipulations to reduce the number of tensor contractions prior to coding the expressions of interest. There are several software packages available to facilitate this approach, e.g. FeynCalc [\cite=cite:feyncalc] and FeynArts [\cite=cite:feynarts]. Packages like GRACE [\cite=cite:grace] and CompHEP [\cite=cite:comphep] take this a step further by (mostly automatically) producing distributions from physical models. While these packages are extremely useful in certain areas of physics ( e.g. writing event generators), they are not ideal for performing an event-based partial wave analysis (PWA).
+
+In this type of analysis, numeric values for amplitudes must be calculated for upwards of 100 million events (data and/or Monte Carlo). Thus, the amplitude calculation software must not only be easy to use, but also be capable of performing numerical calculations of expressions involving matrices and high-rank tensors using as little cpu time as possible. The qft++ package satisfies both of these criteria.
+
+The operations of matrix multiplication and tensor contraction (the building blocks of all such calculations) can be broken down into nested loops; thus, they are easy to perform (numerically) on a computer. The qft++ package was developed to take advantage of this fact by performing numerical calculations (not algebraic manipulations), making these types of calculations easier and more accessible to a larger portion of the physics community. The qft++ package has been used in a number of PWA's to date (see, e.g., [\cite=cite:williams-thesis]) and has performed exceptionally well.
+
+One further point before discussing specific details about the software, this package was designed to calculate tree-level expressions. No work has been done to provide a simple way of performing loop integrals.
+
+Overview
+
+The the main design goal for the application programming interface (API) was to make the code resemble the mathematical expressions as closely as possible. To facilitate this goal, each type of mathematical object ( e.g. tensors, spinors, etc.) has a corresponding C++ object in qft++. Through the use of operator overloading, operations such as matrix multiplication and tensor contraction are handled by the objects themselves; not by the user, i.e. the user never has to keep track of any indices.
+
+As a very simple example, consider the electromagnetic vertex eū(p1,m1)γμu(p2,m2)εμ(pγ,mγ). After variable declaration and initialization (discussed below), this expression can be written using qft++ as follows: The object types determine how "multiplication", i.e. the * operator, is to be performed. The matrix multiplications and tensor contractions are handled internally by the objects. This feature allows for self-documenting code, greatly reducing the probability for mistakes.
+
+Basic Operations
+
+The two main types of operations required in quantum field theory calculations, but not contained in standard C++, involve matrices and tensors. From these constituents, it is easy to build classes which handle Dirac matrices, covariant projection operators, etc. This section describes how the qft++ package implements these basic types of operations.
+
+This package makes heavy use of template classes; thus, a number of template utilities have been developed for performance and/or API reasons. Among these are compile-time detection of inheritance and parameter passing optimization [\cite=cite:alexandrescu], along with selective inclusion of class methods [\cite=cite:boost].
+
+Unlike many standard C++ template classes, all of the template classes defined in the qft++ package are designed such that instantiations of different types are fully compatible, provided the types themselves have the necessary operators defined, e.g. the following code is legal: if the operator * is defined between types T1 and T2.
+
+Matrix Operations
+
+Matrix operations are handled by the template class Matrix, which can store any data type which can be stored in a C++ STL container class, i.e. it can store any object which can be stored by std::vector. A complete set of methods are provided including those useful in Quantum Field theory calculations, such as Trace and Adjoint, along with all the necessary operators.
+
+Tensor Operations
+
+Tensor operations are handled by the template class Tensor, which can also store any data type which can be stored in a C++ STL container class; however, the most useful types are typically double and complex<double>. Methods are provided to perform Lorentz transformations, symmetrization and a number of other functions.
+
+A number of operators are provided to perform tensor contractions. The Tensor class assumes that all indices are either raised or lowered. The field theory objects discussed in Section [\ref=section:objects] use the former, i.e. they are contravariant. The * operator performs standard multiplication if either object is not a Tensor and contraction of a single index otherwise. For example, if x is a rank-2 Tensor, then the code snippet 3*x simply multiplies each of the elements of x by three; however, the snippet x*y will evaluate the expression [formula] if y is also a rank-2 Tensor. Full contraction of all possible indices is performed using the | operator; thus, x|y evaluates the expression xμνyμν.
+
+Additional classes are provided for the Minkowski metric, gμν ( MetricTensor), and the Levi-Civita tensor, εμναβ ( LeviCivitaTensor). The Vector4 template class, which is derived from Tensor, provides a number of additional methods specific to 4-vectors, e.g. CosTheta and Beta.
+
+Object-Oriented Field Theory
+
+From the Tensor and Matrix classes discussed above, all of the necessary objects for quantum field theory calculations can be constructed. In this section, a brief overview of the formalism will be presented followed by a discussion of the corresponding qft++ class. More detailed descriptions of the formalism are given in [\cite=cite:rarita] [\cite=cite:zemach-form]. Recent examples of applying this formalism to PWA - for which this code was developed - can be found in [\cite=cite:williams-thesis] [\cite=cite:chung] [\cite=cite:anisovich].
+
+Integral Spin Wave Functions
+
+The wave function of a particle with integral spin-J, 4-momentum p and spin projection to some quantization axis m, is described by a rank-J tensor, [formula]. The Rarita-Schwinger conditions for integral spin-J are for any μi,μj, and reduce the number of independent elements from 4J to (2J + 1).
+
+The spin-J projection operator, defined as
+
+[formula]
+
+is used to construct the particle's propagator.
+
+As a simple example, consider a massive spin-1 particle. The Rarita-Schwinger conditions for spin-1 simply require pμεμ(p,m)  =  0. Thus, in the particle's rest frame the energy component of the wave function is zero. The spatial components are then chosen to be
+
+[formula]
+
+The wave function can be obtained in any other frame through the use of Lorentz transformations. The spin-1 projection operator is given by
+
+[formula]
+
+where w is the mass of the particle.
+
+Wave functions for particles with integral spin are handled in qft++ by the PolVector class. The spin is set using the constructor, e.g PolVector eps(3) would be used for a spin-3 particle. The PolVector object must then be initialized for a given 4-momentum. At this point, the user can decide whether or not the particle is to be on-shell. For example, if a spin-1 particle is initialized on-shell then the projection operator is given by
+
+[formula]
+
+otherwise, it is calculated using ([\ref=eq:spin1-proj]). This option is also available in qft++ for half-integral spin particles.
+
+After initialization, the sub-states can be accessed via calls like eps(m), which returns the Tensor<complex<double> > object for sub-state m. The spin-J projection operator can be accessed easily in the code using the method eps.Projector(), which returns an object of type Tensor<complex<double> > with a rank of 2J .
+
+Half-Integral Spin Wave Functions
+
+The wave function for a spin-1/2 particle is described by a 4-component Dirac spinor, denoted as u(p,m), where p and m again represent the 4-momentum and spin projection of the particle. The representation chosen here leads to the following form of the spinors:
+
+[formula]
+
+where E(w) is the energy(mass) of the particle and χ(m) are the standard non-relativistic 2-component spinors.
+
+Wave functions for particles with higher half-integral spin, denoted as [formula], are constructed using tensor products of integral spin wave functions and the spin-1/2 spinors described above. The Rarita-Schwinger conditions for half-integral spin-J are [\cite=cite:rarita] for any μi,μj, and reduce the number of independent elements from 4J + 1 / 2 to (2J + 1).
+
+The spin-J projection operator is then defined as
+
+[formula]
+
+For example, the spin-1/2 projection operator is simply [formula], while for spin-3/2 the projection operator is given by
+
+[formula]
+
+Wave functions for particles with half-integral spin are handled in qft++ by the DiracSpinor class. The spin is set using the constructor, e.g. DiracSpinor u(3/2.) would be used for a spin-3/2 particle. As with the PolVector class, the DiracSpinor class must be initialized for a given 4-momentum. The sub-states can then be accessed via u(m), which returns the Matrix<Tensor<complex<double> > > object for sub-state m. The spin-J projection operators can be easily accessed using the method u.Projector() which returns a [formula] Matrix of rank-(2J - 1) Tensor<complex<double> > objects. We also note here that the quantity ū(p,m) is obtained using the function Bar(u(m)).
+
+Dirac Matrices
+
+Classes are also provided to handle the Dirac matrices, γμ ( DiracGamma) and γ5 ( DiracGamma5), along with [formula] ( DiracSigma). Each of these classes is derived from the common base class Matrix<Tensor<complex<double> > >. Thus, they inherit all of the necessary Matrix and Tensor operators.
+
+Orbital Angular Momentum Tensors
+
+Two particles, with 4-momenta pa and pb, can be coupled to a state of pure orbital angular momentum, [formula], using the operators [formula]. The total and relative momenta are defined as P  =  pa  +  pb and [formula] respectively. The orbital-angular-momentum operators are then built using the relative momentum and the spin-[formula] projection operator as follows:
+
+[formula]
+
+These operators satisfy the Rarita-Schwinger conditions for any μi,μj, which insure that they have [formula] independent elements.
+
+In the qft++ package, orbital-angular-momentum operators are handled by the OrbitalTensor class. This class inherits from Tensor<double>; thus, after construction it can be used just like any other tensor. Setting the tensor elements of [formula] ( OrbitalTensor object orbL) for 4-momenta pa and pb ( Vector4<double> objects pa and pb) is done by simply calling orbL.SetP4(pa,pb).
+
+Additional Utilities
+
+Functions are also provided to calculate useful quantities such as Clebsch-Gordon coefficients, Wigner D-functions, Breit-Wigner and Regge propagators, etc.
+
+Example Applications
+
+In this section, a few simple examples will be examined. The qft++ package computes the values of expressions numerically; thus, the 4-momenta of the particles involved must be known. In an event-based partial wave analysis, these would be obtained from the experimental data and/or Monte Carlo events. In the case that one wants to calculate theoretical angular distributions, cross sections, polarization observables, etc., events with the desired kinematics must be generated as input for the qft++ code. In the examples below, the assumption is made that one of these methods is employed. For the example plots shown in this section, the latter method was used.
+
+X(2-)  →  ωK  →  π+π-π0K
+
+Consider the decay of a particle, X, with spin-parity JP  =  2- into an ω and K via F-wave. The invariant decay amplitude for this process is proportional to
+
+[formula]
+
+where pω,mω(P,M) are the momentum and spin projection of the ω(X) and pωK is the relative momentum of the ωK system.
+
+For this example, assume that the X is produced via e+e- annihilation resulting in population of only the [formula] sub-states. The decay distribution is then obtained by calculating the intensity
+
+[formula]
+
+To calculate this distribution using qft++, the necessary variables must first be declared: For each point at which I is to be calculated, the 4-momenta must be set and the polarization states initialized using calls to SetP4; however, if the kinematics are such that the X mass is constant, then p4x and epsx will only need to be initialized once.
+
+In the code, a loop would then be performed over all values of cos θ (the decay angle of the ω in the X rest frame) for which the decay intensity is to be calculated (or over events). At each point, the calculation would be performed as: In this way, the value of I can be calculated at any number of points in cos θ (or, for any number of events).
+
+It is worth examining this more carefully. The tensor contractions in the code above are performed by first evaluating the * operator which contracts ε*μ(pω,mω) into the first index of L(3)μνα(pωK). The result is a rank-2 Tensor whose two indices are contracted via the | operator into both indices of ενα(P,M). The result is a rank-0 Tensor<complex<double> > whose value is accessed via the () operator.
+
+To check that the code is working for this simple example, the intensity in ([\ref=eq:spin2-int]) can be calculated in the X rest frame by making a slight modification to the non-relativistic helicity formalism solution as follows:
+
+[formula]
+
+where Eω,wω,λ are the energy, mass and helicity of the ω and f(x,  ±  1)  =  1, f(x,0)  =  x accounts for the effects of the boosts on the covariant ω helicity states. Notice that as Eω  →  wω, the non-relativistic solution is recovered.
+
+The expression in ([\ref=eq:spin2-hel-def]) can then be rewritten purely in terms of the decay angle as follows:
+
+[formula]
+
+Figure [\ref=fig:spin2-dist] shows the angular distributions obtained by calculating ([\ref=eq:spin2-amp]) using qft++ compared to the modified helicity formalism expression given in ([\ref=eq:spin2-hel]), normalized to have the same integral as the qft++ solution. The two calculations give the same angular distributions, i.e. the code is working properly.
+
+This example can be extended by considering the secondary decay ω   →   π + π - π0. The amplitude for this process can be written as
+
+[formula]
+
+which, in the ω rest frame, simplifies to
+
+[formula]
+
+This is the standard non-relativistic result [\cite=cite:zemach].
+
+To incorporate this decay, ([\ref=eq:spin2-amp]) must be rewritten as
+
+[formula]
+
+where,
+
+[formula]
+
+and wω,Γω are the mass and width of the ω.
+
+To add this decay to the qft++ calculation, the following variables need to be defined: Then, for each point the intensity is calculated as: Since all of the objects are covariant, no extra boosts or rotations to the ω rest frame are required.
+
+πp  →  Δ  →  πp
+
+As an example involving half-integral spin particles, consider the reaction πp   →   Δ(1232)   →   πp. The invariant scattering amplitude for this process is proportional to
+
+[formula]
+
+where pi(pf) and mi(mf) are the 4-momentum and canonical spin projection of the initial(final) proton respectively. For this example, the mass-dependence of the propagator will be ignored. In the code, adding this would simply involve multiplying the amplitude by a complex<double>.
+
+The distribution in the scattering angle, i.e. the angle between the initial and final protons (cos θ   =   p̂i   ·   p̂f), is obtained by calculating the scattering intensity
+
+[formula]
+
+To calculate this distribution using qft++, the following variables must be declared: For each point at which I is to be calculated, the 4-momenta must be set and the spinors initialized using calls to SetP4; however, if the 4-momentum of any given particle does change from point to point, then its corresponding object would only need to be initialized once.
+
+In the code, a loop would then be performed over all values of cos θ for which the scattering intensity is to be calculated (or, again, over all events). At each point, the calculation would be performed as: In this way, the value of I can be calculated at any number of points in cos θ.
+
+If the Δ(1232) projector is on-shell (see discussion in Section [\ref=section:integral]), then the numerical calculations can be checked in the overall center-of-mass frame using the non-relativistic helicity formalism. In this frame, the scattering intensity is proportional to
+
+[formula]
+
+where λi(λf) are the initial(final) proton helicities.
+
+Figure [\ref=fig:delta-dist] shows the angular distributions obtained by calculating ([\ref=eq:delta-amp]) in the overall center-of-mass frame using qft++ compared to the non-relativistic helicity formalism calculation used to obtain ([\ref=eq:delta-hel]). The result obtained using ([\ref=eq:delta-hel]) was normalized to have the same integral as the covariant calculation. Clearly the two calculations give the same angular distributions.
+
+Compton Scattering
+
+As a final example, the unpolarized Compton scattering cross section will be calculated to leading order in α. The two well-known tree-level amplitudes, corresponding to s- and u-channel electron exchange diagrams, are where p(p') and k(k') denote the initial(final) electron and photon momenta respectively and w is the mass of the electron. The full scattering amplitude, from which the cross section can be calculated, is obtained by combining these two processes.
+
+The calculation of this scattering amplitude is similar to that of the previous example. First, the following variables must be declared: A loop would then be performed over all values of cos θ (scattering angle in the lab frame) for which the cross section is to be calculated. At each point, the propagators are obtained using the following code: The scattering intensity is then obtained by looping over spin projections, Spin m_ef,m_ei,m_gf,m_gi, and calculating the amplitudes given in ([\ref=eq:compton-amps]) as To get the cross sections the appropriate scale factors (α2, phase space factors, etc.) must then be applied.
+
+Figure [\ref=fig:compton] shows the differential cross section for a 10 MeV incident photon calculated using qft++ compared to the well-known spin-averaged Klein-Nishina formula [\cite=cite:klein-nishina]. Both methods give the same results.
+
+Discussion
+
+The examples in this paper were chosen because they can also easily be solved analytically, allowing for comparisons of the two calculations. In general, this is not the case; however, even for very complicated expressions involving high rank tensors or symmetrization, the qft++ calculations are still very manageable (more complicated examples can be found online [\cite=cite:qft++website]). The code is also optimized for performance. The examples given in this paper run at [formula] kHz, i.e. on a 2.5 GHz processor, one can compute results at about 3000 kinematic points per second. This package makes it possible for any physicist to compare and/or fit a theoretical model to his or her data by coding up the expressions themselves.
+
+It is clear from these examples how this package could be useful for a partial wave analysis, but it can also be used for other types of analyses. For example, it can be used to perform numeric checks of analytic calculations. The qft++ package can also be used for cases where analytic solutions are desirable but not feasible. For example, consider the case where an expansion of an expression in powers of some variable, x, is needed but an analytic solution is not available. The qft++ package could be used to evaluate the expression at a large number of values of x. The coefficients in the expansion could then be extracted by fitting the qft++ results.
+
+The qft++ package is available to all users from http://www-meg.phys.cmu.edu/qft++.
+
+Acknowledgments
+
+I would like to thank Matt Shepherd for providing a more efficient version of the TensorIndex class. This work was supported by grants from the United States Department of Energy No. DE-FG02-87ER40315 and the National Science Foundation No. 0653316 through the "Physics at the Information Frontier" program.

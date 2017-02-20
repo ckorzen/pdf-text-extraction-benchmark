@@ -1,0 +1,689 @@
+=0pt
+
+Fact Definition Lemma Convention Claim
+
+Cirquent calculus deepened
+
+MSC: primary: 03B47; secondary: 03B70; 03F03; 03F20; 68T15.
+
+Keywords: Proof theory; Cirquent calculus; Resource semantics; Deep inference; Computability logic; Pigeonhole principle.
+
+Introduction
+
+Among the main objectives of the introductory section of a well-written paper should be to help the reader determine whether he or she is willing to invest time into reading the rest of it. The following rhetorical question may contribute to making such a determination in the present case:
+
+Those who are not quite clear about the meaning of the word "natural", may try to replace it with "direct", "reasonable" or "efficient", and think about where the computer industry would be at present if, for some strange reason, computer engineers had insisted on tree- rather than graph-style cicuitries. Or ask why one does not hear theoretical computer scientists speak about formula complexity nearly as often as about circuit complexity.
+
+Should then proof-theoreticians continue sticking to formulas, especially now that logic is increasingly CS-oriented, and efficiency is of much greater concern than it was in the days of Frege, Hilbert and Gentzen? The author believes that there are no good reasons for such conservatism other than habit and tradition, if not laziness. And this paper is for those who might feel potentially ready to accept the same view, or be curious enough to be willing to take a look at what happens when one gives the idea a try. It is devoted to (re)introducing and advancing the foundations of cirquent calculus, the circuit-based proof theory.
+
+Unlike the more traditional syntactic approaches that manipulate tree- or forest-like objects such as formulas or sequents and where proofs are often also trees, cirquent calculus deals with circuit-style constructs called cirquents, in which children may be shared between different parent nodes. Furthermore, being intrinsically a deep inference (see later) approach, it makes possible combining, within a single cirquent, what would otherwise be different parallel nodes (formulas, sequents) of a proof tree, meaning that eventually not only subcirquents, but also subtransformations are amenable to being shared. Sharing thus allows us to achieve higher efficiency, whether it be the compactness of representations of Boolean functions or other objects of study, or the numbers of steps in derivations and proofs. Indeed, in natural situations, specifically ones arising in the world of computing, prohibitively long formulas typically owe their sizes to reoccurring subformulas, and explosively large proof trees often emerge as a result of the necessity to perform identical or similar steps over and over again.
+
+The possibility of compressing formulas or proofs is not the only -- in fact, not even the primary -- appeal of cirquent calculus. Generality, flexibility and expressiveness are other, more fundamental, advantages to point out. Cirquent calculus is more general than the calculus of structures (Guglielmi et al. [\cite=Gug07] [\cite=Brunnen] [\cite=Gug01] [\cite=Gug06]); the latter is more general than hypersequent calculus (Avron [\cite=Avron], Pottinger [\cite=Pottinger]); and the latter, in turn, is more general than sequent calculus (Gentzen). Each framework in this hierarchy permits to successfully axiomatize certain logics that the predecessor frameworks fail to tame. Cirquent calculus itself was originally introduced as a deductive system for the resource-conscious computability logic [\cite=Jap03] [\cite=Japdina] [\cite=Japfin] after it had become evident that neither sequent calculus nor the more flexible and promising calculus of structures were sufficient to axiomatize it.
+
+While in classical logic circuits do not offer any additional expressive power, they -- more precisely, cirquents that are more general than circuits -- turn out to be properly more expressive than formulas when it comes to finer semantical approaches such as resource logics, with computability logic ([\cite=Jap03] [\cite=Japdina] [\cite=Japfin] [\cite=JapIC]) and abstract resource semantics ([\cite=Jap06]) being two examples. Efficiency considerations totally aside, it was exactly this expressive power that in [\cite=Jap06] made a difference between axiomatizability and unaxiomatizability for computability logic or abstract resource semantics: even if one is only trying to set up a deductive system that proves all (and only) valid formulas, intermediate steps in proofs of such formulas still inherently require using objects (cirquents) that cannot be written as formulas.
+
+Switching from formulas to cirquents indeed becomes imperative -- not only syntactically but also semantically -- if one wants to systematically develop resource logics. Fine-level resource-semantical approaches intrinsically require the ability to account for the possibility of resource sharing, the ability that linear logic or other formula- or sequent-based approaches do not and cannot possess. The following naive example may provide some insights.
+
+We are talking about a vending machine that has slots for 25-cent (25c) coins, with each slot taking a single coin. Coins can be authentic or counterfeited. Let us instead use the more generic terms true and false here, as there are various particular situations naturally and inevitably emerging in the world of resources corresponding to those two opposite values. Below are a few examples of real-world resources and the possible meanings of the two semantical values for them:
+
+A financial debt, which may (true) or may not (false) be eventually paid;
+
+an electrical outlet or a battery, which may (true) or not (false) actually have sufficient power in it;
+
+a standard task performed by a company's employee or an AI agent, which, eventually, may (true) or not (false) be successfully completed;
+
+a specified amount of computer memory required by a process, which may (true) or not (false) be available at a given time;
+
+a promise, which may be kept (true) or broken (false).
+
+See Section 8 of [\cite=Jap06] for detailed elaborations of these intuitions, as well as strict definitions of the concepts of the associated formal semantics, which is the earlier-mentioned abstract resource semantics.
+
+Continuing the description of our vending machine, inserting a false coin into a slot fills the slot up (so that no other coins can be inserted into it until the operation is complete), but otherwise does not fool the machine into thinking that it has received 25 cents. A candy costs 50 cents, and the machine will dispense a candy if at least two of its slots receive true coins. Pressing the "dispense" button while having inserted anything less than 50 cents, such as a single coin, or one true and two false coins, results in a non-recoverable loss.
+
+Victor has three 25c-coins, and he knows that two of them are true while one is perhaps false (but he has no way to tell which one is false). Could he get a candy?
+
+Well, expected or not, the answer depends on how many slots the machine has. Consider two cases: machine M2 with two slots, and machine M3 with three slots. Victor would have no problem with M3: he can insert his three coins into the three slots, and the machine, having received ≥  50c, will dispense a candy. With M2, however, Victor is in trouble. He can try inserting arbitrary two of his three coins into the two slots of the machine, but there is no guarantee that one of those two coins is not false, in which case Victor will end up with no candy and only 25 cents remaining in his pocket.
+
+Both M2 and M3 can be understood as resources -- resources turning coins into a candy. And note that these two resources are not the same: M3 is obviously stronger ("better"), as it allows Victor to get a candy whereas M2 does not, while, at the same time, anyone rich enough to be able to make M2 dispense a candy would be able to do the same with R3 as well. Yet, formulas fail to capture this important difference. With →  , [formula], [formula] here and later standing for multiplicative-style connectives (called parallel connectives in computability logic), M2 and M3 can be written as
+
+[formula]
+
+respectively: they consume a certain resource R2 or R3 and produce Candy. What makes M3 stronger than M2 is that the subresource R3 that it consumes is weaker (easier to supply) than the subresource R2 consumed by M2. Specifically, with one false and two true coins, Victor is able to satisfy R3 but not R2.
+
+The resource R2 can be represented as the following cirquent:
+
+which, due to being tree-like, can also be adequately written as the formula
+
+[formula]
+
+As for the resource R3, either one of the following two cirquents is an adequate representation of it, with one of them probably showing the relevant part of the actual physical circuitry used in M3:
+
+Unlike R2, however, R3 cannot be represented through a formula. [formula] does not fit the bill, for it represents R2 which, as we already agreed, is not the same as R3. In another attempt to find a formula, we might try to rewrite one of the above two cirquents -- let it be the one on the right -- into an "equivalent" formula in the standard way, by duplicating and separating shared nodes. This results in
+
+[formula]
+
+which, however, is not any more adequate than [formula]. It expresses not R3 but the resource consumed by a machine with six coin slots grouped into three pairs, where (at least) one slot in each of the three pairs needs to receive a true coin. Such a machine thus dispenses a candy for ≥  75 rather than ≥  50 cents, which makes Victor's resources insufficient.
+
+The trouble here is related to the inability of formulas to explicitly account for resource sharing or the absence thereof. The cirquent on the right of Figure 1 stands for a conjunction of three resources, each conjunct, in turn, being a disjunction of two subresources of type 25c. However, altogether there are three rather than six 25c-type subresources, each one being shared between two different conjuncts of the main resource. Formula ([\ref=f1]) is inadequate because, for example, it fails to indicate that the first and the third occurrences of "25c" stand for the same resource while the second and the fifth (as well as the fourth and the sixth) occurrences stand for another resource, albeit a resource of the same 25c-type.
+
+From the resource-philosophical point of view, classical logic and linear logic are two imperfect extremes. In the former, all occurrences of a same subformula mean "the same" (represent the same resource), i.e., everything is shared that can be shared; and in the latter, each occurrence stands for a separate resource, i.e., nothing is shared at all. Neither approach does thus permit to account for mixed cases where certain occurrences are meant to represent the same resource while some other occurrences stand for different resources of the same type. And it is an absolute shame that linear logic or similar -- naive from the perspective of cirquent calculus and abstract resource semantics -- resource-oriented approaches fail to express simple, natural and unavoidable things such as the "two out of three" combination expressed by the cirquents of Figure 1.
+
+It was mentioned earlier that cirquents are more general than circuits -- otherwise there would be no need to invent a special name for them after all. In structures commonly referred to as Boolean circuits, the label of each input is unique, while cirquents may have any number of "inputs" (called ports in abstract resource semantics) of any given type (label). So, strictly speaking, what we see in Figure 1, having three 25c-ports, are cirquents but not circuits. Of course, in an attempt to make them meaningful as circuits in the traditional sense, one could think of renaming the three 25c-ports into, say, P, Q and R. But then a crucial piece of information would be lost, specifically the information about all inputs being of the same type 25c, as opposed to, say, the three different types 25c, 10c, 5c. This would make it impossible to match Victor's resources with those inputs.
+
+Among the main ideological merits of the present contribution is the unification and reconciliation of classical logic and the logic of resources on the basis of one single semantics and one single syntax. The rather unsettling situation of conflict and disagreement between classical and resource logics, familiar from linear logic or even the predecessor [\cite=Jap06] of the present paper, now gives way to a perfect peace an harmony. Specifically, we make the point that the language of classical logic can and should be seen as a proper fragment of the language of resource logics, obtained by considering only circuits, i.e., cirquents where multiple identical-label ports are not allowed. With this view, there is no need to have separate semantics and syntax for classical logic: they turn out to be the same as those of our cirquent calculus, only restricted to the cirquents that are circuits. That is, our resource logic (cirquent calculus) is simply more expressive -- and thus more general -- than classical logic, but otherwise there are no semantic or syntactic differences or disagreements between the two: the former is a conservative extension of the latter. The following example may help get a feel of this.
+
+Let us consider the formula
+
+[formula]
+
+This formula is valid in classical logic while linear logic, or the approach of [\cite=Jap06], would consider it invalid. But is it or is not it valid according to our present approach, which was promised to eliminate any disagreements between the classical and resource-conscious views? It should be remembered that we have dismissed formulas as imperfect means of expression. So, the intended meaning of ([\ref=ff2]) must be first expressed through a cirquent before answering or even asking a question about its validity. And, as we have not (not yet, at least) agreed on any standard way of translating formulas into cirquents, only whoever wrote ([\ref=ff2]) can tell what he or she wanted to express. Frege would probably explain his meaning through the left cirquent of the following Figure 2, while Girard through the right cirquent:
+
+Then, regarding the question on validity, as will be seen later, we would answer "Yes" to Frege and "No" to Girard. And our negative answer in the second case does not at all conflict with the seemingly positive answer of classical logic. The right cirquent of Figure 2, for the reason of having two separate P-ports and thus not being a circuit, is simply not a meaningful or legal -- let alone valid -- expression for classical logic.
+
+The idea of cirquent calculus was born very recently in [\cite=Jap06]. That so far the only paper on the subject introduced cirquent calculus in a special, "shallow" form, where all cirquents were required to be of depth two, with a conjunctive gate at the root and disjunctive gates as second-level nodes. While the shallow version of cirquent calculus was sufficient to achieve the main goal of that paper -- axiomatizing the otherwise unaxiomatizable basic fragment of computability logic -- the paper also outlined the possibility and expediency of studying more general, deep versions of cirquent calculi. The present article contains a realization of that outline. It elaborates a deep cirquent calculus system CL8 for computability logic, which happens to coincide with the logic induced by abstract resource semantics, and which is a conservative extension of classical logic, so that CL8 is also an alternative system for classical logic. CL8 permits cirquents of arbitrary depths and forms, which naturally invites inference rules that modify cirquents at any level rather than only around the root as is the case in sequent calculus. This is called deep inference, and is one of the central ideas in the earlier mentioned calculus of structures. The present paper also borrows many other useful ideas and techniques from the calculus of structures, which is the nearest precursor of cirquent calculus in its present, general form.
+
+The rest of the paper is organized as follows. In Section 2 we (re)introduce the notion of cirquents which generalizes the cirquents from [\cite=Jap06] by removing any restrictions on the depths and forms of cirquents. Section 3 introduces and explains the rules of inference of the deep cirquent calculus system CL8. Section 4 defines the notions of derivation, proof, and admissibility for CL8 and similar systems. Section 5 generalizes both the semantics of classical logic and the abstract resource semantics of [\cite=Jap06] to a common, unifying resource semantics (still called abstract resource semantics) for all cirquents, and proves the corresponding soundness and completeness result for CL8. Section 6 discusses some possible variations of cirquent calculus systems, including a version of CL8 where each rule of inference comes with its dual (symmetric) one, and systems that deal with cirquents with non-standard types of gates. Section 7 discusses the relation of CL8 to classical sequents calculus (showing the p-simulation of the latter by the former) and the two shallow cirquent calculus systems constructed earlier in [\cite=Jap06]. Finally, Section 8 presents polynomial size CL8-proofs of the notoriously hard-to-prove family of tautologies known as the pigeonhole principle. These are so far the only known efficient proofs of that family that employ neither cut nor extension or substitution -- the rules undesirable for their being "highly non-analytic".
+
+Cirquents, formulas and hyperformulas
+
+We fix some set of syntactic objects called atoms, for which we will be using P,Q,R,S,T as metavariables. An atom P and its negation [formula] are called literals. The two literals P and [formula] are said to be opposite.
+
+Let us agree that in this paper a graph means a directed acyclic graph whose every node is labeled with either a literal or [formula] or [formula]. The [formula]- and [formula]-labeled nodes of (such) a graph we call gates, and the nodes labeled with literals we call ports. Specifically, a node labeled with a literal L is said to be a an L-port; an [formula]-labeled node is said to be a conjunctive gate; and an [formula]-labeled node is said to be a disjunctive gate. When there is an edge from a node a to a node b, we say that b is a child of a and a is a parent of b. The relations "descendant" and "ancestor" are the transitive closures of the relations "child" and "parent", respectively. The meanings of some other standard relations such as "grandchild", "grandparent", etc. should also be clear.
+
+A cirquent is a graph (in the above sense) satisfying the following two conditions:
+
+Ports have no children.
+
+There is a node, called the root, which is an ancestor of all other nodes in the graph.
+
+A cirquent is said to be a circuit iff all of its ports have different labels (here the two opposite labels P and [formula] count as different).
+
+Graphically, we represent a port through the corresponding literal, a conjunctive gate through [formula], and a disjunctive gate through [formula]. We agree that the direction of an edge is always upward, which allows us to draw lines rather than arrows for edges. Below is an example of a cirquent with 4 ports and 8 gates. Note that not only ports but also gates can be childless. A childless disjunctive gate semantically corresponds to [formula], and a childless conjunctive gate corresponds to [formula].
+
+In the introductory section, we emphasized the need for rejecting formulas in favor of cirquents: from the perspective of cirquent calculus, formulas are incomplete, inefficient and not the most natural means of expression. In the process of formalizing a piece of the real world, a natural way to represent a Boolean function or whatever similar objects we study is to do so directly through a cirquent. It would be somewhat odd to first try to write it through a formula (if possible at all) and then translate that formula into a cirquent. So, in principle, we have no "legal obligation" to define the precise meanings of formulas in terms of cirquents, as there is no need for formulas at all. But even if not "legal", we still do have a "moral" duty to agree on some standard way of translating formulas into cirquents, to pay tribute to the firmly established logical tradition of dealing with formulas.
+
+By a formula in this paper we mean that of the language of classical propositional logic, built from literals and variable-arity operators [formula], [formula] in the standard way. The disjunction of [formula] can be written as either [formula] or [formula]. Similarly for conjunction. [formula] is considered an abbreviation of the empty disjunction [formula], and [formula] an abbreviation of the empty conjunction [formula]. Further, we treat E  →  F as an abbreviation of [formula], and [formula], when H is not an atom, as an abbreviation defined by: [formula];  [formula];   [formula].
+
+We agree to understand ("translate") each formula used in this paper as -- and identify with -- the cirquent which is nothing but the parse tree for that formula. More precisely, we have:
+
+A literal L is understood as the cirquent whose only node (=root) is an L-port.
+
+Let [formula] be any formulas, and let graph G be the disjoint union of those formulas understood as cirquents. Then:
+
+[formula] is understood as the cirquent obtained by adding a new disjunctive gate (root) to G, and connecting it with an edge to each of the n parentless nodes of G.
+
+Similarly for [formula], with the difference that the root gate here will be a conjunctive one.
+
+Note that since we require the above G to be a disjoint union, every formula is a tree-like cirquent, with each non-root node having exactly one parent. The above way of translating formulas into cirquents is thus in the spirit of formula-based resource logics (such as linear logic) rather than classical logic. For example, formula ([\ref=ff2]) of Section 1 translates into the right rather than the left cirquent of Figure 2. So, we still need to separately clarify how to translate formulas when they appear in the context of classical logic (as they mostly do in the literature) rather than in the context of resource logics (as they always do in the present paper). For that purpose, we first generalize formulas to what we call "hyperformulas".
+
+A hyperformula is the same as a formula, with the only difference that some subformulas in it may be overlined (double overlines are not allowed). Hyperformulas, just like formulas, are understood as cirquents. To translate a hyperformula F into a corresponding cirquent, one should first ignore all overlines in F and translate it into a tree-like cirquent according to the earlier prescriptions, and then merge all subcirquents that correspond to (originate from) identical overlined subformulas of F. Rather than trying to turn this semiformal explanation into a strict definition (which is certainly possible), below we just provide a few examples that should make the meaning of the above-said perfectly clear.
+
+The hyperformula
+
+[formula]
+
+means (is translated into) the cirquent
+
+Here the two occurrences of R in the hyperformula are considered "the same" as both are overlined; on the other hand, the two occurrences of Q did not merge because they were not overlined. At the same time, each of the hyperformulas [formula],  [formula],   [formula],  [formula] stands for the same tree-like cirquent
+
+as there is nothing to merge within or across the overlined subexpressions.
+
+On the left of the following figure we see an overline-free hyperformula (i.e., a formula) and the corresponding tree-like cirquent; and, on the right, we see the same (hyper)formula fully overlined, resulting in a much more compressed cirquent. Note that in this case not only all identical-label ports have merged, but also the (two) identical-content gates, as both of the corresponding subformulas [formula] were found under an overline.
+
+Anyway, now we are ready to explain how formulas should be translated into cirquents when they are used in the context of classical logic. We agree to see each formula F of classical logic as the hyperformula -- and hence the corresponding cirquent -- obtained from F by overlining all (and only) literals. Such a hyperformula will be denoted by underlining (rather than overlining) F:
+
+[formula]
+
+So, for example, if formula ([\ref=ff2]) of Section 1 is found in a textbook on classical (as opposed to linear) logic, it should be understood as a "lazy way" to write the hyperformula
+
+[formula]
+
+i.e., the hyperformula
+
+[formula]
+
+and, correspondingly, should be translated as the left rather than the right cirquent of Figure 2. Generally, a notational synchronization of any traditional piece of writing on or in classical logic with our approach would take as little as just underlining -- explicitly or implicitly -- every formula appearing in it.
+
+Before closing this section, we want to make the observation that, while hyperformulas are more expressive than formulas, they are still far from being expressive enough to be able to represent all cirquents. For example, the cirquents of Figure 1 cannot be written as hyperformulas.
+
+The rules of CL8
+
+When [formula], we say that B follows from A by rule R with parameters [formula], or -- if lazy to specify the parameters -- simply that B follows from A by R.
+
+Thus, each application of a rule has one premise and one conclusion. The conclusion is usually obtained from the premise (or vice versa) through modifying only a certain part, while leaving the rest of the cirquent unchanged. Specifically, depending on the particular stipulations of a given rule, some (and only) central-parameter nodes may appear or disappear when moving from the premise to the conclusion or vice versa, or may change their labels (say, turn from a conjunctive gate into a disjunctive one). Similarly, some (and only) arcs pointing to or from central parameters may appear or disappear. No other nodes or edges are affected. The only exception is when deleting arcs from a central parameter to some of its children leaves those children parentless. As we do not allow non-root "orphan" nodes in cirquents, such nodes (together with the arcs incident with them, of course) should then also be deleted, along with their possibly further orphaned children, grandchildren, etc. Such a chain of deletions may delete nodes that are not among the central parameters and perhaps not even within the peripheral parameters. Other than this, we repeat, any node of the cirquent that does not happen to be a central parameter, and any arc of the cirquent that does not happen to be incident with a central parameter, remains unaffected when moving from premise to conclusion or vice versa.
+
+In view of conditions 3 and 4 of Convention [\ref=march15], the role of peripheral parameters is to list all parents and children of central parameters that do not themselves happen to be central parameters. The additional purpose that they sometimes serve is dividing those parents or children into groups for reference purposes, as will be seen later.
+
+In general, the intuitive role played by parameters is telling us "where the rule is exactly applied" in the cirquent. Without this piece of information, determining whether one cirquent indeed follows from another by a given rule can be harder than it has to be.
+
+When drawing cirquents, we typically do not bother to assign (unique) names to their nodes, as this is also commonly done in the literature when dealing with graphs in general: more often than not, one does not differentiate between isomorphic graphs -- graphs that only differ in the names of their nodes -- as such graphs behave in the same ways in all relevant aspects, and assigning names to their nodes can usually be done in an arbitrary fashion if and when necessary. However, when dealing with rules of inference, or any graph-transformation procedures, having names for nodes becomes necessary in order to be able to properly define and apply (machine-implement) those rules or procedures. Indeed, if we continue seeing cirquents not as particular graphs but rather as isomorphism classes of graphs (as was implicitly done in the preceding section, whether the reader noticed it or not), then even deciding whether one cirquent is "the same as" another cirquent would take quite some work, let alone deciding whether one cirquent follows from another one by a given rule.
+
+So, officially we require that, when applying rules, all nodes of the involved cirquents had names, and that each transition from a premise to a conclusion be justified by not merely indicating the name of the corresponding rule, but also indicating the precise values of each of the parameters of the rule. With this requirement, the question on whether any given step (transition from a premise to a conclusion) is legal in a cirquent-calculus proof or derivation essentially reduces to nothing but checking whether the indicated parameters of the premise and the conclusion satisfy all conditions of the indicated rule, which, in the case of the rules of CL8 or any other rules discussed in this paper, can be seen to be a rather easy (certainly polynomial time doable) task.
+
+We will be schematically representing rules of inference in the form
+
+where X stands for the relevant portion of the premise and Y stands for the relevant portion of the conclusion. Here "relevant portion" is the fragment of the cirquent that contains all central parameters, all peripheral parameters, all edges incident with the central parameters, and no other edges or nodes. In such a representation, the letters a,c,b,Γ,Δ,Π,Σ,Ω,Θ will be used as variables for the parameters of the rule. As noted, the conclusion is obtained from the premise (or vice versa) through replacing the X part by Y (or vice versa), leaving the rest of the cirquent unchanged. While X and Y represent not the premise and the conclusion but only the to-be-modified parts of those, by abuse of terminology, we may still sometimes refer to them as the "premise" and the "conclusion".
+
+Below is a full list of the rules of inference of CL8 represented schematically for the convenience of quick future references. Certain necessary explanations of their meanings and examples of applications follow.
+
+The double names and double horizontal lines in the restructuring rules indicate that these rules work in both top-down and bottom-up directions. The name on the top is for the direction where the top part is the premise, and the name at the bottom is for the direction where the bottom part is the premise. Furthermore, is a variable over [formula]. This means that each restructuring rule comes in two versions: one for [formula] and one for [formula]. So, altogether there are 12 restructuring rules.
+
+The following convention provides additional explanations and conditions, some essentially just reiterating (for safety) certain earlier-made stipulations:
+
+Below come explanations of all rules. Such explanations can be provided either by saying how to obtain a conclusion from the premise, or saying how to obtain a premise from the conclusion. We choose one or the other way depending on which one appears to be more intuitive and convenient. For the same reason, for each of the three pairs of restructuring rules, we explain only one, with the other rule of the pair being symmetric, obtained by interchanging premise with conclusion.
+
+Deepening
+
+As can be seen from the schematic representation, this rule has two central parameters a,b and three peripheral parameters Γ,Δ,Θ. Its meaning is that if a cirquent has a gate b with exactly one parent a such that b and a are of the same type (both conjunctive, or both disjunctive), then a premise can be obtained by deleting b and connecting its children Δ directly to a.
+
+Below are several examples of applications of this rule.
+
+As we remember, a justification of an application of a rule should include a specification of the values of its parameters. Here are such specifications:
+
+In Example 1: a = 1, b = 2, Γ  =  {3}, Δ  =  {4}, Θ  =  {}.
+
+In Example 2: a = 1, b = 2, Γ  =  {3}, Δ  =  {3,4}, Θ  =  {}.
+
+In Example 3: a = 1, b = 2, Γ  =  {3,4}, Δ  =  {3,4}, Θ  =  {}.
+
+In Example 4: a = 1, b = 2, Γ  =  {}, Δ  =  {3,4}, Θ  =  {}.
+
+In Example 5: a = 1, b = 2, Γ  =  {3,4}, [formula], Θ  =  {}.
+
+The following is an example of deepening applied to a bigger cirquent. Here we have a = 1, b = 2, Γ  =  {5}, Δ  =  {6,7} and Θ  =  {3,4}:
+
+Most readers, no doubt, would (still) feel more comfortable with formulas than with cirquents. Therefore it would not hurt to also see a couple of examples where both the premise and the conclusion are (tree-like and hence can be written as) formulas. We are not providing the values of the five parameters for these instances of the rule, which are easy to guess anyway. Furthermore, note that Example 8 is simply the same as example 5.
+
+Localization
+
+According to this rule, if a cirquent has two conjunctive or two disjunctive gates a,b with exactly the same children Γ (but not necessarily the same parents), then a premise can be obtained by merging a and b and calling the resulting node c. Here "merging" means that c has the same type and same children as a and b have, and the set of the parents of c is the union of those of a and b.
+
+Here are four examples of applications of this rule.
+
+In Example 1: a = 1, b = 2, c = 3, Γ  =  {6,7}, Θ  =  {4}, Ω  =  {5}.
+
+In Example 2: a = 1, b = 2, c = 3, Γ  =  {6,7}, Θ  =  {4}, Ω  =  {4,5}.
+
+In Example 3: a = 1, b = 2, c = 3, Γ  =  {6,7}, Θ  =  {4}, Ω  =  {4}.
+
+In Example 4: a = 1, b = 2, c = 3, Γ  =  {}, Θ  =  {4}, Ω  =  {4}.
+
+The following is the same as Example 1, only with the premise and the conclusion written as hyperformulas (which, by good luck, is possible here, even though the same could not be done using just formulas):
+
+Lengthening
+
+According to this rule, if a cirquent has a gate b with exactly one child a, then a premise can be obtained by deleting b and connecting a directly to the parents Θ of b.
+
+Here are some illustrations:
+
+In Examples 1 and 2: a = 1, b = 2, Γ  =  {}, Θ  =  {} and Ω  =  {}.
+
+In Example 3: a = 1, b = 2, Γ  =  {7,8}, Θ  =  {3,4} and Ω  =  {5,6}.
+
+In terms of formulas, lengthening simply replaces a subformula F by [formula] or [formula]. Shortening, of course, seems to be doing a more useful job than lengthening when it comes to formulas: it removes a "dummy" disjunction or conjunction that is applied to a single conjunct or disjunct.
+
+Coupling
+
+According to this rule, if a cirquent has a childless conjunctive gate a, then a conclusion can be obtained through making a a disjunctive gate and adding to it two children b and c which are ports with opposite labels.
+
+An important condition here is that the above b and c should be new nodes not present in the premise. That is, one cannot utilize some already existing node to make a child of a. Example 3 below violates this condition, and hence is an example of a wrong "application" of coupling.
+
+In Example 1: a = 1, b = 2, c = 3 and Θ  =  {}.
+
+In Example 2: a = 1, b = 2, c = 3 and Θ  =  {4,5}.
+
+Example 3 (with the same parameters as Example 2) is wrong because node 3 was already in the premise.
+
+Below we see Example 2 rewritten using hyperformulas (another "lucky case" where this is possible):
+
+Weakening
+
+According to this rule, a premise can be obtained from the conclusion by deleting arcs from a disjunctive gate a to some children Δ of it.
+
+Deleting arcs from a may make some children of a parentless. As noted earlier, our present approach considers non-root parentless nodes ("orphan nodes") meaningless and does not officially allow them in cirquents. So, deleting the arcs from a to the nodes of Δ should be followed by (perhaps repeatedly) deleting all orphans as well, as done in Examples 1 and 3 below.
+
+In Example 1: a = 1, Γ  =  {2,3}, Δ  =  {4} and Θ  =  {}. The arc from 1 to 4 was deleted (when moving from conclusion to premise), and so was node 4 because it had no other parents.
+
+In Example 2: a = 1, Γ  =  {2,3}, Δ  =  {4} and Θ  =  {5}. The arc from 1 to 4 was deleted but 4 was preserved, as it had another parent in the cirquent.
+
+In Example 3: a = 1, Γ  =  {2,3}, Δ  =  {4,5} and Θ  =  {6}. The arcs from 1 to 4 and 5 were deleted. This made 4 an orphan, and 4 was also deleted. But deleting 4 made the R-labeled node an orphan, which resulted in further deleting that node as well.
+
+When applied to a (cirquent represented by a) formula, weakening can delete any number of disjuncts from a disjunctive subformula of the conclusion, as illustrated below:
+
+Pulldown
+
+This rule applies when the conclusion (as well as the premise) has a disjunctive gate a with a single conjunctive parent b, which, in turn, has a single disjunctive parent c. Then a premise can be obtained by passing some (any) children Π from c to a.
+
+When performing the above children-passing transformation, some or all nodes of Π may still remain children of c. This is so because, according to Convention [\ref=conv], Π and Δ do not necessarily have to be disjoint. Similarly, Π and Γ do not have to be disjoint, meaning that some nodes of Π may simply stop being children of c without acquiring a as a new parent, as a already was a parent of them.
+
+In Example 1: a = 1, b = 2, c = 3, Γ  =  {6,7}, Δ  =  {4}, Π  =  {8}, Σ  =  {5}, Θ  =  {}.
+
+In Example 2: a = 1, b = 2, c = 3, Γ  =  {6,7}, Δ  =  {4,8}, Π  =  {8}, Σ  =  {5}, Θ  =  {}.
+
+In Example 3: a = 1, b = 2, c = 3, Γ  =  {6,7,8}, Δ  =  {4}, Π  =  {8}, Σ  =  {5}, Θ  =  {}.
+
+Example 1 (and only this example) can also be written using formulas:
+
+Derivability, provability and admissibility
+
+A CL8-derivation of a cirquent A from a cirquent B is a sequence [formula] of cirquents such that C1 = B, Cn = A and each Ci + 1 follows from Ci by one of the rules of CL8. A derivation is usually required to come with an -- even if only implicit -- justification, which is an indication of by which rule any given cirquent Ci + 1 follows from Ci and where that rule is applied, i.e., what the values of the parameters of the rule are.
+
+A CL8-proof of a cirquent A is a CL8-derivation of A from [formula]. Thus, the single-node cirquent [formula], i.e., [formula], is the (only) axiom of CL8.
+
+When a CL8-proof of a cirquent A exists, we say that A is provable in CL8 and write [formula]. Similar terminology applies to any other cirquent calculus system as well. When CL8 is the only system we deal with in a given context (such as the present section), we usually omit "CL8-" and simply say "derivation", "provable" etc.
+
+Below is a CL8-proof of the left cirquent of Figure 2 in full detail, serving the purpose of giving the reader a better syntactic feel of cirquent calculus. All ports of each cirquent of the proof have unique labels, which allows us to unambiguously refer to those ports (in justifications) by their labels, without assigning names to them as we did in the examples of the previous section.
+
+This is the last time in this paper that we provide a proof in all details. Subsequent proofs will be "lazier", with several steps often combined together, and with justifications typically reduced to indicating the names of the rules used, without indicating the (usually easy to guess) values of the corresponding parameters.
+
+The reader may want to try to see why and where the above proof fails if the target is the right rather than the left cirquent of Figure 2. That cirquent simply has no proof. The difference between one shared P-port and two separate P-ports is thus crucial here.
+
+The left cirquent of Figure 2, unlike the right cirquent, is a circuit -- each port in it has a unique label. However, this in not at all the reason why the former is provable and the latter is not. The left cirquent of the following Figure 3 is not a circuit but its proof can be mechanically obtained from the above proof by replacing all atoms by P. On the other hand, the right cirquent of Figure 3, just like its predecessor from Figure 2, can be shown to have no proof:
+
+An (atomic-level) instance of a cirquent is the result of renaming (all, some or no) atoms in it. Here, of course, different occurrences (in the labels of different ports) of the same atom are required to be renamed into the same atom, but it is also possible that different atoms are renamed into the same atom. Example: the two cirquents of Figure 3 are instances of the two cirquents of Figure 2.
+
+We noted above that the left cirquent of Figure 3 is provable because so is its more general predecessor from Figure 2. In other words, the former is provable because it is an instance of the latter which, in turn, has already been seen to have a proof. The following lemma generalizes this observation:
+
+If a cirquent is provable, then so are all of its instances.
+
+Consider an arbitrary cirquent C, and let C' be an instance of it, resulting from renaming each atom P of C into an atom P'. Assume P is a proof of C. Note that no cirquent in P contains any atom that does not occur in C. So, let P' be the result of renaming each atom P into P' in each cirquent of P. It is not hard to see that P' is a proof of C'.
+
+By a transition we mean any binary relation T on cirquents. When ATB, we say that B follows from A by T, and call A and B the premise and the conclusion of the given application of the transition, respectively. Transitions are the same as rules of inference, only in a more relaxed sense than the strict sense of Section 3. Of course, every rule R of inference induces -- and can often be identified with -- a transition T, such that B follows from A by T iff B follows from A by R with some (whatever) parameters. We may not always be very strict in terminologically differentiating between transitions and rules.
+
+A transition is said to be strongly admissible in a given system if, whenever B follows from A by that transition, there is also a derivation of B from A. And a transition is weakly admissible iff, whenever B follows from A by that transition and A is provable in the system, B is also provable.
+
+One of the useful strongly admissible transitions is destandardization. To obtain a premise from the conclusion A of destandardization, we apply to A -- in the bottom-up sense -- a series of globalizations until every non-root gate has exactly one parent; then we apply a series of deepenings until no conjunctive gate has conjunctive children and no disjunctive gate has disjunctive children; finally, we apply a series of lengthenings until there are no gates that have exactly one child. It is easy to see that this procedure applied to A yields a unique (modulo isomorphism) cirquent B, to which we will be referring as the standardization of A. Then we say that such a B follows from A by destandardization. The same transition but with premise and conclusion interchanged we also call standardization. Of course, standardization, just like destandardization, is among the strongly admissible transitions in CL8.
+
+Another strongly admissible transition for which we have a special name is restructuring, which works in both top-down and bottom-up directions. We say that a cirquent B follows from a cirquent A by restructuring, or that "A can be restructured into B", if there is a derivation of B from A that uses only restructuring rules. Destandardization and standardization are thus special cases of restructuring.
+
+One more strongly admissible transition that we are going to rely on is trade. It is given by
+
+where n  ≥  0, and the conventions of Section 3 continue to be in force, except that, as we see, here the number of parameters is not fixed (so that trade is not just a single rule in the strict sense of Section 3 but rather a collection of rules, one for each [formula]). Below is an example of an application of trade where both the premise and the conclusion can be written as hyperformulas:
+
+Referring to the nodes of the above cirquents by the corresponding subformulas, in this application of trade n = 2, Π  =  {R}, the other peripheral parameters are empty, c1 = P, c2 = Q, [formula], [formula], [formula], and a is [formula] in the conclusion and [formula] in the premise.
+
+The a gate of the conclusion of trade will be said to be the principal gate of a given application of this rule. Note that when n = 0, i.e., when the principal gate is childless, trade is simply
+
+whose strong admissibility is seen from the following transformations:
+
+And the following transformations show the strong admissibility of trade for the case n  ≥  1:
+
+Semantics
+
+In this section we define a semantics for cirquents, termed abstract resource semantics. This is a generalization, to all cirquents, of the same-name semantics introduced in [\cite=Jap06] for the earlier mentioned special, "shallow", class of cirquents.
+
+The main purpose of a good semantics should be serving as a bridge between the real world and the otherwise meaningless formal expressions of logic. And, correspondingly, the value of a semantics should be judged by how successfully it achieves this purpose, which, in turn, depends on how naturally and adequately it formalizes certain basic intuitions connecting logic with the outside world. Such intuitions behind abstract resource semantics have been amply explained and illustrated in Section 8 of [\cite=Jap06]. The reader is strongly recommended to get familiar with that piece of literature in order to appreciate the claim of abstract resource semantics that it is a "real" semantics of resources, formalizing the resource philosophy traditionally (and, as argued in [\cite=Jap06], somewhat wrongly) associated with linear logic and its variations. In this paper we just provide formal definitions, only occasionally making very brief intuitive comments, and otherwise fully relying on [\cite=Jap06] for extended explanations of the intuitions, motivations and philosophy underlying the semantics.
+
+Abstract resource semantics can be seen as a conservative generalization of the semantics of classical logic from circuits to all cirquents. The starting point of the semantics is the concept of a truth assignment for a given cirquent C. This is a function that assigns one of two values -- true or false -- to each port of C. Any such function f is a legitimate truth assignment, including the cases when f assigns different truth values to ports that have identical labels. Intuitively this is perfectly meaningful in the world of resources because, say, one 25c-port (slot of the vending machine) may receive a true coin while the other 25c-port may receive a false coin or no coin at all.
+
+Each truth assignment for a cirquent extends from its ports to all gates and the cirquent itself in the following, expected, way:
+
+A disjunctive gate is true iff it has at least one true child.
+
+A conjunctive gate is true iff so are all of its children.
+
+The cirquent is true iff so is its root.
+
+An allocation for a given cirquent C is an unordered pair {a,b} of ports of C with opposite labels (labels P and [formula] for some -- the same -- atom P). And an arrangement for C is any set of pairwise disjoint allocations for C. We call the condition requiring all allocations to be disjoint the monogamicity condition.
+
+Let C be a cirquent, f a truth assignment for C, and α an arrangement for C. We say that f is consistent with α iff, for every allocation {a,b}∈α, [formula]. That is, if ports a and b are allocated to each other (meaning that {a,b}∈α), a truth assignment consistent with α should assign opposite truth values to a and b. And we say that α is validating (for C) iff C is true under every truth assignment consistent with α. To see an example, consider the following cirquent:
+
+And consider the following two arrangements for this cirquent:
+
+[formula]
+
+[formula]
+
+Here α is not a validating arrangement. Specifically, the following truth assignment f, while obviously consistent with α, makes the cirquent false:
+
+[formula]
+
+This assignment, on the other hand, is not consistent with β. Moreover, with some thought, one can see that no truth assignment that makes the cirquent of Figure 4 false can be consistent with β. This means that β, unlike α, is a validating arrangement for that cirquent.
+
+As explained and illustrated in [\cite=Jap06], our formal concept of an allocation corresponds to the intuition of allocating one resource to another: a coin (25c) to a coin-receiving slot ([formula]), a memory (100MB) to a memory-requesting process ([formula]), a power source (100w) to a power-consuming utensil ([formula]), an USB-interface external device (USB) to an USB port of a computer ([formula]), etc. A justification behind the monogamicity condition for arrangements is that if a resource a is used by (allocated to) b, then it cannot be also used by (allocated to) another [formula]. And the intuition behind a validating arrangement is that of a successful resource-management strategy/solution.
+
+We say that a cirquent is a valid (in abstract resource semantics) iff there is a validating arrangement for it.
+
+For example, naming the ports (in the left to right order) of the cirquents of Figure 2 by the consecutive numbers 1,2,..., the set
+
+[formula]
+
+is a validating arrangement for the left cirquent, which makes that cirquent valid. On the other hand, with a little thought, one can see that no possible arrangement for the right cirquent of the same figure is validating, so that that cirquent is not valid. Note that the monogamicity condition plays a crucial role in precluding the right cirquent of Figure 2 from being valid: because of monogamicity, one of the two P-ports of that cirquent will have to be left unallocated.
+
+The above arrangement is also validating for the left cirquent of Figure 3. And, again with some (this time a little more) thought, one can see that the right cirquent of the same figure has no validating arrangement, thus being non-valid.
+
+The following cirquent is not valid, either, even though it looks so "similar" to the valid cirquent of Figure 4:
+
+Again, as illustrated in [\cite=Jap06], valid cirquents are resource-management problems (such as the problem of getting a candy from a vending machine with a given collection of available coins) that have successful solutions. And among the potential practical values of sound and complete deductive systems such as our CL8 or the system CL5 constructed in [\cite=Jap06] is that they present tools for systematically finding such solutions.
+
+Let C be a circuit, and μ be the set of all possible allocations for C. This set satisfies the monogamicity condition and hence is an arrangement for C, because the latter, being a circuit, has at most one P-port and at most one [formula]-port for any given atom P. Of course, any other arrangement for C will be a subset of μ, which, in turn, easily implies that C is valid if and only if the arrangement μ is validating for it. In other words,
+
+[formula]
+
+But notice that truth assignments consistent with μ are nothing but truth assignments in the kind old classical sense, meaning functions that assign opposite truth values to P and [formula], for any atom P. In view of ([\ref=march20]), we thus find that:
+
+Validity in our sense and validity (tautologicity) in the classical sense mean the same for circuits, and hence for formulas of classical logic understood as circuits according to the stipulations of Section 2.
+
+So, as promised, our abstract resource semantics is a conservative extension of classical semantics from circuits to all cirquents.
+
+A cirquent is valid iff it is an instance of a valid circuit.
+
+Consider an arbitrary cirquent A.
+
+(⇐:) Assume A is an instance of a valid circuit B. Let α be a validating arrangement for B. It is not hard to see that then the same α is also a validating arrangement for A, so that A is valid.
+
+(⇒  :) Suppose A is valid. Let α be a validating arrangement for it. Let then B be the result of renaming the occurrences of atoms within the labels of the ports of A in such a way that no atom (with or without a negation) occurs in the labels of two different ports a and b unless {a,b}∈α, in which case both occurrences of the (same) atom in the labels of a,b within A are renamed into the same atom. Thus, B is a circuit. With a little thought, one can also see that the same arrangement α remains validating for B, so that B is, in fact, a valid circuit. Now, it remains to notice that A is an instance of B.
+
+A cirquent is provable in [formula] iff it is valid in abstract resource semantics.
+
+Let C be an arbitrary cirquent.
+
+Soundness: Assume [formula]. Let P be a [formula]-proof of C. Let us rename the atoms (occurring in the labels) of the cirquents of P in such a way that every time coupling is used, the atom P it introduces is new, in the sense that the premise does not have any ports labeled with P or [formula]. Let us further rename the atoms of P so that every time weakening introduces some new ports (ones that did not exist in the premise), the labels of such ports are new and different from each other. Let us call the resulting sequence of cirquents P'. It is not hard to see that then P' is a proof of a cirquent C' such that C is an instance of C'. The axiom [formula] is, of course, a circuit, and every rule of inference obviously preserves the circuit property (" circuitness") of cirquents except coupling and weakening. But with the conditions that we imposed on those two rules when obtaining P' from P, all of the cirquents in P' are circuits. It is also easy to see that all inference rules preserve truth and hence validity of circuits. Thus, all cirquents in P' are valid circuits, including C'. And, as C is an instance of C', Lemma [\ref=ma20] implies that C is valid.
+
+Completeness: Assume C is valid. Then, by Lemma [\ref=ma20], there is a valid circuit C' such that C is an instance of C'. Fix this C'. We are going to show that C' is provable, which, by Lemma [\ref=ll1], immediately implies that C is also provable.
+
+We construct, bottom-up, a proof of C' as follows. First, applying (bottom-up) destandardization, we proceed from C' to its standardization J. Let us fix a "sufficiently large" integer s, such that s  ≥  2 and s exceeds the total number of nodes in J. Given a cirquent H, we define an active gate of H to be a disjunctive gate a of H that has no disjunctive ancestors. We define the rank of such an a to be sm, where m is the number of conjunctive gates that are descendants of a. And we define the rank of H to be the sum of the ranks of its active gates.
+
+Our construction of a proof of C' continues upward from J as follows. We repeat the following two steps while there are non-root conjunctive gates in the current (topmost in the so far constructed proof) cirquent:
+
+Step 1. Pick an arbitrary conjunctive child c of an arbitrary active node of the current cirquent, and apply (bottom-up) trade so that c is the principal gate of the application.
+
+Step 2. Apply (bottom-up) destandardization to the resulting cirquent.
+
+With some thought, one can see that every time the above two steps are performed, the rank of the current (topmost) cirquent decreases. Hence, the procedure will end sooner or later, and the resulting cirquent D will have no non-root conjunctive gates. It is easy to see that destandardization and trade preserve both validity and circuitness (not only in the top-down but also) in the bottom-up direction. So, D is a valid circuit. The pathological case when D has no conjunctive gates is simple and we do not consider it here. Otherwise, D is a circuit with a conjunctive root, where each child of the root is a disjunctive gate and each grandchild of the root is a port, as shown in the following example:
+
+The validity of D obviously implies that among the children of each disjunctive gate is a pair of ports with opposite labels. We select one such pair for each disjunctive gate, and remove all other children using weakenings. Now, the resulting cirquent E has a conjunctive gate at its root, whose every child is a disjunctive gate with exactly two children, with those two children being ports with opposite labels, as shown below:
+
+Furthermore, E, of course, inherits circuitness from D. And E's being a circuit obviously implies that whenever two disjunctive gates share a child, they share both of their children. Applying (bottom-up) localizations to E, we proceed from E to F, where F is just like E, only without any sharing of children between different disjunctive gates:
+
+Now, applying (bottom-up) couplings to F, we replace in it each disjunctive gate by a childless conjunctive gate, obtaining a cirquent G where all nodes are conjunctive gates:
+
+Applying (bottom-up) to G a series of deepenings yields the axiom cirquent [formula].
+
+An alternative proof of the completeness of CL8 could rely on the forthcoming Theorem [\ref=march23]. The latter, in view of the known completeness of the system G considered there, implies that, for every tautological formula F of classical logic, [formula]. The cirquent J constructed in our proof of Theorem [\ref=th2] can be seen to be [formula] for some tautology F and hence, in view of Theorem [\ref=march23], CL8-provable. However, such a proof, albeit shorter, would not be as direct as the one presented above.
+
+It should be remembered that, as noted earlier, the initial impulse to cirquent calculus was given by the needs of computability logic. Therefore, this paper would not be complete without officially establishing a connection between the latter and CL8. The original semantics of computability logic deals with formulas rather than cirquents. And, as shown in [\cite=Jap06], the class of formulas (in the sense of our Section 2) valid in computability logic coincides with the class of formulas valid in abstract resource semantics. This, in view of Theorem [\ref=th2], means that:
+
+A formula (in our present sense) is valid in computability logic iff it -- seen as a tree-like cirquent according to the stipulations of Section 2 -- is provable in CL8.
+
+[\cite=Jap06] further showed how to extend the semantics of computability logic from formulas to cirquents. While "cirquents" there only meant special sorts of cirquents in our present, more general, sense, the generalization of the semantics of computability logic outlined in [\cite=Jap06] almost automatically extends to all cirquents in our present sense as well: details can be very easily filled by anyone familiar with computability logic. And we claim without a proof that, with this generalized semantics of computability logic in mind, Theorem [\ref=march25] can be strengthened by replacing "formula" with "cirquent".
+
+Those familiar with computability logic will also remember that the language of the latter has two sorts of atoms: [formula], called general, and [formula], called elementary. The two sorts of atoms have two different semantic interpretations, which result in a resource-conscious logical behavior of general atoms and classical behavior of elementary atoms. In this paper, which is notationally fully synchronized with computability logic, we have been using uppercase rather than lowercase letters for atoms. Hence, "formula" in Theorem [\ref=march25], as a formula of computability logic, is to be understood as one where all atoms are general. But, according to the following claim that we further make without a proof, CL8 in fact captures a much more expressive fragment of computability logic than implied by Theorem [\ref=march25]:
+
+Let F be a formula of the [formula]-fragment of the language of computability logic, which may contain either sorts of atoms. For simplicity, here we assume that F is written in a form where [formula] is only applied to atoms. Let then [formula] be the cirquent represented -- according to the stipulations of Section 2 -- by the hyperformula obtained from F through overlining all elementary (but not general) atoms and their negations, with [formula], along with [formula], now treated as ordinary atoms of the language of [formula]. Then F is valid in computability logic iff [formula].
+
+Other deep cirquent calculus systems
+
+A symmetric version of CL8
+
+The dual of a given inference rule is obtained by interchanging premise with conclusion and conjunctive gates with disjunctive gates. Each restructuring rule comes together with its dual, as those rules work in both directions and for either sort of gates.
+
+System CL8S that we define here is a fully symmetric version of CL8, obtained by adding to the latter the duals of the main rules:
+
+It is easy to see that each of the above three rules preserves validity. Therefore, in view of the already proven completeness, these rules are weakly admissible in CL8.
+
+The negation [formula] of a given cirquent C is obtained by changing the label of each port to its opposite (P to [formula] and vice versa), and changing the type (conjunctive/disjunctive) of each gate to the other type.
+
+The rule of cocoupling can also be called cut, specifically, port cut. It would not be hard to show that cut remains weakly admissible in CL8 when extended from ports [formula] to any subcirquents [formula]. In fact, non-port cut is strongly admissible in CL8S, for it easily (=polynomially) reduces to the port ("atomic") version as is the case in the calculus of structures (see [\cite=Gug07] [\cite=Brunnen]). An interesting question to which at present we have no answer is whether cut can be eliminated without an exponential increase of proof sizes. This question is known to have a negative answer for ordinary sequent calculus.
+
+The top-down symmetry in the style of the one enjoyed by CL8S was first achieved and exploited within the framework of the calculus of structures (see, again, [\cite=Gug07] [\cite=Brunnen]). Such a symmetry generates a number of nice effects, some similar to those enjoyed by natural deduction systems. Below we observe only one such effect.
+
+A refutation of a given cirquent C is a derivation of [formula] from C. When such a derivation exists, C is said to be refutable. The following fact -- which, note, does not hold for CL8 -- is obvious in view of the full symmetry of the rules of CL8S:
+
+In CL8S, a cirquent is provable iff its negation is refutable.
+
+Unlike CL8, however, CL8S is non-analytic, in any reasonable sense of this word. Often in the literature analyticity is just understood as enjoying the subformula property, according to which everything in the premise of any given application of any of the rules of the system is a subformula of (some formula of) the conclusion. The subformula property is meaningful for sequent calculi because there the premises and the conclusion are not formulas but rather collections (sequences, multisets or sets) of formulas. But in cirquent calculus, where the premise is a single cirquent and so is the conclusion, the subformula ("subcirquent") property hardly makes any sense. Indeed, if it is understood literally -- as the requirement that everything in the premise be a subcirquent of "something in the conclusion", then simply the whole premise itself would have to be a subcirquent of the conclusion. This would fully retard any cirquent calculus system, essentially limiting its rules to the one that (in the bottom-up view) just deletes the root and jumps to one of its children.
+
+And it is not only cirquent calculus where the subformula property is no longer meaningful. The same holds for deep inference systems in general, such as the calculus of structures. For this reason, [\cite=Gug07] uses the term "analytic" in a more relaxed sense, simply meaning the absence of cut, substitution, extension or rules in the style of our coweakening. The common undesirable feature of those rejected rules is that, when moving from a conclusion to a premise, they introduce some new components, as opposed to the rules deemed in [\cite=Gug07] analytic (and all rules of CL8 would also qualify as analytic by similar standards), which merely regroup some already existing components without creating new components. What "components" or "regrouping" should exactly mean here, however, certainly does require some additional and probably nontrivial explanations. To summarize, there appears to be no well-agreed-upon concept of anaiticity in the literature.
+
+To avoid accusations of taking excessive terminological liberties, here we introduce the new term " interface analyticity", whose meaning well might be the best that one can achieve in an attempt to define a cirquent-calculus counterpart of the more traditional meaning of the word "analyticity".
+
+Following [\cite=Jap06], by the interface of a given cirquent C we mean the set of all of its ports. Intuitively, this is the visible part of the resource C, such as the collection of all input/output ports on the back and front panels of one's personal computer. This collection indeed presents the active "interface" of the resource, with the rest of it -- the gates and internal wiring, that is -- being fixed, hidden and unavailable in the process of resource management, which, as we remember, means setting up allocations between ports (and by no means between gates).
+
+Imagine a circuit optimization problem. Its typical goal would be generating a better circuit that, however, computes the same Boolean function -- and hence has the same collection of inputs (same interface) -- as the original one. There are certain quite similar intuitive reasons for wanting rules of inference to preserve -- more precisely, not to expand -- the interface of the conclusion when moving to a premise.
+
+Having noted this, we say that a rule of inference is interface-analytic, or i-analytic for short, iff, in any application of the rule, the interface of the premise is a subset of that of the conclusion (with the labels of all ports preserved). And a system is i-analytic iff all of its rules are so. Note that CL8 is i-analytic. On the other hand, the rules of cocoupling (cut) and coweakening of CL8S are not i-analytic. Nor would be the rules of substitution ([\cite=Finger]) or extension ([\cite=CR]) if they were present in whatever form in our system. The same can be said about the rule of contraction, traditionally considered analytic. As a matter of fact, one could question the compliance of contraction with our normal, no matter how vague, intuition of analyticity. That is because, when moving from conclusion to premise, contraction does introduce some new material, even if only in the form of new copies of old (sub)formulas. Yet, this non-analytic behavior of contraction is not noticeable in sequent calculus, because, when used "reasonably", contraction, while certainly introducing new material from the perspective of the whole proof tree, does not really do so from the perspective of any particular branch of that tree. Here by "using contraction reasonably" we mean applying it (in the bottom-up view of proofs) only before using [formula]-introduction, to just make sure that each branch of the proof tree gets its own copies of side formulas. But in cirquent calculus or deep inference systems in general, where all branches are combined within one cirquent or formula, contraction loses its apparent analytic innocence. In any case, unlike the formula-based deep inference approaches such as the calculus of structures, fortunately there is no need for contraction in cirquent calculus. If this rule (in whatever precise form) was adopted by CL8, it would certainly stop being i-analytic.
+
+Versions with the locality property
+
+Certain easy modifications of CL8 or CL8S yield versions that are local, meaning that each inference rule only affects a bounded portion of the cirquent. More precisely, a local rule modifies (deletes, creates, or changes the label in the case of nodes) only a bounded number of nodes and arcs when moving from premise to conclusion or vice versa. Locality is a desirable property in computer implementations. The only reason why in this paper we have not chosen local axiomatizations has been striving to minimize bureaucracy.
+
+To see what we mean by "easy modifications", let us just consider weakening and pulldown as two examples.
+
+Weakening is not local because the number of the arcs of the conclusion that it can delete is not bounded. But nothing can be easier than to "fix" this problem. Specifically, we could adopt a new -- local -- version of weakening that deletes exactly one arc. That is, the Δ parameter of weakening now would be required to be a singleton. Then, an application of the old weakening rule that deletes n arcs can be simulated with n applications of the new weakening rule. Furthermore, as pointed out in a footnote when proving Theorem [\ref=th2], weakening can be further restricted by requiring the deleted arc to be pointing at a port rather than any node. This would eliminate the possibility that deleting an arc may result in an unbounded chain of further deletions of orphaned nodes.
+
+Similarly, pulldown is not local as it is allowed to move around an unbounded number of arcs. We could start requiring that only a single arc be moved, that is, requiring the Π parameter to be a singleton. Just as in the case of weakening, an application of the old rule of pulldown can then always be simulated by several applications of the new, local version of it.
+
+Weakening the weakening rule
+
+The resource philosophy associated with CL8 and CL8S is that one cannot use more resources than available. A more radical position is that one also has to use all available resources (nothing should be "wasted"). Under this extreme philosophy familiar from linear logic, the weakening rule and its dual coweakening become wrong. Removing these rules could as well be necessary when constructing systems for relevance logic.
+
+However, mechanically deleting weakening (and its dual, if present) from a given system may result in throwing out the baby with the bath water. So, rather than discarding the rule altogether as done in linear logic, one would apparently want to simply replace weakening by certain weaker versions of it -- versions that, on one hand, are consistent with the above radical resource philosophy and, on the other hand, allow us to retain all innocent principles. Reasonable candidates for such a replacement for weakening and coweakening are the following rules:
+
+Let us look at Blass's [\cite=Bla92] principle
+
+[formula]
+
+Resources are perfectly balanced in this formula, and there are hardly any good reasons for rejecting it even from the most radical resource-philosophical point of view. It is therefore embarrassing that Blass's principle is not provable in linear logic and not even in affine logic: as shown in [\cite=Jap06], every proof of it in ordinary sequent calculus would require both contraction and weakening. This formula cannot be proven in CL8 without weakening, either. Its provability can be however retained with the fully resource-fair rule of merging instead of weakening, as shown below:
+
+Cirquents with many roots
+
+Some future treatments may call for considering cirquents that allow multiple roots (parentless nodes). For example, the methods of cirquent calculus could be potentially used in verifying circuit equivalence, optimizing circuits, or other related problems arising in digital design. And it should be remembered that circuits in actual computer hardware typically have not only multiple inputs (ports), but also multiple outputs (roots). Of course, there can also be many other reasons, including theoretical ones, for studying these more general sorts of cirquents.
+
+Cirquents with additional sorts of gates and arcs
+
+As we already know, the introduction of cirquent calculus was originally motivated by the needs of computability logic. Cirquent calculus in the form presented in this paper captures only the modest [formula]-fragment of computability logic though. Extending cirquent calculus so as to accommodate incrementally more expressive fragments of computability logic would require considering cirquents with gates for choice connectives, and gates and/or arcs for recurrence connectives. Accounting for the more recently ([\cite=JapIC]) introduced non-commutative sequential operators of computability logic would also require linearly ordering the outgoing edges of the corresponding gates. There is a tremendous amount of interesting and challenging work to do in this direction.
+
+CL8 versus sequent calculus and shallow cirquent calculus systems
+
+This section is devoted to certain aspects of the relation between CL8 and Gentzen-style sequent calculus systems, as well as the shallow cirquent calculus systems CL5 and CCC presented in [\cite=Jap06].
+
+Specifically, we first want to compare CL8 with the classical cut-free sequent calculus system G defined below. One difference that we already know is the greater expressiveness of CL8. But even if we are only concerned with objects that the languages of both systems can express -- Boolean functions presented in the form of classical formulas or (the corresponding) circuits, that is -- CL8 still has distinctive advantages, related to efficiency. In Section 8 we will see the existence of polynomial size CL8-proofs for the pigeonhole principle, the class of tautologies known to have only exponential size proofs in G or similar systems. To appreciate this point, it would be necessary to also show that, on the other hand, no class of tautologies admits in G considerably shorter proofs than in CL8. In other words, we need to see that CL8 can p-simulate G, meaning that there is a polynomial function p such that, for any formula F of classical logic, whenever F has a G-proof of size n, it -- more precisely, the cirquent [formula] -- also has a CL8-proof of size ≤  p(n). Then and only then we can officially declare that CL8 offers an exponential speedup (in proof efficiency) over G.
+
+System G deals with sequents understood as nonempty finite sets of formulas. This version is known to be equivalent -- in the strong sense of mutual p-simulation -- to the probably more common versions of cut-free sequent calculi for classical logic where sequents are sequences or multisets (rather than sets) of formulas. An advantage of G over such systems is the absence of structural rules.
+
+Below Γ stands for any set of formulas, P for any atom, and E,F for any formulas. Following the standard practice, an expression such as "Γ,E,F" should be understood as [formula].
+
+The axioms of G are any sequents of the form
+
+[formula]
+
+in addition to which the system (only) has the following two rules of inference:
+
+The definition of provability of a sequent Γ in G is standard: this means existence of a tree of sequents -- called a proof tree for Γ -- with Γ at its root, in which every leaf of the tree is an axiom and every non-leaf node follows from its child or children by one of the rules of [formula]. A formula F is considered provable in G iff F, viewed as a one-element sequent, is provable.
+
+Since we will be dealing with complexity issues, we need to agree on what the size of a formula, cirquent, sequent, derivation or proof means. We assume some reasonable encoding (computer representation) of these objects to be fixed, and agree that the size of any such object is the amount of bits taken by its code when written in computer memory. It is understood that all "reasonable" encodings are polynomially equivalent (the differences in their efficiencies are at most polynomial, that is) and, since in this paper we only care about polynomiality versus exponentiality, it is not important which particular "reasonable" encoding we have in mind.
+
+CL8 p-simulates G.
+
+Consider an arbitrary G-proof tree T for an arbitrary formula F. Below we describe a procedure for converting T into a CL8-proof T* of [formula]. It will be clear from our description that the size of T* is polynomial in the size of T.
+
+By abuse of terminology, in the present proof we will be often identifying a node of T with the corresponding sequent, even though it should be remembered that the same sequent may be "sitting" at more than one node.
+
+We construct the CL8-proof T* of [formula] bottom-up. The last three cirquents of T* are
+
+[formula]
+
+[formula] follows from its predecessor [formula] by shortening, and so does [formula] from its predecessor [formula].
+
+Thus, the topmost cirquent of the bottom fragment of T* that we have constructed so far is [formula]. Let us call this cirquent A1. We associate the root of T with the [formula] subcirquent of [formula].
+
+A1 is only the first cirquent of a certain series [formula] of cirquents that we are going to construct one after one and include in our evolving (in the upward direction) T*. Any such Ai will look like
+
+[formula]
+
+i.e.,
+
+[formula]
+
+where with each conjunct [formula], as in A1, is associated a node of T such that the sequent at that node is
+
+[formula]
+
+We describe the way of generating the Ais and including them in T* inductively. A1 has already been generated. Suppose now we have already constructed the bottom portion of T* such that Ai is the top cirquent. Further suppose that there is a conjunct of Ai such that the associated node of T is not an axiom of G (i.e., not a leaf of T). We may assume here that the last conjunct
+
+[formula]
+
+of Ai is such. How we proceed from Ai upward in our construction of T* depends on whether the associated sequent [formula] is obtained by [formula]-introduction or [formula]-introduction in T.
+
+Suppose [formula] is obtained by [formula]-introduction, meaning that it looks like
+
+[formula]
+
+and the premise is
+
+[formula]
+
+We then choose Ai + 1 to be the cirquent
+
+[formula]
+
+The nodes of T associated with the conjuncts of Ai + 1 remain the same as in Ai, with the exception of the last (nth) conjunct, with which we now associate the premise ([\ref=m28b]) of ([\ref=m28a]). Note that Ai, which is
+
+[formula]
+
+follows from Ai + 1 by deepening. So, we include Ai + 1 in front (on top) of Ai in our bottom-up construction of T*, and justify the transition from Ai + 1 to Ai by deepening.
+
+Suppose now [formula] is obtained by [formula]-introduction, meaning that it looks like
+
+[formula]
+
+and the two premises of it in T are
+
+[formula]
+
+and
+
+[formula]
+
+In this case we choose Ai + 1 to be the cirquent
+
+[formula]
+
+The nodes of T associated with the first n - 1 conjuncts of Ai + 1 remain the same as in Ai. And with the last two conjuncts of Ai + 1 we associate the premises ([\ref=m28d]) and ([\ref=m28e]) of ([\ref=m28c]), respectively. It is not hard to see that Ai, which is
+
+[formula]
+
+follows from Ai + 1 by trade in combination with some straightforward restructuring. So, we add the corresponding (bounded number of) cirquents together with the appropriate justifications in front (on top) of Ai, with the new top cirquent of our bottom-up construction of T* now being Ai + 1.
+
+We continue extending T* upward by adding new Ais in the above way until we hit the point where the topmost Am is such that all nodes of T associated with its conjuncts are leaves. It is not hard to see that this m would be nothing but the total number of nodes of T. Thus, the now topmost cirquent of the evolving T* is
+
+[formula]
+
+where each
+
+[formula]
+
+is an axiom of G and hence contains at least one pair [formula] of opposite literals.
+
+We choose one such pair of literals in each conjunct of Am, and delete the arcs to all other nodes from the corresponding disjunctive gate using (bottom up) a series of weakenings. This results in a cirquent
+
+[formula]
+
+where each Pj is an atom. Not all Pi and Pj with [formula] may be different atoms here though. If this is indeed the case, we further apply (bottom-up) a series of localizations to B and get a cirquent
+
+[formula]
+
+(e < n), where each Qj is an atom (one of the old atoms [formula]) different from any Qi with [formula].
+
+Next we apply (bottom-up) coupling to C e times, which results in a cirquent where all non-root nodes are childless conjunctive gates. Such gates can be eliminated by applying (bottom-up) a series of deepenings, and we end up with the axiom cirquent [formula].
+
+In a similar way one could show that CL8 p-simulates the cut-free versions of the multiplicative linear and affine logics. However, as already mentioned, those are not conservative fragments of CL8. For example, the CL8-provable Blass's principle (see Section 6.3), or the cirquent of Figure 4, are both expressible in the language of linear logic, but neither linear logic nor the stronger affine logic prove them.
+
+Furthermore, our proof of Theorem [\ref=march23] can be rather easily modified into proofs of the facts that CL8 also p-simulates the shallow cirquent calculus systems CL5 and CCC of [\cite=Jap06]. At the same time, the known proofs of the nonexistence of polynomial size proofs of the pigeonhole principle in G-style systems can be modified so as to show the nonexistence of such proofs in CCC. And a somewhat similar argument, based on a certain resource-conscious version of the pigeonhole principle (no literal has more than one occurrence), can be used to also show an exponential speedup over CL5 offered by CL8. Thus, CL8 is certainly an improvement over CCC and CL5 from the perspective of efficiency.
+
+But there is a much more significant difference between our present approach and the approach taken in [\cite=Jap06]. While [\cite=Jap06] is the official birth place of the ideas of cirquent calculus and abstract resource semantics, the particular systems elaborated in detail in [\cite=Jap06] stopped only half way on the road of fully and consistently materializing those ideas. This was related to the limited syntax adopted there, which was a somewhat unnatural mixture of circuit-style and tree-style structures. Specifically, as mentioned earlier, the depths of cirquents were limited to two, with the root of each such cirquent required to be a conjunctive gate and its children required to be disjunctive gates. This was a significant limitation of expressiveness and, to partially compensate for it, the "input" nodes (grandchildren of the root) were allowed to be any formulas rather than only literals as in our present treatment. And so, possible sharing of children between different parents was taking place only at one single (root's children) level of cirquents. Even though [\cite=Jap06] proved (Theorem 20) that shallow cirquents, unlike formulas, were sufficient to represent all abstract resources (which, roughly, are the same to abstract resource semantics as Boolean functions to the semantics of classical logic), such representations were generally very inefficient, essentially requiring every abstract resource to be expressed in conjunctive normal form. From classical logic we know that conjunctive normal forms, while complete as means of expressing all Boolean functions, can generally be exponentially longer than other, more relaxed representations. Similar reasons apply to abstract resource semantics as well, meaning that the objects of our study (abstract resources) are exponentially harder to express -- let alone prove -- in CL5 or CCC than in CL8.
+
+But the most decisive improvement of the present approach over the approach of [\cite=Jap06] is turning classical logic into just a special fragment of the more general logic of resource, thus eliminating conflicts between the classical and resource-conscious views, with both the semantics and the syntax of CL8 being single unifying and reconciling frameworks for the two diverging philosophical traditions in logic. This was impossible to achieve under the shallow cirquent calculus approach of [\cite=Jap06], for the reason of the limitations of the expressive power of shallow cirquents. And this is exactly why [\cite=Jap06] had to construct two different logics: one -- CCC -- for classical semantics and the other -- CL5 -- for abstract resource semantics, and correspondingly prove two separate completeness theorems. The two systems had the same language but different semantics, and disagreed on many principles expressible in that common language. Specifically, CCC was properly stronger than CL5, obtained from the latter by adding (a cirquent calculus version of) contraction to it, the rule that we criticized a while ago as being not "truly analytic".
+
+The main purpose of the present paper is to provide a starting point and an initial impulse for what (as the author wishes to hope) may become a new line of research in proof theory and resource logics -- namely, a proof theory and a resource semantics based on circuit-style (rather than formula-style) constructs. [\cite=Jap06], with its limited and not fully consistent (in that it still continued to rely on formulas) materialization of this idea, had significantly lower chances to be successful in serving this purpose.
+
+The pigeonhole principle
+
+The (propositional) pigeonhole principle is a family of classical tautologies that is known to have no polynomial size proofs in resolution systems or analytic sequent calculus systems (Haken [\cite=Haken]). And existence of polynomial size proofs for this family in the cut- and substitution-free calculus of structures is an open problem, conjectured to have a negative solution (see [\cite=Gug07]). While polynomial size proofs for it in Frege- and Gentzen-style systems have been found (Cook and Rechkow [\cite=CR], Buss [\cite=Buss]), those proofs rely on cut and, in the case of [\cite=CR], also on an extension rule. More recently (Finger [\cite=Finger]), cut-free polynomial size proofs for the pigeonhole principle were also constructed, which, however, rely on a substitution rule. All known polynomial size proofs of the pigeonhole principle thus use extension, cut, or substitution -- the "highly non-analytic" rules. This section presents polynomial size CL8-proofs for the pigeonhole principle. They stand out as the first known "reasonably analytic" -- at least in the precise sense of i-analyticity -- tractable proofs of this class of tautologies. Our construction partly exploits certain technical ideas from [\cite=CR].
+
+Throughout this section, n is an arbitrary but fixed positive integer. When we say "polynomial" or "exponential", it should be understood as polynomial or exponential in n. As before, out of laziness, we will only be concerned with polynomiality versus exponentiality, leaving a more accurate asymptotic analysis as an exercise for an interested reader. Such an analysis, of course, would require a more precise specification of the meaning of the concept of proof size than the one we gave in Section 7.
+
+The (hyper)formulas and cirquents that we consider are built from (n + 1)  ×  n atoms denoted Pi,j, one per each [formula] (the set of pigeons) and [formula] (the set of pigeonholes). The meaning associated with Pi,j is "pigeon i is sitting in hole j".
+
+The n-pigeonhole principle is expressed by the hyperformula
+
+[formula]
+
+(there is no need to overline the negative occurrences of atoms because there is only one such occurrence for each atom). Its left disjunct asserts that there is a pigeon i that is not sitting in any hole. And the right disjunct asserts that there is a hole j in which some two distinct pigeons i and e are sitting. This is the same as to say that if every pigeon is sitting in some hole, then there is a hole with (at least) two pigeons.
+
+For each i,j with [formula] and [formula], we define the formulas
+
+[formula]
+
+Next, for each k,i,j with [formula],  [formula] and [formula], we define the formulas
+
+[formula]
+
+Finally, for each k with [formula], we define the formulas
+
+[formula]
+
+The sizes of the formulas (cirquents) Bk and Ck are obviously exponential. However, due to sharing, the sizes of their "full compressions" [formula] and [formula] can be seen to be only polynomial.
+
+In what follows, we prove a number of statements claiming existence of certain polynomial size derivations. In our proofs of those statements we usually restrict ourselves to describing the derivations, without any further explicit analysis of their sizes. Such descriptions alone will be sufficient for an experienced reader to immediately see that the derivations are indeed of polynomial sizes.
+
+From now on, a "derivation" or "proof" means a derivation or proof in CL8. When justifying steps in derivations, we often omit explicit references to restructuring, and indicate only one of the three main rules, even though that rule needs to be combined with some restructuring steps to yield the conclusion. Mostly such a "rule" is going to be pulldown and, to indicate that pulldown is combined with some straightforward restructuring, we will write "pulldown*" instead of just "pulldown". Similarly for "weakening*" and "coupling*".
+
+[formula].
+
+Immediate, as [formula] and Xni,j  =  Pi,j.
+
+[formula] has a polynomial size proof.
+
+[formula], which is the same as Bn, has O(n2) conjuncts, each conjunct being [formula] for some [formula]. The latter is nothing but [formula], which can be introduced by coupling*.
+
+There is a polynomial size derivation of [formula] from [formula].
+
+[formula] is [formula], and [formula] is -- more precisely, can be restructured into -- [formula]. The latter follows from the former by pulldown* applied twice.
+
+For each k with 1 < k  ≤  n, there is a polynomial size derivation of [formula] from [formula].
+
+[formula], which can also be written as
+
+[formula]
+
+We introduce the abbreviation
+
+[formula]
+
+and restructure ([\ref=e1.1]) into the following cirquent:
+
+[formula]
+
+Next, for each of the O(k2) conjuncts of ([\ref=e1]), in turn, we perform the following transformation, leaving the rest of the cirquent unchanged while doing so.
+
+After repeating the above transformation for all (i,j), we end up with the target cirquent [formula]
+
+For each k with [formula], there is a polynomial size derivation of [formula] from [formula].
+
+[formula] can be written as
+
+[formula]
+
+This is how we derive [formula] from ([\ref=i16]). At the beginning, for each of the O(k3) subcirquents [formula] of ([\ref=i16]), in turn, we do the following transformation, leaving the rest of the cirquent unchanged:
+
+After repeating the above transformation for all subcirquents [formula] of ([\ref=i16]), the latter turns into the following cirquent:
+
+[formula]
+
+Next, for each of the k subcirquents [formula] of ([\ref=h13]), one after one, we perform the following transformation, leaving the rest of the cirquent unchanged:
+
+After repeating the above procedure for all subcirquents [formula] of ([\ref=h13]), the latter turns into the following cirquent:
+
+[formula]
+
+Finally, we restructure ([\ref=g2]) into
+
+[formula]
+
+which is nothing but the desired [formula].
+
+There is a polynomial size proof of PHPn.
+
+Lemmas [\ref=l1], [\ref=l4], [\ref=l2] and [\ref=l5] imply that there is a polynomial size proof of [formula], which, by Lemma [\ref=l0], is the same as PHPn.

@@ -1,0 +1,217 @@
+=1
+
+This paper is a preprint (IEEE "accepted" status).
+
+IEEE copyright notice. © 2012 IEEE. Personal use of this material is permitted. Permission from IEEE must be obtained for all other uses, in any current or future media, including reprinting/republishing this material for advertising or promotional purposes, creating new collective works, for resale or redistribution to servers or lists, or reuse of any copyrighted component of this work in other works.
+
+DOI. 10.1109/DCC.2012.40
+
+http://doi.ieeecomputersociety.org/10.1109/DCC.2012.40
+
+Introduction
+
+Background
+
+The combination of multiple models is a central aspect of many modern data compression algorithms, such as [\cite=thesis_bunton] [\cite=hbdc] [\cite=ppm_ii], [\cite=ctw_extensions] [\cite=ctw_95] or [\cite=cm_paq6] [\cite=hbdc]. All of these algorithms belong to the class of statistical data compression algorithms, which share a common structure: The compressor consists of a model and a coder; and it processes the data (a string [formula] for some alphabet [formula]) sequentially. In the k-th step, 1  ≤  k  ≤  n, the model estimates the probability distribution P(  ~    ·  |xk - 1) of the next symbol based on the already processed sequence [formula]. The task of the coder is to map a symbol [formula] to a codeword of a length close to -   log P(x|xk - 1) bits (throughout this paper log  is to the base two). For decompression the coder maps the encoding, given P( ~   ·  |xk - 1), to x. closely approximates the ideal code length and is known to be asymptotically optimal [\cite=eoit]. Therefore, the prediction accuracy of the model is crucial for compression.
+
+Mixture models or mixtures combine multiple models into a single model suitable for encoding. Let us now consider a simple example, which gives two reasons for our interest in mixtures. First, assume that we have m > 1 models available. Model i,1  ≤  i  ≤  m, maps an arbitrary xn to a prediction Pi(xn) (a probability distribution), where
+
+[formula]
+
+and Pi(xk) > 0, ~ 1  ≤  i  ≤  m, ~ k  ≥  0. When we compress xn with a single model i, we need to encode the choice of i in -   log W(i) bits (where W(i) is the prior probability of selecting model i) and we need to store the encoded string, which adds -   log Pi(xn) bits. If we knew xn in advance, we could select
+
+[formula]
+
+Surprisingly (as previously observed in e.g., [\cite=universal_prediction]), a simple linear mixture [formula] will never do worse than [\eqref=eq:two_part_code], since
+
+[formula]
+
+where i is the model that minimizes [\eqref=eq:two_part_code]. Such a mixture makes it possible to combine the advantages of different models without cumulating their disadvantages. Secondly, the sequential processing allows us to refine the mixture adaptively (in favor of the locally more accurate models).
+
+Previous Work
+
+Most of the major statistical compression techniques (, and ) are based on mixtures. In the concept of "escape" symbols is related to the computation of a recursively defined mixture distribution. The escape probability plays the role of a weight in a linear mixture. In [\cite=thesis_bunton] Bunton gave a very comprehensive (at that time) synopsis on that topic. Previously, several different methods for the estimation of escape probabilities had been proposed, e.g., PPMA, PPMB, PPMC, PPMD, PPMP, PPMX [\cite=hbdc], PPMII [\cite=ppm_ii]. relies on the efficient combination of exponentially many (depending on a "tree depth" parameter) models for tree sources. However, the structure of and restrict the type of models they combine (order-N models for and models for tree sources for ). Recently, some of the techniques of led to β-weighting [\cite=cm_cmidc], as a linear general-purpose weighting method. We are interested in general-purpose mixture techniques, which combine arbitrary (and eventually totally different) models. The practical success of this approach was initiated by Mahoney with (see [\cite=hbdc] for details). combines a large amount of totally different models (e.g., models for text, for images, etc.). As a minor part earlier work we successfully employed a simple linear mixture model for encoding output and proposed a method for the parameter optimization on training data [\cite=cm_ccp2011].
+
+Our Contribution
+
+In Section [\ref=sec:geometric_model] we propose geometric weighting as a novel non-linear mixture technique. We obtain the geometric mixture as the solution of a divergence minimization problem. In addition we show that -mixing is a special case of geometric weighting for a binary alphabet. Since geometric weighting depends on a set of weights, we examine the problem of weight optimization and propose a corresponding optimization method. In Section [\ref=sec:linear_model] we focus on linear mixtures. In a fashion analogous to Section [\ref=sec:geometric_model] we describe a new generic linear mixture and investigate the problem of weight optimization. Finally, we compare the behavior of the implementations (for a binary alphabet) of the two proposed mixture techniques and of β-weighting in Section [\ref=sec:experimental_evaluation]. Results indicate that geometric weighting is superior to the other mixture methods.
+
+Preliminaries
+
+First, we fix some notation. Let [formula] denote an alphabet of cardinality [formula] and let [formula] be a sequence of length n = j - i + 1 over [formula]. For short we may write xn for xn1. Abbreviations such as (ai)1  ≤  i  ≤  n expand to [formula] and denote row vectors. Boldface letters indicate matrices or vectors, "[formula]" denotes the transpose operator, [formula] and [formula]. We use log  to denote the logarithm with base two, ln  denotes the natural logarithm.
+
+Suppose that we want to compress a string [formula] sequentially. In every step 1  ≤  k  ≤  n a model [formula] maps the already known prefix xk - 1 of xn to a model distribution [formula], where [formula]. An encoder translates this into a code of length close to -   log P(x|xk - 1) bits for x. Now, if there are m > 1 submodels [formula] (or submodels [formula], for short), we require a mixture function [formula] to map the m corresponding distributions [formula] to a single distribution [formula], in step k; fk may depend on xk - 1.
+
+An approach in information theory is to suppose that xn was generated by an unknown mechanism, which is called a source. W.l.o.g. we may assume that xn was generated sequentially: In every step k the source draws x according to an arbitrary source distribution [formula] (i.e., the distribution P' may vary from step to step) and appends it to xk - 1 to yield xk  =  xk - 1x. When we encode x, using a model distribution [formula], we obtain an expected code length of
+
+[formula]
+
+where H(P') is the source entropy and [formula] is the KL-divergence [\cite=eoit], which measures the redundancy of P relative to P'. Our aim is to find a P, that minimizes the code length. Since H(P') is fixed (by the source), we want to minimize [formula]. We have [formula], which is zero iff P = P', i.e., the best model distribution is the source distribution itself.
+
+Geometric Mixtures
+
+This section contains the major part of our work: We derive geometric weighting as a novel method for combining multiple models. Now suppose that we have m model distributions [formula] available in step k. Since the source distribution P' is unknown (if it exists at all) we try to identify an approximate source distribution [formula], which we can use as a model distribution. It should be "close" (in the divergence-sense) to good models and "far away" from bad models. The terms good and bad refer to short and long code lengths (due to past observations and/or prior knowledge). We assume that we are given a set of non-negative weights wi,1  ≤  i  ≤  m, [formula] (in Section [\ref=sec:geometric_model_weight_estimation] we discuss a method of weight estimation), which quantify how well model i fits the unknown source distribution. Summarizing, we are looking for the distribution
+
+[formula]
+
+Divergence Minimization
+
+In order to solve [\eqref=eq:geometric_model_target3] we adopt the method of Lagrangian multipliers. First, we set Q(x|xk - 1)  =  θx and [formula] to omit the implicit dependence on k and to simplify the equations. Now we rewrite [\eqref=eq:geometric_model_target3] to yield
+
+[formula]
+
+and formulate its Lagrangian
+
+[formula]
+
+The variable λ and the vector [formula] denote the Lagrange multipliers. A local minimum [formula] satisfies the conditions (see, e.g. [\cite=bertsekas]) for all [formula] and
+
+[formula]
+
+Due to [\eqref=eq:geometric_model_kkt2] we obtain μ*x = 0 for all [formula]. Equation [\eqref=eq:geometric_model_kkt1] can be transformed to
+
+[formula]
+
+Now we fix a disjoint pair x  ≠  x' of symbols from [formula] and subtract the corresponding instances of [\eqref=eq:geometric_model_kkt1_simplified], which results in
+
+[formula]
+
+Again, we fix a single character x and substitute any other occurrence of x'  ≠  x in [\eqref=eq:geometric_model_equality_constraint] via [\eqref=eq:geometric_model_theta_fraction]. Thus we have
+
+[formula]
+
+which we rewrite to yield
+
+[formula]
+
+Finally, we reintroduce the dependencies on k and obtain the geometric mixture
+
+[formula]
+
+where [formula] is composed of the non-negative weights wi. It remains to show that [\eqref=eq:geometric_model_minimizer1] minimizes [\eqref=eq:geometric_model_target4]. For this, we observe that the Hessian of [\eqref=eq:geometric_model_target4] is
+
+[formula]
+
+which is positive definite, since θx  >  0 for all [formula].
+
+Weight Estimation and Convexity
+
+The mixture function [\eqref=eq:geometric_model_mixture] requires m non-negative weights [formula], which we still need to obtain. In our situation the sequence xn is known (and fixed) and the sequence probability is given as a function of [formula] as
+
+[formula]
+
+We now wish to find a weight vector [formula], which maximizes [\eqref=eq:geometric_model_weight_likelihood] (a maximum-likelihood estimation). Since a maximization of the sequence probability is equivalent to a minimization of its code length, we may alternatively solve
+
+[formula]
+
+We define [formula] to be the minimizer of [\eqref=eq:geometric_model_weight_target1].
+
+Now we want to show that the cost function of [\eqref=eq:geometric_model_weight_target1] is convex. Since the cost function is a sum, we analyze a slight modification of a single term [formula] (since log (x)  ~   ln (x)). W.l.o.g. we may assume that [formula] (due to [\eqref=eq:geometric_model_theta_fraction]). In order to simplify the analysis of the Hessian of [formula] we set
+
+[formula]
+
+and we obtain
+
+[formula]
+
+The Hessian of [formula] is positive definite, since for [formula]
+
+[formula]
+
+holds, where the last line is due to Jensen's inequality (since [formula]). It follows that the problem [\eqref=eq:geometric_model_weight_target1] is strictly convex and there exists a single global minimizer [formula].
+
+We solve the problem [\eqref=eq:geometric_model_weight_target1] with an optimization method tailored to a natural requirement in statistical compression: The sequence to be compressed is processed only once. Since the cost function is convex, the optimization algorithm does not need strong global search capabilities. A possible method-of-choice is an instance of iterative gradient descent [\cite=bertsekas]. In the k-th step we use the estimates [formula] in place of [formula] (in [\eqref=eq:geometric_model_mixture]). Initially we set [formula]. In each step k we adjust the weight vector [formula] after we observe xk via a step towards the direction of steepest descent, i.e.,
+
+[formula]
+
+where αk > 0 is the step size in the k-th step. The choice of αk is crucial for the convergence of [formula] to [formula] [\cite=bertsekas] (see Sections [\ref=sec:geometric_model_paq] and [\ref=sec:experimental_evaluation]). In the case of a geometric mixture function we have
+
+[formula]
+
+where [formula]. As an implementation detail ε > 0 is a small constant to bound the weights away from zero and to avoid a division by zero in [\eqref=eq:geometric_model_mixture].
+
+PAQ Mixtures or Geometric Mixtures for a Binary Alphabet
+
+Before we examine the details of "the" mixture method, we need to clarify that there exist multiple mixture mechanisms [\cite=hbdc]. We focus on the latest instance, which was introduced in 2005 as a part of PAQ7. computes mixtures for a binary alphabet and works with the probability of one-bits. The mixture is defined as follows
+
+[formula]
+
+where xk is the bit we observed in step k and
+
+[formula]
+
+Let [formula] be the weight vector in step k where we assume that [formula]. Now we rewrite [\eqref=eq:paq_mixture] (due to [\eqref=eq:paq_transforms]) to yield
+
+[formula]
+
+which matches [\eqref=eq:geometric_model_mixture]. It is easy to check (via substituting [\eqref=eq:paq_mixture] into [\eqref=eq:iterative_gradient_descent]), that [\eqref=eq:paq_weight_update] is an instance of iterative gradient descent, where αk  =  α is constant in any step and the max -operation is omitted. When α is sufficiently small, the sequence [formula] converges to some [formula] rather than the optimal solution [formula]. In turn, [formula] [\cite=bertsekas]. A (small) constant step size α thus needs to be determined experimentally.
+
+Linear Mixtures
+
+Let us return to the setting of Section [\ref=sec:introduction_background]. Instead of encoding xn with model i and transmitting our choice in -   log W(i) bits, we will not do worse using the mixture distribution
+
+[formula]
+
+Since we want to process xn sequentially we use the distribution (cf. [\eqref=eq:compute_mixture_sequentially])
+
+[formula]
+
+in step k. There is an obvious interpretation for the mixture [\eqref=eq:linear_model_mixture]. Suppose that there are m sources and a probabilistic switching mechanism, which selects source i with probability W(i|xk - 1) in step k (we interpret this as the posterior probability of i given xk - 1). When a source is selected, it appends a character x (with probability Pi(x|xk - 1)) to the sequence xk - 1 to yield xk  =  xk - 1x. We denote such a source as a switching source.
+
+β-Weighting
+
+We can modify the probability assignment of [\eqref=eq:linear_model_mixture] to yield a linear mixture technique called β-weighting, which has its roots in the CTW compression technique and was proposed in [\cite=cm_cmidc]. β-weighting is defined by
+
+[formula]
+
+After the character xk is known, we can compare βi(k) and βi(k - 1) and observe, that
+
+[formula]
+
+Generic Linear Weighting
+
+With the method of Lagrangian multipliers (see Section [\ref=sec:geometric_model_divergence_minimization]) we can show that (in step k)
+
+[formula]
+
+yields the linear mixture
+
+[formula]
+
+In the setting of the previous section the normalized weights w'i correspond to the switching probabilities W(i|xk - 1). Thus, the cost function in [\eqref=eq:linear_model_target1] would be proportional to the expected redundancy of a switching source in step k.
+
+It is important to understand the difference between [\eqref=eq:geometric_model_target3] and [\eqref=eq:linear_model_target1]. In [\eqref=eq:geometric_model_target3] Pi plays the role of a model distribution and we seek an approximate source distribution, which we can use as a model distribution. On the other hand, in [\eqref=eq:linear_model_target1] Pi plays the role of a source distribution and we seek a model distribution, which matches our assumptions on the specific source structure (namely, a switching source). We belief that the assumptions of [\eqref=eq:geometric_model_target3] are inferior to those of [\eqref=eq:linear_model_target1], hence the geometric mixture is more general.
+
+In analogy to Section [\ref=sec:geometric_model_weight_estimation] we look for a weight vector [formula], which minimizes the code length of the sequence xn we want to compress, i.e.,
+
+[formula]
+
+First we analyse the convexity properties of [\eqref=eq:linear_model_generic_target1]. W.l.o.g. we assume that [formula] is an element of Ωm. The convexity properties of [\eqref=eq:linear_model_generic_target1] follow from the analysis of a single term of the sum, which is proportional to
+
+[formula]
+
+The Hessian of [formula] is positive definite, since
+
+[formula]
+
+holds for [formula]. We conclude that the problem [\eqref=eq:linear_model_generic_target1] is strictly convex. Thus, there exists a single global minimizer [formula]. As in Section [\ref=sec:geometric_model_weight_estimation] we can obtain a weight update rule via iterative gradient descent
+
+[formula]
+
+where [formula] and ε is a small positive constant. It is interesting to note, that when we replace αk with the matrix [formula] and omit the max -operation, [\eqref=eq:linear_model_generic_weight_update] turns into β-weighting (cf. [\eqref=eq:beta_weighting_update]) and [formula].
+
+Experiments
+
+In this section we compare the performance of a geometric mixture ( GEO), a generic linear mixture ( LIN) and β-weighting ( BETA) on the files of the well-known Calgary Corpus. We have implemented the weighting techniques for a binary alphabet. To process non-binary symbols (here, bytes) we employ an alphabet decomposition. Every symbol [formula] is processed in [formula] intermediate steps, for details see, e.g., [\cite=cm_ccp2011]. To ensure a fair comparison, the set of models is the same for any mixture method: There are seven finite-order context models (the probability estimations are conditioned on order-0 to order-6 contexts). The eighth model is a match model. In step k it searches the longest matching substring xk - 1k - L of length L  ≥  7 in xk - 2. In the case of a match it predicts the symbol (here, each bit in the N intermediate steps), which succeeds the matching substring with probability 1  -  1 / L, otherwise each symbol receives the probability [formula].
+
+For each mixture technique we select a weight vector [formula] based on an order-1 context and on the match length L (determined by the match model in every step k). Initially any weight vector is initialized to [formula]. After a weight update we ensure that [formula] (we set ε = 2- 30) and [formula]. For β-weighting we can confirm the observation made in [\cite=cm_cmidc]: The weights must be bounded considerably away from zero, i.e., βi  ≥  ε (we set ε = 2- 8). A weight update based on iterative gradient descent requires a step size αk. We set αk = 1 / 16 ( GEO) or αk = 1 / 32 ( LIN), respectively. The step size (for GEO and LIN) and ε (for BETA) were determined experimentally for maximum compression. We did not notice significant changes in compression, when the step size was sufficiently small (in the scale of 10- 2).
+
+Table [\ref=tab:results] summarizes our experimental results. GEO outperforms LIN and BETA in almost every case, expect for the file obj1, where the compression is roughly 2% worse than LIN and BETA. On average LIN compresses about 2% and BETA compresses about 3.6% worse than GEO, respectively. When we compare LIN and BETA we see that BETA produces worse compression in every case, 1.5% on average. Summarizing we may say that GEO works better than LIN. In our experiments BETA is inferior to the other weighting techniques.
+
+Conclusion
+
+In this paper we introduced geometric weighting as a new technique for computing mixtures in statistical data compression. In addition we introduced a new generic linear weighting strategy. We explain which assumptions the weighting techniques are based on. Furthermore, our results reveal that is an instance of geometric weighting for a binary alphabet. All of the presented mixture techniques rely on weight vectors. It turns out that in any of the two cases the weight estimation is a good-natured problem since it is strictly convex. An experimental study indicates that geometric weighting is superior to linear weighting (for a binary alphabet).
+
+For future research it would be interesting to obtain statements about the situations where geometric weighting outperforms linear weighting (and vice-versa). Another topic is how to select a fixed number of submodels for maximum compression. This leads to the optimization of model and mixture parameters (and to the question, whether or not, the optimization problem remains convex). Such a question is very natural, since we wish to maximize the compression with limited resources (CPU and RAM). Combining multiple models in data compression is highly successful in practice, but more research in this area is needed.
+
+Acknowledgment. The author would like to thank Martin Dietzfelbinger, Michael Rink, Martin Aumueller and the anonymous reviewers for helpful comments and corrections.

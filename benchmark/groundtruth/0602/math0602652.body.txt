@@ -1,0 +1,101 @@
+A numerical method for calculating the Green's function arising from electronic structure theory
+
+Introduction
+
+The quantum-mechanical feature of electrons plays a crucial role in nanoscale materials and its mathematical foundation is reduced to linear-algebraic problems with given large matrices H, called Hamiltonian. The physical properties of electrons can be described by the Green's function G that is defined as inversed matrix G(z): = (zI - H)- 1 with a complex variable z whose real part corresponds to energy. Since the standard matrix-inversion procedure requires an impractical computational cost in case of large matrices or in nanoscale materials, there is a strong need for the fast solution of the Green's function, see the references in [\cite=Takayama].
+
+Here we introduce a new method for calculating the Green's function [\cite=Takayama]. Let H be an N-by-N real symmetric Hamiltonian matrix, then any element of the Green's function can be written as
+
+[formula]
+
+where i denotes the ith unit vector, and the complex energy z = σ + iδ∈C. Note that the i,j entry of ([\ref=Def:Green]) can be obtained by two steps: first, compute (zI - H)  =  j, and then compute Ti. Since an integral of Gij(z) with respect to σ is needed to obtain any physical quantity [\cite=Takayama], the numerical integration requires [formula] Hence, the problem reduces to solving the following shifted linear systems with complex symmetric matrices:
+
+[formula]
+
+The paper is organized as follows: in the next section, we describe the algorithm and the property of COCG for solving complex symmetric linear systems. In § 3, to solve ([\ref=EQ:s-systems]) efficiently, a numerical method named shifted COCG is proposed and seed switching technique is introduced. In § 4, we report some numerical experiments. Finally, we make some concluding remarks in § 5.
+
+The COCG method
+
+Matrix A is called complex symmetric if A is not Hermitian but symmetric A = AT  ≠  AH. To solve the linear systems, the COCG method [\cite=COCG] has been proposed and is known as one of the most successful Krylov subspace methods.
+
+[formula]
+
+Observing Algorithm 1, we see that the nth residual can be written as n(: =  - An) = Rn(A)0, where R0(λ) = 1, R1(λ) = (1 - α0λ)R0(λ), and
+
+[formula]
+
+It is known that if breakdown does not occur, then the nth residual satisfies
+
+[formula]
+
+which leads to conjugate orthogonality [formula] for i  ≠  j.
+
+A shifted COCG method
+
+In this section, we develop the COCG method for solving complex symmetric shifted linear systems. First, let us describe the the following theorem: Proof. Since it follows from ([\ref=COCG_ortho]) that the COCG residuals satisfy ([\ref=ortho]) with [formula] this result follows from Theorem 1.
+
+Next, we give the formulas for computing σn + 1 by using the information of n + 1. It follows from the polynomial ([\ref=COCG_poly]) that we have
+
+[formula]
+
+Substituting the relation n  =  πσnσn into the previous recurrence ([\ref=3term_rec_2]), we have
+
+[formula]
+
+To obtain the computational formula for σn + 1, the three parameters ασn, βσn - 1, and πσn + 1 are essentially required. Hence, we give the formulas for the three parameters. First, comparing the coefficients of An in ([\ref=3term_rec_1]) and ([\ref=3term_rec_3]), we find
+
+[formula]
+
+Second, comparing the coefficients of n - 1 leads to [formula] Substituting the result of ([\ref=SCOCG_alpha]) into the previous equation, we have
+
+[formula]
+
+Finally, comparing the coefficients of n, we find [formula] Substituting ([\ref=SCOCG_alpha]) and ([\ref=SCOCG_beta]) into the previous equation, we obtain
+
+[formula]
+
+The above formulation is based on the assumption that the seed and shifted systems are A  =   and (A + σI)  =  . Similarly, it can be readily generalized to solve m shifted linear systems (A + σiI)(i)  =   using the seed system (A + σsI)  =  . The resulting algorithm is given below.
+
+[formula]
+
+Shifted COCG with seed switching technique We can see from Algorithm 2 that if |π(s,i)n| = |R(s)n(σs  -  σi)|  ≥  1, then [formula]. Hence, if we could find a seed system such that [formula], then all shifted systems could be solved. However, it is extremely hard to find such system in a priori except some special cases discussed in [\cite=Frommer]. In this section, we will avoid such problem by using the following strategy:
+
+Choose a seed system, and then start Algorithm 2;
+
+If the seed system was solved at nth iteration, then find the new one;
+
+Start Algorithm 2 from (n + 1)th iteration using the new seed system.
+
+In II, as one of criteria for choosing the new seed system s̃, we adopt [formula], where I denotes an index set of unsolved systems. In III, we need two steps to switch the old seed system to the new one. First, compute
+
+[formula]
+
+for obtaining (s̃)n + 1 and β(s̃)n(s̃)n. Since it follows from (s̃)n + 1  +  β(s̃)n(s̃)n that we have (s̃)n + 1, we can start COCG solving the system (A + σs̃I)(s̃)  =   from (n + 1)th iteration step. Second, to solve remaining systems by using the new seed s̃, it requires generating α(i)n + 1, β(i)n from the new seed. We see that they can be readily generated by the following polynomial:
+
+[formula]
+
+To obtain the above polynomial, we need to compute
+
+[formula]
+
+for [formula]. Hence, the switching strategy requires only scalar operations, and moreover we can see that if breakdown does not occur, iterating the process from (II) to (III) enables us to keep solving the systems without losing the dimension of the Krylov subspace that has been generated until the last switching.
+
+Numerical examples
+
+In this section, we report the results of numerical experiments. The problem originally comes from [\cite=Takayama] and is written as follows:
+
+[formula]
+
+where, σk = 0.4 + (k - 1 + i) / 1000, H∈R2048  ×  2048 is a symmetric matrix, [formula], and m = 1001. Since (σkI  -  H) is complex symmetric, the iterative solvers we used are COCG and shifted COCG. We can also apply shifted Bi-CGSTAB([formula])[\cite=Frommer] and GMRES [\cite=Datta] to the above problem since they can be used for general non-Hermitian shifted linear systems. However, they do not exploit the property of complex symmetric matrix. This leads to high computational costs per iteration step.
+
+All experiments were performed on an ALPHA work station with a 750MHz processor using double precision arithmetic. Code were written in Fortran 77 and compiled with the optimization option -O4. The switching criterion is [formula]. The stopping criteria are ε1,ε2  ≤  10- 12. We report two examples for k = 301 and k = 501 as a initial seed system. True residual 2-norm histories are given in Fig. 1.
+
+In Fig. 1 on the left, 518 systems remained unsolved when the first seed system k = 301 converged. Then, the next seed k = 494 solved 412 more systems. Finally, the third seed k = 712 solved all of the remaining systems. In Fig. 1 on the right, we chose k = 501 as an initial seed system. This choice led to 147 unsolved systems. Finally, the next seed k = 712 solved all of the remaining systems.
+
+Numerical results are shown in Table 1. Total MVs denotes the total number of matrix-vector multiplications. We can see from Table 1 that shifted COCG required only about 0.27% of Total MVs of COCG.
+
+Concluding remarks
+
+Since the original problem ([\ref=Def:Green]) is a fundamental quantum-mechanical equation, the present method is applicable, in principle, to various nanoscale materials, such as silicon, carbon, metals, polymers and so on, if the Hamiltonian for electrons is given as an explicit matrix H.
+
+The present paper gives an interdisciplinary research between mathematics and physics,which shows that the computational science can give an important contribution to nanoscience through the development of general numerical algorithms, when a fundamental equation is formulated in physics.

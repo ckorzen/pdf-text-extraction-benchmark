@@ -1,0 +1,185 @@
+Reformulation of Global Constraints in Answer Set Programming
+
+Introduction
+
+There are several approaches to representing and solving constraint satisfaction problems: constraint programming (CP; [\citeauthor=dechter03] [\citeyear=dechter03], [\citeauthor=robewa06a] [\citeyear=robewa06a]), answer set programming (ASP; [\citeauthor=baral03] [\citeyear=baral03]), propositional satisfiability checking (SAT; [\citeauthor=bihemawa09a] [\citeyear=bihemawa09a]), its extension to satisfiability modulo theories (SMT; [\citeauthor=niolti06a] [\citeyear=niolti06a]), and many more. Each has its particular strengths: for example, CP systems support global constraints, ASP systems permit recursive definitions and offer default negation, whilst SAT solvers often exploit very efficient implementations. In many applications it would often be helpful to exploit the strengths of multiple approaches. Consider the problem of timetabling at a university [\cite=jaoijani09a]. To model the problem, we need to express the mutual exclusion of events (for instance, we cannot place two events in the same room at the same time). A straightforward representation of such constraint with clauses and rules uses quadratic space. In contrast, global constraints such as all-different typically supported by CP systems can give a much more concise encoding. On the other hand, there are features which are hard to describe in traditional constraint programming, like the temporary unavailability of a particular room. However, this is easy to represent with non-monotonic rules such as those used in ASP. Such rules also provide a flexible mechanism for defining new relations on the basis of existing ones.
+
+Answer set programming has been put forward as a powerful paradigm to solve constraint satisfaction problems. [\citeauthor=niemela99a] ([\citeyear=niemela99a]) shows that ASP embeds SAT but provides a more expressive framework from a knowledge representation point of view. Moreover, modern ASP solvers compete with the best SAT solvers. An empirical comparison of the performance of ASP and constraint logic programming (CLP; [\citeauthor=jama94a] [\citeyear=jama94a]) systems on solving combinatorial problems conducted by [\citeauthor=dofopo05a] shows ASP encodings to be more compact, more declarative, and highly competitive. However, as some problems are more naturally modelled by using non-propositional constructs, like resources or functions over finite domains, and by using global constraints in particular, there is an increasing desire to handle constraints beyond pure ASP.
+
+One approach to combining ASP and CP is to integrate theory-specific predicates into propositional formulas (motivated by SMT), and to extend the ASP solver's decision engine with a higher level proof procedure [\cite=baboge05a] [\cite=melgel08a] [\cite=geossc09a]. However, the resulting systems have a number of limitations. First, they are tied to particular ASP and CP solvers. Second, the support for global constraints is limited. Third, communication between the ASP and CP solver is restricted. Alternative techniques, such as reformulating constraints into ASP have received little attention. The key contribution of our work is an investigation of reformulation in the context of answer set programming, illustrated by reformulations of the popular all-different constraint. The resulting approach has been implemented in the new preprocessor inca. Empirical evaluation demonstrates its computational potential.
+
+Background
+
+Answer Set Programming
+
+A (normal) logic program Π over a set of primitive propositions A is a finite set of rules of the form [formula] where 0  ≤  m  ≤  n and ai∈A are atoms for 0  ≤  i  ≤  n. A literal â is an atom a or its default negation not a. For a rule r, let head(r)  =  a0 be the head of r and [formula] the body of r. The set of atoms occurring in a logic program Π is denoted by atom(Π), and the set of bodies in Π is body(Π)  =  {body(r)|r∈Π}. For regrouping bodies sharing the same head a, define body(a)  =  {body(r)|r∈Π, head(r)  =  a}. The semantics of a logic program is given by its answer sets, being total well-founded models of Π. For a formal introduction to ASP, we refer the reader to [\citeauthor=baral03] ([\citeyear=baral03]). The semantics of important extensions to logic programs, such as choice rules, integrity, and cardinality constraints, is given through program transformations that introduce additional propositions (cf. [\citeauthor=siniso02a] [\citeyear=siniso02a]). A choice rule allows for the non-deterministic choice over atoms in [formula] and has the form [formula] An integrity constraint of the form [formula] is a short hand for a rule with an unsatisfiable head, and thus forbids its body to be satisfied in any answer set. A cardinality constraint of the form [formula] is interpreted as no k literals of the set [formula] are included in an answer set. [\citeauthor=siniso02a] provide a transformation that needs just O(nk) rules, introducing atoms l(âi,j) to represent the fact that at least j of the literals with index ≥  i, i.e. the literals in [formula], are in a particular answer set candidate. Then, the cardinality constraint can be encoded by an integrity constraint ←l(â1,k) and the three following rules, where 1  ≤  i  ≤  n and 1  ≤  j  ≤  k:
+
+[formula]
+
+Nogoods of Logic Programs
+
+We want to view inferences in ASP as unit-propagation on nogoods. Following [\citeauthor=gekanesc07a] ([\citeyear=gekanesc07a]), inferences in ASP rely on atoms and program rules, which can be expressed by using atoms and bodies. Thus, for a program Π, the domain of Boolean assignments [formula] is fixed to [formula].
+
+Formally, a Boolean assignment [formula] is a set [formula] of signed literals σi for 1  ≤  i  ≤  n of the form [formula] or [formula] where [formula]. [formula] expresses that a is assigned true and [formula] that it is false in [formula]. (We omit the attribute Boolean for assignments whenever clear from the context.) The complement of a signed literal σ is denoted by [formula], that is [formula] and [formula]. In the context of ASP, a nogood is a set [formula] of signed literals, expressing a constraint violated by any assignment [formula] such that [formula]. For a nogood δ, a signed literal σ∈δ, and an assignment [formula], we say that δ is unit and [formula] is unit-resulting if [formula]. Let [formula] the set of true propositions and [formula] the set of false propositions. A total assignment, that is [formula] and [formula], is a solution for a set Δ of nogoods if [formula] for all δ∈Δ.
+
+As shown in [\citeauthor=lee05a] ([\citeyear=lee05a]), the answer sets of a logic program Π correspond to the models of the completion of Π that satisfy the loop formulas of all non-empty subsets of atom(Π). For [formula], define
+
+[formula]
+
+Intuitively, the nogoods in Δβ enforce the truth of body β iff all its literals are satisfied. For an atom a∈atom(Π) with [formula], let
+
+[formula]
+
+Then, the solutions for [formula] correspond to the models of the completion of Π. Loop formulas, expressed in the set of nogoods ΛΠ, have to be added to establish full correspondence to the answer sets of Π. Typically, solutions for [formula] are computed by applying conflict-driven nogood learning (CDNL; [\citeauthor=gekanesc07a] ([\citeyear=gekanesc07a])). This combines search and propagation by recursively assigning the value of a proposition and using unit-propagation to determine logical consequences of an assignment [\cite=mitchell05a].
+
+Constraint Satisfaction Problem
+
+The classic definition of a constraint satisfaction problem is as follows (cf. [\citeauthor=robewa06a] [\citeyear=robewa06a]). A constraint satisfaction problem is a triple (V,D,C) where V is a set of variables [formula], D is a set of finite domains [formula] such that each variable vi has an associated domain dom(vi)  =  Di, and C is a set of constraints. A constraint c is a pair (RS,S) where RS is a k-ary relation on the variables in S  ⊆  Vk, called the scope of c. In other words, RS is a subset of the Cartesian product of the domains of the variables in S. To access the relation and the scope of c define range(c)  =  RS and scope(c)  =  S. For a (constraint variable) assignment [formula] and a constraint c  =  (RS,S) with [formula], define [formula], and call c satisfied if A(S)∈range(c). Given this, define the set of constraints satisfied by A as satC(A)  =  {c|A(scope(c))∈range(c), c∈C}.
+
+A binary constraint c has |scope(c)| = 2. For example, v1  ≠  v2 ensures that v1 and v2 take different values. A global (or n-ary) constraint c has parametrized scope. For example, the all-different constraint ensures that a set of variables, [formula] take all different values. This can be decomposed into O(n2) binary constraints, vi  ≠  vj for i < j. However, as we shall see, such reformulation can hinder inference. An assignment A is a solution iff it satisfies all constraints in C.
+
+Constraint solvers typically use backtracking search to explore the space of partial assignments. Various heuristics affecting, for instance, the variable selection criteria and the ordering of the attempted values, can be used to guide the search. Each time a variable is assigned a value, a deterministic propagation stage is executed, pruning the set of values to be attempted for the other variables, i.e., enforcing a certain type of local consistency.
+
+A binary constraint c is called arc consistent iff when a variable v1∈scope(c) is assigned any value d1∈dom(v1), there exists a consistent value d2∈dom(v2) for the other variable v2. An n-ary constraint c is hyper-arc consistent or domain consistent iff when a variable vi∈scope(c) is assigned any value di∈dom(vi), there exist compatible values in the domains of all the other variables dj∈dom(vj) for all 1  ≤  j  ≤  n, j  ≠  i such that [formula].
+
+Relational consistency [\cite=debe97a] extends the concept of local consistency. I.e. a constraint c is relationally k-arc consistent if any consistent assignment of a k-elementary subset of variables from scope(c) extends to a consistent assignment of all variables in scope(c).
+
+The concepts of bound and range consistency are defined for constraints on ordered intervals. Let min(Di) and max(Di) be the minimum value and maximum value of the domain Di. A constraint c is bound consistent iff when a variable vi is assigned di∈{min(dom(vi)),max(dom(vi))} (i.e. the minimum or maximum value in its domain), there exist compatible values between the minimum and maximum domain value for all the other variables in the scope of the constraint. Such an assignment is called a bound support. A constraint is range consistent iff when a variable is assigned any value in its domain, there exists a bound support. Notice that range consistency is in between domain and bound consistency, where domain consistency is the strongest of the three formalisms.
+
+Encoding Global Constraints in ASP
+
+In this section we explain how to reformulate multi-valued variables and constraints on finite domains into a logic program under answer set semantics. In what follows, we assume dom(v)  =  [1,d] for all v∈V to save the reader from multiple superscripts.
+
+Direct Encoding
+
+A popular choice is called the direct encoding [\cite=wa00]. In the direct encoding, a propositional variable e(v,i), representing v  =  i, is introduced for each value i that can be assigned to the constraint variable v. Intuitively, the proposition e(v,i) is true if v takes the value i, and false if v takes a value different from i. For each v, the truth-assignments of atoms e(v,i) are encoded by a choice rule (1). Furthermore, there is an integrity constraint (2) to ensure that v takes at least one value, and a cardinality constraint (3) that ensures that v takes at most one value.
+
+[formula]
+
+In the direct encoding, each forbidden combination of values in a constraint is expressed by an integrity constraint. On the other hand, when a relation is represented by allowed combinations of values, all forbidden combinations have to be deduced and translated to integrity constraints. Unfortunately, the direct encoding of constraints hinders propagation:
+
+Enforcing arc consistency on the binary decomposition of the original constraint prunes more values from the variables domain than unit-propagation on its direct encoding.
+
+Support Encoding
+
+The support encoding has been proposed to tackle this weakness [\cite=gent02]. A support for a constraint variable v to take the value i across a constraint c is the set of values [formula] of another variable in [formula] which allow v  =  i, and can be encoded as follows, extending (1-3):
+
+[formula]
+
+This integrity constraint can be read as whenever v  =  i, then at least one of its supports must hold. In the support encoding, for each constraint c there is one support for each pair of distinct variables v,v'∈scope(c), and for each value i.
+
+Unit-propagation on the support encoding enforces arc consistency on the binary decomposition of the original constraint.
+
+We illustrate this approach on an encoding of the global all-different constraint. For variables v,v' and value i it can be reduced from the definition by using the equivalence covered by (2-3) to
+
+[formula]
+
+Observe, that this is also the direct encoding of the binary decomposition of the global all-different constraint. However, this observation does not hold in general for all constraints. As discussed in the Background section of this paper, we can express above condition as O(d) cardinality constraints:
+
+[formula]
+
+Unit-propagation on (1-4) enforces arc consistency on the binary decomposition of the global all-different constraint in O(nd2) down any branch of the search tree.
+
+k-support Encoding
+
+The support encoding can be generalized to the k-support encoding [\cite=behewa03a] representing supports on subsets of scope(c) for an assignment of another k-elementary subset of variables in scope(c). More formal, a k-support S for an assignment A of k variables from scope(c), say [formula], is an assignment [formula] such that [formula] which allows A. We introduce a support-variable s, that evaluates to true iff S holds:
+
+[formula]
+
+Furthermore, let [formula] be the set of all k-supports of A. A k-support rule for A is defined as
+
+[formula]
+
+meaning that as long as A holds then at least one of its k-supports [formula] must hold. In the k-support encoding, for each constraint c there is one k-support rule for each assignment A of k variables from scope(c).
+
+Unit-propagation on the k-support encoding enforces relational k-arc consistency on the original constraint.
+
+Range Encoding
+
+In the range encoding, a propositional variable r(v,l,u) is introduced for all [l,u]  ⊆  [1,d] to represent whether the value of v is between l and u. For each range [l,u], the following O(nd2) rules encode v∈[l,u] whenever it is safe to assume that [formula] and [formula], and enforce a consistent set of ranges such that [formula]:
+
+[formula]
+
+Constraints are encoded into integrity constraints representing conflict regions. When the combination [formula] violates the constraint, the following rule is added:
+
+[formula]
+
+Unit-propagation on the range encoding enforces range consistency on the original constraint.
+
+A propagator for the global all-different constraint that enforces range consistency pruning Hall intervals has been proposed by [\citeauthor=le96a] ([\citeyear=le96a]) and encoded to SAT by [\citeauthor=bekanaquwa09a] ([\citeyear=bekanaquwa09a]). An interval [l,u] is a Hall interval iff |{v|dom(v)  ⊆  [l,u]}|  =  u  -  l  +  1. In other words, a Hall interval of size k completely contains the domains of k variables. Observe that in any bound support, the variables whose domains are contained in the Hall interval consume all values within the Hall interval, whilst any other variable must find their support outside the Hall interval. The following reformulation of the global all-different constraint will permit us to achieve range consistency via unit propagation. It ensures that no interval [l,u] can contain more variables than its size.
+
+[formula]
+
+This simple reformulation can simulate a complex propagation algorithm like [\citeauthor=le96a]'s with a similar overall complexity of reasoning.
+
+Unit-propagation on (5-8) enforces range consistency on the global all-different constraint in O(nd3) down any branch of the search tree.
+
+A hybrid that links the range encoding of v to its direct representation extends the range encoding as follows, for each i∈dom(v):
+
+[formula]
+
+These rules encode the equivalence v = i  ⇔  v∈[i,i].
+
+Bound Encoding
+
+A last encoding is called the bound encoding [\cite=crba94a]. In the bound encoding, a propositional variable b(v,i) is introduced for each value i to represent that the value of v is bounded by i. That is, v  ≤  i if b(v,i) is assigned true, and v  >  i if b(v,i) is assigned false. Similar to the direct encoding, for each v, the truth-assignments of atoms b(v,i) are encoded by a choice rule (9). In order to ensure that assignments represent a consistent set of bounds, the condition v  ≤  i  ⇒  v  ≤  i + 1 is posted as integrity constraints (10) [formula]. Another integrity constraint (11) encodes v  ≤  d, that at least one value must be assigned to v:
+
+[formula]
+
+Constraints are encoded into integrity constraints representing conflict regions similar to the range encoding. When all combinations in the region
+
+[formula]
+
+violate a constraint, the following rule is added:
+
+[formula]
+
+Unit-propagation on the bound encoding enforces bound consistency on the original constraint.
+
+In order to get a representation of the global all-different constraint that can only prune bounds, the bound encoding for variables is linked to (8) as follows:
+
+[formula]
+
+Unit-propagation on (8-14) enforces bound consistency on the global all-different constraint in O(nd2) down any branch of the search tree.
+
+Note that an upper bound h can be posted on the size of Hall intervals. The resulting encoding with only those cardinality constraints (5) for which u  -  l  +  1  ≤  h detects Hall intervals of size at most h, and therefore enforces a weaker level of consistency.
+
+To access the value of v, the bound encoding can be extended to a hybrid by adding the following rules to the bound encoding for each i∈[1,d]:
+
+[formula]
+
+The first rule enforces e(v,i) to be true if possible values for v are bound to the singleton i, i.e. v  ≤  i and [formula] are in the assignment. On the other hand, the condition [formula] is represented as integrity constraints.
+
+Non-ground Logic Programs
+
+Although our semantics is propositional, atoms in A and can be constructed from a first-order signature Σ  =  (F,V,P), where F is a set of function symbols (including constant symbols), V is a denumerable collection of first-order variables, and P is a set of predicate symbols. The logic program over A is then obtained by a grounding process, systematically substituting all occurrences of variables V by terms in T(F), where T(F) denotes the set of all ground terms over F. Atoms in A are formed from predicate symbols P and terms in T(F).
+
+Experiments
+
+To evaluate these reformulations, we conducted experiments on encodings containing all-different and permutation constraints. The global permutation constraint is a special case of all-different when the number of variables is equal to the number of all their possible values. A reformulation of permutation extends (4) by
+
+[formula]
+
+or (8) by the following rule where 1  ≤  l  ≤  u  ≤  k:
+
+[formula]
+
+This can increase propagation. Our reformulations have been implemented within the prototypical preprocessor inca which compiles an (extended) logic programs with high-level statements for global constraints, constraint variables, first-order variables, function symbols, and aggregates, etc. in linear time and space, such that the logic program can be obtained by a grounding process. Experiments consider inca in different settings using different reformulations. We denote the support encoding of the global constraints by S, the bound encoding of the global constraints by B, and the range encoding of the global constraints by R. To explore the impact of small Hall intervals, we also tried Bk and Rk, an encoding of the global constraints with only those cardinality constraints (8) for which u - l + 1  ≤  k. The consistency achieved by Bk and Rk is therefore weaker than full bound and range consistency, respectively.
+
+We also include the pure CP system gecode (3.2.0), and the integrated system ezcsp (1.6.9; [\citeauthor=ba09a] [\citeyear=ba09a]) in our empirical analysis. The latter combines the grounder gringo (2.0.3) and ASP solver clasp (1.3.0) with sicstus (4.0.8) as a constraint solver. Since inca is a pure preprocessor, we select the ASP system clingo (2.0.3) as its backend to provide a representative comparison with ezcsp. Note that clingo stands for clasp on gringo and combines both systems in a monolithic way. All experiments were run on a 2.00 GHz PC under Linux. We report results in seconds, where each run was limited to 600 s time and 1 GB RAM.
+
+Pigeon Hole Problem
+
+The pigeon hole problem (PHP) is to show that it is impossible to put n pigeons into n - 1 holes if each pigeon must be put into a distinct hole. Clearly, our bound and range reformulations are faster compared to weaker encodings (see Table [\ref=tab:php]). It appears that sicstus' and gecode's default configuration uses filtering algorithms for the global all-different constraint achieve arc consistency on its binary decomposition. However, on such problems, detecting large Hall intervals is essential.
+
+Latin Squares
+
+A Latin square is an n  ×  n-table filled with n different elements such that each element occurs exactly once in each row and each column of the table. The Latin square puzzle (LSP) is to determine whether a partially filled table can be completed in such a way that a Latin square is obtained. Randomly generated LSP has been proposed as a benchmark domain for CP systems by [\citeauthor=gose97a] since it combines the features of purely random problems and highly structured problems. Table [\ref=tab:qcp] compares the runtime for solving LSP problems of size 20  ×  20 where the first column gives the percentage of preassigned values. We included gecode with algorithms that enforce bound and domain consistency, denoted as gecodeB and gecodeD (not shown due to space constraints), in the experiments. Our analysis exhibits phase transition behaviour of the systems ezcsp, gecode, and gecodeB, while our Boolean encodings and gecodeD solve all problems within seconds. Interestingly, learning constraint interdependencies as in our approach is sufficient to tackle LSP. In fact, most of the time for S, Bk, Rk is spent on grounding, but not for solving the actual problem.
+
+Graceful Graphs
+
+A labelling f of the nodes of a graph (V,E) is graceful if f assigns a unique label f(v) from [formula] to each node v∈V such that, when each edge (v,w)∈E is assigned the label |f(v) - f(w)|, the resulting edge labels are distinct. The problem of determining the existence of a graceful labelling of a graph (GGP) has been modelled in CP [\citeauthor=pesm03a] ([\citeyear=pesm03a]), using auxillary variables d(v,w) for edge labels. We represent the equivalence d(v,w)  =  |f(v) - f(w)| in the direct encoding which weakens the overall consistency. Our experiments consider double-wheel graphs DWn composed by two copies of a cycle with n vertices, each connected to a central hub. Table [\ref=tab:ggp] shows that our encodings compete with ezcsp and outperform gecode, where the support encoding performs better than bound and range encodings. In most cases, the branching heuristic used in our approach appears to be misled by the extra variables introduced in Bk and Rk. That explains some of the variability in the runtimes.
+
+Conclusions
+
+We have reformulated global and other constraints into answer set programs. In particular, we have investigated various generic ASP encodings for constraints on finite domains and proved which level of consistency unit-propagation achieves on them. Our techniques were formulated as preprocessing and can be applied to any ASP system without changing its source code, which allows for programmers to select the ASP solver that best fit their needs. We have empirically evaluated the performance of such an approach on benchmarks from CP and found that such reformulations outperform integrated ASP(CP) systems as well as pure CP solvers. Our future works includes the reformulation of other useful global constraints into answer set programming like the regular constraint, as well as global constraints like lex which are very useful for symmetry breaking .

@@ -1,0 +1,335 @@
+Improving entanglement and thermodynamic Rényi entropy measurements in quantum Monte Carlo
+
+Introduction
+
+Quantum entanglement has been of interest since the early days of quantum mechanics [\cite=Einstein35]. The quantification of the entanglement in interacting many body quantum systems has attracted a lot of attention during the last decade for several fundamental and practical reasons [\cite=Calabrese_Special_JPA09]. Entanglement properties of one-dimensional quantum problems can be treated fully analytically only in a limited number of cases (see e.g. Refs. [\cite=jin_quantum_2004] [\cite=fan_entanglement_2004]), or asymptotically for conformally invariant [\cite=calabrese_entanglement_2004] or some disordered systems [\cite=Refael04]. They remain generically accessible to numerical Density Matrix Renormalization Group (DMRG) calculations, provided the entanglement between the subsystems is not too large [\cite=Schollwock05]. For higher dimensional systems however, exact methods are much more difficult to implement. Nevertheless, remarkable progresses have been made recently, e.g. using series expansions [\cite=kallin_anomalies_2011] [\cite=singh_thermodynamic_2012], numerical linked cluster expansion [\cite=kallin_entanglement_2013] [\cite=kallin_corner_2014], or using quantum Monte Carlo (QMC) simulations [\cite=Alet07] [\cite=Kallin09] [\cite=hastings_measuring_2010] [\cite=melko_finite-size_2010] [\cite=humeniuk_quantum_2012] [\cite=Grover13] [\cite=Assaad14] [\cite=chung_entanglement_2013] [\cite=Helmes14] [\cite=Herdman14], which is precisely the topic of the present work.
+
+In nonfrustrated quantum spin systems, standard thermodynamic observables can be obtained to very high accuracy within QMC simulations [\cite=sandvik_computational_2010]. Here we are interested in the Rényi entanglement entropy (EE)
+
+[formula]
+
+where ρA is the reduced density matrix, assuming that A is a subsystem imbedded in a larger system. Clearly [formula] cannot be related to a simple thermodynamic observable, e.g. a correlation function (except for non-interacting systems [\cite=Chung01] [\cite=Audenaert02]). At zero temperature, Hastings et al. [\cite=hastings_measuring_2010] developed a technique based on the introduction of a "swap"-operator in a projector Monte Carlo approach to tackle this issue. At finite temperature, several techniques have been explored, including temperature integration [\cite=melko_finite-size_2010] and Wang Landau sampling [\cite=inglis_wang-landau_2013].
+
+Perhaps the most elegant method was brought forward by Humeniuk and Roscilde [\cite=humeniuk_quantum_2012]. Their method for the calculation of entanglement Rényi entropies of order q for a subsystem A in path integral QMC methods is based on the observation [\cite=calabrese_entanglement_2004] that they are related to the ratio of partition functions [formula]. Here, ZA,q is the partition function of q replicas glued together at one imaginary time slice on the subsystem A only. [formula] is the partition function of q independent replicas. Here and from now on, q is an integer ≥  2.
+
+In a simulation which samples both partition functions in a generalized ensemble, proposing moves between the two ensembles, the estimator for the entanglement Rényi entropy is given by[\cite=humeniuk_quantum_2012]:
+
+[formula]
+
+where NA is the number of QMC configurations observed in the glued ensemble, while [formula] is the number of QMC configurations seen in the independent ensemble. This method becomes inefficient for too large entropies, which lead to very small NA and large [formula]. This is a problem of rare events which is also known in the related context of participation Rényi (PR) entropies[\cite=luitz_universal_2014] [\cite=luitz_shannon_2014] [\cite=luitz_participation_2014] and prohibits the estimation of large entropies in finite simulation time. The problem can however be cured by the application of the "ratio trick" [\cite=deForcrand_2001] [\cite=hastings_measuring_2010], calculating the entanglement entropy by a stepwise increase of the subsystem A.
+
+Let us give a description of the results presented in this article, along with its organization. We will first start from equation [\eqref=eq:EE_QMC] to show how the measurement of the entanglement entropy is related to the basis dependent participation Rényi entropies [formula] [\cite=stephan_shannon_2009] [\cite=luitz_participation_2014] (also called Shannon-Rényi entropies in the litterature). The basic idea is to split the extended ensemble in its two parts and to simulate the ensemble of independent replicas and the ensemble of replicas that are glued together on subsystem A (see Fig. [\ref=fig:glued]) separately. In Sec. [\ref=sec:RC], we derive the following relation:
+
+[formula]
+
+which relates the entanglement entropy [formula] to the difference between participation Rényi entropy [formula] and the replica correlation [formula], which is introduced in Sec. [\ref=sec:RC] and is defined in the glued ensemble.
+
+Remarkably, this combination of two basis-dependent quantities will hint towards a more efficient calculation of the entanglement entropy, for two different reasons. First, large entanglement entropies can be obtained (both in our setup and the one used in Ref. [\cite=humeniuk_quantum_2012]) when using a QMC computational basis where the participation entropies [formula] are small. Second, we will introduce in Sec. [\ref=sec:PR] several improved Monte Carlo estimators which will greatly increase the precision on [formula] and consequently on [formula].
+
+As an interesting by-product, our scheme allows to compute the thermodynamic Rényi entropy [formula] in the specific case where the full system [formula] and the subsystem A are identical, as developed in Sec. [\ref=sec:renyi]. We will show there how the translation invariance in imaginary time can also be used to construct an improved estimator for the replica correlation [formula] , leading to a very accurate result for the thermodynamic Rényi entropy. Let us emphasize that the thermodynamic Rényi entropy (for integer q > 1) can be calculated from two standard QMC simulations (using independent replicas) without the need of implementing a different stochastic process or Wang-Landau sampling.
+
+The new methods are extensively tested and their efficiency discussed in Sec. [\ref=sec:results] where we provide several results on quantum spin chains and ladders. We also explore in this section the possibility to reconstruct the entanglement spectrum from Rényi entanglement entropies [\cite=song_bipartite_2012] [\cite=chung_entanglement_2013], discussing the limitations of this approach. There, we also propose an alternative method to test a putative entanglement Hamiltonian, based on the comparison between Rényi entanglement entropies and the Rényi thermodynamic entropies of the entanglement Hamiltonian.
+
+Finally, Sec. [\ref=sec:conc] draws conclusions on our work while the appendices contain details on the improved estimator derivation as well as on using symmetry sectors when measuring entanglement entropies.
+
+Method
+
+The method proposed by Humeniuk and Roscilde [\cite=humeniuk_quantum_2012] uses an extended ensemble simulation (see Fig. [\ref=fig:glued]), which dynamically moves between the glued ({A}) ensemble and the independent ensemble ([formula]) and records the ratio of Monte Carlo steps performed in the glued vs. independent ensembles. For the equilibrium (Monte Carlo-) time t evolution of the probability PA(t) to be in ensemble A, the Master equation
+
+[formula]
+
+holds, where [formula] is the probability of moving from the independent ensemble to the glued ensemble and [formula] is the probability of the inverse move. In an equilibrated Markov chain of QMC configurations, the probability of finding the glued ensemble is time-independent, and we therefore obtain:
+
+[formula]
+
+and with equation [\eqref=eq:EE_QMC]
+
+[formula]
+
+Instead of calculating this ratio of probabilities in a single QMC calculation, let us now concentrate on an estimation of [formula] and [formula] in separate calculations.
+
+Probability of leaving the independent ensemble [formula]
+
+If the simulation is in the independent ensemble, the condition for moving to the glued ensemble is given by finding identical states on the subsystem A in all q replicas. This corresponds to identical states |  0(i)A  〉 for all replicas i∈[null] following the convention of Fig. [\ref=fig:glued]. It is important to note that in principle due to the cyclicity of the trace the time slice where the replicas would be sewed together does not matter. However, we will not actually perform the step of moving to the glued ensemble here, but will just think about how probable it is. Clearly, we then have:
+
+[formula]
+
+But the probability [formula] of finding identical states on the subsystem A in all q replicas is just given by the participation Rényi entropies[\cite=luitz_universal_2014] of subsystem A
+
+[formula]
+
+We will present in Sec. [\ref=sec:PR] improved estimators for estimating efficiently the participation Rényi entropies.
+
+Probability of leaving the glued ensemble [formula]
+
+When the simulation explores the glued ensemble {A}, the condition of moving to the independent ensemble is given by having identical states on top and bottom of each replica individually, such as to meet the condition of the trace. Therefore, [formula] can be estimated by performing a simulation in the glued ensemble {A} and recording how often this condition is met, relative to the total number of QMC steps. We have
+
+[formula]
+
+This step turns out to be the bottleneck of the method in Ref. [\cite=humeniuk_quantum_2012], as this probability decays exponentially with the number of degrees of freedom in the subsystem A and thus the replica correlation
+
+[formula]
+
+exhibits a volume law. Note that the participation Rényi part suffers similar exponentially small probabilities for which we can however improve the estimate (see Sec. [\ref=sec:PR]). This volume law is directly related to the problem of low acceptance rates in the standard method [\cite=humeniuk_quantum_2012]. It should be noted that [formula] is not an entropy in the sense of equation [\eqref=eq:EE_QMC] as in general no density matrix can be found that provides [formula] for all q. In particular, [formula] can grow with q, which is not possible for Rényi entropies.
+
+Entanglement entropy
+
+Combining the two results, we therefore arrive at the previously announced Eq. [\eqref=eq:EEfromPR] for measuring entanglement entropies, which is restated for clarity using the spatial region index:
+
+[formula]
+
+This relation between the Rényi form of the participation and entanglement entropies provides very interesting insights in the performance of any method based on the idea by Humeniuk and Roscilde [\cite=humeniuk_quantum_2012]. It has been established that PR entropies show a volume law in local bases, [\cite=stephan_shannon_2009] [\cite=stephan_renyi_2010] [\cite=stephan_phase_2011] [\cite=luitz_universal_2014] [\cite=luitz_shannon_2014] [\cite=luitz_participation_2014]. However the coefficient of the volume term is non-universal and depends on the basis. As entanglement entropies usually display an area law for condensed-matter ground-states [\cite=eisert_colloquium_2010], the replica correlation [formula] necessarily has to exhibit the same volume law (and correspondingly, the probability to leave the glued ensemble decreases exponentially with the number of degrees of freedom in A).
+
+The same reasoning goes for the basis dependence: [formula] depends on the basis, while [formula] does not. Thus, [formula] needs to be a basis dependent quantity, too. As the probabilities to be observed in the QMC calculations are potentially very small, it is beneficial to choose the basis in which they assume larger values. Therefore, one should try to choose a computational basis in which the participation entropy [formula] is the smallest. One notable example is a simulation of the XX model [formula] in the basis in which Sx is diagonal instead of the usual Sz basis.
+
+Improved estimators
+
+Too large entropies lead in general to statistical issues in the QMC simulations. In order to tackle problems connected to the corresponding rare events, it is useful to increase the number of Monte Carlo measurements as much as possible. Here, we present improved estimators that greatly enhance the precision of participation entropies [formula] using all possible symmetries in imaginary time and real space.
+
+The starting point is the replica method introduced in Ref. [\cite=luitz_universal_2014]. The basic idea is that in order to measure the PR entropy [formula] of a subsystem A (which may coincide with the full system), it is sufficient to estimate the probability of finding the same state |  i  〉A on the part corresponding to subsystem A of the state at operator string slice i. According to the convention given in Fig. [\ref=fig:glued], this corresponds to the estimator
+
+[formula]
+
+where the first sum runs over the Markov chain of length [formula] and the second sum over all Λ slices i of the operator strings in the q replicas. For simplicity, we enforce the same cutoff Λ for all replicas.
+
+This method can be greatly enhanced by the observation that all operator strings in the ensemble [formula] are independent. This leads to two possible improvements:
+
+Due to the cyclicity of the trace, each operator string has a cylinder topology and can thus be independently translated cyclically by any number of states in the "imaginary time" direction. Each of the such transformed Monte Carlo configurations has exactly the same weight.
+
+If the system is invariant under (spatial) symmetry transformations, we can transform the whole operator string of each replica with independent transformations without changing the weight of the configuration.
+
+These two recipes can be used to greatly improve the quality of the estimation of [formula]. However, a naive application of these ideas is not possible as it is far too expensive to try all combinations of shifted and transformed operator strings. As discussed below, it is possible to exploit all symmetries by only one pass on each operator string.
+
+PR entropy of the full system [formula]
+
+Let us first start with the full system [formula] as the symmetries are simpler to apply and the resulting improved estimator formulae are clearer.
+
+For each state |  i(α)  〉 in the operator string of replica α, we calculate the parent state p(|  i(α)  〉) by applying all model symmetries. The application of all symmetries classes all the basis states |  i  〉 into nonoverlapping families of states, each of which is represented by the uniquely defined parent state - here, we will take the state in the family with the smallest binary representation. It is important to record the multiplicity (i.e. the number of states belonging to the family) d(|  p  〉) of each state family for the purpose of correct normalization. Note that most state families have the maximal multiplicity given by the number of symmetries [formula], with the exception of high symmetry states for which [formula].
+
+While transversing all the operator strings, we record the histogram h = {n(|  p  〉,α)} of the number of occurrences n(|  p  〉,α) of states with parent |  p  〉 in operator string α.
+
+In the next step, for each parent state that has been observed in one of the replicas we have to count the number of configurations (of symmetry-transformed operator strings) in which we can find identical states in all q replicas. It is clearly given by
+
+[formula]
+
+Note that the multiplicity d(|  p  〉) of the parent state |  p  〉 accounts for the fact that we can have any of the d(|  p  〉) states in the family of parent |  p  〉 as the identical state in all replicas.
+
+Finally, we have to normalize equation [\eqref=eq:nid] by the total number of symmetry equivalent configurations of all q replicas. As the family of parent |  p  〉 consists of d(|  p  〉) states, the correct normalization is [formula]. Together with the Λq possible cyclical shifts of the operator strings, this yields the improved estimator in Monte Carlo configuration C for the probability of moving from the independent [formula] ensemble to the glued ensemble {A}
+
+[formula]
+
+Here, Λ is the number of states in the operator string (forced to be equal in all replicas for simplicity). The sum runs over all parent states recorded in the histogram h. In equation [\eqref=eq:improved] it is immediately clear why this method is extremely beneficial for the observation of small probabilities: the normalization factor can become a very small number, as typically the number of applied symmetries ≈  N for a translationally invariant system with N sites and [formula] in our calculations. For large values of q, very small numbers can be obtained by one Monte Carlo measurement and the variance of the estimator is greatly reduced.
+
+Because of the tremendous number of possible combinations of symmetry transformed replica operator strings, it should be noted that the evaluation of Eq. [\eqref=eq:improved] may cause numerical problems. The products of the numbers n(|  p  〉,α) for all q replicas can easily become too large to be stored as 64-bit integers. One solution for this problem is to use extended precision floating point numbers. We have found, however, that it is sufficient to perform the products using double precision floating point numbers and performing the sum using Kahan's summation algorithm[\cite=kahan_pracniques_1965] to avoid precision loss and cancellation effects.
+
+An interesting further improvement of the method stems from the fact that a single simulation of [formula] replicas can be used for the calculations of PR entropies [formula] (or equivalently the probabilities [formula]) with q ranging from 2 to [formula]. Indeed, at the time of performing a Monte Carlo measurement, we can select any combination (without repetition) of q replicas out of the [formula] copies and apply Eq. [\eqref=eq:improved] without the need of creating a new histogram. This can be repeated for all [formula] possibilities, further improving the precision of the estimate:
+
+[formula]
+
+where the additional sum runs over all combinations γ of the [formula] replicas.
+
+PR entropy of subsystem A
+
+If the subsystem A and the full system are not identical, we have to slightly modify the procedure described above. The reason for this is the fact that if we cut out the part of subsystem A from every state in the family corresponding to a parent |  p  〉 and for a different family corresponding to |  p'  〉, we will find that the families can now have an overlap if the full system has more or different symmetries than the subsystem, which is generally the case. In some cases, where the exploited symmetries of the subsystem are identical with the symmetries of the full system, the same algorithm as for the full system may be used. This is generally the case if any symmetry transformation maps the subsystem on itself, e.g. in the case of the periodic ladder (see below, Sec. [\ref=sec:ladd]) when solely using translation symmetries along the ladder.
+
+In the general case, accounting for these overlaps is expensive as all pairs of parent states in the histogram h have to be treated. We therefore choose to go through all parents in the histogram h and create the family of states from which we deduce the subsystem states |  i  〉A by cutting out the corresponding part. In doing so, we generate a new histogram hA filled with the cut states |  i  〉A where we accumulate the corresponding n(|  p  〉,α) from histogram h. Note that the histogram hA may become very large if the number of symmetries and the number of lattice sites in subsystem A is large. The size of the histogram h is always smaller or at most equal to [formula] (typically, its size is reduced by the number [formula] of symmetries to [formula]). The maximal size of the histogram hA is, however, given by [formula], where NA is the dimension of the Hilbert space of states on subsystem A. Note that the relevant number of symmetries [formula] here is the number of applied symmetries of the full system as we discuss here the general case, in which the subsystem has no (or less) symmetries.
+
+The equation for the estimator in the previous section only have to be slightly modified:
+
+[formula]
+
+where n(|  i  〉A,α) is then the number of times the subsystem state |  i  〉A has been observed in all symmetry realizations of replica α. This yields the final estimator
+
+[formula]
+
+Autocorrelation problem for large values of q
+
+While the improved estimator performs remarkably well for a wide range of q and compares perfectly with exact results for small systems (see Sec. [\ref=sec:results]), we have found that it may yield wrong results for large values of q in some extreme cases. A detailed investigation shows that this behavior stems from an increasing variance of the improved estimator with q together with an increasing autocorrelation time which may exceed the simulation time and thus yield systematic errors.
+
+The reason for this behavior is identified by studying the time series of the estimator for different values of q (see Fig.[\ref=fig:improvedestimator]). Clearly, for larger values of q, the time series shows more and more pronounced "spikes" that at the same time become rare and large for large q. We have found that the most severe spikes are created by the occurrence of the most probable states (for antiferromagnetic systems, these are the Néel states |  NA  〉 and |  NB  〉, see Refs. [\cite=luitz_universal_2014] [\cite=luitz_shannon_2014] [\cite=luitz_participation_2014]). These states occur with the highest probability [formula] in any operator string and have an enhanced symmetry (for instance the symmetry family of the Néel states only has a d = 2 multiplicity). Consequently, the factor d(|  p  〉)1 - q in Eq. [\eqref=eq:improved_combinations] is much larger than for less symmetric states (for which it is usually [formula]), creating extremely large spikes for large q if the Néel states are observed in all q replicas simultaneously. The frequency of the spikes becomes however rare with growing q, as the simultaneous observation probability of the Néel states in all q replicas decreases rapidly as [formula].
+
+However, we can remedy this situation by calculating the probability [formula] separately, recording the frequency of the Néel states across all replicas. We then deliberately exclude the most probable states with common parent |  NA  〉 = p(|  NA  〉) = p(|  NB  〉) from the estimator in Eq. [\eqref=eq:improved_combinations] (similarly for Eq.  [\eqref=eq:improvedA_combinations]) and obtain
+
+[formula]
+
+In order to pull out the term [formula] out of the sum, we have used the fact that on average the frequency n(p(|  NA  〉),α) of the Néel states in replica α of length Λ is given by [formula].
+
+In Fig. [\ref=fig:improvedestimator], we compare the time series of (minus log of) the estimator given by Eq. [\eqref=eq:improved_combinations] and the improved estimator (excluding the additive term [formula]) given by Eq. [\eqref=eq:improvedpmax] in a test example discussed deeper later. Clearly, for q = 2 the two estimators behave nearly exactly equally. However, as q grows, the estimator not excluding the most probable states (shown in red) has a much larger variance than the estimator that excludes the most probable state. In addition to that, the spikes created by the Néel state become rare with growing q and eventually may not be even recorded once in a simulation, leading to incorrect results (especially since [formula] will dominate the PR entropy for large values of q).
+
+Note that usually [formula] can be calculated with a much higher precision than any other state, leaving us with the possibility to correct efficiently this systematic error. Any other state can be taken out of the estimator as in Eq. [\eqref=eq:improvedpmax] if its probability can be measured to a sufficient accuracy directly. This way, a hybrid method capturing the histogram of the most probable states with high precision and calculating the correction caused by the less probable states by the replica trick can be easily constructed.
+
+Measurement of the replica correlation entropy
+
+The final element to compute the entanglement entropy is the measurement of the replica correlation entropy [formula], for which the probability [formula] has to be estimated efficiently.
+
+In the method of Ref. [\cite=humeniuk_quantum_2012], the condition for moving from the glued ensemble to the independent ensemble is given by |  0(2)A  〉  =  |  0(1)A  〉. In this case, the glue can be cut and rewired thus moving from the glued to the independent ensemble without changing the weight as illustrated in Fig. [\ref=fig:glued].
+
+In our scheme, we can simply simulate the glued ensemble and measure the number of times we observe |  0(2)A  〉  =  |  0(1)A  〉 relative to the total number of QMC steps. Unfortunately, the glued replicas can not be changed by separate symmetry transformations and the topology of the glued operator string is rigid in imaginary time, i.e. it can not be translated. Generally, it is therefore not possible to construct an improved estimators for [formula] in the same way as for [formula].
+
+Thermodynamic Rényi entropies
+
+Let us discuss in more detail the special case in which the subsystem A and the full system [formula] are identical. In that case, the entanglement Rényi entropies [formula] reduce to the thermodynamic Rényi entropies Sq(β) at inverse temperature β, which are defined by:
+
+[formula]
+
+Here, [formula] denotes the free energy of the system governed by the Hamiltonian Ĥ at inverse temperature β. Noting that the thermal density matrix [formula] is nothing else but the reduced density matrix of the subsystem [formula], we can use Eq. [\eqref=eq:EEfromPR] to calculate the thermodynamic Rényi entropy.
+
+As in the case of the entanglement Rényi entropy, we will decompose the thermodynamic Rényi entropy in a difference of the participation PR entropy and the replica correlation. The discussion of Sec. [\ref=sec:PR] on how to build improved estimators exploiting spatial and imaginary time symmetries carries on for the calculation of the PR entropy.
+
+The calculation of the replica correlation for [formula] can be much further improved than in the generic case. Indeed this is the case where the replicas are glued on the full system and the periodicity in β (or in the cutoff Λ for SSE) is replaced by a qβ periodicity for a larger operator string. Clearly, this situation can be achieved by simply performing a standard SSE simulation with a single replica at inverse temperature qβ. The estimator for the replica correlation [formula] is then given by the probability of cutting the enlarged configurations in q valid SSE replicas at inverse temperatures β, with the condition that these q replicas have to be periodic in β.
+
+It should be observed that there are multiple valid ways of slicing the large configuration in q parts and in fact any partition [formula] is valid as long as every cutoff Λi is large enough such as to correctly sample the inverse temperature β. The probability of slicing the large replica in q valid parts can be estimated (see Appendix [\ref=sec:appendix_thermal] for a detailed derivation) by simply measuring the observable
+
+[formula]
+
+for any Monte Carlo configuration in the replica simulated at inverse temperature qβ. Here, the Kronecker delta yields 1 if the states αi at the beginning of each replica of length Λi are identical, which is precisely the condition for obtaining q valid, Λi-periodic replicas after performing the cut. Note that one should of course average over several possible partitions [formula] with [formula] and all translations of the partitions in imaginary time.
+
+We obtain
+
+[formula]
+
+where the average is performed over the Markov chain and different partitions in order to improve the statistics. The thermodynamic Rényi entropy is thus finally given by
+
+[formula]
+
+where the absence of the subsystem index indicates that the full system is to be considered. We emphasize that both [formula] and [formula] are obtained within a standard SSE independent ensemble simulation.
+
+Results
+
+In this section we present various results obtained on simple model Hamiltonians, such as Heisenberg chains and ladders, in order to carefully test the method. We compare, when possible, our QMC estimates with exact diagonalization (ED) or DMRG results. The quantities of interest we discuss in the rest are the Rényi entanglement (zero temperature) and thermodynamic (finite temperature) entropies. We also compare the efficiency of our new method for calculating entanglement entropies [formula] with the method of Ref. [\cite=humeniuk_quantum_2012].
+
+The last part of this section deals with a careful analysis of the reconstruction of the entanglement spectrum given entanglement entropies. We finally provide a quantitative analysis of how to probe an ansatz entanglement Hamiltonian in the case of Heisenberg ladders.
+
+Heisenberg chain
+
+As a first application of the different aspects of the method introduced in Sec. [\ref=sec:RC] we perform calculations for the well-studied antiferromagnetic Heisenberg chain of L spins [formula], described by the Hamiltonian
+
+[formula]
+
+using periodic boundary conditions [formula].
+
+Entanglement entropies
+
+We test our implementation on the example of a chain of L = 16 spins, which can be easily solved using ED. As a way to show the different elements in our method, we first display in the main panel of Fig. [\ref=fig:shannon_xxx] the participation entropies [formula] as a function of the subsystem size [formula] and Rényi index q. The correspondence between the QMC and exact result is perfect and the precision is such that the error bars are not even visible in the graph. The inset displays the probabilities [formula] of finding the same basis state in q replicas for q ranging from 2 to 10, for the full system [formula]. The exponential decay of [formula] is perfectly reproduced by the Monte Carlo result and even the smallest probabilities of the order of 10- 27 are estimated with extremely high accuracy (errorbar of the order of 10- 29) in a calculation containing 106 Monte Carlo measures. In order to appreciate this result, let us mention that the simple estimator given in Eq. [\eqref=eq:naive_estimator] can hardly see a single event occurring with such low probabilities. The reason for this is that the total denominator NMCn for the present case is given by NMC = 106 and the expansion order 〈n〉  =  3553.08(5) (for the case of L = 32), thus it is of the order of 109. Consequently, events of probabilities p < 10- 9 will typically never be seen in a Markov chain of length NMC  ≈  106.
+
+Let us now combine the result in Fig. [\ref=fig:shannon_xxx] with the result for the calculation of the replica correlation entropy to obtain the entanglement Rényi entropy according to equation [\eqref=eq:EEfromPR]. Fig. [\ref=fig:xxxL16EE] shows the comparison of this result with the one obtained by ED. The correspondence is again perfect and shows that the method works very well: for instance, the even-odd oscillations for q  ≥  2 are perfectly reproduced [\cite=Calabrese_oscillations_10]. Note that the errorbars of the two Monte Carlo results yield the final error of [formula] by
+
+[formula]
+
+We usually find that the error bar of the replica correlation entropy [formula] is larger than the error of the PR entropy [formula] due to the lack of an improved estimator of [formula] and therefore dominates the total error.
+
+Thermodynamic Rényi entropies
+
+We here now consider the full-system made of the chain to obtain the thermodynamic Rényi entropy. We have performed calculations with q = 2,3 replicas for the periodic Heisenberg chain at different finite temperature for different system sizes and calculated the participation entropies [formula]. A second set of simulations at inverse temperatures qβ has then been carried out in order to obtain the replica correlation [formula] using Eq. [\eqref=eq:cq_thermal]. We extracted the thermodynamic Rényi entropies Sth2(β) and Sth3(β) from the result and compare to ED in Figure [\ref=fig:th_renyi]. Clearly the QMC result for L = 20 matches the exact values perfectly. Furthermore, one can access much larger chain sizes as compared to ED techniques, limited to L  ~  20 for the full diagonalization required to access finite temperature behaviour.
+
+We also show the temperature dependence of the individual terms (see inset of Fig. [\ref=fig:th_renyi]) from which the thermodynamic Rényi entropy is obtained. While the participation entropy decreases with inverse temperature (it assumes its maximal value of L ln 2 at β = 0), the replica correlation increases to eventually match the value of the PR entropy at zero temperature.
+
+One can also test with S = 1 / 2 chains the conformal field theory prediction for Sthq(β). In the regime 1  ≪  uβ  ≪  L (and ignoring logarithmic corrections due to marginal operators [\cite=Cardy86]), the free energy obeys the following scaling [\cite=Affleck86]
+
+[formula]
+
+where E0 is the ground-state energy, c the central charge, and u the velocity of excitations. Using Eq. [\eqref=eq:thermalSq], one arrives for the low temperature scaling to:
+
+[formula]
+
+This behavior is checked with q = 2 for XXX chains of various lengths L = 20, ~ 32, ~ 40 in Fig. [\ref=fig:cftcomp] (left), where the low temperature linear form is well reproduced using c = 1 and u = π / 2. Finite size convergence effects are due to the finite length gap G(L)≃u / L such that the asymptotic low T behavior Eq. [\eqref=eq:SqT] is expected to be valid for u  ≫  T  ≫  G(L). Below this gap, Sthq displays an activated shape, controlled by G(L). We checked this finite-size effect using ED at the free-fermion point (XX chain) with open boundary conditions where the asymptotic linear scaling is perfectly well reproduced for large enough sizes L, as displayed in Fig. [\ref=fig:cftcomp] (right).
+
+Heisenberg ladders
+
+Let us now consider Heisenberg ladders consisting of two neighboring one dimensional periodic Heisenberg chains (the "legs") with an additional "rung" coupling between the chains:
+
+[formula]
+
+where [formula] is the spin operator on site i of chain α = l,r, corresponding to the left and right leg respectively (see Fig. [\ref=fig:setup]). We use periodic boundary conditions along the legs.
+
+For the calculation of entanglement properties, we consider the cut where A is one leg of the ladder and perform calculations in the strongly gapped rung-singlet regime [formula], where entanglement entropies are known to be quite large from ED studies [\cite=poilblanc_entanglement_2010] [\cite=lauchli_entanglement_2012]. The motivation for this regime is to test our method in a difficult, large-entanglement, regime. Such a cut has also been used in several other works on ladder systems [\cite=poilblanc_entanglement_2010] [\cite=Peschel11] [\cite=cirac_entanglement_2012] [\cite=lauchli_entanglement_2012] [\cite=schliemann_entanglement_2012] [\cite=lundgren_entanglement_2012] [\cite=Chen13] [\cite=lundgren_entanglement_2013].
+
+Entanglement entropies
+
+Fig. [\ref=fig:ladderEE] displays our QMC result for various values of q, system sizes ranging from L = 10 to L = 32 and [formula]. For comparison, we also display the numerically exact DMRG result for L = 10. We are still able to perform the calculation for q up to as large as q max = 10 for L = 20 and begin to see limitations at q = 7 for L = 28 as the errorbar becomes larger. Clearly, the situation becomes worse for L = 32, while the result for smaller values of q remains extremely good. For comparison, ED (due to the Hilbert space size) or DMRG (due to the large entanglement in this regime) cannot reach systems larger than L  ≈  16.
+
+Interestingly, the finite size effects on [formula] strongly depend on the Rényi index q. For q = 2, no difference between the result for L = 8 and the one for L = 32 is visible, however, for q  ≥  7, [formula] displays a sizeable finite length L dependence. This can be easily understood if one realizes that the Rényi index q plays the role of an inverse temperature in the entanglement spectrum. This behavior points to a stronger finite size dependence of the lowest lying level of the entanglement spectrum (i.e. the groundstate energy of the entanglement Hamiltonian -- see discussion later) than for high temperature quantities, which are averaged over the whole spectrum.
+
+Comparison with the mixed ensemble method
+
+In order to get an estimate of the efficiency of the method discussed in this article, we performed calculations for the L = 20, [formula] Heisenberg ladder, where subsystem A corresponds to one leg of the ladder (Fig. [\ref=fig:setup]), and compare to results obtained using the method of Humeniuk and Roscilde [\cite=humeniuk_quantum_2012] where for every q, we optimized the subsystem increment used for the ratio trick [\cite=hastings_measuring_2010].
+
+Using the same amount of CPU time (80% for [formula] and 20% for [formula] for our method), we compare the values of the errorbars between the two different methods. The results are shown in Table [\ref=tab:comp]. Clearly, for small values of q, the error bars obtained from our method are reduced by one order of magnitude. For very large values of q, the situation changes and the ratio trick provides a better accuracy, leading to an errorbar that is roughly 2.5 times smaller. This comes from the fact that computing the replica correlation [formula] part scales exponentially with q, and, as it was explained previously, no improved estimator is available. For practical purposes, it means that we are limited to values of q such that [formula] (corresponding to q = 10 in this particular case) and the associated error will dominate the total error. On the other hand, in the mixed ensemble calculation the ratio trick offers some flexibility in a certain range of q. For q = 2, the best error bar is generally obtained for an increment larger that one, whereas for larger q it becomes quickly much more efficient to set it to unity. Thus, it becomes computationally more interesting to make several simulations for which the probabilities are larger, yielding an exponential gain, while the cpu time required by the increasing number of simulations in order to maintain a constant error bar increases as l2 (l the number of increments). This explains why the mixed ensemble method [\cite=humeniuk_quantum_2012] becomes more efficient when q grows.
+
+It should be noted that this comparison is rather rough, as all three implementations have slightly different optimization goals. Additionally, we did not optimize the CPU time ratio between the calculation of [formula] and [formula], which can certainly lead to some improvement. For the calculation of [formula] we used 10 replicas and obtained the result for [formula] in one single simulation, while in the other two simulations, every q has to be done separately. Therefore the comparison gives a slight advantage to the method of Humeniuk and Roscilde as the [formula] calculation provides more information (on q = 4,5,7,8 and 9) than needed.
+
+Let us finally mention that the biggest advantage of the method proposed in this article is found in situations of very large entropies, such as the example of the ladders presented here. For the case of weak entanglement entropies such as the one dimensional Heisenberg chain, we obtained roughly the same errorbars in both methods for q = 2, indicating that the mixed ensemble method performs very efficiently here.
+
+Entanglement spectrum reconstruction
+
+Having access to the entanglement entropies for various values of the Rényi index, we are able to explore a recently proposed method for the reconstruction of the entanglement spectrum from Rényi entanglement entropies measured in QMC[\cite=song_bipartite_2012] [\cite=chung_entanglement_2013]. The method relies on the Newton-Girard identities, linking the coefficients of a polynomial to the power sums of its roots. This means that a polynomial with roots at the λi corresponding to the entanglement spectrum can be constructed from the knowledge of Rényi entanglement entropies (λi are the eigenvalues of the reduced density matrix).
+
+However, in a practical QMC calculation, the Rényi entanglement entropies are neither known for arbitrarily many values of q nor to unlimited precision. Therefore, the polynomial has to be truncated and its order is limited to the maximal Rényi index [formula]. For the one-dimensional extended Bose-Hubbard model, Chung et al. [\cite=chung_entanglement_2013] obtained interesting results for the low lying entanglement spectrum using [formula]. Here, we perform a similar calculation for the entanglement spectrum of a L = 10 Heisenberg ladder (see Fig. [\ref=fig:setup], using the same bipartition as previously) for [formula] and focus on the role of systematic and statistical errors. As in Ref. [\cite=chung_entanglement_2013], we split the reduced density matrix in its symmetry sectors and perform the calculation in each sector (see Appendix [\ref=sec:szsector]).
+
+We have calculated the Rényi entanglement entropies up to [formula] with the QMC method described above for the sectors Sz = 0, 1 and 2 ([formula] decreases with Sz due to too large entropies) and reconstructed the entanglement spectrum, systematically varying [formula] in order to demonstrate the rate of convergence towards the exact entanglement spectrum obtained from DMRG. In Fig. [\ref=fig:ladderspec], we also show the reconstructed spectrum from the exact DMRG entanglement entropies. The deviation of the reconstructed DMRG spectrum from the exact spectrum gives an impression of the systematic error due to the truncation of the polynomial, while the reconstructed QMC spectrum carries additional errors due to the statistical uncertainty of the entanglement entropies.
+
+The convergence of the lowest level (largest eigenvalue λ0 of ρA) in the sector Sz = 0 is very good and the QMC result is trustworthy. This result corresponds to the single copy entanglement entropy [formula] for which no direct QMC estimate is available. The lowest level in the sector Sz = 1 also seems to be converged (within errorbars), however, judging from the QMC data only, it is not possible to decide whether the result is trustworthy or not. All other levels can not be trusted due to the statistical uncertainty. Therefore, one should bear in mind that a careful convergence analysis with [formula] has to be carried out and that in general only the lowest part of the entanglement spectrum can be extracted from QMC data bearing statistical uncertainties. The reconstructed spectrum from the exact DMRG entanglement entropies shows in particular, how slowly higher levels of the entanglement spectrum converge with [formula]. This is the reason why it is beneficial to split the calculation in symmetry sectors.
+
+A global view on the full entanglement spectrum, resolved in spin sectors, is provided in Fig. [\ref=fig:specsz] (left) where the exact entanglement levels from DMRG are compared to the reconstruction from QMC data. A parabolic enveloppe is shown, as expected from the low energy spectrum of XXZ chains [\cite=alcaraz_conformal_1987]. The right panel of Fig. [\ref=fig:specsz] shows that besides the reconstruction method, it is also possible to accept the single copy entanglement [formula] using an extrapolation in q / (q - 1) of the Rényi entanglement entropies [formula].
+
+Entanglement Hamiltonian
+
+Given the difficulty of the extraction of the entanglement spectrum from QMC data, different methods of the verification of effective entanglement Hamiltonians and the extraction of the inverse entanglement temperature [formula] should be explored. We have proposed the usage of the participation spectrum for this purpose in a previous work[\cite=luitz_participation_2014], which can only provide partial proof that the effective model is correct. Here, we propose a different and in fact complementary method that relies on the comparison of the Rényi entanglement entropy and the finite temperature thermodynamic Rényi entropy of a putative entanglement Hamiltonian.
+
+The reduced density matrix ρA can be expressed as a thermal mixed state of an effective entanglement Hamiltonian [formula] at inverse temperature [formula] by
+
+[formula]
+
+with [formula]. Therefore, the thermodynamic entropies Sthq of the effective model [formula] at inverse temperature [formula] have to be equal to the entanglement entropies [formula] for all q, which is obvious from the above definition Eq. [\eqref=eq:entanglementH] of [formula].
+
+In the case of the strongly entangled Heisenberg ladder ([formula]), it was shown within first order perturbation theory [\cite=Peschel11] [\cite=lauchli_entanglement_2012] [\cite=schliemann_entanglement_2012] [\cite=Chen13] that the entanglement Hamiltonian is given by the simple Heisenberg chain at an effective inverse temperature of [formula]. The second order correction for the effective temperature (cf. Eq. (21) in Ref. [\cite=schliemann_entanglement_2012], ignoring next nearest neighbor interactions) yields
+
+[formula]
+
+In Figure [\ref=fig:ladder_thermo], we explore the regime of validity of the first-order entanglement Hamiltonian. We display Sthq(β) of the L = 20 Heisenberg chain for different Rényi indices q as a function of inverse temperature β. Then, we calculate the entanglement entropy of the L = 20 Heisenberg ladder for different values of [formula] with our QMC method and extract the effective inverse temperature for which the two quantities match. If the entanglement Hamiltonian is correct, the resulting effective inverse temperature has to be independent of q. This is clearly the case if [formula] becomes large, as visible both in main panel and inset of Fig. [\ref=fig:ladder_thermo], where the deviation from Eq. [\ref=eq:betaeff_secondorder] is getting smaller and flatter (as a function of q) when [formula] increases.
+
+Conclusion
+
+We have shown that the calculation of entanglement Rényi entropies may be split into two independent Monte Carlo simulations, one of which boils down to a standard calculation of the participation Rényi entropy [formula] obtained from a simulation of q independent replicas, while the other part is a "replica correlation" entropy [formula] obtained in a simulation of q replicas glued together on subsystem A. As the PR entropy is a basis dependent quantity, [formula] has to be basis dependent, too. Both quantities have to be calculated in the same basis to obtain the correct entanglement entropy.
+
+In a second step, we have developed an improved estimator for the PR entropy, exploiting the fact that the independent replicas can be transformed independently under imaginary time and space symmetry transformations leaving the weight of the Monte Carlo configuration invariant. The number of configurations that are averaged over is therefore multiplied by a number growing exponentially with the number of replicas q and counteracts the exponential decay of the probability of finding identical states in all replicas with q. This improved estimator allows us to measure extremely low probabilities, crucial for the calculations of SEq for large values of the Rényi index q.
+
+Given that the two terms [formula] and [formula] exhibit a volume law, the realm of applicability of the method is limited to cases, where [formula] is not too large. This is precisely the case in situations where the circumference of subsystem A is identical to its volume such as for the example of the ladders studied in this article. Here, the largest contribution to the entanglement entropy stems from the PR entropy, which can be calculated with very good precision due to the improved estimator.
+
+For situations where the volume of the subsystem becomes large, such as the half system of a two dimensional lattice, it is possible to combine the two methods to calculate the entanglement entropy. This would result for example to perform the first increment (i.e. a line-shaped subsystem) with the method presented here with very good precision and start from there exploiting a ratio trick [\cite=hastings_measuring_2010] [\cite=deForcrand_2001] using the method introduced in Ref. [\cite=humeniuk_quantum_2012]. This way, the largest growth of entanglement entropy is dealt with by the improved estimator and the addition of further lattice sites to the subsystem does not increase the entanglement dramatically, therefore the ratio trick method is supposed to work very well without accumulating larger errors.
+
+Let us finally note that the lessons from the improved estimator can certainly be implemented in the method introduced by Humeniuk and Roscilde[\cite=humeniuk_quantum_2012]. If the QMC configuration is in the independent ensemble, one can check if any of the symmetry transformed replica configurations introduced here matches the gluing condition. If so, one has to actually perform the transformation of the whole operator string: in practice, this may turn computationally expensive and one would need to check in which situations the improvement in statistics will be worth the additional computational extra-cost.
+
+Acknowledgements
+
+We wish to thank S. Capponi for discussions and for providing test data, D. Poilblanc, S. Pujari and S. Wessel for useful related discussions and I. McCulloch for providing access to his code  used to perform the test DMRG calculations. Our QMC codes are partly based on the ALPS libraries [\cite=ALPS13] [\cite=ALPS2]. This work was performed using HPC resources from GENCI (grant x2014050225) and CALMIP (grant 2014-P0677) and is supported by the French ANR program ANR-11-IS04-005-01. We also acknowledge the technical assistance by the IDRIS supercomputer center.
+
+Improved estimator of thermal Rényi entropies
+
+In order to be explicit, let us start from Eq. [\eqref=eq:thermalSq] and concentrate on the ratio of partition functions that have to be calculated. Here, we will use equation (263) from Ref. [\cite=sandvik_computational_2010] for the stochastic series expansion of the partition function in terms of an operator string SΛ composed of bond Hamiltonians Ha(p),b(p) linking the lattice sites a(p) and b(p).
+
+Let us now introduce the observable to compute the PR entropy [formula] in the ensemble of q independent replicas. It is given by the Kronecker delta [formula].
+
+where in the last step, we reexpressed the q independent replicas in terms of a unique system at inverse temperature qβ. This is done by introducing a partition [formula] of the operator string SΛ into q parts such that the cutoffs sum up to Λ: [formula]. Clearly, in all the expressions above, the numbers of (offdiagonal) operators ni (n(i)2) in slice i of the operator string also have to sum up to the complete number of (offdiagonal) operators n (n2). The introduction of the Kronecker delta [formula] expresses the fact that only operator strings in which the states |  αi,Λi  〉 at the end of each slice i are identical will contribute to our result.
+
+Alltogether, we see that we have to perform an SSE calculation at inverse temperature qβ and measure the observable:
+
+[formula]
+
+Rényi entanglement entropies by Sz sector
+
+Here, we provide some additional details on the reconstruction of the entanglement spectrum by symmetry sectors (here Sz sectors) of the reduced density matrix using the method described in Refs. [\cite=song_bipartite_2012] [\cite=chung_entanglement_2013]. Since the reduced density matrix ρA is block-diagonal with Sz of subsystem A, we can split the calculation into the blocks ρSzA.
+
+The first observation is that the normalization of each block is no longer given by 1, but by the probability pSz of finding a state with subsystem magnetization equal to Sz:
+
+[formula]
+
+which is easily measured in the independent ensemble. This is of course the first power sum of the eigenvalues of ρSzA.
+
+We can calculate the q-th power sum of ρSzA by using the same method as described in the main text by just ignoring in the measurement states that are not in the correct sector. However, this would corresponds to a reduced density matrix [formula] which is normalized to 1. In order to obtain the correct normalization, we calculate
+
+[formula]
+
+where [formula] and [formula] correspond to the transition probabilities estimated from measurements in the corresponding Sz sector only. Note that these probabilities can be obtained by binning the measurements of the transition probabilities by their Sz sectors without changing their normalization and then by dividing by the probability of being in the correct sector in the corresponding ensemble (for the independent ensemble, this cancels exactly the factor pqSz).
+
+From the knowledge of the power sums of the eigenvalues of ρSzA we can now use the method described by Song et al. [\cite=song_bipartite_2012] to reconstruct the entanglement spectrum. Note however, that in equation (2.30) of Ref. [\cite=song_bipartite_2012] the 1 on the diagonal has to be replaced by the first power sum of the eigenvalues of ρSzA, i.e. by [formula].

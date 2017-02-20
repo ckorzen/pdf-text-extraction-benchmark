@@ -1,0 +1,59 @@
+pcigale: porting Code Investigating Galaxy Emission to Python
+
+The origins
+
+CIGALE [\citep=2005MNRAS.360.1413B] [\citep=2009A&A...507.1793N] [\citep=roehlly2012CIGCodInvGALEmi] is a Fortran SED fitting code developed at the Laboratoire d'Astrophysique de Marseille. From various models (single stellar populations, star formation history, attenuation law, infra-red templates) associated to free parameters, CIGALE builds theoretical spectral energy distributions (SEDs) and compares them to multi-wavelength observations of galaxies in order to derive the physical parameters for large galaxy samples. After years of development, the CIGALE team decided that the code needed to evolve to circumvent some of its current drawbacks:
+
+The addition of new models and templates to the SED creation process should be easy, and this process should be modularised to allow multiple combinations of models.
+
+The analysis method should be coded independently of the SED creation process to allow the development of other statistical analysis methods using the same SED creation modules.
+
+Alternative uses should also be possible, like generating theoretical SEDs with the objective of modelling galaxy evolution, independently of a fitting analysis.
+
+With the participation of the Centre de donnéeS Astrophysiques de Marseille (CeSAM), it was decided to write a new code in Python to take advantage of its object model and of the growing Python community in astrophysics. This new code will be named pcigale (/psi.gal/).
+
+pcigale core organisation
+
+pcigale is coded as a Python module rather than as a mere programme. The code is organised (see figure [\ref=fig:organisation]) around a pcigale.sed object with modules creating theoretical SEDs and other ones devoted to the analysis (e.g. statistical fitting).
+
+The SED object
+
+The pcigale.sed object keeps track of all the parameters associated with a SED, as well as of its history (the module chain that led to its construction). The luminosity spectrum corresponding to this SED is stored as a list of cumulative sub-spectrum contributions that permits to identify the various components of a final SED.
+
+SED creation modules
+
+The SED creation modules are aimed at adding new information to a SED as well as some new components depending on specific parameters.
+
+For instance, a first module takes an empty pcigale.sed and adds a star formation history (SFH, the evolution of the star formation rate along the lifetime of the galaxy) to it. A second module takes this SED and convolves its SFH with a Single Stellar Population to add a stellar emission spectrum to the SED contribution list. A third module takes this spectrum, applies an attenuation law to it and adds the corresponding (negative) contribution to the spectrum contribution list. A fourth module is used to determine the re-emission of the attenuated energy in infra-red using templates. All these components are shown in figure [\ref=fig:samplesed].
+
+We made it easy to add new SED creation modules to pcigale. They are based on an abstract class and their code only needs to define their parameters and the way they process a pcigale.sed object. If needed, a database can be used to store the information useful for the processing (see figure [\ref=fig:organisation]).
+
+Analysis modules
+
+The analysis modules are the bandmasters which organise the specific use of the SED creation modules. For now, we wrote two modules: the first one performs a fitting analysis between models and photometric observations of galaxies, using a Bayesian-like method (similar to what the CIGALE original code does), the second module computes and saves theoretical SEDs in order to build artificial catalogues of galaxies.
+
+A script
+
+For an easy pcigale use, we made a script that automates the analysis. Running pcigale to perform a SED fitting analysis reduces to the following instructions:
+
+$ pcigale init - a configuration file is created.
+
+Fill in the configuration file with the name of the flux table to be analysed, the list of modules used to create the SEDs and the name of the analysis module.
+
+$ pcigale genconf - new sections about the chosen modules are added to the configuration file.
+
+Fill in the configuration file again with the list of possible values for each parameters of the SED creation modules, as well as the analysis parameters.
+
+$ pcigale run
+
+Advantages and drawbacks of Python port
+
+The Python object model allows a good separation of concerns that permits the modularity described above and makes the code easily extensible. Compared to the Fortran version, we added new stellar population models, attenuation laws and infra-red and AGN templates.
+
+Python is a multi-purpose language and benefits from a lot of modules. In the astrophysics field, astropy [\citep=2013arXiv1307.6212T] makes it easy to deal with things like cosmology or reading and writing files. Last but not least, since the language is easy to learn, scientists with no specific programming skills can start to code rapidly.
+
+The main drawback of Python is its speed compared to that of a compiled code. In particular, the first code of a port will be slower than with the original Fortran code, which can be disappointing. To achieve speed gains, one might have to rewrite and optimise some parts of the code, for instance converting for loops in computation on Numpy arrays.
+
+Availability
+
+pcigale code will be released after a complete scientific validation. You can visit the CIGALE web page () or contact the team at cigale@lam.fr.

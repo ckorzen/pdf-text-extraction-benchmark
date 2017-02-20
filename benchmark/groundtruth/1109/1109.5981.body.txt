@@ -1,0 +1,285 @@
+LSRN: A Parallel Iterative Solver for Strongly Over- or Under-Determined Systems
+
+Michael A. Saunders
+
+Michael W. Mahoney
+
+LSRN: A PARALLEL ITERATIVE SOLVER
+
+Introduction
+
+Randomized algorithms have become indispensable in many areas of computer science, with applications ranging from complexity theory to combinatorial optimization, cryptography, and machine learning. Randomization has also been used in numerical linear algebra (for instance, the initial vector in the power iteration is chosen at random so that almost surely it has a nonzero component along the direction of the dominant eigenvector), yet most well-developed matrix algorithms, e.g., matrix factorizations and linear solvers, are deterministic. In recent years, however, motivated by large data problems, very nontrivial randomized algorithms for very large matrix problems have drawn considerable attention from researchers, originally in theoretical computer science and subsequently in numerical linear algebra and scientific computing. By randomized algorithms, we refer in particular to random sampling and random projection algorithms [\cite=drineas2006sampling] [\cite=sarlos2006improved] [\cite=drineas2007faster] [\cite=rokhlin2008fast] [\cite=avron2010blendenpik]. For a comprehensive overview of these developments, see the review of Mahoney [\cite=Mah-mat-rev_BOOK], and for an excellent overview of numerical aspects of coupling randomization with classical low-rank matrix factorization methods, see the review of Halko, Martinsson, and Tropp [\cite=halko2011finding].
+
+Here, we consider high-precision solving of linear least squares (LS) problems that are strongly over- or under-determined, and possibly rank-deficient. In particular, given a matrix [formula] and a vector [formula], where m  ≫  n or m  ≪  n and we do not assume that A has full rank, we wish to develop randomized algorithms to compute accurately the unique min-length solution to the problem
+
+[formula]
+
+If we let [formula], then recall that if r  <  n (the LS problem is under-determined or rank-deficient), then [\eqref=eq:ls] has an infinite number of minimizers. In that case, the set of all minimizers is convex and hence has a unique element having minimum length. On the other hand, if r  =  n so the problem has full rank, there exists only one minimizer to [\eqref=eq:ls] and hence it must have the minimum length. In either case, we denote this unique min-length solution to [\eqref=eq:ls] by x*. That is,
+
+[formula]
+
+LS problems of this form have a long history, tracing back to Gauss, and they arise in numerous applications. The demand for faster LS solvers will continue to grow in light of new data applications and as problem scales become larger and larger.
+
+In this paper, we describe an LS solver called LSRN for these strongly over- or under-determined, and possibly rank-deficient, systems. LSRN uses random normal projections to compute a preconditioner matrix such that the preconditioned system is provably extremely well-conditioned. Importantly for large-scale applications, the preconditioning process is embarrassingly parallel, and it automatically speeds up with sparse matrices and fast linear operators. LSQR [\cite=paige1982lsqr] or the Chebyshev semi-iterative (CS) method [\cite=golub1961chebyshev] can be used at the iterative step to compute the min-length solution within just a few iterations. We show that the latter method is preferred on clusters with high communication cost.
+
+Because of its provably-good conditioning properties, LSRN has a fully predictable run-time performance, just like direct solvers, and it scales well in parallel environments. On large dense systems, LSRN is faster than LAPACK's DGELSD for strongly over-determined problems, and is much faster for strongly under-determined problems, although solvers using fast random projections, like Blendenpik [\cite=avron2010blendenpik], are still slightly faster in both cases. On sparse systems, LSRN runs significantly faster than competing solvers, for both the strongly over- or under-determined cases.
+
+In section [\ref=sec:linear-least-squares] we describe existing deterministic LS solvers and recent randomized algorithms for the LS problem. In section [\ref=sec:prec-line-least] we show how to do preconditioning correctly for rank-deficient LS problems, and in section [\ref=sec:prec-via-rand] we introduce LSRN and discuss its properties. Section [\ref=sec:regularization] describes how LSRN can handle Tikhonov regularization for both over- and under-determined systems, and in section [\ref=sec:experiments] we provide a detailed empirical evaluation illustrating the behavior of LSRN.
+
+Least squares solvers
+
+In this section we discuss related work, including deterministic direct and iterative methods as well as recently developed randomized methods, for computing solutions to LS problems, and we discuss how our results fit into this broader context.
+
+Deterministic methods
+
+It is well known that x* in [\eqref=eq:ls_min_length] can be computed using the singular value decomposition (SVD) of A. Let [formula] be the economy-sized SVD, where [formula], [formula], and [formula]. We have [formula]. The matrix [formula] is the Moore-Penrose pseudoinverse of A, denoted by [formula]. The pseudoinverse is defined and unique for any matrix. Hence we can simply write [formula]. The SVD approach is accurate and robust to rank-deficiency.
+
+Another way to solve [\eqref=eq:ls_min_length] is using a complete orthogonal factorization of A. If we can find orthonormal matrices [formula] and [formula], and a matrix [formula], such that [formula], then the min-length solution is given by [formula]. We can treat SVD as a special case of complete orthogonal factorization. In practice, complete orthogonal factorization is usually computed via rank-revealing QR factorizations, making T a triangular matrix. The QR approach is less expensive than SVD, but it is slightly less robust at determining the rank of A.
+
+A third way to solve [\eqref=eq:ls_min_length] is by computing the min-length solution to the normal equation [formula], namely
+
+[formula]
+
+It is easy to verify the correctness of [\eqref=eq:ls_ne_min_length] by replacing A by its economy-sized SVD [formula]. If r  =   min (m,n), a Cholesky factorization of either [formula] (if m  ≥  n) or [formula] (if m  ≤  n) solves [\eqref=eq:ls_ne_min_length] nicely. If r  <   min (m,n), we need the eigensystem of [formula] or [formula] to compute x*. The normal equation approach is the least expensive among the three direct approaches we have mentioned, especially when m  ≫  n or m  ≪  n, but it is also the least accurate one, especially on ill-conditioned problems. See Chapter 5 of Golub and Van Loan [\cite=golub1996matrix] for a detailed analysis.
+
+Instead of these direct methods, we can use iterative methods to solve [\eqref=eq:ls]. If all the iterates {x(k)} are in [formula] and if {x(k)} converges to a minimizer, it must be the minimizer having minimum length, i.e., the solution to [\eqref=eq:ls_min_length]. This is the case when we use a Krylov subspace method starting with a zero vector. For example, the conjugate gradient (CG) method on the normal equation leads to the min-length solution (see Paige and Saunders [\cite=paige1975solution]). In practice, CGLS [\cite=hestenesmethods], LSQR [\cite=paige1982lsqr] are preferable because they are equivalent to applying CG to the normal equation in exact arithmetic but they are numerically more stable. Other Krylov subspace methods such as the CS method [\cite=golub1961chebyshev] and LSMR [\cite=fong2011lsmr] can solve [\eqref=eq:ls] as well.
+
+Importantly, however, it is in general hard to predict the number of iterations for CG-like methods. The convergence rate is affected by the condition number of [formula]. A classical result [\cite=luenberger1973introduction] states that
+
+[formula]
+
+where [formula] for any [formula], and where [formula] is the condition number of [formula] under the 2-norm. Estimating [formula] is generally as hard as solving the LS problem itself, and in practice the bound does not hold in any case unless reorthogonalization is used. Thus, the computational cost of CG-like methods remains unpredictable in general, except when [formula] is very well-conditioned and the condition number can be well estimated.
+
+Randomized methods
+
+In 2007, Drineas, Mahoney, Muthukrishnan, and Sarlós [\cite=drineas2007faster] introduced two randomized algorithms for the LS problem, each of which computes a relative-error approximation to the min-length solution in O(mn log n) time, when m  ≫  n. Both of these algorithms apply a randomized Hadamard transform to the columns of A, thereby generating a problem of smaller size, one using uniformly random sampling and the other using a sparse random projection. They proved that, in both cases, the solution to the smaller problem leads to relative-error approximations of the original problem. The accuracy of the approximate solution depends on the sample size; and to have relative precision ε, one should sample O(n / ε) rows after the randomized Hadamard transform. This is suitable when low accuracy is acceptable, but the ε dependence quickly becomes the bottleneck otherwise. Using those algorithms as preconditioners was also mentioned in [\cite=drineas2007faster]. This work laid the ground for later algorithms and implementations.
+
+Later, in 2008, Rokhlin and Tygert [\cite=rokhlin2008fast] described a related randomized algorithm for over-determined systems. They used a randomized transform named SRFT that consists of m random Givens rotations, a random diagonal scaling, a discrete Fourier transform, and a random sampling. They considered using their method as a preconditioning method, and they showed that to get relative precision ε, only O(n log (1  /  ε)) samples are needed. In addition, they proved that if the sample size is greater than 4n2, the condition number of the preconditioned system is bounded above by a constant. Although choosing this many samples would adversely affect the running time of their solver, they also illustrated examples of input matrices for which the 4n2 sample bound was weak and for which many fewer samples sufficed.
+
+Then, in 2010, Avron, Maymounkov, and Toledo [\cite=avron2010blendenpik] implemented a high-precision LS solver, called Blendenpik, and compared it to LAPACK's DGELS and to LSQR with no preconditioning. Blendenpik uses a Walsh-Hadamard transform, a discrete cosine transform, or a discrete Hartley transform for blending the rows/columns, followed by a random sampling, to generate a problem of smaller size. The R factor from the QR factorization of the smaller matrix is used as the preconditioner for LSQR. Based on their analysis, the condition number of the preconditioned system depends on the coherence or statistical leverage scores of A, i.e., the maximal row norm of U, where U is an orthonormal basis of [formula]. We note that a solver for under-determined problems is also included in the Blendenpik package.
+
+In 2011, Coakley, Rokhlin, and Tygert [\cite=coakley2011fast] described an algorithm that is also based on random normal projections. It computes the orthogonal projection of any vector b onto the null space of A or onto the row space of A via a preconditioned normal equation. The algorithm solves the over-determined LS problem as an intermediate step. They show that the normal equation is well-conditioned and hence the solution is reliable. For an over-determined problem of size m  ×  n, the algorithm requires applying A or [formula]  3n  +  6 times, while LSRN needs approximately 2n  +  200 matrix-vector multiplications under the default setting. Asymptotically, LSRN will become faster as n increases beyond several hundred. See section [\ref=subsec:complexity] for further complexity analysis of LSRN.
+
+Relationship with our contributions
+
+All prior approaches assume that A has full rank, and for those based on iterative solvers, none provides a tight upper bound on the condition number of the preconditioned system (and hence the number of iterations). For LSRN, Theorem [\ref=thm:ls_precond_sufficient] ensures that the min-length solution is preserved, independent of the rank, and Theorems [\ref=thm:cond_bound] and [\ref=thm:iter] provide bounds on the condition number and number of iterations, independent of the spectrum of A. In addition to handling rank-deficiency well, LSRN can even take advantage of it, resulting in a smaller condition number and fewer iterations.
+
+Some prior work on the LS problem has explored "fast" randomized transforms that run in roughly O(mn log m) time on a dense matrix A, while the random normal projection we use in LSRN takes O(mn2) time. Although this could be an issue for some applications, the use of random normal projections comes with several advantages. First, if A is a sparse matrix or a linear operator, which is common in large-scale applications, then the Hadamard-based fast transforms are no longer "fast". Second, the random normal projection is easy to implement using threads or MPI, and it scales well in parallel environments. Third, the strong symmetry of the standard normal distribution helps give the strong high probability bounds on the condition number in terms of sample size. These bounds depend on nothing but s / r, where s is the sample size. For example, if s  =  4r, Theorem [\ref=thm:cond_bound] ensures that, with high probability, the condition number of the preconditioned system is less than 3.
+
+This last property about the condition number of the preconditioned system makes the number of iterations and thus the running time of LSRN fully predictable like for a direct method. It also enables use of the CS method, which needs only one level-1 and two level-2 BLAS operations per iteration, and is particularly suitable for clusters with high communication cost because it doesn't have vector inner products that require synchronization between nodes. Although the CS method has the same theoretical upper bound on the convergence rate as CG-like methods, it requires accurate bounds on the singular values in order to work efficiently. Such bounds are generally hard to come by, limiting the popularity of the CS method in practice, but they are provided for the preconditioned system by our Theorem [\ref=thm:cond_bound], and we do achieve high efficiency in our experiments.
+
+Preconditioning for linear least squares
+
+In light of [\eqref=eq:cg_convergence_rate], much effort has been made to transform a linear system into an equivalent system with reduced condition number. This preconditioning, for a square linear system Bx  =  d of full rank, usually takes one of the following forms:
+
+[formula]
+
+Clearly, the preconditioned system is consistent with the original one, i.e., has the same x* as the unique solution, if the preconditioners M and N are nonsingular.
+
+For the general LS problem [\eqref=eq:ls_min_length], preconditioning needs better handling in order to produce the same min-length solution as the original problem. For example, if we apply left preconditioning to the LS problem [formula], the preconditioned system becomes [formula], and its min-length solution is given by Similarly, the min-length solution to the right preconditioned system is given by The following lemma states the necessary and sufficient conditions for [formula] or [formula] to hold. Note that these conditions holding certainly imply that [formula] and [formula], respectively.
+
+Given [formula], [formula] and [formula], we have
+
+[formula] if and only if [formula],
+
+[formula] if and only if [formula].
+
+Let [formula] and [formula] be A's economy-sized SVD as in section [\ref=sec:deter-method], with [formula]. Before continuing our proof, we reference the following facts about the pseudoinverse:
+
+[formula] for any matrix B,
+
+For any matrices B and C such that BC is defined, [formula] if
+
+Now let's prove the "if" part of the first statement. If [formula], we can write [formula] as VZ where Z has full row rank. Then,
+
+[formula]
+
+Conversely, if [formula], we know that [formula] and hence [formula]. Then we can decompose N as [formula], where Vc is orthonormal, [formula], and [formula] has full row rank. Then,
+
+[formula]
+
+Multiplying by [formula] on the left and UΣ on the right, we get [formula], which is equivalent to [formula]. Therefore,
+
+[formula]
+
+where we used the facts that Z has full row rank and hence [formula] is nonsingular, Σ is nonsingular, and U has full column rank.
+
+To prove the second statement, let us take [formula]. By the first statement, we know [formula] if and only if [formula], which is equivalent to saying [formula] if and only if [formula].
+
+Although Lemma [\ref=lemma:ls_precond] gives the necessary and sufficient condition, it does not serve as a practical guide for preconditioning LS problems. In this work, we are more interested in a sufficient condition that can help us build preconditioners. To that end, we provide the following theorem.
+
+Given [formula], [formula], [formula], and [formula], let x* be the min-length solution to the LS problem [formula], [formula] where y* is the min-length solution to [formula], and [formula] be the min-length solution to [formula]. Then,
+
+[formula] if [formula],
+
+[formula] if [formula].
+
+Let [formula] and [formula] be A's economy-sized SVD. If [formula], we can write N as VZ, where Z has full row rank. Therefore,
+
+[formula]
+
+By Lemma [\ref=lemma:ls_precond], [formula] and hence [formula]. The second statement can be proved by similar arguments.
+
+Algorithm LSRN
+
+In this section we present LSRN, an iterative solver for solving strongly over- or under-determined systems, based on "random normal projection". To construct a preconditioner we apply a transformation matrix whose entries are independent random variables drawn from the standard normal distribution. We prove that the preconditioned system is almost surely consistent with the original system, i.e., both have the same min-length solution. At least as importantly, we prove that the spectrum of the preconditioned system is independent of the spectrum of the original system; and we provide a strong concentration result on the extreme singular values of the preconditioned system. This concentration result enables us to predict the number of iterations for CG-like methods, and it also enables use of the CS method, which requires an accurate bound on the singular values to work efficiently.
+
+The algorithm
+
+Algorithm [\ref=alg:ls_randn_tall] shows the detailed procedure of LSRN to compute the min-length solution to a strongly over-determined problem, and Algorithm [\ref=alg:ls_randn_fat] shows the detailed procedure for a strongly under-determined problem. We refer to these two algorithms together as LSRN. Note that they only use the input matrix A for matrix-vector and matrix-matrix multiplications, and thus A can be a dense matrix, a sparse matrix, or a linear operator. In the remainder of this section we focus on analysis of the over-determined case. We emphasize that analysis of the under-determined case is quite analogous.
+
+Theoretical properties
+
+The use of random normal projection offers LSRN some nice theoretical properties. We start with consistency.
+
+In Algorithm [\ref=alg:ls_randn_tall], we have [formula] almost surely.
+
+Let [formula] and [formula] be A's economy-sized SVD. We have
+
+[formula]
+
+Define [formula]. Since G's entries are independent random variables following the standard normal distribution and U is orthonormal, G1's entries are also independent random variables following the standard normal distribution. Then given s  ≥  γn  >  n  ≥  r, we know G1 has full column rank r with probability 1. Therefore, and hence by Theorem [\ref=thm:ls_precond_sufficient] we have [formula] almost surely.
+
+A more interesting property of LSRN is that the spectrum (the set of singular values) of the preconditioned system is solely associated with a random matrix of size s  ×  r, independent of the spectrum of the original system.
+
+In Algorithm [\ref=alg:ls_randn_tall], the spectrum of AN is the same as the spectrum of [formula], independent of A's spectrum.
+
+Following the proof of Theorem [\ref=thm:consistency], let [formula] be G1's economy-sized SVD, where [formula], [formula], and [formula]. Since [formula] and both Ũ and U1 are orthonormal matrices, there exists an orthonormal matrix [formula] such that U1  =  ŨQ1. As a result, Multiplying by [formula] on the left of each side, we get [formula]. Taking the pseudoinverse gives [formula]. Thus, which gives AN's SVD. Therefore, AN's singular values are [formula], the same as [formula]'s spectrum, but independent of A's.
+
+We know that G1  =  GU is a random matrix whose entries are independent random variables following the standard normal distribution. The spectrum of G1 is a well-studied problem in Random Matrix Theory, and in particular the properties of extreme singular values have been studied. Thus, the following lemma is important for us. We use P(  ·  ) to refer to the probability that a given event occurs.
+
+Consider an s  ×  r random matrix G1 with s  ≥  r, whose entries are independent random variables following the standard normal distribution. Let the singular values be [formula]. Then for any t  >  0,
+
+[formula]
+
+With the aid of Lemma [\ref=lemma:concentration], it is straightforward to obtain the concentration result of σ1(AN), σr(AN), and κ(AN) as follows.
+
+In Algorithm [\ref=alg:ls_randn_tall], for any [formula], we have
+
+[formula]
+
+and
+
+[formula]
+
+Set [formula] in Lemma [\ref=lemma:concentration].
+
+In order to estimate the number of iterations for CG-like methods, we can now combine [\eqref=eq:cg_convergence_rate] and [\eqref=eq:cond_concentration].
+
+In exact arithmetic, given a tolerance ε  >  0, a CG-like method applied to the preconditioned system [formula] with y(0)  =  0 converges within [formula] iterations in the sense that
+
+[formula]
+
+holds with probability at least 1  -  2e-  α2s / 2 for any [formula], where [formula] is the approximate solution returned by the CG-like solver and [formula]. Let [formula] be the approximate solution to the original problem. Since x*  =  Ny*, [\eqref=eq:lsqr_y_converge] is equivalent to
+
+[formula]
+
+or in terms of residuals,
+
+[formula]
+
+where [formula] and r*  =  b  -  Ax*.
+
+In addition to allowing us to bound the number of iterations for CG-like methods, the result given by [\eqref=eq:sgm_concentration] also allows us to use the CS method. This method needs only one level-1 and two level-2 BLAS operations per iteration; and, importantly, because it doesn't have vector inner products that require synchronization between nodes, this method is suitable for clusters with high communication cost. It does need an explicit bound on the singular values, but once that bound is tight, the CS method has the same theoretical upper bound on the convergence rate as other CG-like methods. Unfortunately, in many cases, it is hard to obtain such an accurate bound, which prevents the CS method becoming popular in practice. In our case, however, [\eqref=eq:sgm_concentration] provides a probabilistic bound with very high confidence. Hence, we can employ the CS method without difficulty. For completeness, Algorithm [\ref=alg:ls_chebyshev] describes the CS method we implemented for solving LS problems. For discussion of its variations, see Gutknecht and Rollin [\cite=gutknecht2002chebyshev].
+
+Running time complexity
+
+In this section, we discuss the running time complexity of LSRN. Let's first calculate the computational cost of LSRN (Algorithm [\ref=alg:ls_randn_tall]) in terms of floating-point operations (flops). Note that we need only Σ̃ and ṽ but not Ũ or a full SVD of Ã in step 4 of Algorithm [\ref=alg:ls_randn_tall]. In step 6, we assume that the dominant cost per iteration is the cost of applying AN and [formula]. Then the total cost is given by
+
+[formula]
+
+where lower-order terms are ignored. Here, [formula] is the average flop count to generate a sample from the standard normal distribution, while [formula] and [formula] are the flop counts for the respective matrix-vector products. If A is a dense matrix, then we have [formula]. Hence, the total cost becomes Comparing this with the SVD approach, which uses 2mn2  +  11n3 flops, we find LSRN requires more flops, even if we only consider computing Ã and its SVD. However, the actual running time is not fully characterized by the number of flops. A matrix-matrix multiplication is much faster than an SVD with the same number of flops. We empirically compare the running time in Section [\ref=sec:experiments]. If A is a sparse matrix, we generally have [formula] and [formula] of order O(m). In this case, LSRN should run considerably faster than the SVD approach. Finally, if A is an operator, it is hard to apply SVD, while LSRN still works without any modification. If we set γ  =  2 and ε  =  10- 14, we know [formula] by Theorem [\ref=thm:iter] and hence LSRN needs approximately 2n  +  200 matrix-vector multiplications.
+
+One advantage of LSRN is that the stages of generating G and computing Ã  =  GA are embarrassingly parallel. Thus, it is easy to implement LSRN in parallel. For example, on a shared-memory machine using p cores, the total running time decreases to
+
+[formula]
+
+where [formula], [formula], and [formula] are the running times for the respective stages if LSRN runs on a single core, [formula] is the running time of SVD using p cores, and communication cost among threads is ignored. Hence, multi-threaded LSRN has very good scalability with near-linear speedup.
+
+Alternatively, let us consider a cluster of size p using MPI, where each node stores a portion of rows of A (with m  ≫  n). Each node can generate random samples and do the multiplication independently, and then an MPI_Reduce operation is needed to obtain Ã. Since n is small, the SVD of Ã and the preconditioner N are computed on a single node and distributed to all the other nodes via an MPI_Bcast operation. If the CS method is chosen as the iterative solver, we need one MPI_Allreduce operation per iteration in order to apply [formula]. Note that all the MPI operations that LSRN uses are collective. If we assume the cluster is homogeneous and has perfect load balancing, the time complexity to perform a collective operation should be O( log p). Hence the total running time becomes
+
+[formula]
+
+where C1 corresponds to the cost of computing Ã and broadcasting N, and C2 corresponds to the cost of applying [formula] at each iteration. Therefore, the MPI implementation of LSRN still has good scalability as long as [formula] is not dominant, i.e., as long as Ã is not too big. Typical values of n (or m for under-determined problems) in our empirical evaluations are around 1000, and thus this is the case.
+
+Tikhonov regularization
+
+We point out that it is easy to extend LSRN to handle certain types of Tikhonov regularization, also known as ridge regression. Recall that Tikhonov regularization involves solving the problem
+
+[formula]
+
+where [formula] controls the regularization term. In many cases, W is chosen as λIn for some value of a regularization parameter λ  >  0. It is easy to see that [\eqref=eq:l2_reg] is equivalent to the following LS problem, without any regularization:
+
+[formula]
+
+This is an over-determined problem of size (m + n)  ×  n. If m  ≫  n, then we certainly have m + n  ≫  n. Therefore, if m  ≫  n, we can directly apply LSRN to [\eqref=eq:l2_reg_eq] in order to solve [\eqref=eq:l2_reg]. On the other hand, if m  ≪  n, then although [\eqref=eq:l2_reg_eq] is still over-determined, it is "nearly square," in the sense that m + n is only slightly larger than n. In this regime, random sampling methods and random projection methods like LSRN do not perform well. In order to deal with this regime, note that [\eqref=eq:l2_reg] is equivalent to
+
+[formula]
+
+where r  =  b  -  Ax is the residual vector. (Note that we use r to denote the matrix rank in a scalar context and the residual vector in a vector context.) By introducing z  =  Wx and assuming that W is non-singular, we can re-write the above problem as
+
+[formula]
+
+i.e., as computing the min-length solution to
+
+[formula]
+
+Note that [\eqref=eq:l2_reg_eq_under] is an under-determined problem of size m  ×  (m + n). Hence, if m  ≪  n, we have m  ≪  m + n and we can use LSRN to compute the min-length solution to [\eqref=eq:l2_reg_eq_under], denoted by [formula]. The solution to the original problem [\eqref=eq:l2_reg] is then given by x*  =  W- 1z*. Here, we assume that W- 1 is easy to apply, as is the case when W = λIn, so that AW- 1 can be treated as an operator. The equivalence between [\eqref=eq:l2_reg] and [\eqref=eq:l2_reg_eq_under] was first established by Herman, Lent, and Hurwitz [\cite=herman1980storage].
+
+In most applications of regression analysis, the amount of regularization, e.g., the optimal regularization parameter, is unknown and thus determined by cross-validation. This requires solving a sequence of LS problems where only W differs. For over-determined problems, we only need to perform a random normal projection on A once. The marginal cost to solve for each W is the following: a random normal projection on W, an SVD of size ⌈γn⌉  ×  n, and a predictable number of iterations. Similar results hold for under-determined problems when each W is a multiple of the identity matrix.
+
+Numerical experiments
+
+We implemented our LS solver LSRN and compared it with competing solvers: LAPACK's DGELSD, MATLAB's backslash, and Blendenpik by Avron, Maymounkov, and Toledo [\cite=avron2010blendenpik]. MATLAB's backslash uses different algorithms for different problem types. For sparse rectangular systems, as stated by Tim Davis, "SuiteSparseQR [\cite=davis2006direct] [\cite=davis2008algorithm] is now QR in MATLAB 7.9 and [formula] when A is sparse and rectangular." Table [\ref=tab:lsq_solvers] summarizes the properties of those solvers. We report our empirical results in this section.
+
+Implementation and system setup
+
+The experiments were performed on either a local shared-memory machine or a virtual cluster hosted on Amazon's Elastic Compute Cloud (EC2). The shared-memory machine has 12 Intel Xeon CPU cores at clock rate 2GHz with 128GB RAM. The virtual cluster consists of 20 m1.large instances configured by a third-party tool called StarCluster. An m1.large instance has 2 virtual cores with 2 EC2 Compute Units each. To attain top performance on the shared-memory machine, we implemented a multi-threaded version of LSRN in C, and to make our solver general enough to handle large problems on clusters, we also implemented an MPI version of LSRN in Python with NumPy, SciPy, and mpi4py. Both packages are available for download. We use the multi-threaded implementation to compare LSRN with other LS solvers and use the MPI implementation to explore scalability and to compare iterative solvers under a cluster environment. To generate values from the standard normal distribution, we adopted the code from Marsaglia and Tsang [\cite=marsaglia2000ziggurat] and modified it to use threads; this can generate a billion samples in less than two seconds on the shared-memory machine. We also modified Blendenpik to call multi-threaded FFTW routines. Blendenpik's default settings were used, i.e., using randomized discrete Fourier transform and sampling 4 min (m,n) rows/columns. All LAPACK's LS solvers, Blendenpik, and LSRN are linked against MATLAB's own multi-threaded BLAS and LAPACK libraries. So, in general, this is a fair setup because all the solvers can use multi-threading automatically and are linked against the same BLAS and LAPACK libraries. The running times were measured in wall-clock times.
+
+κ(AN) and number of iterations
+
+Recall that Theorem [\ref=thm:cond_bound] states that κ(AN), the condition number of the preconditioned system, is roughly bounded by [formula] when s is large enough such that we can ignore α in practice. To verify this statement, we generate random matrices of size 104  ×  103 with condition numbers ranged from 102 to 108. The left figure in Figure [\ref=fig:cond_and_iter] compares κ(AN) with κ+(A), the effective condition number of A, under different choices of s and r. We take the largest value of κ(AN) in 10 independent runs as the κ(AN) in the plot. For each pair of s and r, the corresponding estimate [formula] is drawn in a dotted line of the same color, if not overlapped with the solid line of κ(AN). We see that [formula] is indeed an accurate estimate of the upper bound on κ(AN). Moreover, κ(AN) is not only independent of κ+(A), but it is also quite small. For example, we have [formula] if s  >  2r, and hence we can expect super fast convergence of CG-like methods. Based on Theorem [\ref=thm:iter], the number of iterations should be less than [formula], where ε is a given tolerance. In order to match the accuracy of direct solvers, we set ε  =  10- 14. The right figure in Figure [\ref=fig:cond_and_iter] shows the number of LSQR iterations for different combinations of r / s and κ+(A). Again, we take the largest iteration number in 10 independent runs for each pair of r / s and κ+(A). We also draw the theoretical upper bound [formula] in a dotted line. We see that the number of iterations is basically a function of r / s, independent of κ+(A), and the theoretical upper bound is very good in practice. This confirms that the number of iterations is fully predictable given γ.
+
+Tuning the oversampling factor γ
+
+Once we set the tolerance and maximum number of iterations, there is only one parameter left: the oversampling factor γ. To demonstrate the impact of γ, we fix problem size to 105  ×  103 and condition number to 106, set the tolerance to 10- 14, and then solve the problem with γ ranged from 1.2 to 3. Figure [\ref=fig:tuning-s] illustrates how γ affects the running times of LSRN's stages: randn for generating random numbers, mult for computing Ã  =  GA, svd for computing Σ̃ and ṽ from Ã, and iter for LSQR. We see that, the running times of randn, mult, and svd increase linearly as γ increases, while iter time decreases. Therefore there exists an optimal choice of γ. For this particular problem, we should choose γ between 1.8 and 2.2. We experimented with various LS problems. The best choice of γ ranges from 1.6 to 2.5, depending on the type and the size of the problem. We also note that, when γ is given, the running time of the iteration stage is fully predictable. Thus we can initialize LSRN by measuring randn/sec and flops/sec for matrix-vector multiplication, matrix-matrix multiplication, and SVD, and then determine the best value of γ by minimizing the total running time [\eqref=eq:mpi_time]. For simplicity, we set γ  =  2.0 in all later experiments; although this is not the optimal setting for all cases, it is always a reasonable choice.
+
+Dense least squares
+
+As the state-of-the-art dense linear algebra library, LAPACK provides several routines for solving LS problems, e.g., DGELS, DGELSY, and DGELSD. DGELS uses QR factorization without pivoting, which cannot handle rank-deficient problems. DGELSY uses QR factorization with pivoting, which is more reliable than DGELS on rank-deficient problems. DGELSD uses SVD. It is the most reliable routine, and should be the most expensive as well. However, we find that DGELSD actually runs much faster than DGELSY on strongly over- or under-determined systems on the shared-memory machine. It may be because of better use of multi-threaded BLAS, but we don't have a definitive explanation.
+
+Figure [\ref=fig:timing_dense_full_rank] compares the running times of LSRN and competing solvers on randomly generated full-rank dense strongly over- or under-determined problems. We set the condition numbers to 106 for all problems. Note that DGELS and DGELSD almost overlapped. The results show that Blendenpik is the winner. For small-sized problems (m  ≤  3e4), the follow-ups are DGELS and DGELSD. When the problem size goes larger, LSRN becomes faster than DGELS/DGELSD. DGELSY is always slower than DGELS/DGELSD, but still faster than MATLAB's backslash. The performance of LAPACK's solvers decreases significantly for under-determined problems. We monitored CPU usage and found that they couldn't fully use all the CPU cores, i.e., they couldn't effectively call multi-threaded BLAS. Though still the best, the performance of Blendenpik also decreases. LSRN's performance does not change much.
+
+LSRN is also capable of solving rank-deficient problems, and in fact it takes advantage of any rank-deficiency (in that it finds a solution in fewer iterations). Figure [\ref=fig:timing_dense_rank_800] shows the results on over- and under-determined rank-deficient problems generated the same way as in previous experiments, except that we set r  =  800. DGELSY and DGELSD remain the same speed on over-determined problems as in full-rank cases, respectively, and run slightly faster on under-determined problems. LSRN's running times reduce to 93 seconds on the problem of size 106  ×  103, from 100 seconds on its full-rank counterpart.
+
+We see that, for strongly over- or under-determined problems, DGELSD is the fastest and most reliable routine among the LS solvers provided by LAPACK. However, it (or any other LAPACK solver) runs much slower on under-determined problems than on over-determined problems, while LSRN works symmetrically on both cases. Blendenpik is the fastest dense least squares solver in our tests. Though it is not designed for solving rank-deficient problems, Blendenpik should be modifiable to handle such problems following Theorem [\ref=thm:ls_precond_sufficient]. We also note that Blendenpik's performance depends on the distribution of the row norms of U. We generate test problems randomly so that the row norms of U are homogeneous, which is ideal for Blendenpik. When the row norms of U are heterogeneous, Blendenpik's performance may drop. See Avron, Maymounkov, and Toledo [\cite=avron2010blendenpik] for a more detailed analysis.
+
+Sparse least squares
+
+In LSRN, A is only involved in the computation of matrix-vector and matrix-matrix multiplications. Therefore LSRN accelerates automatically when A is sparse, without exploring A's sparsity pattern. LAPACK does not have any direct sparse LS solver. MATLAB's backslash uses SuiteSparseQR by Tim Davis [\cite=davis2008algorithm] when A is sparse and rectangular; this requires explicit knowledge of A's sparsity pattern to obtain a sparse QR factorization.
+
+We generated sparse LS problems using MATLAB's "sprandn" function with density 0.01 and condition number 106. All problems have full rank. Figure [\ref=fig:timing_sparse_full_rank] shows the results on over-determined problems. LAPACK's solvers and Blendenpik basically perform the same as in the dense case. DGELSY is the slowest among the three. DGELS and DGELSD still overlap with each other, faster than DGELSY but slower than Blendenpik. We see that MATLAB's backslash handles sparse problems very well. On the 106  ×  103 problem, backslash's running time reduces to 55 seconds, from 273 seconds on the dense counterpart. The overall performance of MATLAB's backslash is better than Blendenpik's. LSRN's curve is very flat. For small problems (m  ≤  105), LSRN is slow. When m  >  105, LSRN becomes the fastest solver among the six. LSRN takes only 23 seconds on the over-determined problem of size 106  ×  103. On large under-determined problems, LSRN still leads by a huge margin.
+
+LSRN makes no distinction between dense and sparse problems. The speedup on sparse problems is due to faster matrix-vector and matrix-matrix multiplications. Hence, although no test was performed, we expect a similar speedup on fast linear operators as well. Also note that, in the multi-threaded implementation of LSRN, we use a naive multi-threaded routine for sparse matrix-vector and matrix-matrix multiplications, which is far from optimized and thus leaves room for improvement.
+
+Real-world problems
+
+In this section, we report results on some real-world large data problems. The problems are summarized in Table [\ref=tab:real-world-prob], along with running times.
+
+landmark and rail4284 are from the University of Florida Sparse Matrix Collection [\cite=davis1997university]. landmark originated from a rank-deficient LS problem. rail4284 has full rank and originated from a linear programming problem on Italian railways. Both matrices are very sparse and have structured patterns. MATLAB's backslash (SuiteSparseQR) runs extremely fast on these two problems, though it doesn't guarantee to return the min-length solution. Blendenpik is not designed to handle the rank-deficient landmark, and it unfortunately runs out of memory (OOM) on rail4284. LSRN takes 17.55 seconds on landmark and 136.0 seconds on rail4284. DGELSD is slightly slower than LSRN on landmark and much slower on rail4284.
+
+tnimg is generated from the TinyImages collection [\cite=torralba2008tiny], which provides 80 million color images of size 32  ×  32. For each image, we first convert it to grayscale, compute its two-dimensional DCT, and then only keep the top 2% largest coefficients in magnitude. This gives a sparse matrix of size [formula] where each column has 20 or 21 nonzero elements. Note that tnimg doesn't have apparent structured pattern. Since the whole matrix is too big, we work on submatrices of different sizes. tnimg_i is the submatrix consisting of the first 106  ×  i columns of the whole matrix for [formula], where empty rows are removed. The running times of LSRN are approximately linear in n. Both DGELSD and MATLAB's backslash are very slow on the tnimg problems. Blendenpik either doesn't apply to the rank-deficient cases or runs OOM.
+
+We see that, though both methods taking advantage of sparsity, MATLAB's backslash relies heavily on the sparsity pattern, and its performance is unpredictable until the sparsity pattern is analyzed, while LSRN doesn't rely on the sparsity pattern and always delivers predictable performance and, moreover, the min-length solution.
+
+Scalability and choice of iterative solvers on clusters
+
+In this section, we move to the Amazon EC2 cluster. The goals are to demonstrate that The test problems are submatrices of the tnimg matrix in the previous section: tnimg_4, tnimg_10, tnimg_20, and tnimg_40, solved with 4, 10, 20, and 40 cores respectively. Each process stores a submatrix of size [formula]. Table [\ref=tab:cluster] shows the results, averaged over 5 runs. Ideally, from the complexity analysis [\eqref=eq:mpi_time], when we double n and double the number of cores, the increase in running time should be a constant if the cluster is homogeneous and has perfect load balancing (which we have observed is not true on Amazon EC2). For LSRN with CS, from tnimg_10 to tnimg_20 the running time increases 27.6 seconds, and from tnimg_20 to tnimg_40 the running time increases 34.7 seconds. We believe the difference between the time increases is caused by the heterogeneity of the cluster, because Amazon EC2 doesn't guarantee the connection speed among nodes. From tnimg_4 to tnimg_40, the problem scale is enlarged by a factor of 10 while the running time only increases by a factor of 50%. The result still demonstrates LSRN's good scalability. We also compare the performance of LSQR and CS as the iterative solvers in LSRN. For all problems LSQR converges in 84 iterations and CS converges in 106 iterations. However, LSQR is slower than CS. The communication cost saved by CS is significant on those tests. As a result, we recommend CS as the default LSRN iterative solver for cluster environments. Note that to reduce the communication cost on a cluster, we could also consider increasing γ to reduce the number of iterations.
+
+Conclusion
+
+We developed LSRN, a parallel solver for strongly over- or under-determined, and possibly rank-deficient, systems. LSRN uses random normal projection to compute a preconditioner matrix for an iterative solver such as LSQR and the Chebyshev semi-iterative (CS) method. The preconditioning process is embarrassingly parallel and automatically speeds up on sparse matrices and fast linear operators, and on rank-deficient data. We proved that the preconditioned system is consistent and extremely well-conditioned, and derived strong bounds on the number of iterations of LSQR or the CS method, and hence on the total running time. On large dense systems, LSRN is competitive with the best existing solvers, and it runs significantly faster than competing solvers on strongly over- or under-determined sparse systems. LSRN is easy to implement using threads or MPI, and it scales well in parallel environments.
+
+Acknowledgements
+
+After completing the initial version of this manuscript, we learned of the LS algorithm of Coakley et al. [\cite=coakley2011fast]. We thank Mark Tygert for pointing us to this reference. We are also grateful to Lisandro Dalcin, the author of mpi4py, for his own version of the MPI_Barrier function to prevent idle processes from interrupting the multi-threaded SVD process too frequently.

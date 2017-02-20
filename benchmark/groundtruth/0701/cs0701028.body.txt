@@ -1,0 +1,283 @@
+Statistical keyword detection in literary corpora
+
+Statistical Keyword Detection in Literary Corpora
+
+Pedro A. Pury
+
+Introduction
+
+Data mining for texts is a well-established area of natural language processing [\cite=MS99]. Text mining is the computerised extraction of useful answers from a mass of textual information by machine methods, computer-assisted human ones, or a combination of both. A key problem in text mining is the extraction of keywords from texts for which no a priori information is available. The problem of unsupervised extraction of relevant words from their statistical properties was first addressed by Luhn [\cite=Luh58], who based his method on Zipf's analysis of frequencies [\cite=Zipf]. This analysis consists of counting the number of occurrences of each distinct word in a given text, and then generating a list of all these words ordered by decreasing frequency. In this list, each word is identified by its position or Zipf's rank in the list. The empirical observation of Zipf was that the frequency of occurrence of the r-th rank in the list is proportional to r- 1 ( Zipf's law). Luhn proposed the crude approach of excluding the words at both ends of the Zipf's list and considering as keywords the remaining cases. The limitations of Luhn's approach are known in the literature [\cite=SM83].
+
+The main goal of this work is to investigate unsupervised statistical methods for detecting keywords in literacy texts beyond the simple counting of word occurrences. In order to obtain statistically significant results we restrict our work to a large book, which can be used as a corpus what is thematically consistent throughout its entire length. We are searching for relevance according to the text's context, but we will only use statistical information about the spatial use of the words in a text.
+
+Particularly, the measure of content of information for each word can be made by Shannon's entropy. In the physics literature, we can find several applications of the entropy concept to linguistics and natural language like DNA sequences analysis [\cite=MBG+95] [\cite=SBG+99] [\cite=GBC+02], long-range correlations measurements [\cite=EP94] [\cite=EPA95], language acquisition [\cite=CCGG99], authorship disputes [\cite=CMH97] [\cite=YPYG03], communication modelling [\cite=Can05], and statistical analysis of the linguistic role of words in corpora [\cite=MZ02].
+
+The organisation of the remainder of the article is as follows. In Sec. [\ref=sec:Darwin] we first introduce the corpus used as a representative sample throughout this work. Later, in Sec. [\ref=sec:cluster] we review the algorithms proposed in the literature based on the analysis of the statistical distribution of words in a text. Then, in Sec. [\ref=sec:random] we discuss the behaviour of the indices in random texts. By using Shannon's entropy, in Sec. [\ref=sec:entropy] we propose another index based on the information content of the sequence of occurrences of each word in the text. In Sec. [\ref=sec:benchmark] we use the glossary of the corpus for measuring the performace of each index as keyword detector. Finally, in Sec. [\ref=sec:fin] we present a summary of the work. Besides, mathematical details are given in appendices. In Appendix [\ref=app:pascal] we review the geometrical distribution, useful to random texts, and in Appendix [\ref=app:entropy] we calculate the entropy of a random text.
+
+Representative Corpus Sample
+
+For our study, we will use a prototypical real text, i.e., "On the Origin of Species by Means of Natural Selection, or The Preservation of Favoured Races in the Struggle for Life" [\cite=Gut] (usually abbreviated to The Origin of Species) by Charles Darwin (1859). The book was written with the vocabulary of a nineteenth-century naturalist but with fluid prose, combining first-person narrative with scholarly analysis.
+
+For the preparation of our working corpus we first withdrew any punctuation symbol from the text, mapped all words to uppercase and then used the simple tokenization method based on whitespaces [\cite=MS99]. We draw a distinction between a word token versus a word type. For our convenience, we define a word type as any different string of letters between two whitespaces. Thus, for our elementary analysis, words like INSTINCT and INSTINCTS correspond to different word types in our corpus. On the other hand, a word token is each individual occurrence of a given word type. When the context refers to a particular word type, we will use indistinctly "word token" or simply "token" to refer to an individual occurrence of the word type in the text.
+
+The relevant words have not been explicitly defined in Darwin's book, with exception of a glossary appended at the end of the work. Therefore, the table of contens in the beginning, the glossary and the analytical index, also inserted at the end, were removed from our corpus. By doing this, we avoid introducing obvious bias for the words used in these parts. Thus, the prepared corpus includes 94% of material from the original Darwin's book and has 192,665 word tokens and 8,294 word types. In addition, the corpus contains 842 paragraphs distributed in 16 chapters.
+
+The glossary of the principal scientific terms used in the book, prepared by Mr. W.S. Dallas, and the analytical index, both appended at the end of the book, were written using 2,418 word types. If we do not consider the function words, still remain 1,679 word types (20% of the book's lexicon). With this information,, we prepared by hand a customed version of the glossary, by selecting 283 word types (3.4% of the lexicon) with frequencies of occurrence greater than 9. We have avoided word types with less than 9 occurrences because we cannot extract any significant statistics from data obtained using such small sets. Thus, the criterion for selection was rather more arbitrary, but we think that all selected words are pertinent to the book's context. Our prepared version of the glossary will be used later to evaluate the retrieval capabilities of different keyword extractors.
+
+Clustering as criterion for relevance of words
+
+The attraction between words is a phenomenon that plays an important role in both language processing and acquisition, and it has been modeled for information retrieval and speech recognition purposes [\cite=BBL97] [\cite=NW97]. Empirical data reveals that the attraction between words decays exponentially, while stylistic and syntactic constraints create a repulsion between words that discourages close occurrences. In Fig. ([\ref=fig:histogram]) we have plotted the histogram of absolute frequencies of distances between nearest neighbour tokens of the word type NATURAL in Darwin's corpus. For long distances, Fig. ([\ref=fig:histogram]) qualitatively suggests an exponential tail, but for very short distances the frequencies decay abruptly. Also in Fig. ([\ref=fig:histogram]) we have superimposed the histogram of a random shuffled version of the corpus where we can qualitatively see an exponential decay for all distances. The attraction-repulsion phenomenon is more emphasized for relevant words than for common words, which have less syntactic penalties for close co-occurrence. Therefore, the spatial distributions of relevant words in the text are inhomogeneous and these words gather together in some portions of the text forming clusters. The clustering phenomenon can be visualised in Fig. [\ref=fig:barcodes] where we have plotted the absolute positions of four different word types from Darwin's corpus in a "bar code" arrangement. The clustering becomes manifest in the patterns of NATURAL, LIFE, and INSTINCT in spite of their different numbers of occurrences. In contrast, THE (the more frequent word in the English language) has no apparent clustering.
+
+Recently, the assumption that highly relevant words should be concentrated in some portions of the text was used for searching relevant words in a given text. In the following two subsections, we briefly review the indices of relevance of words proposed by Ortuño et al. [\cite=OCB+02] and Zhou and Slater [\cite=ZS03], which are based on the spatial distribution of words in the text.
+
+σ-index
+
+To study the spatial distribution of a given word type in a text, we can map the occurrences of the corresponding word tokens into a time series. For this task, we denote by ti the absolute position in the corpus of the i-th occurrence of a word token. Thus, we obtain the sequence [formula], where we are assuming that there are n word tokens. We have additionally included the boundaries of the corpus, defining t0  =  0 and tn + 1  =  N + 1, where N is the total number of tokens in the corpus, in order to take into account the space before the first occurrence of a word token and the space after the last occurrence of a token [\cite=ZS03].
+
+Given the sequence of inter-token distances
+
+[formula]
+
+the average distance between two successive word tokens is given by
+
+[formula]
+
+and the sample standard deviation of the set of spacings between nearest neighbour word tokens (ti + 1 - ti) is by definition
+
+[formula]
+
+To eliminate the dependence on the frequency of occurrence for different word types, in Ref. [\cite=OCB+02] the authors suggest to normalise the token spacings, i.e., to measure them in units of their corresponding mean value. Thus, we define
+
+[formula]
+
+Given that the standard deviation grows rapidly when the inhomogeneity of the distribution of spacing ti + 1 - ti increases, Ortuño et al. [\cite=OCB+02] proposed σ as an indicator of the relevance of the words in the analysed text. In many cases, empirical evidence vindicates that large σ values generally correspond to terms relevant to the text considered, and that common words have associated low values of σ. However, Zhou and Slater [\cite=ZS03] pointed out that σ-index has some weaknesses. First, several obviously common (relevant) words have relative high (low) σ values in several texts. Second, the index is not stable in the sense that it can be strongly affected by the change of a single occurrence position. Third, high values of σ do not always imply a cluster concentration. A big cluster of words can be splitted into smaller clusters without substantial change in the σ value.
+
+Γ-index
+
+The σ-index is only based on the spacing between nearest-neighbour word tokens. To improve the performance in the searching for relevance, Zhou and Slater [\cite=ZS03] introduced a new index that uses more information from the sequence of occurrences [formula]. For this task, these authors consider the spacings wi  =  ti - ti - 1, with [formula], and define the average separation around the occurrence at ti as
+
+[formula]
+
+The position ti is said to be a cluster point if d(ti)  <  μ. The new suggestion is that the relevance of a word in a given text is related to the number of cluster points found in it. Thus, in order to measure the degree of clusterization, the local cluster index at position ti is defined by
+
+[formula]
+
+Finally, a new index to measure relevance is obtained from the average of all cluster indices corresponding to a given word type
+
+[formula]
+
+Γ-index is more stable than σ, but it is still based on local information and is computationally more time consuming to evaluate than σ.
+
+Random text and shuffled words
+
+In a completely random text we have an uncorrelated sequence of tokens, and a word type w is only characterised by its relative frequency of occurrence (pw). Thus, a random text can be generated by picking successively tokens by chance in such a way that at each position the probability of finding a token, corresponding to the word type w, is pw. Obviously, [formula]. For the word type w, we have in this manner defined a binomial experiment where the probability of success (occurrence) at each site in the text is pw, and the probability of failure (non-occurrence) is (1 - pw). Therefore, the distribution of distances between nearest neighbour tokens corresponding to the same word type is geometrical. In Appendix [\ref=app:pascal], we have compiled some results of the geometrical distribution that are useful for our next analyses.
+
+Besides, its worth as comparative standard, the theoretical random text has the virtue of being analytically tractable. Also, from an empirical point of view, there is a workable fashion for building a random version of a corpus. In an actual corpus the probabilities of occurrence p are estimated from the relative frequencies n / N, where n is the number of tokens corresponding to a given word type and N is the total number of tokens in the corpus. A random version of the text can be obtained by shuffling or permuting all the tokens. The random shuffling of all the words has the effect of rescasting the corpus into a nonsensical realization, keeping the same original tokens without discernible order at any level. However, both the Zipf's list of ranks and the frequency of occurrence of each word type are kept intact.
+
+The important point that we want to stress here is that the indices of relevance defined in the previous section are functions of the frequencies of occurrence of each word type. Thus, in a random text the values of these indices change with p, which has nonsense. In a truly random text, there are not relevant words. Therefore, to eliminate completely the dependence on frequency we need to renormalise the indices with their values in the random version of the corpus.
+
+Renormalised σ-index
+
+For a given probability distribution, σ is defined from the second- (μ2) and first-order (μ1) cumulant by [formula]. Thus, from Eq. ([\ref=cumulants]) in Appendix [\ref=app:pascal] we find that in a random text the value of σ-index is given by
+
+[formula]
+
+Hence, we renormalise the index to eliminate this dependence on relative frequency defining
+
+[formula]
+
+For texts as large as corpora the importance of normalisation factor given by Eq. ([\ref=eq:sigmaran]) becomes negligible. For example, in Darwin's corpus, N  =  192,665, and for the most frequent word type ( THE) we have n  =  13,414 (n / N  =  0.0696). Thus, in the less significant case (the lowest value for [formula]) [formula], whereas [formula] for p = 0. However, for shorter texts the significance of the normalisation may become critical and the values of σ and [formula] may be very different for any word type.
+
+In Fig. [\ref=fig:sigma] we plot the values of [formula] for the first 4000 ranks in the Zipf's list of Darwin's corpus. The random version of the corpus is also plotted in the same graph. The "cloud of points" corresponding to the random text is distributed around the unitary value of [formula], but the width of the "cloud" grows with rank. This behaviour is due to the fact that the frequency of occurrence decreases as the rank increases (Zipf's law), therefore the statistics get worse. The words of our preparated version of the glossary are marked by open circles in Fig. [\ref=fig:sigma]. From Fig. [\ref=fig:sigma], it is appreciable that most of the glossary words have high values of [formula].
+
+Renormalised skewness
+
+As in the case of σ, any cumulant contains partial information of the spatial distribution of words. Skewness is a parameter that describes the asymmetry of a distribution. Mathematically, the skewness is measured using the second- (μ2) and third-order (μ3) cumulant of the distribution according to κ  =  μ3  /  μ3 / 22. Given that the distances between nearest neighbour tokens are positive defined, the corresponding distribution has positive skew, i.e., the upper tail is longer than the the lower tail (see Fig. [\ref=fig:histogram]).
+
+From Eq. ([\ref=cumulants]), we find that in a random text the skewness of the distribution of distances between nearest neighbour tokens is given by
+
+[formula]
+
+Thus, the skewness also depends on the relative frequency of occurrence, p, in the random case. However, this dependence is also negligible for a corpora. In Darwin's corpus we obtain [formula] for the largest value p  =  0.0696 (the relative frequency of the word type THE), whereas [formula] for p = 0.
+
+As a consequence, we can define another renormalised quantity as we did with the σ-index. Thus, to eliminate the dependence on the relative frequency of occurrence in the random case, we write
+
+[formula]
+
+[formula] can also be used for measuring relevance. However, the finite-size effects of the texts are more pronounced for higher order cumulants. We now use both cumulants [formula] and [formula] to construct a bi-dimensional graph for the corpus. In this manner, in Fig. [\ref=fig:sigka] we plot the the pairs [formula] for all words in Darwin's corpus. In this graph, the "cloud of points" corresponding to the random text is distributed around the pair of values (1,1), while the region defined by [formula] and [formula] has almost none. The upper right corner of the graph concentrates almost all the points corresponding to the glossary. Figure [\ref=fig:sigka] gives us immediate insight into the distribution of distances between nearest neighbour tokens, and provides us a powerful tool for determining keywords.
+
+Renormalised Γ-index
+
+As we did with the σ-index, we need to calculate Γ for a word type which appears in a random text with relative frequency p. For this task, we calculate the average of the random variable γ defined in Eq. ([\ref=eq:cluster]) in a random text. From Eq. ([\ref=gammaran]) in Appendix [\ref=app:pascal] we obtain
+
+[formula]
+
+where h  =  [2  /  p]. In this case, the dependence on p is even more complicated than previous cases. This observation is absent from Ref. [\cite=ZS03]. Zhou and Slater only calculate the value of Γ for the Poisson distribution: Γ  =  2  e- 2 (see Eq. ([\ref=Poisson]) in Appendix [\ref=app:pascal]), which is constant (≈  0.271). Also in this case, the dependence on p is negligible for corpora. In Darwin's corpus we obtain [formula] for the largest value of p  =  0.0696 (the relative frequency of the word type THE), whereas [formula] in the limit p  →  0 (see Appendix [\ref=app:pascal]).
+
+Now, as in the other cases, we define from Eqs. ([\ref=eq:Gamma]) and ([\ref=eq:Gammaran]) a renormalised index by [formula]. In Fig. [\ref=fig:gamma] we plot the values of [formula] for the first 4000 ranks in the Zipf's list of Darwin's corpus. The "cloud of points" corresponding to the random text is distributed around the unitary value, but the width of the "cloud" grows with rank faster than in the case of [formula]. The words corresponding to the glossary have systematically high values of [formula].
+
+Entropy of token distributions
+
+Claude Shannon introduced the concept of entropy of information in 1948 [\cite=SW49]. Mapping a discrete information source on a set of possible events whose probabilities of occurrences are [formula], Shannon constructed a measure of information and uncertainty, [formula], requiring the following properties:
+
+S should be continuous in the {pi}.
+
+For the iso-probability case, pi  =  1 / P, S should be a monotonic increasing function of P.
+
+If the set [formula] is broken down into two subsets with probabilities [formula] and [formula], then we must have the following composition law [formula].
+
+The only S satisfying the three above assumptions is of the form
+
+[formula]
+
+where K is a positive constant.
+
+A literary corpus can be divided in parts using natural partitions such as parts, sections, chapters, paragraphs or sentences. Thus, we consider the corpus as a composite of P parts. For the i-th part of the corpus we can reckon up the total number Ni of tokens and the number ni(w) of occurrence of the word type w inside this part. Then, the fraction fi(w)  =  ni(w) / Ni ([formula]) is the relative frequency of occurrence of the word type w in the part i. Obviously, [formula] is the total number of tokens in the corpus and [formula] is the number of tokens corresponding to the word type w. Therefore, it is possible to define a probability measure over the partitions [\cite=MZ02] as
+
+[formula]
+
+The quantity pi(w) results more complex than the conditional probability fi(w) / (n(w) / N), of finding the word type w in the part i given that it is present in the corpus.
+
+Following Shannon's arguments, the information entropy associated with the discrete distribution pi(w) is
+
+[formula]
+
+The value 1 /  ln (P) for the constant K was selected to take the maximum value of S equal to one. Thus, 0 < S(w)  <  1. In this manner, when a type word is uniformly distributed (pi  =  1 / P, for all i), Eq. ([\ref=eq:entropy]) yields S  =  1. Conversely, the other extreme case, S  =  0, is when a word type appears only in part j, thus we have pj = 1 and pi = 0 for i  ≠  j. Therefore, words with frequent grammatical use like function words (prepositions, adverbs, adjectives, conjunctions, and pronouns) will have high values of entropy, meanwhile keywords will have low values of entropy. Empirical evidence [\cite=MZ02] shows a tendency of the entropy to increase with n. It implies that, on average, the more frequent word types are more uniformly used.
+
+As we did with preceding indices, we need to calculate the average of the entropy of a mock word type that appears n times in a random corpus. From Eq. ([\ref=entropy_ran]) in Appendix [\ref=app:entropy], we obtain
+
+[formula]
+
+for n >  > 1 and if all the parts of the random text have the same number of tokens. Empirical evidence [\cite=MZ02] shows that the agreement of Eq. ([\ref=eq:entropy_ran]) with random shuffling of texts using natural partitions is very good, in spite of the limitation of the last assumption. From Eq. ([\ref=eq:entropy_ran]), we can see that the dependence on the absolute frequency, n, is critical for [formula] and it could not be ignored even if the text is as large as a corpus.
+
+Montemurro and Zanette [\cite=MZ02] proposed Eqs. ([\ref=eq:prob_w_i]) and ([\ref=eq:entropy]) to study the distribution of words according to their linguistic role. For this task, they found that the suitable coordinates whereby words can be categorized are n  (1 - S) and n. In the same way, we will use these ideas for detecting relevance of words. We cannot use directly the entropy as index because all tokens with only one occurrence have zero entropy. Thus, we define a normalised index freed from the dependence on absolute frequency (n) in random texts by
+
+[formula]
+
+Figure [\ref=fig:entropy] shows the values of [formula] for all word types of Darwin's corpus versus its number of occurrence, n, on a double logarithmic scale. The individual deviations from the bulk trend for each value of n are related to the particular usage nuances of words. To stress these deviations, we have used the 16 chapters of the corpus as natural partitions for our entropic analysis ( i.e. P = 16). In this way, we obtain a remarkable scattering of higher values of [formula] in the full range of number of occurrences. A same entropic analysis using the 842 paragraphs of Darwin's corpus as partitions ( i.e. P = 842) generates a similar graph that stresses the bulk trend, but the fluctuations are completely smoothed. Using the chapters as partitions (P = 16) in Fig. [\ref=fig:entropy], the "cloud of points" corresponding to the random version of the corpus is distributed around the unitary value and the corpus appears clearly more separated from the random text than with previous indices. Additionally, the words corresponding to the glossary have systematically high values of the index [formula].
+
+To reinforce our graphical findings, in the following section we perform a quantitative comparison among the indices [formula], [formula], [formula], and [formula] based on the power of each index for discriminating the glossary from the bulk of words.
+
+Glossary as benchmark
+
+Evaluation in information retrieval makes frequent use of the notions of recall and precision [\cite=MS99] [\cite=SM83]. Recall is defined as the proportion of the target items that a system recover. Precision is defined as a measure of the proportion of selected items that are targets. Remembering that our prepared glossary has 283 word types, we denote by NG the number of the glossary's word types among the first top 283 ranked word types of the corpus. For our purposes, we define recall of an index of relevance as the fraction NG / 283. Thus, recall for the index [formula] results 41%. On the other hand, precision can be built looking for the last word type of our prepared glossary in the global ranking of each index. For our convenience, we denote by LP the position in the ranking of the last word type of the glossary, and we define precision of a keyword extractor as the fraction 283 / LP. Thus, for example, the last entry of the glossary according to the index [formula] is FLOWERING and is ranked in the position 2,790. Remembering that the corpus has 8,294 word types, we obtain that the complete prepared glossary is allocated by [formula] in the first third part of the ranked lexicon and the precision of the index results 10%. Recall and precision are useful benchmarks for measuring the index's performance. In particular, recall and precision of each index analysed in this work are given in Table [\ref=Table:Benchmarks]. We want to stress that the values of recall and precision of the indices σ and Γ are exactly the same as those obtained for [formula] and [formula], respectively. This fact is due to the normalisation factors given by Eqs. ([\ref=eq:sigmaran]) and ([\ref=eq:Gammaran]), which are almost constant for a corpus. Therefore, the pair of indices σ and [formula] (or Γ and [formula]) yield identical rankings of keywords. In order to compare the performance of all indices, in Fig. [\ref=fig:performance] we have drawn a precision-recall plot where we can see the significant improvement performed by the index [formula], both in recall and precision. Also, in Fiq. ([\ref=fig:performance]) we see that [formula] has a recall slightly worse than [formula] and precision as good as [formula]. Thus, we find that the skewness of the distribution of occurrences of a word type has a significant part of information about the relevance of the word in the text.
+
+In Table [\ref=Table:Rankins] we show the first top 50 word types of the prepared glossary ranked by the index [formula]. We also show the rank position of each word type by the others indices. A false positive is when the system identifies a keyword that really is not one. In Table [\ref=Table:False_positives] we show the first top 40 ranked (by [formula]) word types not included in our prepared glossary. We can immediately see that several terms are not necessarily false positives. We have marked with an asterisk (*) in the table those word types that were not previously selected in the prepared glossary, but that appeared in the main entries of the original glossary of Darwin's book. Indeed, several more word types like these could have been included in our prepared glossary, too. Moreover, we could say that the word type I is relevant for a text that uses the first-person narrative, like Darwin's book. ISLAND and SLAVES were not used neither in the book's glossary nor in its index; however [formula] ranks it adequately as a keyword. The word type F is also meaningful to the text. It appear in the proper nouns "Mr. F. Smith" and "Dr. F. Muller", and in the collocations "F. sanguinea", "F. rufescens", "F. fusca", "F. flava", and "F. rufescens" which denote species. The observations in the last paragraphs induce us to consider that the performance of the index [formula] is better than what can be inferred from Table [\ref=Table:Benchmarks].
+
+Moreover, the index [formula] requires less computational efforts that the others. Knowing the number of occurrences of a word type, the implementation of the algorithm for the variance or the skewness requires of one accumulator plus a counter for reckoning the number of tokens between nearest neighbour occurrences of the word type. While, for the entropic index, we only need one counter (of number of occurrences) for each partition per word type. On the other hand, the algorithm for Γ requires three accumulators and for each occurrence of a word type we need to determine if it corresponds to a cluster point.
+
+Concluding remarks
+
+In summary, in this work we addressed the issue of statistical distribution of words in texts. Particularly, we have concentrated on the statistical methods for detecting keywords in literacy text. We reviewed two indices (σ and Γ) previously proposed [\cite=OCB+02] [\cite=ZS03] for measuring relevance and we improved them by considering their values in random texts. Additionally, we introduced [formula] based on the skewness of the distribution of occurrences of a word and we proposed another index for keyword detection based on the information entropy. Our proposals are very easy to implement numerically and have performances as detectors as good as or better than the other indices. The ideas of this work can be applied to any natural language with words clearly identified, without requiring any previous knowledge about semantics or syntax.
+
+Acknowledgements
+
+Contributions to Appendix [\ref=app:entropy] by Marcelo Montemurro are gratefully acknowledged. This work was partially supported by grant from "Secretarí a de Ciencia y Tecnologí a de la Universidad Nacional de Córdoba" (Code: 05/B370).
+
+The Geometrical distribution
+
+In this Appendix we briefly review the basic results of the geometrical distribution, scattered in the literature, that are useful for this work. First, we consider an experiment with only two possible outcomes for each trial (binomial experiment). Repeated independent trials of the binomial experiment are called Bernoulli trials if their probabilities remain constant throughout the trials. We denote by p the probability of the "successful" outcome. Now, we are interested in the probability of success on the j-th trial after a given success. Given that the trials are independent, we immediately obtain the geometrical distribution
+
+[formula]
+
+Moments and cumulants
+
+The characteristic function of a stochastic variable X is defined by [formula]. Thus, for the geometrical distribution we obtain
+
+[formula]
+
+This function is also the moment generating function
+
+[formula]
+
+Therefore, the first three cumulants of the geometrical distribution are given by
+
+[formula]
+
+Addition of two geometrical variables
+
+If X1 e X2 are geometrical distributed independent random variables, the distribution of the addition Y  =  X1  +  X2 is
+
+[formula]
+
+where the joint probability distribution of the variables X1 e X2, P(m1,m2), is given by
+
+[formula]
+
+In this manner,
+
+[formula]
+
+Therefore
+
+[formula]
+
+Now, we are interested in the average of the random variable (recall Eq. ([\ref=eq:cluster]))
+
+[formula]
+
+where Y is the addition of two independent geometrical distributed random variables with mean μ  =  1 / p. By definition we have that
+
+[formula]
+
+where PY(n) is given by Eq. ([\ref=sumageo]) and h  =  [2μ]. Defining q  =  1 - p and using the identity
+
+[formula]
+
+we immediately obtain
+
+[formula]
+
+and
+
+[formula]
+
+Therefore
+
+[formula]
+
+The Poisson distribution can be obtained from the geometrical distribution in the limit p  →  0. Expanding qz into a Taylor series up to fourth order we obtain
+
+[formula]
+
+Given that for p  →  0 we have h >  > 1, the last equation can be recast as
+
+[formula]
+
+Finally, using that hp  ≈  2, we obtain that the average of the random variable γ for a Poisson distribution [\cite=ZS03] is
+
+[formula]
+
+Entropy of a random text
+
+Here, we derive the entropy of a random text in a more detailed way that is described in Ref. [\cite=MZ02].
+
+We consider a corpus of N tokens as a composite of P parts, with Ni tokens in the i-th part ([formula]). In a random corpus, the probability that a word type w appears in the part j is Nj / N. Thus, the probability that w appears n1 times in part 1, n2 times in part 2, and so on, is the multinomial distribution
+
+[formula]
+
+where [formula] is the absolute frequency (number of tokens) of the word type w.
+
+For reasons of simplicity, in this Appendix we consider the particular case in which all the parts have exactly the same number of tokens, i.e. Ni  =  N / P. Hence, the probability measure defined by Eq. ([\ref=eq:prob_w_i]) can be simply written as pi  =  ni / n and the information entropy defined by Eq. ([\ref=eq:entropy]) results
+
+[formula]
+
+Now, we are interested in the average value of the entropy over the distribution given by Eq. ([\ref=prob_n_i]). We only need to compute the average of each term of Eq. ([\ref=entropy]) using the marginal distributions, pw(ni), obtained from Eq. ([\ref=prob_n_i]). All marginal distributions result binomials with mean n / P and variance n / P(1 - 1 / P). Thus, we obtain for the average entropy
+
+[formula]
+
+For highly frequent word types, n >  > 1, we can approximate the binomial distribution by a Gaussian probability function (G(x;μ,σ)) with mean μ  =  1 / P and variance σ2  =  (1 / n)(P - 1) / P2. Thus, Eq. ([\ref=<entropy>]) can be recast as
+
+[formula]
+
+In the limit n >  > 1, σ  →  0 and the Gaussian probability function concentrates around its mean value μ. Using the expansion of the function x ln x around μ,
+
+[formula]
+
+in Eq. ([\ref=approx<entropy>]) and remembering that
+
+[formula]
+
+we finally obtain for a random text [\cite=MZ02] that
+
+[formula]

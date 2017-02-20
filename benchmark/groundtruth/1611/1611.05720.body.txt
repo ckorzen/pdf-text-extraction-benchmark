@@ -1,0 +1,155 @@
+Hard-Aware Deeply Cascaded Embedding
+
+Introduction
+
+Deep metric embedding has achieved promising results on various tasks, such as visual product search [\cite=cuhk_nips2016] [\cite=hadi2015buy] [\cite=DeepFashion] [\cite=SimoSerraCVPR2016] [\cite=song2015deep] [\cite=UstinovaNIPS16], face recognition [\cite=bhattarai2016cp] [\cite=han2015matchnet] [\cite=schroff2015facenet] [\cite=tadmor2016learning] [\cite=wen2016discriminative], local image descriptor learning [\cite=softpn] [\cite=G_2016_CVPR] [\cite=simo2015discriminative], person/vehicle re-identification [\cite=cheng2016person] [\cite=shi2016embedding] [\cite=vehicleID] [\cite=you2016top], zero-shot image classification [\cite=bucher2016improving] [\cite=rippel2015metric] [\cite=zhang2016zero], fine-grained image classification [\cite=cui2015fine] [\cite=wang2016mining] [\cite=Zhang_2016_CVPR] and object tracking [\cite=leal2016learning] [\cite=tao2016siamese]. Though deep metric embedding may be modified into different forms when used in different task, it shares the same objective to learn an embedding space that pulls similar images closer and pushes dissimilar images far away. Typically, embedding is implemented by a convolutional neural network with an objective implemented by contrastive/triplet loss.
+
+Different from training image classification models, deep metric embedding considers two images (a pair) or three images (a triplet) as a training sample, where N images can generate O(N2) or O(N3) samples. It becomes impossible to consider all samples even for a moderate number of images. Fortunately, not all samples are equally informative to train a model, which inspires many recent works to only mine hard examples for training [\cite=cui2015fine] [\cite=simo2015discriminative] [\cite=wang2015unsupervised].
+
+However, hard is defined relative to a model as illustrated in Figure [\ref=fig:old_method]. For a complex model, most samples are treated as easy samples, and the model converges fast but can easily overfit. While for a simple model, most samples will be treated as hard examples, worse performance would be expected due underfitting problem. Also samples are with different hard levels as illustrated in Figure [\ref=fig:intro_car_distribution], it is hard to design a model with the just right complexity to adequately mine hard examples.
+
+This motivates us to ensemble a set of models with different complexities in a cascaded manner and mine hard examples adaptively, which is schematically illustrated in Figure [\ref=fig:our_method]. The most simple model is implemented by a shallow network, while complex models are implemented by cascading more layers after the simple ones. During the training phrase, a sample is judged by a series of models with increasing complexities in a forward pass. Specifically, a sample firstly makes its forward pass through the simple model, the pass will stop if the simple model considers the sample as an easy one, otherwise the forward pass continues until a model considers the sample as an easy one or the deepest model reached, then the errors will be back-propagated for models that consider the sample as a hard case. Extensive experiments show that the proposed method significantly outperforms state-of-the-art methods on five benchmarks from various tasks.
+
+Related Work
+
+Deep metric learning attracts great attention in recent years, and hard negative mining is becoming a common practice to effectively train deep metric networks [\cite=cui2015fine] [\cite=simo2015discriminative] [\cite=wang2015unsupervised]. Wang  [\cite=wang2015unsupervised] randomly sample triplets during the first 10 training epoches, and mine hard triplets in each mini-batch after 10 epoches. Cui  [\cite=cui2015fine] leverage human to label hard negative images from images with high confidence scores by the model during each round. Simo-Serra  [\cite=simo2015discriminative] analyze the influence of both of hard positive mining and hard negative mining, and find that the combination of aggressive mining for both positive and negative pairs improves the discrimination compared with the baseline without hard sample mining. However, these methods mine the hard images only based on a single model, and cannot adequately leverage samples with different hard levels.
+
+Our method ensembles a set of models of different complexities in a cascaded manner shares the same spirit as the acceleration technique used in object/face detection [\cite=angelova2015real] [\cite=huagang] [\cite=pronet] [\cite=yang2016exploit]. In the detection task, an image may contain several positive patches and large number of negative patches, to reduce the computational cost, the model is broken down into a set of cascaded computation blocks, where computation blocks at early stages reject most easy background patches, while computation blocks at latter stages focus more on object-like patches.
+
+Our method also shares similar form as deeply-supervised network (DSN) proposed for image classification [\cite=Lee2014Deeply], where loss functions are added to the output layers and several middle layers. DSN improves the directness and transparency of the hidden layer learning process and tries to alleviate the "gradient vanishing" problem. Similar idea is used to define three loss functions in GoogLeNet [\cite=Szegedy2015Going]. In DSN, all samples are used and intermediate losses are only used to assist the training of the deepest model. While in our method, samples of different hard levels are assigned to models with adequate complexities, and all models are ensembled together as a whole model. To be noted, ensemble is also a useful technique that is widely used in model design to boost performance. Hinton  [\cite=srivastava2014dropout] add dropout into fully-connected layers which implicitly ensembles an exponential number of networks in a single network. He  [\cite=he2015deep] propose ResNet by adding residual connections into a network and win the ILSVRC 2015 competition, which is latterly proved by Veit  [\cite=veit2016residual] that ResNet is actually exponential ensembles of relatively shallow networks.
+
+In addition, there are also several recent works on designing new loss functions for deep metric embedding. Rippel  [\cite=rippel2015metric] design a Nearest Class Multiple Centroids (NCMC) like loss which encourages images from the same category to form sub-clusters in the embedding space. Huang  [\cite=cuhk_nips2016] propose position-dependent deep metric to solve the problem that intra-class distance in a high-density region may be larger than the inter-class distance in low-density regions. Ustinova  [\cite=UstinovaNIPS16] propose a histogram loss, which aims to make the similarity distributions of positive and negative pairs less overlapping. Unlike other losses used for deep embedding, histogram loss comes with virtually no parameters that need to be tuned. Different from our work, these works improve deep embedding by designing new loss functions within a single model, and can benefit from our method by mining hard examples adaptively.
+
+Hard-Aware Deeply Cascaded Embedding
+
+Hard-Aware Deeply Cascaded embedding(HDC) is based on a simple intuition: handling samples of different hard levels with models of different complexities. Based on deep neural networks, models with different complexities can be naturally derived from sub-networks of different depths. For clarity, we will formulate the general framework of HDC and analyze the concrete case for the contrastive loss.
+
+Model Formulation
+
+Here are some notations that will be used to describe our method:
+
+P  =  {I+i,I+j} : all the positive image pairs constructed from the training set, where I+i and I+j are supposed to be similar or share the same label.
+
+N  =  {I-i,I-j} : all the negative image pairs constructed from the training set, where I-i and I-j are supposed to be irrelevant or from different labels.
+
+Gk : the kth computation block including several convolutional layers, pooling layers, and other possible operations in a network. Suppose there are [formula] blocks in total, G1 takes an image as input, and Gk,k > 1 takes the outputs of its previous block as input, then all blocks are cascaded together as a feed-forward network.
+
+{o+i,k,o+j,k} : the output of the kth computation block Gk for the positive pairs {I+i,I+j}.
+
+{o-i,k,o-j,k} : the output of the kth computation block Gk for the negative pairs {I-i,I-j}.
+
+Fk : the kth transform function that transforms ok to a low dimensional feature vector fk for distance calculation.
+
+{f+i,k,f+j,k} : the kth computed feature vector after Fk for the positive pairs {I+i,I+j}.
+
+{f-i,k,f-j,k} : the kth computed feature vector after Fk for the negative pairs {I-i,I-j}.
+
+Accordingly, there are models in total defined as sub-networks of different depths. The first model is the simplest one which uses the first block G1 and generates features for the pairs {Ii,Ij} by
+
+[formula]
+
+If the pair is considered as an easy pair by the first model, it will not pass to more complex models. Otherwise, the pair will continue its forward pass until the kth model considers it is an easy case or the final model [formula] reached, where the features of model k is calculated by
+
+[formula]
+
+Then the loss of model k is defined as
+
+[formula]
+
+where Pk denotes all positive pairs that are considered as hard examples by previous models. The definition of hard will be concretely given Section [\ref=sec:hard_def]. The same way with Nk.
+
+Accordingly, the total loss of all [formula] models is defined by:
+
+[formula]
+
+where λk is the weight for model k.
+
+The HDC is different from previous deep metric embedding, where only a single model (i.e., model [formula]) is used to define loss function and mine hard samples. Since samples are with different hard levels, it is hard to design a single model to adequately mine hard samples from all samples. In our method, a sample is successively judged by models with increasing complexity and adaptively labeled as a hard sample by models of proper complexities.
+
+In addition, HDC is similar to deeply supervised learning for image classification task [\cite=Lee2014Deeply] that adds loss functions to hidden layers in the form. While deeply supervised learning for image classification uses all samples to calculate all losses, our method calculates each loss only on a subset of all samples determined by hard example mining. This is a key strategy to effectively train deep metric embedding.
+
+The model parameters are distributed in Gk, Fk, 1  ≤  k  ≤  , and can be optimized by gradient descend, the gradient of Gk is:
+
+[formula]
+
+where the gradient of Gk is calculated by all models that build on Gk. The gradient of Fk is:
+
+[formula]
+
+where the gradient of Fk is only calculated by model k since Fk is only used by model k for feature transformation.
+
+The proposed method is general for deep metric embedding with hard example mining, here we take contrastive loss as an example to give the specific loss function. We first introduce the original contrastive loss which penalizes large distance between positive pairs and negative pairs with distance smaller than a margin, i.e.,
+
+[formula]
+
+where D(fi,fj) is the Euclidean distance between the two L2-normalized feature vectors of fi and fj, M is the margin. By applying the contrastive loss to Eq.[\eqref=cascade_loss], we get the HDC based contrastive loss, i.e.,
+
+[formula]
+
+Definition of Hard Example
+
+Given the defined loss function, we follow conventional hard example mining to define samples with large loss values as hard examples except multiple losses will be used to mine hard examples for each model. It is difficult to predefine thresholds according to loss of each model for hard sample selection as the loss distributions are different for different models and keep changing during training. Instead we use a simple way by ranking losses of all positive pairs in a mini-batch in descending order, and take top hk percent samples in the ranking list as hard positive set, and similarly for hard negative example mining.
+
+Here, we use a toy dataset with positive pairs illustrated in Figure [\ref=fig:our_work_data:pos] and negative pairs illustrated in Figure [\ref=fig:our_work_data:neg], and a model with = 3 illustrated in Figure [\ref=fig:our_work_pull_push], to visually explain the process of hard example mining.
+
+Cascade Model-1 will forward all pairs in P0 and N0, and try to push all positive points towards the anchor point while push all negative points away from the anchor point, and form P1, N1 (points in the 2nd and 3rd tier) by selecting hard samples according its loss. Similarly, P2 and N2 (points in the 3rd tier) are formed by Cascade Model-2.
+
+From the illustrated model in Figure [\ref=fig:our_work_pull_push], ensembling models in a cascaded manner brings an additional advantage of computational efficiency, since lots computations are shared during forward pass which is efficient for both training and testing.
+
+Implementation Details
+
+We use mini-batch SGD to optimize the loss function [\eqref=cascade_sum_loss], and adopt multi-batch [\cite=tadmor2016learning] to use all the possible pairs in a mini-batch for stable estimation of the gradient. Algorithm [\ref=alg:cascade_framework] shows the framework of our implementation for the HDC. With the cascaded models, an image is represented by concatenating features by all models.
+
+Experimental Evaluation
+
+The proposed HDC is verified on image retrieval tasks and evaluated by two standard performance metrics, i.e., MAP and Recall@K. MAP [\cite=vehicleID] is the mean of average precision scores for all query images over the all the returned images. Recall@K is the average recall scores over all the query images in testing set following the definition in  [\cite=song2015deep]. Specifically, for each query image, top K nearest images will be returned based on some algorithm, the recall score will be 1 if at least one positive image in the returned K images and 0 otherwise.
+
+Datasets
+
+Five datasets that commonly used in deep metric embedding are used in our experiments, for fair comparison with existing methods, we follow the standard protocol of train/test split.
+
+CARS196 dataset [\cite=stanford_cars], which has 196 classes of cars with 16,185 images, where the first 98 classes are for training (8,054 images) and the other 98 classes are for testing (8,131 images). Both query set and database set are the test set.
+
+CUB-200-2011 dataset [\cite=wah2011caltech], which has 200 species of birds with 11,788 images, where the first 100 classes are for training (5,864 images) and the rest of classes are for testing (5,924 images). Both query set and database set are the test set.
+
+Stanford Online Products dataset [\cite=stanford_CVPR2016], which has 22,634 classes with 120,053 products images, where 11,318 classes are for training (59,551 images) and 11,316 classes are for testing (60,502 images). Both query set and database set are the test set.
+
+In-shop Clothes Retrieval dataset [\cite=DeepFashion], which contains 11,735 classes of clothing items with 54,642 images. Follow the settings in  [\cite=DeepFashion], only 7,982 classes of clothing items with 52,712 images are used for training and testing. 3,997 classes are for training (25,882 images) and 3,985 classes are for testing (28,760 images). The test set are partitioned to query set and database set, where query set contains 14,218 images of 3,985 classes and database set contains 12,612 images of 3,985 classes.
+
+VehicleID dataset [\cite=vehicleID] is a large-scale vehicle dataset that contains 221,763 images of 26,267 vehicles, where the training set contains 110,178 images of 13,134 vehicles and the testing set contains 111,585 images of 13,133 vehicles. Following the settings in  [\cite=vehicleID], we use 3 test splits of different sizes constructed from the testing set. The small test set contains 7,332 images of 800 vehicles. The medium test set contains 12,995 images of 1,600 vehicles. The large test set contains 20,038 images of 2,400 vehicles.
+
+Experiment Setup
+
+We choose GoogLeNet [\cite=Szegedy2015Going] as our model for retrieval tasks. We initialize the weights from the network pretrained on ImageNet ILSVRC-2012 [\cite=russakovsky2015imagenet]. We use the same hyper parameters in all experiments without specifically tuning. Specifically, K is set to 3, λ1=λ2=λ3=1, {h1,h2,h3} = {100,50,20}, mini-batch size is 100, margin parameter M is set to 1, the initial learning rate starts from 0.01 and divided by 10 every 3-5 epoches, and train models for at most 15 epoches. The other settings follow the same protocol in  [\cite=stanford_CVPR2016]. The embedding dimensions of all the cascade models in our HDC are 128, so the embedding dimension of the ensembed model is 384.
+
+Comparison with Baseline
+
+We use the number in superscript denotes the dimension used by the method, the subscript [formula] denotes bounding boxes are used during training and testing. Different from the original Contrastive128 [\cite=bell2015learning], we use the Contrastive†128 to compute the contrastive loss computed with multi-batch [\cite=tadmor2016learning] method.
+
+To directly verify the effectiveness of HDC, we first design several baseline methods including: (1) GoogLeNet/pool51024 uses the feature vector directly outputted from pool5 of the pre-trained GoogLeNet, (2) Contrastive†128 uses contrastive loss without hard example mining, (3) Hard + Contrastive†128 combines the contrastive loss and hard example mining. We also test the separated models in our methods, HDC + Contrastive-1†128, HDC + Contrastive-2†128 , HDC + Contrastive-3†128. The results of these methods on CARS196 are summarized in Table  [\ref=table:hist_table_car]. Obviously, training on the target dataset brings significant performance improvement comparing with GoogLeNet/pool51024, hard example mining further brings more performance gain, while the hard aware method achieves the best performance.
+
+Figure [\ref=fig:hist_car_compare] shows the distance distributions of positive pairs and negative pairs following [\cite=UstinovaNIPS16], where green area represents the distance distributions of positive pairs while red area for negative pairs. Our method has the smallest overlapping area, and better separates positive pairs and negative pairs in the embedding space. We also calculate the LDA score which measures the distance between two distributions to quantitatively compare the difference, i.e.,
+
+[formula]
+
+where m+ and m- are the mean distance of positive pairs and negative pairs, v+ and v- are the variance of the distances of positive pairs and negative pairs. From the Table [\ref=table:hist_table_car], we can see the mean, variance, LDA score and Recall@K score for all the baseline methods and our method. Our method improves the LDA score from 1.99 to 2.50, where LDA score also correlates with the Recall@K score. We also conduct extensive experiments on CUB-200-2011. Table [\ref=table:hist_table_cub] reports the LDA scores and Recall@K scores on CUB-200-2011, the first three rows represent the performance using a single model while the last row uses the features from all the cascaded models. By concatenating the three feature space, we get the final results on CUB-200-2011.
+
+Comparison with state-of-the-art
+
+We compare our method with state-of-the-art methods on the five datasets. On the CARS196, CUB-200-2011 and Stanford Online Products datasets: (1) LiftedStruct128 [\cite=song2015deep] uses a novel structured prediction objective on the lifted dense pairwise distance matrix. (2) PDDM + Triplet[formula]  [\cite=cuhk_nips2016] combines Position-Dependent Deep Metric units (PDDM) and Triplet Loss. (3) PDDM + Quadruplet[formula]  [\cite=cuhk_nips2016] combines the PDDM with Quadruplet Losses proposed in [\cite=Law_2013_ICCV]. (4) Histogram Loss512 [\cite=UstinovaNIPS16] is penalizing the overlap between distributions of distances of positive pairs and negative pairs.(5) Binomial Deviance512 [\cite=UstinovaNIPS16] is used to evaluate the cost between similarities and labels, which is proved robust to outliers.
+
+On VehicleID and In-shop Clothes Retrieval datasets : (1) CCL + Mixed Diff1024 [\cite=vehicleID] uses the Coupled Cluster Loss and Mixed Difference Network Structure. (2) FashionNet [\cite=DeepFashion] is a novel model that simultaneously learns the landmarks and attributes of the images using VGG-16  [\cite=simonyan2014very]. Though we just use the same hyper-parameters without tuning our models specifically on these datasets, HDC still outperforms these state-of-the-art methods.
+
+Table [\ref=table:recall_car_cub] quantifies the advantages of our methods on both CARS196 and CUB-200-2011. We conduct two groups of experiments to ensure fairness as different methods adopt different settings, i.e., with and without bounding boxes. PDDM + Triplet[formula] and PDDM + Quadruplet[formula] both use the images cropped with the annotated bounding boxes as training set and test set. With bounding boxes, cluttered backgrounds are removed and better performance are expected. HDC + Contrastive[formula] shows significant performance margin both on CARS196 and CUB-200-2011. On CARS196, we improve the Recall@1 score from 57.4% to 83.8%. CUB-200-2011 is more challenging than CARS196 as the car is rigid while birds have more variations. We get absolute 2.4% improvements on CUB-200-2011. Histogram Loss512 and Binomial Deviance512 are trained without bounding boxes. They only provide related results on CUB-200-2011. So we also validate our method without bounding boxes. HDC + Contrastive†384 surpasses the Binomial Deviance512 for 1.2% On CARS196, the Recall@1 achieves 73.7% even without bounding boxes. Figure [\ref=fig:result:cars] contains some retrieval results on CARS196 without using bounding boxes. In summary, the previous two groups of experiments validate the robustness of our method for both the cropped datasets and the original datasets.
+
+Table [\ref=table:recall_products] reports the results on Stanford Online Products. Stanford Online Products suffers the problem of rare images for each class and large number of classes, which is totally different from CARS196 and CUB-200-2011. Our method achieves 10% relative improvements over previous state-of-the-art method on Recall@1. Figure [\ref=fig:result:products] contains some retrieval results on Stanford Online Products
+
+Similar to the Stanford Online Products, DeepFashion In-shop Clothes and VehicleID all suffer the the problem of limited images in each class and large number of classes. We improve the Recall@30 on In-shop Clothes Retrieval from 77% to 91.2%.
+
+Table [\ref=table:map_vehicle_id] is the experimental results on VehicleID. As the original paper chooses the VGG [\cite=simonyan2014very] as their base model, We use GoogLeNet pool5 feature as our baseline, of which the MAP is 0.418. HDC + Contrastive†384 reaches 0.655 on small set, which achieves 0.109 absolute improvement. For the medium test set and large test set, our method achieves larger improvements.
+
+Conclusions
+
+In this paper, we propose a novel Hard-Aware Deeply Cascaded Embedding to consider hard levels of samples. By ensembling a set of models with increasing complexities in a cascaded manner, samples with different hard levels are mined accordingly using the models with adequate complexities. Controlled experimental results demonstrate the advantages by the hard-aware design, and extensive comparisons on five benchmarks further verify the effectiveness of the proposed method in learning deep metric embedding.
+
+Currently, the method is verified by three cascaded models with increasing complexities, in the future, we would further improve the method by cascading more models and increasing complexities in a smoother way. And we would also try to combine our method with other loss functions in the futher work.

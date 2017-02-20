@@ -1,0 +1,85 @@
+The Cascading Haar Wavelet algorithm for computing the Walsh-Hadamard Transform
+
+Introduction
+
+The Walsh-Hadamard Transform (WHT) is a staple of the digital signal processing world, and is used extensively in communication systems, image processing, and in general as a proxy for the Fast Fourier Transform (FFT) [\cite=walsh_paley]. Like the FFT, it is well known that the WHT of a signal of length n, where n is a power of 2, can be computed with O(n log n) complexity. There exist well established algorithms for computing the WHT based on divide-and-conquer principles, which exploit the recursive properties of the transform, namely that any WHT of size 2m can be broken down into two WHTs of size 2m - 1. Various orderings of WHT coefficients are possible, most notably natural, dyadic and sequency orderings, and classical WHT algorithms essentially differ depending upon the desired ordering. See [\cite=walsh_paley] for background on the various WHT orderings and their corresponding algorithms. These fundamental algorithms have been known for many years, and more recent work has focused on practical considerations, such as how to incorporate these algorithms into parallel architectures and FPGAs; see for example [\cite=performance] [\cite=FPGA].
+
+It has been previously noted that there exist interesting relationships between the WHT with dyadic ordering and the oldest and simplest discrete wavelet transform, the Haar wavelet transform. It was observed in [\cite=walsh_relations] that computing the WHT of a signal has a striking interpretation in terms of Haar wavelet coefficients: it is equivalent to applying WHTs of different sizes independently to the coefficients within each scale of the Haar wavelet transform. Based on this observation, the authors propose a Haar-Walsh transform, which transforms Haar wavelet coefficients into WHT coefficients, thereby giving an alternative approach to computing the WHT: via a detour into the Haar wavelet domain. This approach was shown to match the complexity of the standard algorithms, and it has the additional appeal of computing the Haar wavelet transform for free in the process. Nonetheless, it appears that the approach never became a popular alternative to the standard WHT algorithms. We also note that, while a single Haar wavelet transform is computed at the start, the algorithm proceeds using the standard divide-and-conquer approach within each scale of the Haar wavelet transform thereafter.
+
+In this paper, we propose a novel algorithm for computing the WHT with coefficients (in dyadic order) which is inspired by some of the connections between WHTs and Haar wavelet transforms, but which is fundamentally different from all preceding algorithms. Its marked difference is apparent from the fact that it consists entirely of Haar wavelet transforms. We show that the algorithm, which we call the Cascading Haar Wavelet (CHW) algorithm, matches the serial complexity of the standard algorithms for either the natural or dyadic orderings, requiring precisely n log 2n addition operations for its computation. Furthermore, we propose a natural way of parallelizing the algorithm in such a way that each of the nodes in the parallel architecture performs a single fixed task, namely a Haar wavelet transform of a given size.
+
+Description of the algorithm
+
+Given m  ≥  0, the 2m  ×  2m Hadamard matrix with columns in dyadic (Paley) order [\cite=walsh_relations] [\cite=walsh_paley], Hm, is defined by the recursion
+
+[formula]
+
+where [formula] denotes the Kronecker product. Given m  ≥  0, the 2m  ×  2m Haar matrix [\cite=walsh_paley], Ψm, may be defined by the recursion
+
+[formula]
+
+where we write Im for the 2m  ×  2m identity matrix.
+
+The CHW algorithm is based on a particular decomposition of a Hadamard matrix in terms of Haar wavelet transform matrices. We use the notation [formula] for a p-fold matrix product.
+
+[formula]
+
+A proof of Theorem [\ref=decomp] is given in Section [\ref=derivation]. Expanding the product in ([\ref=decomp_eqn]), we have
+
+[formula]
+
+[formula]
+
+which shows that the WHT can be computed by first computing the Haar wavelet transform, and then employing a divide-and-conquer approach also consisting of Haar wavelet transforms, as illustrated in Figure [\ref=flow_diagram].
+
+Figure [\ref=flow_diagram] is potentially misleading, in that the identity transforms do not actually need to be performed! We analyze the complexity of the CHW algorithm in Section [\ref=complexity], where we show that the algorithm requires n log 2n summations, where n = 2m - exactly the same as the standard WHT algorithms [\cite=walsh_paley].
+
+Complexity analysis
+
+We have proposed a method for computing the WHT which is built up entirely of Haar wavelet transforms. To analyze its complexity, we therefore need a complexity result for the Haar wavelet transform.
+
+The Haar wavelet transform corresponding to multiplication by Ψm can be computed in 2(2m - 1) operations.
+
+Equipped with this result, we can determine the complexity of the CHW algorithm.
+
+The CHW algorithm can be implemented in m  ·  2m operations.
+
+Proof: From Figure [\ref=flow_diagram] we see that the CHW algorithm requires a single Haar wavelet transform of size 2m, and 2m - 1 - r Haar wavelet transforms of size 2r, for [formula]. By Lemma [\ref=haar_lemma], the total number of operations is therefore
+
+[formula]
+
+which simplifies to m  ·  2m.[formula]
+
+We have shown that the CHW algorithm has precisely the same serial complexity as the popular divide-and-conquer algorithms for the WHT. In the next section, we propose a natural way of parallelizing the CHW which has a number of attractive features.
+
+A proposal for a parallel implementation
+
+Given the WHT's importance in signal processing, it is not surprising that there already exists a body of work addressing the question of how to efficiently parallelize it; see [\cite=performance] for an example. In this section, we make the observation that there is a very natural way to parallelize the CHW algorithm, which possesses a number of attractive features.
+
+In the CHW algorithm, a signal of length 2m is cascaded through a succession of Haar wavelet transforms. It is possible therefore to consider a parallel architecture in which each of m - 1 nodes is devoted to the task of performing Haar wavelet transforms of a certain size. A scheduling chart illustrating this procedure for m = 4 is shown in Figure [\ref=parallel_flow]. In this case, we have three nodes, each devoted to the task of performing the Haar wavelet transforms Ψ1, Ψ2 and Ψ3. A full Haar wavelet transform Ψ4 must first be performed (by one of the three nodes, or by an extra one), and thereafter each node is occupied for approximately half of the total running time. The output is the WHT coefficients in dyadic order. Note the attractive properties of this scheme: each node need only be programmed to perform a single task, and communication of the output from any given node follows fixed and straightforward rules.
+
+Proof of Theorem 1
+
+We proceed by induction. The result holds trivially for m = 1. Assume ([\ref=decomp_eqn]) holds for m - 1. Then
+
+[formula]
+
+[formula]
+
+which, by the inductive hypothesis, is equal to
+
+[formula]
+
+Relation to prior work
+
+The author is aware of two papers especially in which the relationship between the WHT and the Haar wavelet transform has been explored. In [\cite=walsh_relations], the authors consider a Haar-Walsh transform which transforms Haar wavelet coefficients into WHT coefficients (in dyadic order), which they observe to be equivalent to multiplication by the matrix
+
+[formula]
+
+The Haar-Walsh transform can therefore be computed by taking separate WHTs of the Haar wavelet coefficients at each scale. See also [\cite=multilevel] by the current author in which the implications of this decomposition are explored for multilevel compressive sensing.
+
+The possibility of recursively decomposing Hadamard matrices using ([\ref=decomp2]) appears to be spotted in the concluding remarks of [\cite=fino], and indeed it is possible to derive the CHW algorithm from repeated application of ([\ref=decomp2]). Closely related though the ideas in [\cite=fino] are, to the author's best knowledge, there is no mention in the literature of a WHT consisting entirely of Haar wavelet transforms, nor any statement of the decomposition result given in Theorem [\ref=decomp].
+
+Concluding remarks
+
+We have proposed the novel Cascading Haar Wavelet (CHW) algorithm for computing the WHT. We have also proposed a parallelization scheme, and it remains to comprehensively understand the practical implementation advantages that the CHW might have over other approaches to parallelization of the WHT.

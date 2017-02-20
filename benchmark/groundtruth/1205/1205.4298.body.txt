@@ -1,0 +1,89 @@
+Task-specific Word-Clustering for Part-of-Speech Tagging
+
+Introduction
+
+The limited amounts of annotated training data available for supervised learning call for semi-supervised learning approaches, which aim to leverage the vast amounts of readily available unannotated data in order to improve the accuracies of supervised systems.
+
+In natural-language processing, a simple and popular method for semi-supervised learning is based on word clustering [\cite=miller2004] [\cite=koo2008] [\cite=turian2010]: words in a large corpus are clustered into equivalence classes based on some (usually distributional) criteria, and the induced classes are then used as additional features in a supervised learning model. The use of cluster-based features was demonstrated to improve the accuracies of many NLP tasks, including parsing [\cite=koo2008] [\cite=candito2009], named-entity recognition [\cite=miller2004] [\cite=turian2010] [\cite=lin2009] [\cite=chrupala2011], classification of semantic relations [\cite=chrupala2011] and machine-translation [\cite=uszkoreit2008].
+
+Word clusters are usually induced based on a distributional-similarity criteria: words are clustered based on the words that tend to occur before or after them. Clusters produced by the Brown clustering algorithm [\cite=brown1992] are an example of commonly used distributional clustering features. In this model, words are clustered by means of a probabilistic cluster-based language model. A more scalable distributional clustering algorithm is introduced by Uszkoreit and Brants who use a parallel implementation of the Exchange algorithm to cluster words based on word-to-cluster transitions. When used as features, clusters derived using the Exchange algorithm are as effective as those derived by the Brown algorithm. Other types of distributional clustering algorithms rely on word embeddings [\cite=collobert:2008] [\cite=mnih.hinton:2007]. Turian et al. find that embedding-based distributional clusters tend to underperform Brown-type clusters.
+
+The distributional-similarity hypothesis underlying all these algorithms is that words in similar contexts behave in a similar manner. The notion of similarity is vague and is not specific to any particular task. In practice, distributional-similarity based clusters show a mix of semantic and syntactic properties. Can we design word-clusters capturing properties which are relevant for a specific task?
+
+We focus on the task of part-of-speech (POS) tagging, and present a novel task-specific clustering criteria: words are clustered based on the behavior of a baseline tagger when applied to a large body of text.
+
+One of the most useful sources of information for tagging a given word w with a tag t is the weighted ambiguity class of the word, as represented by the conditional tagging distribution p(T = t|w). Our first kind of clusters aim to capture exactly this information: we cluster words based on their empirical p(T = t|w) distributions, as observed over a large automatically tagged corpus.
+
+The tag of a word w can be predicted to some extent also by the previous word w- 1 or the following one w+ 1. We can create word-clusters to capture these sources of information by clustering words based on the empirical distributions p(T+ 1 = t|w) and p(T- 1 = t|w), and using these clusters to represent the previous and following word respectively.
+
+The approach is related to self-training in that we use the tagger's own prediction in order to improve it. However, in contrast to self training, we use statistics derived from the tagger's output as additional features for supervised training.
+
+For POS-tagging, our task-specific clusters are as effective as those derived by a lexical distributional-similarity criteria when used on their own, and have a cumulative effect when both kinds of clusters are used together. Moreover, the task-specific clusters serve as a very good proxy to word identity for the purpose of POS-tagging, and we can train completely unlexicalized POS-tagging models without sacrificing accuracy.
+
+Method
+
+Our training protocol is as follows:
+
+1) Train a supervised tagger on POS-annotated text. 2) Use the tagger to annotate large amounts of raw text. 3) Collect (W,T) counts from the automatically tagged text. 4) For a word w occurring over k times, compute: [formula] 5) Cluster words based on p(T = t|w).
+
+We then use the derived clusters as additional features in a discriminatively-trained sequence-tagger.
+
+When clustering, we encode the conditional p(T = t|w) distribution for each word w as a |T|-dimensional vector in which the ith entry is the conditional probability p(T = ti|w), and cluster words based on the Euclidean distance between their vectors:
+
+[formula]
+
+We use the K-means clustering algorithm with the initialization procedure described in [\cite=kmeanspp], which stochastically favors cluster centers that are far apart from previously chosen centers.
+
+Words provide weak signals regarding the POS-tag of the next or previous word. We produce clusters based on the distributions p(T- 1 = t|w) and p(T+ 1 = t|w) in a similar fashion.
+
+Details and Experiments
+
+Parameters
+
+In all the experiments, we set the word frequency threshold k to be 100. Due to the large size of our unannotated corpus, we still remain with very large vocabulary sizes (see Table [\ref=tbl:unannotated-corpora]). We run the K-means algorithm for 100 iterations, and cluster the words into 256 classes. While the baseline-tagger features are tuned for good accuracy, we did not perform all but minimal tuning of the extended cluster features, and did not tune any of the other parameters.
+
+Tagger
+
+We use a first-order linear-chain sequence-tagger, trained using the averaged structured-MIRA algorithm. The features include distributional clusters derived from the unannotated corpora using the Exchange algorithm and are detailed in Table [\ref=tbl:tagger-features]. Throughout the presentation, all features are assumed to be conjoined with the tag to be predicted.
+
+Datasets
+
+Annotated data
+
+For English, we use the following annotated corpora:
+
+WSJ The WSJ portion of the Penn Treebank corpus [\cite=marcus.etal.93] is used to train all of our English tagging models. We train on Sections 2-21, and evaluate on Section 22. Brown (BRN) The entire Brown corpus portion of the Penn Treebank is used for evaluation. Questions (QTB) The QuestionBank [\cite=qtb] contain 4,000 questions, which we use for evaluation, Football (FTBL) We report results on the development set (185 sentences) of the Football corpus of [\cite=foster2010]. In one experiment we use the test section (170 sentences) as additional training data. Web The entire web portion of the Ontonotes corpus [\cite=weischedel2011] is used for evaluation.
+
+In most experiments we train our tagger on the training set of the WSJ corpus and reserve the other datasets for evaluation. The baseline tagger is always trained on the WSJ training set.
+
+German We use data and splits from the CoNLL 2006 shared task [\cite=conll.x]. French We use the French Treebank [\cite=ftb2004] with splits defined in Candito et al. . Italian We use data and splits from the CoNLL 2007 shared task [\cite=conll07].
+
+Unannotated Data
+
+We use one year of newswire articles from multiple sources from a news aggregation website for each language. The datasets range in size from 19 to 0.5 billion tokens. The unannotated data is summarized in Table [\ref=tbl:unannotated-corpora].
+
+Results
+
+English
+
+In the first set of experiments we test the effectiveness of the Task-based clustering method on both in-domain and out-of-domain English data.
+
+We begin by distilling the amount of information captured by the different clusters. To this end, we train models with the simplest set of features possible: for each sequence position we consider the lexical item w0, the transition feature t- 1, and zero or more cluster features. We also train models including the cluster features but not the lexical items. We evaluate the models on the different English datasets. Table [\ref=tbl:simple-results] detail the results.
+
+Note that this is not exactly a domain-adaptation scenario, as all the unannotated data is from the Newswire domain. Still, the cluster features contribute to tagging accuracies across all the datasets. When the current word w0 is present as feature, the distributional clusters ρ0 is somewhat less informative than the task-specific clustering ζ0, which is based on p(t|w). The cluster features of the next and previous words (η- 1 and τ+ 1) are expectedly less informative than the cluster associated with the current word, but still contain some predictive information. When we exclude the word from the feature set and rely only on the cluster information (the last two rows of the table), the task-specific clusters ζ0 do particularly well - compensating almost completely over the missing word identity information. The models relying solely on the previous tag and the task-specific cluster (t- 1 ζ0) are significantly better than the models relying on the previous tag and the explicit word identity (t- 1 w0).
+
+We then proceed to evaluate the effectiveness of the cluster features in the context of a richer feature set. We use the feature-sets described in Tables [\ref=tbl:tagger-features] and [\ref=tbl:tagger-features2]. We consider different subsets of the cluster features. Results are presented in Table [\ref=tbl:en-results].
+
+Expectedly, using the richer feature-sets improve results for all models. The cluster features still contribute to tagging accuracies across all the datasets. The contribution of the task-based clusters (Task) is similar but a bit lower than that of the distributional clusters (Dist), but results improve when the two clustering approaches are combined (Dist+Task). Adding the task based clustering of neighboring words (All) further improve the results on most datasets. The largest improvements are observed on the out-of-domain datasets. Somewhat surprisingly, dropping the explicit lexical feature w0 (last column) does not hurt performance, and even significantly improve it on the Football dataset.
+
+English - Additional Training Data
+
+In the next experiment, we target the situation in which we have a small amount of annotated data in an interest-domain in addition to the larger amount of out-of-domain data. We use the test-set of the Football dataset as additional in-domain training material. Results are presented in Table [\ref=tbl:adapt]. As expected, using the additional in-domain training data improve the results. However, the contribution of the additional data is small, as most of the gap is already covered by the cluster features. When using all the cluster features but no lexicalization (last column) training on WSJ alone outperform the joint training.
+
+German, French and Italian
+
+We observe similar trends on languages other than English (Table [\ref=tbl:multilingual]). The additional task-specific cluster features improve performance across all languages.
+
+Conclusions
+
+We presented a task-specific word clustering method for POS-tagging. The method is effective across domains and languages. The automatically derived clusters capture the essence of the lexical items with respect to the task to the extent that the cluster features can replace the actual lexical items. We would like to see task-specific clusterings for other, more challenging tasks.

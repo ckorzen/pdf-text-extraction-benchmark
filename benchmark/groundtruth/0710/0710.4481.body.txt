@@ -1,0 +1,339 @@
+Corollary Lemma
+
+Structure Learning in Nested Effects Models
+
+Introduction
+
+Functional genomics has a long tradition of inferring the inner working of a cell through analysis of its response to various perturbations. There are several perturbation techniques suitable for large-scale analysis in different organisms. Experiments with gene knock-outs have been very successful in uncovering gene function [\citep=hughes00functional], and gene silencing by RNA interference [\citep=fire98potent] allows perturbation screens on a genome-wide scale.
+
+The changes observed in the cell are called the phenotype of the perturbation. In most biological studies, perturbation effects are measured by single reporters like cell death or growth. Analysis of these phenotypes can reveal which genes are essential for an organism [\citep=boutros04genomewide] or for a particular pathway [\citep=gesellchen05rnai]. However, these screens do not reveal how the genes contribute to regulatory networks or signalling pathways.
+
+More details about gene function and interactions are contained in high-dimensional phenotypes that give a global view of changes in the cell. High-dimensional phenotypes include gene expression profiles [\citep=hughes00functional] [\citep=boutros02sequential] [\citep=driessche05epistasis], metabolite concentrations [\citep=raamsdonk01functional], sensitivity to cytotoxic or cytostatic agents [\citep=brown06global], or morphological features of the cell [\citep=ohya05highdimensional]. While high-dimensional phenotypic profiles promise a comprehensive view of the function of genes in a cell, only limited work has been done so far to adapt statistical and computational methodologies to the specific needs of large-scale and high-dimensional phenotyping screens.
+
+Phenotypic profiles offer only indirect information
+
+A key obstacle to inferring genetic networks from high-dimensional perturbation screens is that phenotypic profiles generally offer only indirect information on how genes interact. Cell morphology or sensitivity to stresses are global features of the cell, which are hard to relate directly to the genes contributing to them. Gene expression phenotypes also offer an indirect view of pathway structure due to the high number of post-transcriptional regulatory events like protein modifications. For example, when silencing a kinase we might not be able to observe changes in the activation states of other proteins involved in the pathway. The only information we may get is that genes downstream of the pathway show expression changes. Thus, phenotypic profiles may provide only an indirect view of information flow and pathway structure in the cell.
+
+Statistical analysis of phenotyping screens
+
+Previous work focused on clustering phenotypic profiles to find groups of genes that show similar effects when perturbed. The rationale is that genes with similar perturbation effects are expected to be functionally related. The most prominent method used is average linkage hierarchical clustering [\citep=piano02gene] [\citep=ohya05highdimensional]. A complementary approach is ranking genes according to similarity with a query gene [\citep=gunsalus04rnaidb]. In a supervised setting, first steps have been taken to classify genes into functional groups based on phenotypic profiles [\citep=ohya05highdimensional]. A comprehensive overview of computational models for the reconstruction of genetic networks can be found in [\citep=markowetz07review].
+
+A recent approach especially designed to learning from indirect information and high-dimensional phenotypes are Nested Effects Models [\citep=markowetz05nontranscriptional] [\citep=markowetz07nested] that reconstruct features of the internal organization of the cell from the nested structure of observed perturbation effects. Perturbing some genes may have an influence on a global process, while perturbing others affects sub-processes of it. Imagine, for example, a signaling pathway activating several transcription factors. Blocking the entire pathway will affect all targets of the transcription factors, while perturbing a single downstream transcription factor will only affect its direct targets, which are a subset of the phenotype obtained by blocking the complete pathway. NEMs can be seen as a generalization of similarity-based clustering, which orders (clusters of) genes according to subset relationships between the sets of phenotypes. So far, a likelihood function has been derived for NEMs in the case of discretized or binary data [\citep=markowetz05nontranscriptional] and p-values of differential expression [\citep=froehlich07estimating]. For model inference, divide-and-conquer strategies have been applied to scale up model search [\citep=markowetz07nested] [\citep=froehlich07large].
+
+Overview of this paper
+
+After introducing a generalized version of NEMs in Section [\ref=section:definition] we expand their statistical basis in four directions: First, we derive a new formula for the likelihood function of a NEM that generalizes previous results (Section [\ref=section:MAPestimation]). Second, we prove model identifiability under mild assumptions (Section [\ref=section:identifiability]). Third, we develop efficient methods of traversing model space (Section [\ref=section:modelsearch]). And finally, we incorporate prior knowledge and a variable selection step into model search to decrease the influence of noise in the data (Section [\ref=section:extensions]). We show the applicability of the proposed method in the controlled setting of a simulation scenario (Section [\ref=section:simulation]) and in an application to an example in Drosophila immune response (Section [\ref=section:application]).
+
+Definition of nested effects models
+
+The system of components we consider consists of a set of [formula] observable entities ( e.g. mRNA concentrations), and a set of [formula] actions ( i.e. gene perturbations) applied to the system which are expected to alter the state of some observable entities. Both and consist of binary variables. An altered state of an observable [formula] is denoted by s = 1, the basic state is s = 0. A value of a = 1, resp. a = 0, means that action [formula] was performed, resp. not performed. Let Das, [formula] be a set of measurements for observation s after performing action a. The set of all measurements [formula] constitutes the data. Note that our definition of [formula] does not require that all [formula] are observed for all actions [formula]. Thus, missing data and the exclusion of failed experiments can directly be incorporated into all the results that we develop in the following.
+
+Nested effects models are effects models that can be defined in terms of two graphs or adjacency matrices. The first graph, Γ, describes how actions imply each other and the second graph, Θ, how observables are linked to actions. Let the actions graph Γ  =  (Γaa') be a graph on the vertices , encoded as an [formula] adjacency matrix with the convention Γaa = 1, [formula]. We say that the edge a  →  a' is in Γ, or for short [formula], if Γaa' = 1.
+
+Secondly, we assume that each observation is directly linked to exactly one action as defined by a function [formula]. This can synonymously be encoded as an [formula] adjacency matrix Θ  =  (Θas), with Θas  =  δa = θ(s) for [formula], [formula] (where δ· is the delta function). Write [formula] if Θas = 1. By this definition, Θ contains only zeros except for a single 1 in each column. When describing how observables are linked to actions, we tacitly switch between the adjacency matrix Θ and the function θ for the sake of notational convenience.
+
+We postulate an effect of an action [formula] on [formula] if and only if there exists an action [formula] such that the edge from a to a' is in Γ, and s is directly linked to a' (the edge from a' to s is in Θ). Since each observable is linked to exactly one action, action a has an effect on s if and only if (ΓΘ)as = 1. This prompts the following definition:
+
+The parameters Γ and Θ uniquely determine the model. We therefore use P(D  |  Γ,Θ) interchangeably with P(D  |  F). Examples of nested effects models are given in Fig. [\ref=NEMexamples], showing the graphs Γ and Θ as well as the resulting effects model F.
+
+Transitivity requirement
+
+Previous definitions of NEMs required the actions graph to be transitively closed [\citep=markowetz05nontranscriptional] [\citep=markowetz07nested], restricting model space from the space of all graphs to the space of transitively closed graphs. This is sensible if paths in the actions graph are interpreted as causal chains. For transitively closed graphs, our model has a property that motivated the name "nested effects model": The existence of an edge a  →  a' in a transitively closed graph implies that the effects observed for action a' (i.e. all effects s with θ(s) = a') are "nested" in the observed effects of a:
+
+[formula]
+
+This correspondence induces an order homomorphism from Γ to the subset lattice of the set observations, which is satisfactory from a mathematical point of view.
+
+However, admitting only transitively closed graphs as valid models is a constraint which makes structure learning computationally hard [\citep=markowetz07nested]. Even a small change in the model--like removing or adding an edge--can make many more changes necessary to preserve transitivity. The likelihood function will be quite volatile and the likelihood landscape will not be smooth.
+
+Our calculations here do not rely on the transitivity of the actions graph. Our definition of NEMs thus extends the one used in previous studies [\citep=markowetz05nontranscriptional] [\citep=markowetz07nested] [\citep=froehlich07estimating] [\citep=froehlich07large].
+
+Inference of the actions graph
+
+Likelihood
+
+Assuming data independence, the likelihood of the model F (with data D fixed) factors into
+
+[formula]
+
+if we define P(s = x|a) = 0.5 for x∈{0,1} and [formula]. The quantity log P(D|F) can be expressed in a convenient form: For an observable [formula] and a perturbation [formula], let the log likelihood ratio [formula] be known, and R = (Rsa) be the [formula] matrix of ratios. If we let N be the null matrix, i.e. the model predicting no effects at all, then
+
+[formula]
+
+with " " denoting the trace function of a quadratic matrix. This derivation of the likelihood applies to both general effects models and nested effects models. In particular, in nested effects models Eq. ([\ref=fdefinition]) allows to represent the likelihood as
+
+[formula]
+
+The likelihood function depends on the data only via the likelihood ratios in R. This makes our approach very flexible: our method can handle as input data binary values, p-values, or any other arbitrary statistic as long as it can be converted to a likelihood ratio. Section [\ref=rmatrix] contains an outline of how this quantity can be estimated in a practical application to gene expression microarray data.
+
+Posterior
+
+We aim at maximizing the posterior of Γ and Θ,
+
+[formula]
+
+where we assume that the parameters Γ and Θ are independent and follow prior distributions P(Γ) amd P(Θ), which are not necessarily uniform.
+
+Let Q = (Qsa) be an [formula] matrix with entries Qsa = P(θ(s) = a). We assume that the prior links each observation independently to an action, i.e.
+
+[formula]
+
+where as is the particular value of θ(s) in Θ. Consider the data D fixed and write L(Γ,θ)  =   log P(D  |  Γ,θ) for the log-likelihood of the data, given the model. Then the posterior of the model (Γ,θ) becomes
+
+[formula]
+
+The task is to find the MAP estimate for P(Γ,Θ  |  D),
+
+[formula]
+
+We are particularly interested in finding the optimal actions graph [formula]. Writing
+
+[formula]
+
+this corresponds to finding
+
+[formula]
+
+Model identifiability
+
+We present theorems showing that the maximum likelihood estimator recovers the true structure of the actions graph for sufficiently "good" data. All proofs are given in the appendix.
+
+If the data is consistent with the effects model F, then the maximum likelihood estimate of ([\ref=trace1]) equals F,
+
+[formula]
+
+[formula]
+
+In the light of this theorem it is interesting to find out to what extent the actions graph Γ and the assignment Θ are controlled by the nested effects model F = ΓΘ. The complete answer is given in Theorem [\ref=identifiability]. We precede it by a definition and a lemma.
+
+Let (Γ',Θ') be a reversal of (Γ,Θ) induced by the permutation π  =  (a1,a2,...,an). Then (Γ',Θ') is a valid parametrization of F = ΓΘ.
+
+Lemma [\ref=lemma:reversal] states that the two parametrizations (Γ,Θ) and (Γ',Θ') define the same nested effects model, thus we call them observationally equivalent.
+
+For an action [formula], the parents of a are the actions [formula] such that [formula]. If two distinct actions [formula] have the same parents, then they are clearly indistinguishable by any kind of interventional measurement. This is a general limitation, not only a limitation of our model. We propose collapsing these two actions in such a case [\citep=markowetz07nested]. We exclude indistinguishable actions from our considerations and state:
+
+Let (Γ,Θ) and (Γ',Θ') be the parameters of two nested effects models. Assume that no two distinct actions [formula] have the same parents in Γ or in Γ'. Then (Γ,Θ) and (Γ',Θ') are observationally equivalent if and only if the tuples can be converted one into another by a sequence of disjoint reversals.[formula]
+
+Taken together, Theorems [\ref=consistency] and [\ref=identifiability] state that under mild conditions, not only the true nested effects model F is identifiable for "sufficiently good" data (which in practical cases means for a sufficiently high number of replicate measurements), but also the underlying actions graph Γ and the assignment θ are unique up to reversals.
+
+Actions graph search
+
+The space of actions graphs is huge, it contains [formula] elements (recall that the diagonal entries of the adjacency matrix equal 1 ). In order to search efficiently, we need a fast method for the evaluation of ([\ref=posterior]). The key observation is that small changes in Γ require only small changes in the optimal assignment θ, and these can be calculated very fast.
+
+Elementary moves
+
+Let Γ and Γ' be neighbours in , i.e. Γ and Γ' differ exactly in one edge, from action j to action k say. An elementary move is defined as the insertion or the removal of one edge in an actions graph (note that if we chose the search space to be the transitively closed graphs or the acyclic graphs, these moves would not be well defined). Let ej denote the j-th unit column vector of length [formula], and let gk be the k-th unit column vector of length [formula]. By xT denote the transpose of a vector or a matrix x. Define Ejk = ejeTk as the matrix containing only zero entries except a 1 in row j, column k. Then
+
+[formula]
+
+Optimization of the effects graph
+
+Let Gjs = ejgTs, [formula], [formula]. Then
+
+[formula]
+
+It follows from the equations ([\ref=priortheta]),([\ref=thetaopt]) and ([\ref=updateeffects]) that maximizing θ with respect to L(Γ,θ) can be done pointwise, i.e.
+
+[formula]
+
+For each [formula], step ([\ref=thetamax]) takes [formula] time, provided that the matrix RΓ is given. It is therefore necessary to keep track of this matrix whenever Γ is changed into a Γ'. But RΓ'  =  RΓ  +  εjkREjk is obtained from RΓ simply by adding εjkR.j to the k-th column of RΓ, so this process takes only [formula] time. The complete evaluation of θ according to ([\ref=thetamax]) takes [formula] time. However we can exploit the fact that (in expectation) hardly any of the observable effects has to be reassigned. For the moment, fix [formula] and consider the vector v = (RΓ)s  ·  +  Qs  · and let
+
+[formula]
+
+By ([\ref=thetamax]), [formula] and [formula]. The vector v differs from w at most in its k-th entry. The following cases can occur:
+
+[formula]
+
+Given the matrix RΓ, the first three cases in ([\ref=fastupdate]) can be calculated in constant time. The fourth case requires [formula] time. The elementary moves choose every edge j  →  k with the same frequency, so the expected relative frequency for which the case t = k occurs is [formula]. Therefore, the expected running time for ([\ref=fastupdate]) is at most [formula]. We have to do this step for all [formula], so the calculation of the function θ can be done in expected [formula] time. What remains to do is to update the matrix RΓ to
+
+[formula]
+
+This only affects the k-th column of RΓ, to which we add the vector εjkR·  j. The time consumption of this step is [formula].
+
+Gray code enumeration of actions graphs
+
+Actions graphs are treated as binary vectors of length [formula] (the diagonal is fixed), and they are enumerated without redundances using a gray code [\citep=knuthvol4]. Each enumeration step alters exactly one edge of the predecessor graph, so we can take advantage of our fast update algorithm. It allows the exhaustive search of the actions graph space for n  ≤  5 (computation time on a 1GHz computer: a few seconds for n = 4 actions, approx. 10mins for n = 5 actions).
+
+Extensions
+
+In this section, we adapt the raw nested effects model to make it more applicable to real-life data sets. We discuss methods to incorporate prior knowledge on parts of an action graph and to decrease measurement noise by feature selection and regularization.
+
+Rigid actions graph prior
+
+In many practical applications, parts of the true actions graph structure is already known, and only a fraction of edges has to be estimated from the data. Taking advantage of this, we introduce a rigid prior on the actions graph. An edge can be declared as known present, known absent, or unknown. Exhaustive search is then performed only on those edges whose presence is unknown.
+
+This permits a novel way of joining new components to a well known signaling network: Given measurements of a known actions graph and an additional action node a, declare only edges starting or ending in a as unknown. The reconstruction procedure will then find the position of a within the already established network. We show the feasibility of this procedure in the simulations in section [\ref=simulation:rigidprior].
+
+Feature selection and regularization
+
+In high-dimensional phenotypic readouts, we may encounter a situation in which a considerable part of all observables does not react to any intervention at all. The occurrence of many false positive effects is an inevitable consequence. Therefore, it is essential to only include responsive observables into the model and discard the rest.
+
+The null action
+
+Our model offers an elegant way of doing feature selection: Extend the adjacency matrix Γ of the actions graph by one null column, which can be interpreted as an action that does not affect the observations assigned to it (we call it the null action in contrast to the regular actions in ). The optimization procedure in Section [\ref=section:modelsearch] then assigns a gene to the null action if considering the gene a general non-responder is beneficial to the posterior.
+
+This method has two advantages: It does hardly cost any extra computation time, and the number of responsive genes does not have to be fixed in advance. For example a best fitting graph structure might recruit many weakly responsive genes, whereas in other situations it might receive less numerous but strong support by only a few genes.
+
+Regularization
+
+We complement the null action with a noise reducing regularization step. A straightforward way is to subtract a (non-negative) constant δ from each entry in the ratio matrix R. This amounts to a priori favoring non-effects, since
+
+[formula]
+
+Suppose that all values Rsa  -  δ, [formula] in some row of R are negative. Then any assignment of the observable s to a regular action will decrease the posterior. Thus, in any model, s will be optimally assigned to the null action. It is therefore time-saving to directly exclude this effect before entering the reconstruction algorithm.
+
+The [formula]-score
+
+We propose a simple heuristic for the optimal choice of δ which works well in practice. Let [formula] be the effects that are still included into the reconstruction step after the regularization by δ has been applied. The larger δ, the smaller [formula], and δ = 0 corresponds to no pre-selection at all. Let (,) be the maximum a posteriori estimate derived from the (δ-)regularized ratio matrix R. Define the posterior per observable score by
+
+[formula]
+
+The [formula] measures the average contribution of each effect in [formula] to the log posterior value of the best scoring model. Select the optimal value of δ as
+
+[formula]
+
+Figure [\ref=deltachoice] shows a typical [formula] curve, which compares models with varying degrees of regularization for the Drosophila data set we will describe in detail in section [\ref=section:application].
+
+Simulation results
+
+Robustness of the actions graph reconstruction
+
+Section [\ref=section:identifiability] proved the identifiability of nested effects models under the assumption of consistent data. Here we investigate the robustness of NEMs against measurement errors, i.e. variability in the ratio matrix.
+
+Given a "true" NEM and a noise level α, we calculate a consistent ratio matrix containing the entry 0.5 (resp. - 0.5) whenever the model predicts an effect (resp. no effect). Then, we add independent, normally N(0,α2)-distributed noise to each entry of the ratio matrix.
+
+An exhaustive search on the actions graph space produces a distribution of posterior scores as well as the highest scoring NEM. From this distribution, we compute the rank of the score of the original NEM among all scores as well as the number of true positive and false positive edges in the highest scoring NEM. Results are averaged over 100 randomly sampled NEMs for each level of noise.
+
+The results displayed in Figure [\ref=increasingnoise] show the reliability of reconstructing the actions graph under increasing noise. Only at noise levels above 0.5 does our model start to miss edges (left plot) or to include spurious edges (middle plot) and the correct graph may then no longer be the highest scoring (right plot). For noise levels below 0.5 we achieve perfect reconstruction in all simulation runs.
+
+Utility of prior knowledge
+
+We test the impact of prior knowledge on the quality of the actions graph reconstruction in two ways. First, a fixed "true" model consisting of 4 actions, 50 observables and 5 edges is constructed, and a noisy ratio matrix is generated from it. The noise level is set to α  =  0.7.
+
+Starting from this matrix, a series of exhaustive searches is carried out. Each time, a prior is generated that either fixes a number of truly present edges as present, or which specifies a number of truly absent edges as absent. The quality of reconstruction is assessed in terms of sensitivity and specificity (regarding only those edges that were not known a priori). Since the quality of reconstruction heavily depends on the true actions graph topology, we average the results over 100 sample runs of this procedure.
+
+The left and middle plot of Fig. [\ref=sensspec] show the results of this procedure. The left plot illustrates the reconstruction quality in dependence of the number of a priori known present edges. The middle plot does the same for the inclusion of prior knowledge about absent edges. Both plots show that including prior information considerably increases sensitivity and specificity. In particular, information about present edges helps more than information about missing edges.
+
+In a second experiment, a fixed "true" model of 10 actions and 15 edges is created, and a noise ratio matrix is generated from it. We randomly pick a subgraph of 4 actions, the structure of which is assumed to be completely unknown. Another k nodes (k = 0,...,6) are added to the subgraph, and all edges not belonging to the initial subgraph are correctly specified as known present/absent via the actions graph prior. For each k, we restrict the original ratio matrix to the nodes present in the (k + 4)-nodes subgraph and start an exhaustive search.
+
+Again, the quality of reconstruction is reported by sensitivity and specificity averaged over 100 sample runs. The noise level was set to 0.4, and the number of observables was set to 200. The results in the right plot of Fig. [\ref=sensspec] show a strong increase in sensitivity at the cost of a slight decrease in specificity.
+
+Application to Drosophila immune response
+
+We apply our methodology to data from an RNA interference (RNAi) gene silencing study on innate immune response in Drosophila melanogaster [\citep=boutros02sequential]. The experiment probes how transcriptional response to lipopolysaccharides (LPS) is regulated by signal transduction pathways in the cell.
+
+Data
+
+The data set consists of 16 Affymetrix microarrays: 4 replicates of control experiments without LPS and without RNAi (negative controls), 4 replicates of expression profiling after stimulation with LPS but without RNAi (positive controls), and 2 replicates each of expression profiling after applying LPS and silencing one of the four candidate genes tak, key, rel, and mkk4/hep.
+
+Selectively removing one of these signaling components blocks induction of all, or only parts, of the transcriptional response to LPS. [\cite=boutros02sequential] show that this observation can be explained by a fork in a signaling pathway below tak, with key and rel on the one side and mkk4/hep on the other. This result clarified the contributions of different pathways to immune response in Drosophila [\citep=royet05sensing].
+
+Previous analyses
+
+The experimental design of this study, which includes both negative and postive controls, allows to define informative effects of interventions and quantify the false positive and false negative rates. In the original analysis [\citep=boutros02sequential] and two subsequent studies [\citep=markowetz05nontranscriptional] [\citep=markowetz07nested] only the 68 genes differentially expressed between positive and negative controls were used as effect reporters. [\cite=markowetz05nontranscriptional] propose a simple discretization scheme based on the two controls: if by silencing a gene in the LPS stimulated cell the expression of an LPS-inducible gene moved close to its expression in the negative controls, this was counted as an effect of the intervention; if a gene's expression stayed close to its expression in the positive controls, the gene was counted as being not affected by the intervention. Applying the same discretization scheme to the positive and negative controls makes it possible to estimate the two error rates.
+
+Analysis based on a single control
+
+The two types of controls can be used to define a set of informative effect reporters and assess the error rates in the data. However, most experimental studies do not contain two kinds of controls but only one. To mimic this situation we will make no use of the negative controls in the dataset and only include the four LPS-induced measurements in our analysis. We show in the following that our improved methodology is still applicable and exploits the information in the data better than previous approaches.
+
+Calculation of the ratio matrix R
+
+We use well established methods to assess differential gene expression between the positive controls (LPS stimulation but no gene silencing) and the gene perturbation profiles. Because of the small number of samples we chose a highly regularized empirical Bayes method for assessing differential expression in microarray experiments [\citep=smyth04linear], which is implemented in the R-package limma [\citep=smyth05limma] available from www.bioconductor.org. The empirical Bayes approach is equivalent to shrinkage of the estimated sample variances towards a pooled estimate, resulting in far more stable inference when the number of arrays is small. We compute likelihood ratios for the comparison of positive controls against every gene perturbation. We then select genes which show a positive ratio (regardless of its size) for at least two of the four knock-downs. This simple step of deleting uninformative genes reduces the number of effect reporters (observables) from 14 010 to 904. This number is still much bigger than the number of differential genes used in previous analyses and makes feature selection necessary.
+
+Results
+
+We fit NEM models to the ratio matrix R using the feature selection mechanism described in section [\ref=section:featureselection]. The resulting curve of the [formula] statistic is shown in Fig [\ref=deltachoice]. The model selected in our automatic procedure includes 143 observables (out of 904) and is shown in Fig. [\ref=fig:boutrosresult].
+
+Our model places tak above all other nodes and shows a branch below tak with key and rel on one side and mkk4/hep on the other side. The gene perturbations key and rel remain undistinguishable due to almost identical phenotypic profiles (see the nearly identical rows in the ratio matrix in Fig. [\ref=fig:boutrosresult]). The branching below tak into two sub-pathways is the main biological feature of the data [\citep=boutros02sequential] and our model succeeds in recapitulating it.
+
+A previous analysis of the same data set [\citep=markowetz05nontranscriptional] showed a very similar picture but included one additional edge from tak to rel, which is not contained in our result. It is known that rel is a transcription factor responsible for immune response, which is activated via the kinase key [\citep=royet05sensing]. Thus, the additional edge from tak to rel was a spurious result. It can be explained by the fact that the NEMs used in [\citep=markowetz05nontranscriptional] were constrained to transitively closed graphs (and then the direct edge from tak to rel is needed because there is a path from tak to rel over key). This shows that our general formulation of NEMs, which is not constrained to transitively closed graphs, can yield results closer to biological reality than previous formulations.
+
+Discussion
+
+In this paper we introduced a generalized definition of Nested Effects Models and expanded their statistical basis in several important directions. Our most important theoretical result is that NEMs can be shown to be identifiable under mild conditions on the data.
+
+General NEMs
+
+The new general formulation of NEMs expands the model class from transitively closed graphs to all directed graphs. This reduces the bias in the model and leads to results closer to existing biological knowledge in the application to Drosophila immune response.
+
+Likelihood formulation
+
+The new likelihood equation is much more flexible than previous equations for binary data [\citep=markowetz05nontranscriptional] [\citep=markowetz07nested]. It is applicable to any kind of data by converting it into likelihood ratios for the comparison of effects and non-effects. Thus, it can even integrate heterogeneous sources of data as long as they can be translated into likelihood ratios. Additionally, missing data or the exclusion of bad measurements is possible without changes in the algorithm.
+
+Model search
+
+Our formulation of the likelihood also leads to a fast updating procedure which can be carried out in linear time and is exceedingly faster than previous approaches. Still, an exhaustive search is clearly infeasible for larger values of perturbed genes. However, the fast elementary moves introduced here allow the application of combinatorial search algorithms, like Markov Chain Monte Carlo [\citep=gilks96mcmc] or simulated annealing [\citep=kirkpatrick83optimization], to find high scoring models.
+
+Prior knowledge
+
+We showed the usefulness of incorporating prior knowledge into model search by fixing parts of a bigger model and only inferring the unknown part. This is a special case of a prior distribution on the space of model graphs. We hope to extend this approach to more flexible structure priors. One promising research direction could be to use a structure prior that favors transitively closed graphs. In this way it would be possible to find a balance between the less biased models introduced here and the causally interpretable but more constrained models introduced earlier [\citep=markowetz05nontranscriptional] [\citep=markowetz07nested].
+
+Availability of software
+
+The NEM exhaustive search algorithm and all its extensions described in this paper are implemented, documented and ready to use in the R package Nessy, which is available at www.bioconductor.org. It includes a plotting routine that conveniently displays nested effects models (see, e.g., Fig [\ref=fig:boutrosresult]).
+
+Appendix: Proofs of Theorems
+
+Theorem [\ref=consistency]
+
+If the data is consistent with the effects model F, then the maximum likelihood estimate of ([\ref=trace1]) equals F,
+
+[formula]
+
+We have [formula].
+
+If Fas = 1, then by consistency of the data Rsa > 0 and the choice Gas = 1 = Fas maximizes the summand GasRsa.
+
+If Fas = 0, then Rsa  ≤  0 and the coice Gas = 0 = Fas maximizes the summand GasRsa. Hence [formula].
+
+Lemma [\ref=lemma:reversal]
+
+.
+
+Let ea denote the a-th unit column vector of length [formula]. Clearly, Γ'Θ'  =  (ΓS- 1)(SΘ)  =  ΓΘ  =  F. The only additional requirement we need to check is Γ'aa = 1 for all [formula]. This holds because of
+
+[formula]
+
+Theorem [\ref=identifiability]
+
+Let (Γ,Θ) and (Γ',Θ') be the parameters of two nested effects models. Assume that no two distinct actions [formula] have the same parents in Γ or in Γ'. Then (Γ,Θ) and (Γ',Θ') are observationally equivalent if and only if the tuples can be converted one into another by a sequence of disjoint reversals.
+
+"⇐": This follows immediately from Lemma [\ref=lemma:reversal]. "⇒  ": For an action [formula], denote the parents of a in Γ by [formula]. Recall that for an actions graph Γ, [formula] for all [formula]. The set of observables attached to a via the effects graph Θ is called the children of a in Θ, [formula]. Since [formula] determines Γ·  a (and vice versa), and [formula] determines Θa  · (and vice versa), the family of all parents sets determines Γ and the family of all children sets determines Θ. Assume that [formula] and [formula] intersect nontrivially, say [formula], [formula]. Then
+
+[formula]
+
+Hence
+
+[formula]
+
+Furthermore, let [formula] and [formula]. Then by ([\ref=thm.1]), [formula], which in turn together with ([\ref=thm.1]) implies [formula]. By the hypothesis, this is only possible if b = c. Thus [formula], and for symmetric reasons, [formula]. It follows that the partitions
+
+[formula]
+
+are identical up to order. Therefore there exists a permutation π of such that
+
+[formula]
+
+Together with ([\ref=thm.1]) this implies
+
+[formula]
+
+In other words, (Γ',Θ') is determined completely by (Γ,Θ) and π. Let us investigate π a little closer. Let [formula] be the permutation matrix associated with π. We confirm that
+
+[formula]
+
+so Θ'  =  TΘ. By analogous calculations, Γ'  =  ΓT- 1. Now for [formula],
+
+[formula]
+
+which means that there exists an edge from a to π(a) in Γ. For any [formula], Γ must therefore contain the cycle a  →  π(a)  →  π2(a)  →  ...  →  a.
+
+Let π  =  π1π2  ·  ...  ·  πm be a decomposition of π into disjoint cycles, and let T1,T2,...,Tm be the [formula] permutation matrices corresponding to π1,π2,...,πm respectively. Clearly, T = T1T2  ·  ...  ·  Tm.
+
+Define (Γ0,Θ0)  =  (Γ,Θ), and inductively (Γj,Θj)  =  (Γj - 1T- 1j,TjΘj - 1), j = 1,...,m. Then (Γm,Θm) = (ΓT- 1,TΘ) = (Γ',Θ'), and we have constructed a sequence of disjoint reversals converting (Γ,Θ) into (Γ',Θ').
+
+Acknowledgements
+
+AT would like to thank Olga Troyanskaya's lab in Princeton for the excellent hospitality during the preparation of this paper. Both authors greatly appreciated the discussions with all members of the group, in particular Maria Chikina, Edo Airoldi, Patrick Bradley and Chad Myers.
+
+FM is supported by NIH grant R01 GM071966 and NSF grant IIS-0513552 to O. G. Troyanskaya (Lewis-Sigler Insitute for Integrative Genomics and Dept. of Computer Science, Princeton University, Princeton, NJ 08544, USA). This research was partly supported by NIGMS Center of Excellence grant P50 GM071508 and by NSF grant DBI-0546275.

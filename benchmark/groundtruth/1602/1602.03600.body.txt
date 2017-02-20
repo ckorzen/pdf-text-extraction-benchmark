@@ -1,0 +1,255 @@
+0
+
+Introduction
+
+In the classical contextual Multi-Armed Bandit (MAB) problem [\cite=chu2011contextual] [\cite=slivkins2011contextual] [\cite=lu2010contextual] [\cite=dudik2011efficient] [\cite=langford2007epoch], a decision maker repeatedly observes some contextual information, selects an decision-action, and observes a random reward. The realized reward for each choice provides information about the distribution of rewards associated with each context and decision-action; so the decision maker faces a familiar trade-off between exploration and exploitation. However, in many settings, observing contextual information is costly so the problem is not only what actions to take/ which decisions to make but also what sources of contextual information to observe. Decision-making in the face of costly observations can be formalized as an ordinary MAB problem by combining the choice of the the context to observe and the decision-action to be taken as a single meta-action and folding the costs of observations into rewards. However, that approach is so inefficient as to be impractical for any realistic problem.
+
+This dual learning problem can be formalized as a 2-stage Markov Decision Process (MDP) in which decision maker decides to observe subset of the sources and then takes a decision-action based on the observed contextual information from these sources. We use the ideas of [\cite=ortner2007logarithmic] to design our algorithms. We provide simpler algorithms and regret bounds that have better scaling with the problem parameters by using the specific structure in this dual-learning problem. These algorithms simultaneously select sources of contextual information and actions based on obtained context to maximize the reward minus cost of obtaining these sources. Our first algorithm is called the Optimistic Policy Selection (OPS) and is designed for scenarios in which no initial contextual information is provided to decision-maker. Our second algorithm, Contextual Optimistic Policy Selection(COPS), is identical to OPS except that decision-maker has initial information that can be used to guide observation-actions.
+
+To illustrate the ubiquitous scenarios where our proposed algorithm are useful, let us consider the problem of treating a sequence of patients. Some information about the patients arrives (essentially) free : age, weight, height, family history etc. However, most of the important information can be only obtained by conducting diagnostic tests. In principle, many diagnostic tests can be applied to a given patient before a treatment decision is made. However, each of these tests impose costs : time, money, inconvenience, discomfort and risk. Hence, an important aspect of the decision making is which tests to conduct to inform what actions to take. In this setting, our algorithms can be viewed as clinical decision support systems. While in the above medical example, the context represented information that is revealed by taking tests, the considered formalism and the algorithms which we develop can be applied in numerous other settings. For instance, in many Smart Cities applications, the contexts can be audio-visual information collected from various locations in the city, and/or features extracted by processing this information. The cost in the first case can be the communication cost or delay associated with transmitting the information to the decision maker and in the second case can be the processing power associated with processing this information. In summary, the contexts can be raw sources of information and/or features/knowledge extracted from this information and the costs can be related to the acquisition, transmission, processing of this information.
+
+Related Work
+
+The work most related to ours is [\cite=csaba2013costly] where the learner tries to learn a single best prediction function when there is a cost associated with observing the features/ sources of contextual information in an adversarial setting. Our work differs from this work because we consider a stochastic setting, only bandit feedback from the selected actions and a context-dependent oracle.
+
+Several other works consider various features of our methods: 1) discovering the relevant information, 2) costly information acquisition, and 3) best decision-action to take given available information. For example, in [\cite=cesa2011efficient] [\cite=hazan2012linear], the decision-maker's goal is to adaptively choose which features of the next training example to train a linear regression model having restricted to access to only a subset of the features extracted from the set of training examples. [\cite=tekin2014discovering] learns what is relevant information to consider for each decision. However, the complete information is revealed to the decision maker unlike our setting. Within the field of active sensing, [\cite=yu2009active] [\cite=greiner2002learning] discover relevant information and make a classic prediction in a batch setting rather than in an online setting where information acquisition is costly and decision-actions are taken.
+
+In [\cite=golovin2010adaptive], the decision-maker is constrained to select at most m of the actions to maximize the information gain. This work is extended to the online setting in [\cite=gabillon2013adaptive] where the sources/actions are assumed to independent. Our work differs from this work in various dimensions: in our setting sources of the contextual information can be correlated; there is no feedback about information gain of source is received or known; and the contextual information from the various sources is collected at once. Other related work includes [\cite=rostamizadeh2011learning] [\cite=dekel2010learning] where the features are missing/ corrupted. For example, [\cite=dekel2010learning] proposes techniques that are robust to classification time noise. In our setting, the forecaster has the option to purchase/obtain these missing/corrupted features by paying a cost.
+
+Problem Formulation
+
+In the considered contextual MAB setting, we assume that the contextual information is taken from a finite set of sources [formula]. The contextual information yielded by source i at time t is denoted by [formula]. Let [formula] be the context space. In practice, obtaining the contextual information comes at a cost. The cost of obtaining the context associated with the informational source i is assumed to be [formula]. We also assume that if a decision maker does not pay the cost associated with observing the information of a certain source, then that context is not available to the decision maker and it can not used when taking actions. After obtaining the contextual information, the decision maker chooses a decision-action a from a finite set [formula] and obtains a reward rt(a). At each timet, the following sequence of events is taking place:
+
+We map the contextual information from obtained sources to a state vector [formula] as
+
+[formula]
+
+where [formula] denotes the unobserved contexts and φi:Xi  →  Si is state mapping function of source i with |Si|  =  Si  <    ∞  . Let |S|  =  S. We assume that the decision-maker knows the state mapping (φi(  ·  ))i∈D and thus can compute the state after taking an observation-action O. If Xi is finite, then φi can be an identity mapping, whereas if Xi is infinite, then φi can be a partitioning over Xi based on similarity information that is known a priori. This is a natural assumption-that is, in many practical applications the results of a measurement are discretized into a finite set.
+
+Let S(O) denote set of states that are consistent with observation-action O and [formula] denote the observed contextual information in state [formula]. Formally,
+
+[formula]
+
+We define [formula] to be the set of context information which can be mapped to state [formula] under state mapping function (φi(  ·  ))i∈D, i.e.,
+
+[formula]
+
+Based on this, we define [formula] to be the expected reward of action a in state [formula] and [formula] to be the transition probability to state [formula] by taking observation-action O. Formally,
+
+[formula]
+
+[formula]
+
+where FX denotes the marginal distribution on the context space X. We denote [formula] as the state transition matrix and [formula] as the expected reward matrix.
+
+Let Ht  =  {hτ}t - 1τ  =  1 be the observation history of the decision-maker up to time t, where [formula]. A policy [formula] is a mapping from Ht to a set of sources O and a decision-action tuple [formula], i.e., πt:Ht  →  P≤  m(D)  ×  SA. Let [formula]. The space of all deterministic policies is denoted as Π. We define the expected reward attained by following a policy [formula] as
+
+[formula]
+
+Without loss of generality, we assume that the decision-maker is allowed to select at most m sources of contextual information in each time, where 1  ≤  m  ≤  D. The expected reward of an oracle that follows the best policy (in terms of the expected reward) can be defined as
+
+[formula]
+
+We introduce the following notation to define the oracle's policy. Let [formula] denote the expected reward of the best action at state [formula], and V(O) denote the value of observation-action O. Formally,
+
+[formula]
+
+The oracle policy [formula] is defined as
+
+[formula]
+
+The T-time regret of the policy [formula] compared to the oracle's policy is given by
+
+[formula]
+
+In the rest of this paper, we will focus on computing the optimal policy which minimizes the regret, i.e., One solution is to define a set of meta-actions that comprises all combinations of observation-action and decision-action selections for each deterministic policy, and then apply a standard MAB algorithm (such as the UCB algorithm [\cite=auer2002a]) while considering these meta-actions to be the action space. While this algorithm is straightforward to implement, it scales with the number of deterministic policies. It can easily be seen that |Π|  =  |P≤  m(D)|AS. This makes the algorithm computationally infeasible even for a small numbers of actions and states, e.g. A  =  10 and S = 10. This scaling behavior follows from the fact that the algorithm does not account for policies that share the same action, in the sense that selecting an action yields information for many policies. Stemming from this observation and using the theory of undiscounted MDPs [\cite=ortner2007logarithmic], we construct more efficient algorithms in the next section.
+
+Optimistic Policy Selection(OPS) Algorithm
+
+Since the decision-maker does not know the true expected rewards and state transition probabilities, we develop the OPS algorithm to solve the policy search problem in an optimistic way. This can be performed using the following optimistic policy search:
+
+[formula]
+
+for some εy,δd,δy  >  0. Eq.([\ref=eqn:opt1]) is known as optimism in the face of uncertainty [\cite=auer2002a] [\cite=ortner2007logarithmic]. We reformulate the optimization problem ([\ref=eqn:opt1]) using the sample mean estimates and upper confidence bounds. The decision-maker keeps track of the estimates of the mean rewards and the state transition probabilities. At each time t, we define
+
+[formula]
+
+Let [formula], Nt(O)  =  |Et(O)|, [formula]. Let [formula]. Furthermore, we can express the estimated mean rewards and state transition probabilities as follows:
+
+[formula]
+
+provided that [formula] and Nt(O)  >  0. Since these estimates can deviate from their true mean values, we need to add appropriate confidence intervals when searching for the optimal policy.
+
+The OPS operates in rounds [formula]. In the beginning of each round k, the OPS solves the following optimization problem to find the policy to follow in that round:
+
+[formula]
+
+where [formula] and [formula] are the confidence bounds on the estimators. The solution to the optimization problem ([\ref=eqn:opt2]) is higher than the reward of oracle solution ρ*m with high probability, (see Sec. [\ref=sec:proofs] Lemma 2). Let [formula] be the maximizer of the optimization problem in ([\ref=eqn:opt2]). OPS follows the policy [formula] until the visits to one of the states is doubled. In general the optimization problem ([\ref=eqn:opt2]) is nonlinear and nonconvex. As we show ([\ref=eqn:opt2]) can be reduced to a set of Linear Programming (LP) problems which have polynomial time complexity and can be solved efficiently [\cite=boyd2004convex]. Before presenting the Proposition [\ref=pro:nonconvextoLP] to reduce ([\ref=eqn:opt2]) into a set of LPs, we introduce some notation. Let
+
+[formula]
+
+For all O∈P≤  m(D) and tk, we define the optimistic value function of observation-action O (denoted as V̂tk(O)) as the solution to following LP:
+
+[formula]
+
+With this notation, we can now present Proposition [\ref=pro:nonconvextoLP], which shows that the problem in ([\ref=eqn:opt2]) can be converted into a set of LPs.
+
+At any time t, the optimization in ([\ref=eqn:opt2]) can be solved using:
+
+Proposition [\ref=pro:nonconvextoLP] shows that the non-convex optimization problem given in ([\ref=eqn:opt2]) is reduced to a set of LPs for each observation-action O. Based on Proposition [\ref=pro:nonconvextoLP], in each time t of round k, the OPS observes the sources of contextual information from the set tk and takes the decision-action [formula] in state [formula]. The pseudo-code of the OPS is given in Algorithm [\ref=alg:POPS].
+
+Regret Upper Bounds for OPS
+
+Let Δ(O) be the minimum suboptimality gap among the policies that select observation-action O. Formally, for suboptimal observation-action [formula] ,
+
+[formula]
+
+where O*m is defined in ([\ref=eqn:oracledefinition]). Recall that the best policy optimization is given by ([\ref=eqn:bestpolicy]), from which it follows that V(O*m)  =  ρ*m. With minimal notational abuse, we denote Δ(O*m) to be the minimum suboptimal gap among the policies that selects optimal observation-action O*m. Formally,
+
+[formula]
+
+where [formula] is the minimal suboptimality gap at state [formula]. Let [formula], where we assume [formula] for all [formula]. Note that [formula] means that state [formula] is not observed under observation-action O. Therefore, we can exclude such states from state space S(O) and, we can assume τ(O)  <    ∞   without loss of generality. Theorem [\ref=thrm:OPSregrets] bounds the regret of OPS algorithm.
+
+If the OPS runs with α > 2 until time T, then the regret of the OPS algorithm ([\ref=alg:POPS]) satisfies:
+
+[formula]
+
+where C1,C2 > 0 are constants that are independent of the time horizon T.
+
+The proof of this theorem can be found in Sec. [\ref=sec:proofs]. As proven in Theorem [\ref=thrm:OPSregrets], the regret of the OPS algorithm scales with O(|P≤  m(D)|S2A). Recall from Sec. [\ref=sec:prob] that the UCB-based algorithm scales with O(|P≤  m(D)|AS). Therefore the OPS algorithm provides a significant regret minimization in terms of its dependence on the number of actions and states compared with the UCB-based algorithm. To illustrate the bound, consider a d dimensional context space X where each context space Xi is finite with |Xi|  =  Mi. Let φi(  ·  ) be an identity operator and m = 1. In this case, [formula] and |P≤  1(D)|  =  D + 1. Therefore, the regret of the OPS algorithm scales polynomially in the number of contexts, actions, number of sources as O(D3M2maxA) where Mmax  =   max iMi. In general, the OPS algorithm scales polynomially as O((D3M2max)mA) when m <  < D. In many real-world scenarios (e.g. transportation, automation, security, medical treatment protocols), the decisions are informed by only a few number of relevant sources.
+
+Contextual Optimistic Policy Selection (COPS) Algorithm
+
+When formulating the OPS Algorithm, we assume that no initial sources of contextual information are available to the decision-maker. However, in some applications it may be possible for the decision-maker to obtain contextual information for free. This information can then be exploited to guide the decision-makers selection of additional sources.
+
+In this section we extend the OPS Algorithm to account for this freely available contextual information. Let X  =  X0  ×  X1 denote a (d + r)-dimensional context space where X0 denotes a r-dimensional free context space and X1 denotes a d-dimensional context space which is costly to observe. In each time t, the decision-maker observes an initial contextual information x0t∈X0, decides to observe the sources Ot and the contextual information from these sources is revealed to the decision-maker. Based on all observed contextual information, the decision-maker takes a decision-action at and observes a random reward rt(at).
+
+Let [formula] denote the initial state vector before having taken observation-action Ot and [formula] denote the final state vector after taking observation-action Ot. Formally, [formula] and [formula]
+
+[formula]
+
+To aid in the construction of the COPS algorithm, we introduce the following notation. Let S0 denote the set of all initial states, and [formula] denote the set of all final states with initial state [formula] and that are consistent with observation-action O. Let [formula] denote the set of all states, where
+
+[formula]
+
+Additionally, define [formula] as the probability of having an initial state of [formula], and [formula] as the transition probability from initial state [formula] to the final state [formula] by taking observation-action O. The value of the observation-action O in state [formula] is given by [formula] with [formula] denoting the optimal observation-action in state [formula], i.e.,
+
+[formula]
+
+With these parameters defined, a policy [formula] is a mapping from the history Ht to a tuple of observation-action and decision-action. Formally, [formula] where [formula]. The expected reward of the oracle policy [formula] is given by:
+
+[formula]
+
+The modified OPS algorithm is denoted as the Contextual Optimistic Policy Selection (COPS) algorithm as it accounts for the initial contextual information when taking observation-actions. Let [formula] be the state transition estimate from initial state [formula] to the final state [formula] when observation-action O is taken. In the beginning of round k, the COPS first computes the optimistic rewards of state-action pairs and [formula] defined in ([\ref=eqn:computation1]). Based on the evaluated results, the COPS algorithm then computes [formula] for all [formula] by solving the following LP problem:
+
+[formula]
+
+where maximization is over parameters [formula]. In time t of round k, the COPS algorithm takes an observation-action with the highest [formula] based on the initial state [formula]. Then, the algorithm observes the obtained contextual information from these sources and takes a decision-action at with the highest [formula] based on the final state [formula].
+
+Similar to OPS, we define [formula] to be the suboptimality gap of observation-action O. Formally,
+
+[formula]
+
+where [formula] is the minimum suboptimality gap of state [formula] defined in Eq.([\ref=eqn:bestandsecondbestreward]). Let [formula]. Using the defined parameters, Theorem [\ref=eqn:COPSregretbound] provides the regret bound for the COPS algorithm.
+
+If the COPS algorithm runs with α  >  2 until time T, the regret of COPS satisfies
+
+[formula]
+
+where C3,C4 > 0 are independent of time horizon T.
+
+As can be seen from Theorem [\ref=eqn:COPSregretbound], there is a negligible difference between the OPS and COPS algorithm : they are both having a logarithmic regret. However, the COPS algorithm is expected to achieve higher expected rewards since it exploits some initial contextual information for free.
+
+Illustrative Results
+
+In this section we illustrate the performance of the OPS algorithm [\ref=alg:POPS] in a clinical application setting where the goal is to determine which chemotherapy should be given to which patient. The dataset consists of over 300,000 breast cancer patient cases characterized by 4 different contexts (e.g. age, estrogen receptor, tumor state, previous treatments). The data is collected from 80 clinical studies which focus on 2 different chemotherapy treatments (AC and ACT chemotherapies). We define the reward of a treatment (i.e. action) using the probability of successfully curing patients, (i.e. no recurrence of cancer in 5 years).
+
+Performance of the OPS Algorithm with Different Costs: We consider that for each source i∈D, the cost of observing the associated context ci = c. We illustrate how the results of the OPS Algorithm are dependent on the value of this cost c in Fig. [\ref=fig:res1]. Recall that the clinician aims to maximize rt(at)  -  c|Ot|, i.e., the rewards minus cost of observation, where the observation-action is given by Ot and and the associated treatment is at. As Fig. [\ref=fig:res1] illustrates, the average gain of the OPS algorithm decreases as the costs associated with observing the contextual information increases. However, it should be noted that the OPS algorithm optimally learns the best contextual information to select while simultaneously taking actions irrespective of the costs of observation. Table [\ref=fig:res1] shows that when the cost is low, the OPS performs better than the UCB by obtaining some of the sources of the contextual information that are well-worth their costs. As the cost increases, the OPS behaves similar to UCB by selecting no sources of contextual information. Therefore, the slope of the performance-cost curve of the OPS illustrated in [formula] decreases as the cost of obtaining the sources increases.
+
+Performance of the OPS with different m: Consider the situation in which a decision-maker is attempting to decide if observing a single context (i.e. m = 1) is necessary. We know from Theorem [\ref=thrm:OPSregrets] that the complexity of the OPS algorithm is O(D3M2maxk2). However if the decision-maker would like to select from several possible sources m > 1, then we have the following results: first, the regret bound increases with m as a result of the possible sources to select; second, the expected reward obtained by the oracle policy increases with m. This results in an increase in the time to learn the optimal sources to select while simultaneously learning to choose the optimal actions. This is a ubiquitous and fundamental problem in any real-world application : as you increase the number of possible observations increase, it becomes more difficult to learn the relationship between the contexts and the rewards. However, we show next that the OPS algorithm can still efficiently account for multiple sources of information in an online framework.
+
+Consider a scenario where patients that have 4 unknown contexts. If m = 1 then the OPS algorithm can efficiently learn the best source of contextual information and actions to take to maximize the success of a treatment using a dataset with T = 300,000 samples as illustrated in Table 2. However, for the same size T, if we increase the value of the number of possible sources to m = 2 to m = 4, it is expected the the performance of the OPS algorithm will decrease with increasing m. Remarkably, as Table 2 illustrates, only a very slight decrease in the probability of success for this increase in m. As the results in Table 2 shows, the results of the OPS algorithm naturally illustrate that taking fewer samples may result in a better performance in terms of the rewards.
+
+Performance of OPS versus COPS: We compared the performance of COPS with the setting in which age is observed for free and OPS. In this case, the COPS outperforms the OPS by 1.4% (OPS : 88.6% and COPS : 90%).
+
+Conclusion and Future Work
+
+In this paper two reinforcement learning algorithms are presented which simultaneously discover relevant costly sources while learning the best decision-actions to make with the obtained contextual information to maximize the reward in a dynamic setting. The Optimistic Policy Selection (OPS) algorithm is useful when no initial information is available to a decision-maker. If some information is available, then the Contextual Optimistic Policy Selection (COPS) algorithm can utilize it to improve performance. We prove that both algorithms satisfy a regret bound that is logarithmic in time.
+
+Future work of the current algorithms including imposing functional constraints on the expected rewards including bounded variation, Lipschitz smoothness, and linearity. Imposing these structural constraints on the rewards can reduce the complexity of learning the relevant sources.
+
+Proofs
+
+In this section, we provide a sketch of the proof of Theorem 1. Theorem 2 is the proof of Theorem 1 repeated for each [formula]. The proofs of the lemmas and Proposition 1 are in the supplementary material.
+
+Number of rounds at time T is bounded by [formula].
+
+Let [formula] be the maximizer of ([\ref=eqn:opt3]) for each observation-action O. Let *(tk) be the solution of ([\ref=eqn:opt2]). Observe that
+
+[formula]
+
+[formula].
+
+Let [formula] be the suboptimal policy computed by the OPS at the beginning of round k. Let Δk be the suboptimality gap of policy k. Then,
+
+[formula]
+
+where inequality follows with probability 1  -  t-  αk by Lemma 2. If [formula], then the policy k can not be computed by the OPS with high probability.
+
+Let [formula] be an arbitrary policy and [formula] and [formula] be arbitrary transition and expected reward matrix. We have [formula] if for all [formula] it holds that
+
+[formula]
+
+a) If [formula], then with probability 1  -  0.5|S|- 1k- 1t-  α
+
+[formula]
+
+b) If Nt(O)  >  32|S(O|2Δ- 2 log (4Stα), then with probability 1  -  0.5|S(O)|t-  α
+
+[formula]
+
+for all [formula].
+
+A suboptimal policy k with suboptimality gap Δk can not be computed by the OPS with high probability if the following events happen : a)Nt(O)  >  32|S(O)|2Δ- 2 log (4Stα) b) There exists state [formula] and decision-action a with [formula].
+
+Regret due to suboptimal rounds : Suppose that a suboptimal policy k  =  (Ôtk,tk) with suboptimality gap Δk is computed by the OPS at the beginning of round k.
+
+Consider all suboptimal rounds with Nt(O)  <  32|S(O)|2Δ- 2k log (4Stα). Let m(O) be the number of such rounds and τk(O) [formula] be their lengths. Then,
+
+[formula]
+
+Now consider the last round with tk  =  O which lasts until one of the visits of [formula] is doubled. Since [formula], one of the visits of [formula] is doubled when Nt(O) is doubled. Therefore,
+
+[formula]
+
+Consider all suboptimal rounds with [formula] and [formula]. Let [formula] be the number of these rounds and [formula] ([formula]) be their lengths. The mean time to observe the state [formula] under observation-action O is [formula]. We can divide each round k into [formula] steps. By application of Markov inequality, reaching a state [formula] within one step is greater than 0.5. With abuse of notation, let [formula] denote the number of [formula] visits within n steps. Then, by application of Chernoff-Hoeffding inequality,
+
+[formula]
+
+Since [formula], with high probability number of such steps satisfy :
+
+[formula]
+
+which implies that number of such steps is less than [formula] for some c  <  83. In other words, with high probability,
+
+[formula]
+
+Note that [formula] by Lemma 1. Then,
+
+[formula]
+
+The regret due to suboptimal policy k is bounded by
+
+[formula]
+
+Then, the regret due to any suboptimal observation-action O can be found by summing this up for all state-action pairs and then taking the maximum among the policies with Ôtk  =  O. This concludes that regret due to suboptimal observation-action O is bounded by
+
+[formula]
+
+Regret due to Failure of Confidence Intervals : According to Lemmas and union bound, the probability of failing confidence intervals at round k is bounded by |P≤  m(D)|t-  αk. Let τk is the length of the round k, i.e., τk  =  tk + 1  -  tk. Note that there exists a constant c such that τk  ≤  ctk. Then,
+
+[formula]
+
+where c'  >  0 is a constant for α > 2.
+
+Summing up the regret due suboptimal policies with observation-action O and the regret due to failure of confidence intervals concludes the result given in Theorem 1.

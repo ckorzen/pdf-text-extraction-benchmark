@@ -1,0 +1,191 @@
+Text Classification Using Association Rules, Dependency Pruning and Hyperonymization
+
+Introduction
+
+Automatic text classification is an important text mining task, due to the huge number of text documents that we have to manage daily. Text classification has a wide variety of applications such as Web document and email classification. Indeed, most of the Web news services daily provide a large number of articles making them impossible to be organized manually [\cite=lang_ICML_1995]. Automatic subject classification [\cite=cohen_AAAI_1996] and SPAM filtering [\cite=shami_etal_AAAI_1998] are two additional examples of the interest of automatic text classification.
+
+Automatic text classification can be defined as below. Given a set of documents such that each document is labeled with a class value, learn a model that assigns a document with unknown class to one or more particular classes. This can also be done by assigning a probability value to each class or by ranking the classes.
+
+A wide variety of classical machine learning techniques have been used for text classification. Indeed, texts may be represented by word frequencies vectors, and thus most of the quantitative data methods can be used directly on the notorious “bag-of-words” model (cf. [\cite=sebastiani_ACM-CS_2002] [\cite=aggarwal_zhai_MTD_2012]).
+
+Choosing a classifier is a multicriteria problem. In particular one has often to make a trade-off between accuracy and comprehensibility. In this paper, we are interested in both criteria with a deeper interest in comprehensibility. We are thus interested in rule-based approaches and especially in class association rules algorithms. Several studies have already successfully considered association rule-based approaches in text mining (e.g., [\cite=ahonen_etal_TR_1997], [\cite=zaiane_antonie_ADC_2002], [\cite=cherfi_etal_PMAR_2009], [\cite=roche_etal_IIPWM_2004]). This framework is suitable for considering some statistical characteristics (e.g., high-dimensionality, sparsity) of the bag-of-words model where a document is represented as a set of words with their associated frequency in the document.
+
+However a text is more than a set of words and their frequencies. Enhancing the bag-of-words approach with linguistic features has also attracted several works (e.g., [\cite=jaillet_etal_IDA_2006] [\cite=do_Master_2012] [\cite=Kovacs:2008da] [\cite=OrdonezSalinas:2010db], [\cite=Pado:2007bu] [\cite=Lowe:2001wx] [\cite=Curran:2002vm], [\cite=nivre_TR_2005] [\cite=FerreriCancho:2004wd]).
+
+We here propose a class association rules based approach enriched by linguistic knowledge. The paper is organized as follows: after introducing the techniques we are going to use (class association rules § [\ref=car-sec], dependencies § [\ref=dar], hyperonymization § [\ref=hc]) we describe our main algorithms (for training § [\ref=train-sec], classifying § [\ref=classify-sec] and evaluating § [\ref=evaluate-sec]); follows the experimental section, where we give results obtained by tfidf pruning § [\ref=tfidf], dependency-based pruning § [\ref=dep-sec] and hyperonymization § [\ref=hyper-sec], and, finally, we end up by a conclusion and perspectives for future work § [\ref=con].
+
+Proposed model for text classification
+
+Let a corpus be a set [formula] of documents. Let [formula] be a set of classes. An annotated corpus is a pair [formula] where [formula] is a function that maps each document Di to a (predefined) class of [formula].
+
+A document [formula] is a set of sentences S. The corpus [formula] can be considered as a set of sentences [formula] if we go through the forgetful functor (which forgets the document to which the sentence belongs). Repeated sentences in the same document, or identical sentences in different documents are considered as distinct, i.e., there is a function [formula] which restores the forgotten information. We extend the [formula] function to [formula] by [formula].
+
+A sentence S is a sequence of words w (sometimes we will consider S simply as a set, without changing the notation). Let [formula] be the set of all words of [formula].
+
+Class association rules and text classification
+
+Let [formula] be a set of objects called items and [formula] a set of classes. A transaction T is a pair [formula], where [formula] and [formula]. We denote by [formula] the set of transactions, by [formula] the set of items (or “itemset”) of T and by [formula] the class of T.
+
+Let I be an itemset. The support of I is defined by
+
+[formula]
+
+Let σ∈[0,1] be a value called minimum support. An itemset I is called frequent if its support exceeds σ.
+
+The confidence of a transaction t is defined as
+
+[formula]
+
+Let κ∈[0,1] be a value called minimum confidence. A class association rule (or “CAR”) [formula] [\cite=CAR] is a transaction with frequent itemset and a confidence exceeding κ.
+
+To classify text with CARs, we consider words as being items, documents as being itemsets and pairs of documents and classes as being transactions. The advantage of this technique is that CARs can be easily understood and hence potentially improved by the user, especially if the classifier is tuned so that it produces humanly reasonable number of rules. Once the classifier is trained, to classify a new sentence we first find all CARs whose items are contained in the sentence, and then use an aggregation technique to choose a predominant class among those of the CARs we found.
+
+An important issue of CARs is that the complexity is exponential with respect to the itemset size, and hence we need to keep it bounded in specific ranges, independently of the size of documents to classify. Using entire documents as transactions is computationally out of reach, therefore pruning techniques play an important rôle. Our approach consists in (a) restricting CARs to the sentence level, (b) prune sentences by using morphosyntactic information (cf. § [\ref=dar]) and modifying itemsets using semantic information (cf. § [\ref=hc]).
+
+Itemset pruning using dependencies
+
+One can prune sentences either by using word frequencies (cf. § [\ref=tfidf]) or by using information obtained by morphosyntactic parsing (cf. § [\ref=dep-sec]). In this paper we introduce the latter approach, in the frame of dependency grammar.
+
+Dependency grammar [\cite=tesniere1959] [\cite=melcuk] is a syntactic theory, alternative to phrase-structure analysis [\cite=chomsky1957] which is traditionally taught in primary and secondary education. In phrase-structure syntax, trees are built by grouping words into “phrases” (with the use of intermediate nodes NP, VP, etc.), so that the root of the tree represents the entire sentence and its leaves are the actual words. In dependency grammar, trees are built using solely words as nodes (without introducing any additional “abstract” nodes). A single word in every sentence becomes the root (or head) of the tree. An oriented edge between two words is a dependency and is tagged by a representation of some (syntactic, morphological, semantic, prosodic, etc.) relation between the words. For example in the sentence “John gives Mary an apple,” the word “gives” is the head of the sentence and we have the following four dependencies:
+
+where tags nsubj, dobj, iobj, det denote “noun subject,” “direct object,” “indirect object” and “determinant.”
+
+Let S be a sentence and [formula] be the set of dependency tags: {nsubj, ccomp, prep, dobj, } A dependency is a triple (w1,w2,d) where w1,w2∈S and [formula]. Let [formula] denote the set of dependencies of S and [formula] the head of S. Pruning will consist in defining a morphosyntactic constraint φ i.e. a condition on dependencies (and POS tags) of words, the fulfillment of which is necessary for the word to be included in the itemset.
+
+But before describing pruning algorithms and strategies, let us first present a second technique used for optimizing itemsets. This time we use semantic information. We propose to replace words by their hyperonyms, expecting that the frequencies of the latter in the itemsets will be higher than those of the former, and hence will improve the classification process.
+
+Hyperonymization
+
+The WordNet lexical database [\cite=miller1995] contains sets of words sharing a common meaning, called synsets, as well as semantic relations between synsets, which we will use to fulfill our goal. More specifically, we will use the relations of hyperonymy and of hyperonymic instance. The graph having synsets as nodes, and hyperonymic relations as edges, is connected and rooted: starting with an arbitrary synset, one can iterate these two relations until attaining a sink. Note that in the case of nouns it will invariably be the synset 00001740 {entity} while for verbs there are approx. 550 different verb sinks.
+
+Let [formula] be the WordNet lexical database, [formula] a synset and [formula] the hyperonymic or hyperonymic instance relation. We define an hyperonymic chain [formula] as a sequence [formula] where s0 = s and si∈h(si - 1), for all i  ≥  1. Hyperonymic chains are not unique since a given synset can have many hyperonyms. To replace a word by the most pertinent hyperonym, we have to identify the most significant hyperonymic chains of it.
+
+The wn-similarity project [\cite=pedersen] has released synset frequency calculations based on various corpora. Let [formula] denote the logarithmic frequency of synset s in the BNC English language corpus [\cite=bnc] and let us arbitrarily add infinitesimally small values to the frequencies so that they become unique ([formula]). We use frequency as the criterion for selecting a single hyperonymic chain to represent a given synset, and hence define the most significant hyperonymic chain [formula] as the hyperonymic chain [formula] of s such that [formula] The chain [formula] is unique thanks to the uniqueness of synset frequencies.
+
+Our CARs are based on words, not synsets. Hence we need to extend MSCHs to words. Let w be a lemmatized word. We denote by [formula] the set of synsets containing w. If the cardinal [formula] then we apply a standard disambiguation algorithm to find the most appropriate synset sw for w in the given context. Then we take [formula] and for each synset si in this chain we define [formula] (i > 0), that is the projection of si to its first element, which by WordNet convention is the most frequent word in the synset. The function vector [formula] (with [formula]) is called hyperonymization, and hi(w) is the i-th order hyperonym of w.
+
+Operational implementations for document classification
+
+Our text classifier operates by first training the classifier on sentences and then classifying the documents by aggregating sentence classification. These two procedures are described in Sections [\ref=train-sec] and [\ref=classify-sec] respectively. Specific evaluation procedure is presented in Section [\ref=evaluate-sec].
+
+Training
+
+The Train algorithm (cf. Alg. [\ref=train]) takes as input an annotated corpus [formula] and values of minimum support σ and minimum confidence κ. It returns a set of CARs together with their confidence values.
+
+The first part of the algorithm consists in processing the corpus, to obtain efficient and reasonably sized transactions. Three functions are applied to every sentence:
+
+Lemmatize is standard lemmatization: let [formula] be the set of POS tags of the TreeTagger system [\cite=treetagger] (for example, NP stands for “proper noun, singular”, VVD stands for “verb, past tense”, etc.), and let [formula] be the set of lemmatized forms of [formula] (for example, “say” is the lemmatized form of “said”); then we define [formula], which sends a word w to the pair (w',p) where w' is the lemmatized form of w (or w itself, if the word is unknown to TreeTagger) and p is its POS tag.
+
+Prune is a function which prunes the lemmatized sentence so that only a small number of (lemmatized) words (and POS tags) remains. Several sentence pruning strategies will be proposed and compared (cf. § [\ref=tfidf] and [\ref=dep-sec]).
+
+Hyperonymize is a function which takes the words in the pruned itemset and replaces them by the members of their most significant hyperonymic chains. Several strategies will also be proposed and compared (cf. § [\ref=hyper-sec]).
+
+The second part of Alg. [\ref=train] uses the apriori algorithm [\cite=apriori] with the given values of minimum support and minimum confidence and output restrictions so as to generate only rules with item [formula] in the consequent. It returns a set [formula] of CARs and their confidence.
+
+It should be noted that this algorithm operates on individual sentences, hereby ignoring the document level.
+
+Classification
+
+The Classify algorithm (cf. Alg. [\ref=classify]) uses the set of CARs produced by Train to predict the class of a new document D0 and furthermore provides two values measuring the quality of this prediction: variety β and dispersion Δ.
+
+The first part of the algorithm takes each sentence S of the document D0 and finds the most confident CAR that can be applied to it (i.e., such that the itemset of the rule is entirely contained in the itemset of the sentence). At this stage we have, for every sentence: a rule, its predicted class and its confidence.
+
+Our basic unit of text in Train is sentence, therefore CARs generated by Alg. [\ref=train] produce a class for each sentence of D0. An aggregation procedure is thus needed in order to classify the document. This is done by taking class by class the sum of confidence of rules and selecting the class with the highest sum.
+
+Although this simple class-weighted sum decision strategy is reasonable, it is not perfect and may lead to wrong classification. This strategy will be optimally sure and robust if (a) the number of classes is minimal, and (b) the values when summing up confidence of rules are sufficiently spread apart. The degree of fulfillment of these two conditions is given by the parameters variety β (the number of classes for which we have rules), and dispersion Δ (the gap between the most confident class and least confident one). These parameters will contribute to comparison among the different approaches we will investigate.
+
+Evaluation
+
+We evaluate the classifier (Alg. [\ref=evaluate]), by using 10-fold cross validation to obtain average values of recall, precision, F-measure, variety and dispersion. This is done by algorithm SingleEvaluate, once we specify values of minimal support and minimal confidence.
+
+Comparing rule-based classification methods is problematic because one can always increase F-measure performance by increasing the number of rules, which results in overfitting them. To avoid this phenomenon and compare methods in a fair way, we fix a number of rules ρ0 (we have chosen ρ0 = 1,000 in order to produce a humanly reasonably readable set of rules) and find values of minimal support and confidence so that F-measure is maximal under this constraint.
+
+Function FindOptimal will launch SingleEvaluate as many times as necessary on a dynamic grid of values (σ,κ) (starting with initial values (σ0,κ0)), so that, at the end, the number of rules produced by Train is as close as possible to ρ0 (we have used [formula]) and [formula] is maximal.
+
+Experimental results on Reuters corpus
+
+In this section, we investigate three methods: (a) pruning through a purely frequentist method, based on tfidf measure (§ [\ref=tfidf]); (b) pruning using dependencies (§ [\ref=dep-sec]); (c) pruning using dependencies followed by hyperonymic extension (§ [\ref=hyper-sec]).
+
+Preliminaries
+
+In the Reuters [\cite=reuters] corpus we have chosen the 7 most popular topics (GSPO = sports, E12 = monetary/economic, GPOL = domestic politics, GVIO = war, civil war, GDIP = international relations, GCRIM = crime, law enforcement, GJOB = labor issues) and extracted the 1,000 longest texts of each.
+
+The experimental document set is thus a corpus of 7,000 texts of length between 120 and 3,961 words (mean 398.84, standard variation 169.05). The texts have been analyzed with the Stanford Dependency Parser [\cite=sdp] in collapsed mode with propagation of conjunct dependencies.
+
+Tfidf-based corpus pruning
+
+Tfidf-based corpus pruning consists in using a classical Prune function as defined in Alg. [\ref=tfidf-alg]. It will be our baseline for measuring performance of dependency- and hyperonymy-based methods.
+
+Note that this definition of the tfidf measure diverges from the legacy one by the fact that we consider not documents but sentences as basic text units. This is because we compare tfidf-generated CARs to those using syntactic information, and syntax is limited to the sentence level. Therefore, in order to obtain a fair comparison, we have limited term frequency to the sentence level and our “document frequency” is in fact a sentence frequency.
+
+Having calculated [formula] for every [formula], we take N words from each sentence with the highest tfidf values, and use them as transaction items. The performance of this method depends on the value of N. On Fig. [\ref=tfidf-fig] the reader can see the values of three quantities as functions of N:
+
+F-measure: we see that F-measure increases steadily and reaches a maximum value of 83.99 for N = 10. Building transactions of more than 10 words (in decreasing tfidf order) deteriorates performance, in terms of F-measure;
+
+variety: the number of predicted classes for sentences of the same document progressively increases but globally remains relatively low, around 3.1, except for N = 12 and N = 13 where it reaches 4.17;
+
+dispersion: it increases steadily, with again a small outlier for N = 12, probably due to the higher variety obtained for that value of N.
+
+Furthermore, each investigated method will generate transactions of various sizes. It is fair to compare them with tfidf-based methods with similar transactions sizes. Therefore we will use the results displayed in Fig. [\ref=tfidf-fig] to compare the performance of subsequent methods with the one of the tfidf-based method of similar transaction size. Table [\ref=tab:results_tdfif_based_pruning_N1] presents the results obtained by applying the tdfif-based pruning method, with a single word per transaction (N = 1).
+
+Methods based on dependencies
+
+In this section we investigate several strategies using the dependency structure of sentences. Our general approach (cf. Alg. [\ref=dep-algo]) keeps only words of S that fulfill a given morphosyntactic constraint φ. The following strategies correspond to various definitions of φ.
+
+Strategy I0
+
+Our first strategy will be to keep only the head of each sentence (which, incidentally, is a verb in 85.37% of sentences of our corpus). This corresponds to the constraint [formula]. Results are given on Table [\ref=tab:dependency_head_sentence].
+
+Although the recall of GSPO is quite high (a possible interpretation could be that sports use very specific verbs), F-measure is quite low when we compare it to the one of the tfidf-based method of the same average itemset length, namely 65.69%.
+
+Strategy I1
+
+The second strategy consists in keeping words connected to the head by a (single) dependency of type nsubj (= nominal subject). This occurs in 79.84% of sentences of our corpus. The constraint is then [formula] [formula]. Results are given on Table [\ref=tab:dependency_nominal_subject].
+
+Note that the slightly higher than 1 transaction size is probably due to the rare cases where there are more than one nsubj dependencies pointing to the head. The scores rise dramatically when compared to those of the strategy based only on the head of the sentence. The average F-measure (71.80%) is significantly higher than the tfidf-based performance for the same average transaction size (65.69%). This shows that using a dependency property to select a word is a better choice than the one provided by the frequentist tfidf-based method. Note that the case of nsubj is unique: if we take ccomp (= clausal complement) instead of nsubj, the performance falls even below the level of strategy I0 (Table [\ref=tab:dependency_clausal_complement]).
+
+Strategy I2
+
+The third strategy considers all nouns (POS tags starting with N) at distance 1 from the head in the dependency graph. Such dependencies occur in 59.24% of the sentences of our corpus. This corresponds to [formula]. Results are given on Table [\ref=tab:dependency_pos_tags].
+
+The result seems better than the one of strategy I1 (Table [\ref=tab:dependency_nominal_subject]). However, if we take transaction size into account, it is in fact merely equivalent to--and hence not better than, as it was the case for I1--the tfidf-based method with the same transaction size. Once again we see a very high recall rate for the sports category.
+
+One could be tempted to check the performance of taking verbs (instead of nouns) at distance 1 from the head. Indeed, verbs at that position are more frequent than nouns: they occur in 62.94% of the sentences of our corpus. Nevertheless, the results are not as good (Table [\ref=tab:dependency_verbs_distance1_head]). This shows that despite their high frequency, verbs contain less pertinent information than nouns at the same distance from the head.
+
+Methods based on dependencies and hyperonyms
+
+In this section we add semantic information by the means of hyperonyms, using the hyperonymization function h (§ [\ref=hc]). The preprocessing is done by Alg. [\ref=hyper-algo]: hi(w) is an N-th order hyperonym of w, if it exists in WordNet. In case there is no N-th order hyperonym, the word remains unchanged. We call N the hyperonymic factor of our itemset transformation.
+
+Strategy II1
+
+This strategy considers hyperonymic factor N = 1. We thus first apply strategy I1 and then hyperonymization h1. Results are presented on Table [\ref=tab:hyperonymic_factor_N1].
+
+The performance is globally inferior to the one of Strategy I1 (in which, F-measure attained 71.80%). It is interesting to note that the recall of class GJOB has decreased significantly (48.96% vs. 58.27%): in other words, using hyperonyms when dealing with labor issues results into failure to recognize 9.31% of the documents as belonging to the domain; one could say that terms used in GJOB lose their “labor specificity” already at first-order hyperonymization. On the other hand, the (already high in I1) recall of GSPO has increased even more, compared to I1 (from 78.76% to 82.20%): it seems that sports terminology remains in the domain even after hyperonymization, and replacing specific terms by more general ones has increased their frequency as items, and hence improved recall. We have the same phenomenon with the recall of GDIP (which increased from 66.97% to 71.32%), and also slightly with the recalls of E12 and GVIO.
+
+Strategy II2
+
+This strategy is similar to strategy II1 but uses hyperonymic factor N = 2. Results are presented on Table [\ref=tab:hyperonymic_factor_N2].
+
+The performance is globally inferior to the one of II1 (where we used first-order hyperonyms), with two minor exceptions: the recall of GDIP that increased by 0.65% and the precision of GVIO that increased by 1.6%. What is noteworthy however, is the fact that the recalls of GDIP and GSPO are still higher than the ones of strategy I1 (no hyperonyms).
+
+To better understand the behavior of the system when climbing the hyperonymic chain by replacing words by hyperonyms of increasingly higher order (and returning to the original word when there are no hyperonyms left) we calculated the performance for N-th order hyperonyms for [formula]. Note that when N > 12 the amount of remaining hyperonyms is negligible and the strategy is similar to strategy I1 (no hyperonyms). On Fig. [\ref=hypers-fig], the reader can see the evolution of recall (black), precision (red) and F-measure (blue) for the average of all class, and then specifically for GSPO and for GDIP. Dashed lines represent the recall, precision and F-measure of strategy I1.
+
+In the average case, the effect of hyperonymization of orders 1-4 is to decrease performance. After N = 5, the global number of hyperonyms available in WordNet rapidly decreases so that the situation gradually returns to the one of I1 (no hyperonyms) and we see curves asymptotically converging to I1 lines from underneath.
+
+Not so for GSPO, the GSPO recall curve of which is above the I1 value for most N (N = 1, 2, 6-8 and 10-12).
+
+The phenomenon is even better illustrated in the case of GDIP: as the reader can see on the figure, the complete GDIP recall curve is located above the I1 one. It seems that in these two cases (GDIP and, to a lesser extent, GSPO), hyperonyms of all orders have a positive impact on the classifier. Unfortunately this impact only concerns recall and is compensated by bad precision, so that F-measure is still inferior to the I1 case.
+
+Conclusion and future work
+
+In this paper we have investigated the use of association rules for text classification by applying two new techniques: (a) we reduce the number of word features through the use of morphosyntactic criteria in the framework of dependency syntax; for that we keep words dependent from the head by specific dependencies and/or having specific POS tags (b) we replace words by their hyperonyms of different orders, which we have calculated out of WordNet using frequencies and, in some cases, disambiguation. We have obtained positive results for case (a), in particular when we compare dependency-based single-item rules with tfidf-based ones. In case (b) the results we share in this paper are less efficient but still interesting, especially we found classes for which hyperonymization significantly improves recall.
+
+This work opens several perspectives, among which:
+
+-- examine why these particular classes are favorable to hyperonymization, whether this is related to the structure of WordNet or to linguistic properties of the domain;
+
+-- explore partial hyperonymization i.e., is it possible to hyperonymize only specific items according to the needs of the classifier? How do we choose, on the word level, if we should rather keep the original word (to increase precision) or switch to some hyperonym (to increase recall)?
+
+-- we have used only recall and precision as quality measures of our rules, and our evaluation is strongly dependent on these measures since the selection of the 1,000 rules we keep is entirely based upon them. There are other quality measures available, how do they apply and how can they be compared and combined? How robust are the results?
+
+-- and finally: how can we optimize the distinctive feature of association rules, namely the fact of being intelligible by the user? How can the user's experience (and linguistic knowledge) be incorporated in the enhancement of rules to obtain the best possible result from his/her point of view?

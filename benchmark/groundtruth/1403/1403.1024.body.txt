@@ -1,0 +1,163 @@
+Proposition Corollary
+
+Introduction
+
+The classical paradigm for learning object detection models starts by annotating each object instance, in all training images, with a bounding box. However, this exhaustive labeling approach is costly and error prone for large-scale datasets. The massive amount of textually annotated visual data available online inspires a different, more challenging, research problem. Can weakly-labeled imagery, without bounding boxes, be used to reliably train object detectors?
+
+In this alternative paradigm, the goal is to learn to localize objects with minimal supervision [\cite=perona1] [\cite=perona2]. We focus on the case where the learner has access to binary image labels that encode whether an image contains the target object or not, without access to any instance level annotations (i.e., bounding boxes).
+
+Our approach starts by reducing the set of possible image locations that contain the object of interest from millions to thousands per image, using the selective search window proposal technique introduced by [\citet=selectivesearch]. Then, we formulate a discriminative submodular cover algorithm to discover an initial set of image windows that are likely to contain the target object. After training a detection model with this initial set, we refine the detector using a novel smoothed formulation of latent SVM [\cite=misvm-nips] [\cite=lsvm-pami]. We employ recently introduced object detection features, based on deep convolutional neural networks [\cite=decafICML] [\cite=girshick2014rcnn], to represent the window proposals for clustering and detector training.
+
+Compared to prior work on weakly-supervised detector training, we show substantial improvements on the standard evaluation metric (detection average precision on PASCAL VOC). Quantitatively, our approach achieves a 50% relative improvement in mean average precision over the current state-of-the-art for weakly-supervised learning.
+
+Related work
+
+Our work is related to three active research areas: (1) weakly-supervised learning, (2) unsupervised discovery of mid-level visual elements, and (3) co-segmentation.
+
+We build on a number of previous approaches for training object detectors from weakly-labeled data. In nearly all cases, the task is formulated as a multiple instance learning (MIL) problem [\cite=mil3]. In this formulation, the learner has access to an image-level label indicating the presence or absence of the target class, but not its location (if it is present). The challenge faced by the learner is to find the sliver of signal present in the positive images, but absent from the negative images. The implicit assumption is that this signal will correspond to the positive class.
+
+Although there have been recent works on convex relaxations [\cite=li13] [\cite=bach12], most MIL algorithms start from an initialization and then perform some form of local optimization. Early efforts, such as [\cite=perona1] [\cite=perona2] [\cite=galleguillos2008weakly] [\cite=fergus2007weakly] [\cite=crandall2006weakly] [\cite=chum2007exemplar] [\cite=neil13], focused on datasets with strong object-in-the-center biases (e.g. Caltech-101). This simplified setting enabled clarity and focus on the MIL formulation, image features, and classifier design, but masked the vexing problem of finding a good initialization in data where such helpful biases are absent.
+
+More recent work, such as [\cite=siva1] [\cite=siva2012defence], attempts to learn detectors, or simply automatically generate bounding box annotations from much more challenging datasets such as PASCAL VOC [\cite=PASCAL-ijcv]. In this data regime, focusing on initialization is crucial and carefully designed heuristics, such as shrinking bounding boxes [\cite=russakovsky], are often employed.
+
+Recent literature on unsupervised mid-level visual element discovery [\cite=discovery1] [\cite=discovery2] [\cite=discovery4] [\cite=discovery5] [\cite=discovery6] uses weak labels to discover visual elements that occur commonly in positive images but not in negative images. Discovered visual element representation were shown to successfully provide discriminative information in classifying images into scene types. The most recent work [\cite=discovery3] presents a discriminative mode seeking formulation and draws connections between discovery and mean-shift algorithms [\cite=meanshift1].
+
+The problem of finding common structure is related to the challenging setting of co-segmentation [\cite=rother06] [\cite=joulin10] [\cite=alexe10], which is the unsupervised segmentation of an object that is present in multiple images. While in this paper we do not address pixel-level segmentation, we employ ideas from co-segmentation: the intuition behind our submodular cover framework in Section [\ref=sec:covering] is shared with CoSand [\cite=kim11]. Finally, submodular covering ideas have recently been applied to (active) filtering of hypothesis after running a detector, and without the discriminative flavor we propose [\cite=barinova12] [\cite=chen14].
+
+Problem formulation
+
+Our goal is to learn a detector for a visual category from a set of images, each with a binary label. We model an image as a set of overlapping rectangular windows and follow a standard approach to detection: reduce the problem of detection to the problem of binary classification of image windows. However, at training time we are only given image-level labels, which leads to a classic multiple instance learning (MIL) problem. We can think of each image as a "bag" of instances (rectangular windows) and the binary image label y  =  1 specifies that the bag contains at least one instance of the target category. The label y  =   - 1 specifies that the image contains no instances of the category. During training, no instance labels are available.
+
+MIL problems are typically solved (locally) by finding a local minimum of a non-convex objective function, such as MI-SVM [\cite=misvm-nips]. In practice, the quality of the local solution depends heavily on the quality of the initialization. We therefore focus extensively on finding a good initialization. In Section [\ref=sec:covering], we develop an initialization method by formulating a discriminative set multicover problem that can be solved approximately with a greedy algorithm. This initialization, without further MIL refinement, already produces good object detectors, validating our approach. However, we can further improve these detectors by optimizing the MIL objective. We explore two alternative MIL objectives in Section [\ref=sec:slsvm]. The first is the standard Latent SVM (equivalently MI-SVM) objective function, which can be optimized by coordinate descent on an auxiliary objective that upper-bounds the LSVM objective. The second method is a novel technique that smoothes the Latent SVM objective and can be solved more directly with unconstrained smooth optimization techniques, such as L-BFGS [\cite=lbfgs]. Our experimental results show modest improvements from our smoothed LSVM formulation on a variety of MIL datasets.
+
+Finding objects via submodular cover
+
+Learning with LSVM is a chicken and egg problem: The model weights are needed to infer latent annotations, but the latent annotations are needed to estimate the model weights. To initialize this process, we approximately identifying jointly present objects in a weakly supervised manner. The experiments show a significant effect from this initialization. Our procedure implements two essential assumptions: (i) the correct boxes are similar, in an appropriate feature space, across positive images (or there are few modes), and (ii) the correct boxes do not occur in the negative images. In short, in the similarity graph of all boxes we seek dense subgraphs that only span the positive images. Finding such subgraphs is a nontrivial combinatorial optimization problem.
+
+The problem of finding and encoding a jointly present signal in images is an old one, and has been addressed by clustering, minimum description length priors, and the concept of exemplar [\cite=darrell90] [\cite=leibe04] [\cite=schiele06] [\cite=kim11]. These approaches share the idea that a small number of exemplars or clusters should well encode the shared information we are interested in. We formalize this intuition as a flexible submodular cover problem. However, we also have label information at hand that can help identify correct boxes. We therefore integrate into our covering framework the relevance for positively versus negatively labeled images, generalizing ideas from [\cite=discovery1]. This combination allows us to find multiple modes of the object appearance distribution.
+
+Let P be the set of all positive images. Each image contains a set [formula] of candidate bounding boxes generated from selective search region proposals [\cite=selectivesearch]. In practice, there are about 2000 region proposal boxes per image and about 5000 training images in the PASCAL VOC dataset. Ultimately, we will define a function F(S) on sets S of boxes that measures how well the set S represents P. For each box b, we find its nearest neighbor box in each (positive and negative) image. We sort the set N(b) of all such neighbors of b in increasing order by their distance to b. This can be done in parallel. We will define a graph using these nearest neighbors that allows us to optimize for a small set of boxes S that are (i) relevant (occur in many positive images); (ii) discriminative (dissimilar to the boxes in the negative images); and (iii) complementary (capture multiple modes).
+
+We construct a bipartite graph G  =  (V,U,E) whose nodes V and U are all boxes occurring in P (each b occurs once in V and once in U). The nodes in U are partitioned into groups BI: BI contains all boxes from image I∈P. The edges E are formed by connecting each node (box) b∈V to its top k neighbors in N(b)  ⊆  U from positive images. Figure [\ref=fig:graph] illustrates the graph. Connecting only to the top k neighbors (instead of all) implements discriminativeness: the neighbors must compete. If b occurs in positively and negatively labeled images equally, then many top-k closest neighbors in N(b) stem from negative images. Consequently, b will not be connected to many nodes (boxes from P) in G. We denote the neighborhood of a set of nodes S  ⊆  V by [formula].
+
+Let S  ⊆  V denote a set of selected boxes. We define a covering score [formula] for each I that is determined by a covering threshold t and a scalar, nondecreasing concave function [formula]:
+
+[formula]
+
+This score measures how many boxes in BI are neighbors of S and thus "covered". We gain from covering up to t boxes from BI - anything beyond that is considered redundant. The total covering score of a set S  ⊆  V is then
+
+[formula]
+
+The threshold t balances relevance and complementarity: let, for simplicity, [formula]. If t = 1, then a set that maximizes [formula] contains boxes from many different images, and few from a single image. The selected neighborhoods are very complementary, but some of them may not be very relevant and cover outliers. If t is large, then any additionally covered box yields a gain, and the best boxes b∈V are those with the largest degree. A box has large degree if many of its closest neighbors in N(b) are from positive images. This also means b is discriminative and relevant for P.
+
+The function [formula] defined in Equation [\eqref=eq:totalcover] is nondecreasing and submodular.
+
+A set function is submodular if it satisfies diminishing marginal returns: for all v and [formula], it holds that [formula].
+
+First, the function [formula] is a covering function and thus submodular: let [formula]. Then Γ(S)  ⊆  Γ(T) and therefore
+
+[formula]
+
+The same holds when intersecting with BI. Thus, [formula] is a nondecreasing concave function of a submodular function and therefore submodular. Finally, F is a sum of submodular functions and hence also submodular. Monotonicity is obvious.
+
+We aim to select a representative subset S  ⊆  V with minimum cardinality:
+
+[formula]
+
+for α∈(0,1]. We optimize this via a greedy algorithm: let [formula] and, in each step τ, add the node v that maximizes the marginal gain [formula].
+
+The greedy algorithm solves Problem [\eqref=eq:submodcover] within an approximation factor of [formula].
+
+Lemma [\ref=lem:bound] says that the algorithm returns a set Ŝ with F(Ŝ)  ≥  αF(V) and |Ŝ|  ≤  O( log k)|S*|, where S* is an optimal solution. This result follows from the analysis by [\citet=wolsey82] (Thm. 1) adapted to our setting. To get a better intuition for the formulation [\eqref=eq:submodcover] we list some special cases: Min-cost cover. With t = 1 and g(a)  =  a being the identity, Problem [\ref=eq:submodcover] becomes a min-cost cover problem. Such straightforward covering formulations have been used for filtering after running a detector [\cite=barinova12]. Maximum relevance. A minimum-cost cover merely focuses on complementarity of the selected nodes S, which may include rare outliers. At the other extreme (t large), we would merely select by the number of neighbors ([\citet=discovery1] choose one single N(b) that way). Multi-cover. To smoothly move between the two extremes, one may choose t  >  1 and g to be sub-linear. This trades off representation, relevance, and discriminativeness.
+
+In Figure [\ref=fig:cluster_visualization_figure], we visualize top 5 nearest neighbors with positive labels in the first chosen cluster S1 for all 20 classes on the PASCAL VOC data. Our experiments in Section [\ref=sec:exp] show the benefits of our framework. Potentially, the results might improve even further when using the complementary mode shifts of [\citep=discovery3] as a pre-selection step before covering.
+
+Iterative refinement with latent variables
+
+In this section, we review the latent SVM formulation, and we propose a simple smoothing technique enabling us to use classical techniques for unconstrained smooth optimization. Figure [\ref=fig:mil-figure] illustrates our multiple instance learning analogy for object detection with one-bit labels.
+
+Review of latent SVM
+
+For a binary classification problem, the latent SVM formulation consists of learning a decision function involving a maximization step over a discrete set of configurations Z. Given a data point [formula] in [formula] that we want to classify, and some learned model parameters [formula] in [formula], we select a label y in { - 1, + 1} as follows:
+
+[formula]
+
+where [formula] is called a "latent variable" chosen among the set Z. For object detection, Z is typically a set of bounding boxes, and maximizing over Z amounts to finding a bounding box containing the object. In deformable part models [\cite=lsvm-pami], the set Z contains all possible part configurations, each part being associated to a position in the image. The resulting set Z has exponential size, but ([\ref=eq:decision]) can be solved efficiently with dynamic programming techniques for particular choices of φ.
+
+Learning the model parameters [formula] is more involved than solving a simple SVM problem. We are given some training data [formula], where the vectors [formula] are in [formula] and the scalars yi are binary labels in {1, - 1}. Then, the latent SVM formulation becomes
+
+[formula]
+
+where [formula] is the hinge loss defined as [formula], which encourages the decision function for each training example to be the same as the corresponding label. Similarly, other loss functions can be used such as the logistic or squared hinge loss.
+
+Problem ([\ref=eq:latentsvm]) is nonconvex and nonsmooth, making it hard to tackle. A classical technique to obtain an approximate solution is to use a difference of convex (DC) programming technique, called concave-convex procedure  [\cite=yuille_cccp] [\cite=Yu09]. We remark that the part of ([\ref=eq:latentsvm]) corresponding to negative examples is convex with respect to [formula]. It is indeed easy to show that each corresponding term can be written as a pointwise maximum of convex functions, and is thus convex [\citep=boyd]: when yi =  - 1, [formula]. On the other hand, the part corresponding to positive examples is concave, making the objective ([\ref=eq:latentsvm]) suitable to DC programming. Even though such a procedure does not have any theoretical guarantee about the quality of the optimization, it monotonically decreases the value of the objective and performs relatively well when the problem is well initialized [\cite=lsvm-pami].
+
+We propose a smooth formulation of latent SVM, with two main motives. First, smoothing the objective function of latent SVM allows the use of efficient second-order optimization algorithms such as quasi-Newton [\cite=lbfgs] that can leverage curvature information to speed up convergence. Second, as we show later, smoothing the latent SVM boils down to considering the top-N configurations in the maximization step in place of the top-1 configuration in the regular latent SVM. As a result, the smooth latent SVM training becomes more robust to unreliable configurations in the early stages, since a larger set of plausible configurations is considered at each maximization step.
+
+Smooth formulation of LSVM
+
+In the objective ([\ref=eq:latentsvm]), the hinge loss can be easily replaced by a smooth alternative, e.g., squared hinge, or logistic loss. However, the non-smooth points induced by the following functions are more difficult to handle
+
+[formula]
+
+We propose to use a smoothing technique studied by  [\citet=nesterov] for convex functions.
+
+Nesterov's smoothing technique
+
+We only recall here the simpler form of Nesterov's results that is relevant for our purpose. Consider a non-smooth function that can be written in the following form:
+
+[formula]
+
+where [formula], [formula] is in [formula], and Δ denotes the probability simplex, [formula]. Smoothing here consists of adding a strongly convex function ω in the maximization problem
+
+[formula]
+
+The resulting function gμ is differentiable for all μ  >  0, and its gradient is
+
+[formula]
+
+where [formula] is the unique solution of ([\ref=eq:smoothedf]). The parameter μ controls the amount of smoothing. Clearly, [formula] for all [formula] as μ  →  0. As [\citet=nesterov] shows, for a given target approximation accuracy ε, there is an optimal amount of smoothing μ(ε) that can be derived from a convex optimization perspective using the strong convexity parameter of ω(  ·  ) on Δ and the (usually unknown) Lipschitz constant of g. In the experiments, we shall simply learn the parameter μ from data.
+
+Smoothing the latent SVM
+
+We now apply Nesterov's smoothing technique to the latent SVM objective function. As we shall see, the smoothed objective takes a simple form, which can be efficiently computed in the latent SVM framework. Furthermore, smoothing latent SVM implicitly models uncertainty in the selection of the best configuration [formula] in Z, as shown by [\citet=KumarPK12] for a different smoothing scheme.
+
+In order to smooth the functions [formula] defined in ([\ref=eq:fmax]), we first notice that
+
+[formula]
+
+where [formula] is a matrix of size |Z|  ×  d such that the j-th row of [formula] is the feature vector [formula] and [formula] is the j-th element of Z. Considering any strongly convex function ω and parameter μ  >  0, the smoothed latent SVM objective is obtained by replacing in ([\ref=eq:latentsvm])  [formula] the functions [formula] by their smoothed counterparts [formula] obtained by applying ([\ref=eq:smoothedf]) to ([\ref=eq:simplex]);  [formula] the non-smooth hinge-loss function ł by any smooth loss.
+
+Objective and gradient evaluations
+
+An important issue remains the computational tractability of the new formulation in terms of objective and gradient evaluations, in order to use quasi-Newton optimization techniques. The choice of the strongly convex function ω is crucial in this respect.
+
+There are two functions known to be strongly convex on the simplex: i) the Euclidean norm, ii) the entropy. In the case of the Euclidean-norm [formula], it turns out that the smoothed counterpart can be efficiently computed using a projection on the simplex, as shown below.
+
+[formula]
+
+where [formula] is the solution of ([\ref=eq:smoothedf]). Computing [formula] requires a priori O(|Z|d) operations. The projection can be computed in O(|Z|) [\citep=MAL-015]. Once [formula] is obtained, computing the gradient requires [formula] operations, where [formula] is the number of non-zero entries in [formula].
+
+When the set Z is large, these complexities can be improved by leveraging two properties. First, the projection on the simplex is known to produce sparse solutions, the smoothing parameter μ controlling the sparsity of [formula]; second, the projection preserves the order of the variables. As a result, the following heuristic can be justified. Assume that for some N  <  |Z|, we can obtain the top-N entries of [formula] without exhaustively exploring Z. Then, performing the projection on these reduced set of N variables yields a vector [formula] which can be shown to be optimal for the original problem ([\ref=eq:proj]) whenever [formula]. In other words, whenever N is large enough and μ small enough, computing the gradient of [formula] can be done in O(Nd) operations. We use this heuristic in all our experiments.
+
+Experiments
+
+We performed two sets of experiments, one on a multiple instance learning dataset [\cite=misvm-nips] and the other on the PASCAL VOC 2007 data [\cite=PASCAL07]. The first experiment was designed to compare the multiple instance learning bag classification performance of LSVM with Smooth LSVM (SLSVM). The second experiment evaluates detection accuracy (measured in average precision) of our framework in comparison to baselines.
+
+Multiple instance learning datasets
+
+We evaluated our method in Section 5 on standard multiple instance learning datasets [\cite=misvm-nips]. For preprocessing, we centered each feature dimension and [formula] normalize the data. For fair comparison with [\cite=misvm-nips], we use the same initialization, where the initial weight vector is obtained by training an SVM with all the negative instances and bag-averaged positive instances. For this experiment, we performed 10 fold cross validation on C and μ. Table [\ref=tab:mil-experiments] shows the experimental results. Without the bias, our method significantly performs better than LSVM method and with the bias, our method shows modest improvement in most cases.
+
+Weakly-supervised object detection
+
+To implement our weakly-supervised detection system we need suitable image features for computing the nearest neighbors of each image window in Section [\ref=sec:covering] and for learning object detectors. We use the recently proposed R-CNN [\cite=girshick2014rcnn] detection framework to compute features on image windows in both cases. Specifically, we use the convolutional neural network (CNN) distributed with DeCAF [\cite=decafICML], which is trained on the ImageNet ILSVRC 2012 dataset (using only image-level annotations). We avoid using the better performing CNN that is fine-tuned on PASCAL data, as described in [\cite=girshick2014rcnn], because fine-tuning requires instance-level annotations.
+
+We report detection accuracy as average precision on the standard benchmark dataset for object detection, PASCAL VOC 2007 test [\cite=PASCAL07]. We compare to five different baseline methods that learn object detectors with limited annotations. Note that other baseline methods use additional information besides the one-bit image-level annotations. [\citet=deselaers1] [\citet=deselaers2] use a set of 799 images with bounding box annotations as meta-training data. In addition to bounding box annotations, [\citet=deselaers1] [\citet=deselaers2] [\citet=pandey] use extra instance level annotations such as pose, difficult and truncated. [\citet=siva2012defence] [\citet=russakovsky] use difficult instance annotations but not pose or truncated. First, we report the detection average precision on 6 subsets of classes in table [\ref=tab:detection-6x2] to compare with [\citet=deselaers1] [\citet=deselaers2] [\citet=pandey].
+
+To evaluate the efficacy of our initialization, we compare it to the state-of-the-art algorithm recently proposed by [\cite=siva2012defence]. Their method constructs a set of positive windows by looping over each positive image and picking the instance that has the maximum distance to its nearest neighbor over all negative instances (and thus the name negative data mining algorithm). For a fair comparison, we used the same window proposals, the same features [\cite=girshick2014rcnn], the same L2 distance metric, and the same PASCAL 2007 detection evaluation criteria. The class mean average precision for the mining algorithm was 11.6% compared to 29.0% obtained by our initialization procedure. Figure [\ref=fig:us_vs_siva] visualizes some command failure modes in our implementation of [\cite=siva2012defence]. Since the negative mining method does not take into account the similarity among positive windows (in contrast to our method) our intuition is that the method is less robust to intra-class variations and background clutter. Therefore, it often latches onto background objects (i.e. hurdle in horse images, street signs in bus images), onto parts of the full objects (i.e. wheels of bicycles), or merges two different objects (i.e. rider and motorcycle). It is worth noting that [\citet=pandey] [\citet=siva2012defence] use the CorLoc metric as the evaluation metric to report results on PASCAL test set. In contrast, in our experiments, we exactly follow the PASCAL VOC evaluation protocol (and use the PASCAL VOC devkit scoring software) and report detection average precision. Table [\ref=tab:detection-full] shows the detection result on the full PASCAL 2007 dataset. There are two baseline methods [\cite=siva1] [\cite=russakovsky] which report the result on the full dataset. Unfortunately, we were not able to obtain the per-class average precision data from the authors of [\cite=russakovsky] except the class mean average precision (mAP) of 15.0%. As shown in Table [\ref=tab:detection-full], the initial detector model trained from the constructed set of positive windows already produces good object detectors but we can provide further improvement by optimizing the MIL objective.
+
+Conclusion
+
+We developed a framework for learning to localize objects with one-bit object presence labels. Our results show that the proposed framework can construct a set of positive windows to train initial detection models and improve the models with the refinement optimization method. We achieve state-of-the-art performance for object detection with minimal supervision on the standard benchmark object detection dataset. Source code will be available on the author's website.
+
+Acknowledgement

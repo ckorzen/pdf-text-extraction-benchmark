@@ -1,0 +1,161 @@
+Efficient implementation of the overlap operator on multi-GPUs
+
+Introduction
+
+The structure of subnuclear particles like the proton and neutron is dictated by the dynamics of quarks and gluons. The strong force that binds them is described using quantum chromodynamics (QCD). Lattice QCD is a discretized version of this theory that makes it amenable to numerical simulations. The calculations involved are very demanding but they can be parallelized efficiently. Consequently, most lattice QCD simulations are run on traditional CPU clusters using fast interconnects. A recent alternative is to use graphics processing units (GPUs) for lattice QCD simulations [\cite=Egri:2006zm] [\cite=Clark:2009wm] [\cite=Babich:2010mu] [\cite=Alexandru:2011ee]. While difficult to program, these devices have very good floating point performance and very good memory bandwidth. For lattice QCD simulations, GPUs can outperform CPUs by large factors which allow us to build more compact and cost effective clusters. Currently most lattice QCD simulations run either in single GPU mode or on fat nodes with a few GPUs communicating over the PCI bus. This is the most efficient configuration if the memory requirements are relatively modest. However, this is not always feasible.
+
+Lattice QCD simulations can be performed using different discretizations of the QCD action depending on the problem studied. Traditional discretizations for the quark field introduce artifacts that are removed only in the continuum limit, i.e. when lattice spacing goes to zero. In particular, they break chiral symmetry which plays an important role for simulations close to the physical limit. Overlap discretization [\cite=Neuberger:1997fp] of the quark field preserves this symmetry which allows us to capture the effects of chiral dynamics even at finite lattice spacing.
+
+Overlap formulation is numerically demanding and an efficient implementation requires significantly more memory than traditional discretizations. To implement it on GPUs we need to be able to break the problem on multiple GPUs in order to satisfy the memory requirements. In this paper we present our implementation of the overlap operator in multi-GPU context. The outline of the paper is the following. In Section [\ref=sec:overlap] we review the numerical properties of the overlap operator. In Section [\ref=sec:parallel] we discuss our parallelization strategy and the GPU-GPU communication structure. In Section [\ref=sec:dslash] we discuss the implementation of the dslash routine, which is the building block for the overlap operator. In Section [\ref=sec:implementation] we discuss the implementation of the overlap operator, the required eigensolvers and conjugate gradient (CG) inverter used to compute the quark propagators.
+
+Overlap operator
+
+In lattice QCD the space-time is approximated by a four dimensional grid, the quarks are viewed as particles hopping between the grid sites and gluons are represented by parallel transporters that change the internal state of the quarks as they hop along the given link (see Fig. [\ref=fig:lattice] for a schematic representation). The quark operator represents a discretization of the covariant derivative Dμ  =  ∂μ  +  igAμ, where Aμ is the color (gluon) field. The quark fields, ψn, are represented by 4  ×  3 matrices at each lattice site and the gluon field Uμ(n) = eiagAμ(n) by SU(3) matrices. Wilson discretization of [formula] is given by the following matrix
+
+[formula]
+
+where Tμ are the parallel transporters for all 8 directions
+
+[formula]
+
+Dw is a complex 12N  ×  12N matrix, where N is the number of sites on the grid. The matrix is very sparse since the parallel transporters only connect to nearest-neighbor sites. For numerical simulations we store only the non-zero elements of this matrix and we implement a dslash routine to compute Dwψ on any given quark field ψ. The storage requirements and the numerical cost for the dslash routine are proportional to N. Dw is γ5-symmetric, i.e. [formula]. Thus, [formula] is hermitian.
+
+The massless overlap operator is defined in terms of the Wilson operator
+
+[formula]
+
+As in the case of Wilson fermions, for numerical studies we need to implement a routine that computes Dψ for any quark field ψ. This calls for a practical algorithm to compute the matrix sign function, i.e. [formula]. This can be done using either a polynomial approximation for the sign function [\cite=Giusti:2002sm] or a rational approximation [\cite=Chiu:2002eh]. In both cases an optimal approximation, P(x), for x- 1 / 2 is determined such that
+
+[formula]
+
+is minimized over the set of functions used. P(x) is either a polynomial [formula] of order n or a rational function [formula]. The coefficients of the polynomial approximation can be determined using a robust numerical method [\cite=Giusti:2002sm] and the coefficients of the optimal rational approximation have been determined analytically [\cite=Chiu:2002eh].
+
+Using this result, we can approximate the sign function using
+
+[formula]
+
+A small order approximation is presented in Fig. [\ref=fig:sign-approx]. Note that the approximation is quite poor for the interval x∈[null]. This is a generic feature: a continuous odd function will go through 0 at x = 0. Thus, there is always a neighborhood around x = 0 where the approximation is poor. To shrink this region we have to increase the order of the approximation. Since the approximation needs to be good over the whole spectrum of Q, the size of this region has to be adjusted such that [formula], where [formula] is the eigenvalue of Q closest to zero. For typical lattices we often have [formula] and to get an approximation of the order δ = 10- 10 we would need polynomials of the order n  ~  105 - this is impractical.
+
+The standard solution is to determine the spectrum of Q in the neighborhood of zero and use it to exactly calculate the sign function in this subspace. The approximation is then needed only on the orthogonal subspace, and on this subspace small order polynomials lead to very good approximations. A similar argument leads to the same conclusion for the rational approximation.
+
+To be more specific, assume we have determined the [formula] eigenmodes of the Q matrix closest to zero, Qηi  =  λiηi ordered such that [formula]. We can then compute [formula] by separating ψ  =  ψl  +  ψh with the low frequency component defined by
+
+[formula]
+
+We have then
+
+[formula]
+
+The advantage is that the approximation QP(Q2)ψh is good if [formula]. For typical lattices using [formula] produces [formula] which can be approximated using polynomials with n  ~  100.
+
+The overlap operator for quarks of mass m
+
+[formula]
+
+is used to compute the quark propagators [formula]. We use a multi-shifted version of CG [\cite=Jegerlehner:1996pm] to compute the propagators for multiple masses at once. The conditioning number for this matrix is very large for quark masses close to physical values and we need to use deflation to accelerate convergence [\cite=Li:2010pw]. Take the [formula] eigenmodes of the massless overlap operator closest to zero, i.e. Dξi = diξi, with [formula], we have
+
+[formula]
+
+where the high-frequency part of the propagator D(m)- 1ψh converges at a rate controlled by the effective conditioning number [formula] rather than κ  =  ||D||  /  ma.
+
+In order to compute quark propagators for the overlap operator efficiently we need to store the [formula] eigenvectors of the Hw operator and the [formula] eigenvectors of the D operator in memory. Since [formula], the memory requirements for these codes are ten to a hundred times greater than the ones required for traditional discretizations. This is the reason to implement these routines to run in parallel on multiple GPUs. To carry out lattice QCD simulations using overlap discretization in an efficient manner, we need to implement the following routines:
+
+dslash routine to compute Dwψ,
+
+eigensolver to compute the lowest eigenmodes of Hw,
+
+massless overlap multiplication routine to compute Dψ,
+
+eigensolver to compute the lowest eigenmodes of D,
+
+multi-shifted CG to compute D(m)- 1ψ.
+
+All these routines can be parallelized efficiently. Our strategy is described in the next section.
+
+Parallelization strategy
+
+The linear algebra algorithms used to compute the eigenvectors (implicitly restarted Arnoldi [\cite=Sorensen:1992fk] [\cite=Lehoucq:1996]) and the inverse of the lattice operators (CG) are not easy to parallelize. In fact in our codes these algorithms are executed in lockstep on all nodes. However, it turns out that most of the computational time is spent computing the matrix-vector multiplication [formula] and the vector operations, e.g. [formula]. The complexity of these routines scales with the lattice volume but they can be efficiently parallelized. The key feature is that these routines are local, i.e. the calculations required to derive the value of φ at a given lattice site need only the values of the source fields ψ's at neighboring sites.
+
+This suggests the optimal strategy for parallelization: we divide the lattice in equal regions. A schematic representation of the procedure is presented in Fig. [\ref=fig:div-lattice]. Each parallel process is responsible for one of the regions: all data that are associated with the sites in this region resides in the memory managed by this process and all calculations related to these sites are carried out by this process. The lattice is divided in regions that have the same shape so that the parallel processes run through the same steps, effectively using a single-instruction, multiple-data (SIMD) paradigm.
+
+For routines that are completely local, i.e. routines where the result φ(s) at a site s involves only data associated with the same site, each process can proceed independently of the other processes. These routines should scale perfectly when we divide the workload over multiple processes. In Fig. [\ref=fig:vecop-scaling] we show the scaling plot for vector operations as we increase the number of parallel tasks. The relevant measure for vector operations is the effective memory bandwidth since this is the bottleneck. All purely local vector operations use the same bandwidth as vector addition and show perfect scaling.
+
+Vector operations that involve reductions, the scalar product and vector norm, scale rather poorly. However, the poor scaling is not a result of inter-process communication. Rather, as we divide the lattice into smaller and smaller pieces, each GPU operates on smaller vectors and the scalar product routine runs less efficiently [\cite=Alexandru:2011ee]. When running a [formula] lattice on 32 GPUs, each process is responsible for a region of size [formula]. If we run a single-GPU scalar product on a [formula] lattice the bandwidth is [formula], compared to [formula] as measured when running [formula] lattice on 32 GPUs. Fortunately, the scalar products are responsible only for a small fraction of the computational cost and their poor scaling has little impact overall.
+
+For routines like dslash where the result φ(s) depends on the values of neighboring site, inter-process communication is required. This is only needed for sites that are adjacent to the borders, the sites represented by circled points in Fig. [\ref=fig:div-lattice]. When the communication cost is small compared with the computation cost, the calculation can be efficiently run in parallel.
+
+The division strategy we used is designed to minimize the number of sites on the boundary. This is based on the assumption that the communication time will be proportional to the boundary area. This assumption is valid when the communication speed between any two processes is the same. For heterogenous systems, where the network "distance" between processes varies, this division strategy might not be optimal. The results presented in this paper were produced on homogenous systems.
+
+Each process is represented by a CPU thread attached to a single GPU. In the implementation discussed here the most compute intensive routines are executed on the GPU. For maximum performance we place all frequently accessed data in GPU memory. The GPU kernels were coded using CUDA [\cite=CUDA]. We use MPI [\cite=MPI-2.2] to communicate between processes. MPI calls send/receive buffers stored in CPU memory. To send data stored in GPU memory the sender process first copies the buffer to its CPU memory, and then uses regular MPI calls to send it to the appropriate process. After receiving the data, the target process copies it to its GPU memory. Thus, sending data between GPUs involves two additional transfers over the PCI bus. This adds a significant overhead since the PCI bus is not much faster than the interconnects used in our test systems. To alleviate this problem we use pinned memory for the CPU communication buffers so that GPU to CPU data transfers run at full PCI bus speed. Close attention needs to be paid in handling these buffers since they are a scarce resource. Another issue we encountered is that OpenMPI [\cite=OpenMPI] Infiniband library uses pinned memory in an incompatible manner - this conflict is resolved by turning off the pinned memory optimization for this MPI library.
+
+Multi-GPU dslash implementation
+
+The most time consuming step in our codes is the dslash routine that computes [formula]. Consequently, our optimization efforts focused primarily on implementing it efficiently. We are primarily interested in the double precision implementation since the eigensolvers employed are very sensitive to roundoff errors. For the most part, we used the optimizations, data layout and codes developed for our single-GPU implementation [\cite=Alexandru:2011ee]. The calculation of φ for the bulk sites, the sites that do not require off-process data, is carried out using exactly the same steps. To deal with the boundary sites, we need to implement:
+
+a gather routine that performs the required calculations and collects the data to be sent off-process in communication buffers,
+
+a scatter routine that moves the data from the communication buffers to the appropriate sites and performs the required color multiplications,
+
+communication routines that copy the GPU buffers from sender to receiver.
+
+The scatter/ gather routines add very little overhead. Moving the data from one GPU to another is the most time consuming step. Fortunately, this step can be carried out in parallel with the bulk dslash calculation. As discussed in the previous section, the GPU to GPU communication occurs in three steps: GPU to CPU, CPU to CPU and CPU to GPU. The CPU to CPU transfer can be executed using a non-blocking MPI call. The CPU to GPU data transfer can be performed in parallel with the dslash kernel only if we use asynchronous CUDA copy instructions [\cite=CUDA]. This only works if the CPU buffer involved uses pinned memory.
+
+Since the GPU kernels are issued asynchronously, we need to arrange carefully the execution order to ensure logical consistency. To achieve this we had to use CUDA streams: kernels attached to a particular stream are guaranteed to be executed in the order issued. Kernels, or asynchronous CUDA copy instructions, can be executed in parallel if they belong to different streams. The logical structure of the multi-GPU dslash routine is represented schematically in Fig. [\ref=fig:dslash-order]. Since gather, bulk dslash, and scatter kernels have to be executed sequentially, although they are attached to different streams, CUDA synchronization calls are used to enforce this constraint.
+
+A parallel code is efficient when the aggregate performance is proportional to the number of processes. We present here the results for strong scaling, i.e. performance of our codes for a lattice of fixed size that gets divided into smaller and smaller pieces as the number of processes is increased. Since the gather/ scatter kernels take very little time, as long as the bulk dslash kernel takes more time than communication, the scaling will be almost perfect. However, as we increase the number of GPUs, the time for the bulk dslash kernel will decrease as [formula], whereas the communication time will only decrease as [formula]. Eventually the communication time will dominate and scaling will suffer.
+
+The results presented here are measured on a GPU cluster with a single Tesla M2070 per node using QDR Infiniband network. On GPUs the error correction mode is turned on; this ensures the accuracy of the result at the expense of reducing the memory bandwidth. Since our kernels are memory bound their performance is also affected. The bandwidth measured in micro-benchmarks are [formula] for the PCI bus and [formula] for Infiniband. The gather/ scatter kernels move 45/69 numbers per boundary site and their bandwidth performance is [formula]. The double precision bulk dslash kernel performance is about [formula]. Using these numbers we can construct a simple performance model for the multi-GPU routine. In Fig. [\ref=fig:dslash-performance] we present the performance of our codes and compare it with the predictions from the performance model. We see that for 32 GPUs our scaling efficiency is about 50% for a 243  ×  64 lattice. For larger lattices the scaling is even better, for example for a 323  ×  64 lattice the 32 GPUs scaling efficiency is about 60%. Our simple model follows closely the measured results for the double precision routine, but it overestimates slightly its performance. This is most likely due to the fact that, as in the case of the scalar product discussed in the previous section, the efficiency of the GPU kernels decreases as the size of the vectors gets smaller.
+
+To get a better picture, it is instructive to compare the performance of the GPU code with an equivalent code running purely on CPUs. The typical CPU dslash performance for double precision implementations is [formula] [\cite=Wettig:2005zc]. Our own CPU implementation runs at [formula] per core. This number was measured on a Cray XT-5 machine that uses very fast interconnects and dual hex-core AMD CPU per node. The CPUs run at [formula]. When comparing single-GPU performance it is then easy to see that the performance of one GPU is equivalent to 22 CPU cores. In the multi-GPU context it is less straightforward to define a measure, since scaling also plays an important role. To aid this comparison, we carried out a strong scaling study using our CPU dslash implementation running on the Cray machine. To compare the GPU and CPU performances we plot the aggregate performance of both CPU and GPU codes in Fig. [\ref=fig:dslash-comp]: the CPU core count is translated into its GPU equivalent by dividing the total number of CPU cores by 22. This insures that the leftmost points in the graph overlap. If the CPU code scales similarly to the GPU code, the two curves should overlap. It is clear that the GPU codes scale better and that the equivalent CPU core count increases as we increase the number of GPUs. For example, the aggregate performance for 32 GPUs is [formula] whereas the performance of 32  ×  22 CPU-cores is only about [formula].
+
+Overlap operator implementation
+
+Using the dslash and vector routines discussed in the previous sections we build now the overlap operator. To present the performance of our codes, we employ 243  ×  64 lattices from one of our lattice QCD projects. The GPU cluster used for our testing has 32 GPUs with [formula] of memory per GPU. The total GPU memory is then only sufficient to accommodate about 500 vectors. To compare the GPU performance with CPU codes, we run similar calculations on the Cray XT-5 machine described in the previous section. Since the scaling of the CPU codes is poorer than our GPU codes, we run our codes on 256 cores which is the minimum required to complete our tests in the time limit imposed by the scheduling system.
+
+Practical implementations for both polynomial and rational approximations require the calculation of the lowest lying eigenmodes of Hw. We also need to compute the eigenmodes of the overlap operator D to speed up propagator calculation. To compute these eigenmodes, we use implicitly restarted Arnoldi factorization [\cite=Sorensen:1992fk] [\cite=Lehoucq:1996]. For a matrix [formula], if we desire [formula] eigenmodes, we construct an Arnoldi factorization [\cite=Arnoldi:1951]:
+
+[formula]
+
+where [formula] satisfies [formula], i.e. the n-dimensional vectors on the columns of Vk are orthonormal. The matrix [formula] is an upper Hessenberg matrix that is the restriction of A onto the Krylov space Kk(A,v1). The eigenvalues of Hk represent Ritz estimates of the eigenvalues of A and the residue, fk, can be used to gauge their accuracy. In practical calculations k  ≪  n. The implicitly restarted method uses a subspace of dimension k significantly larger than [formula], the desired number of eigenvectors. We set [formula], and at every step we remove from the k eigenmodes of Hk the [formula] undesired ones. The factorization is restarted using the new starting subspace and the whole process repeats until convergence. The optimal choice for our codes is [formula] and then the number of vectors that need to be stored in memory is [formula]. The first iteration in this algorithm requires k matrix multiplications and k(k - 1) / 2 orthogonalizations. The subsequent iterations require only [formula] matrix-multiplications and [formula] orthogonalizations.
+
+We now focus our discussion on the Hw eigensolver. The number of desired modes is dictated by both the structure of the low-lying spectrum of Hw and the available memory. In Fig. [\ref=fig:hwilson-spect] we plot the magnitude [formula] as a function of [formula] for a handful of lattices from our ensemble. It is clear that the spectral structure varies very little as we change the lattice. This can also be easily correlated with the performance of the overlap operator routine: the most expensive part is the sign multiplication routine, [formula], which for polynomial approximation is directly proportional to the order of the polynomial. Using the empirical formula [\cite=Giusti:2002sm]
+
+[formula]
+
+with A = 0.41 and b = 2.1 and setting [formula] we can compute the order of the polynomial required to achieve a precision of δ = 10- 9. The results are shown in Fig. [\ref=fig:poly-order]. We see that going from [formula] to [formula] the polynomial order is reduced by about a factor of two. Since our GPU cluster can only store 500 vectors in device memory we set [formula] (recall that the Arnoldi eigensolver uses [formula] vectors).
+
+To accelerate the convergence of Hw eigenvectors we use Chebyshev acceleration [\cite=Neff:2001zr]: we compute the eigenvectors of a polynomial Tn(H2w) that has a more suitable eigenvalue structure but the same eigenvectors. We use a Chebyshev polynomial of the order 100 which speeds the convergence considerably (usually the Arnoldi eigensolver converges in one iteration). Our GPU cluster needs 0.27 hours to converge whereas the Cray machine needs 0.60 hours. Thus, one GPU is equivalent to 18 CPU cores for this code.
+
+Consumer level GPUs are significantly cheaper than the Tesla GPUs and offer similar performance for our codes. However, they have less memory available, usually [formula] per GPU. We are forced then to use CPU memory to store the eigenvectors and the GPUs only to carry out the dslash multiplication. Due to the overhead associated with moving the vector over the PCI bus the effective performance of dslash is reduced by a factor of 5 to 10. In our case this problem is less severe because we use Chebyshev acceleration: computing T100(H2w) requires 200 dslash multiplications and the overhead is paid only once. Thus our effective dslash performance is very close to the pure GPU case. However, the orthogonalizations are computed on the CPU in this case and this adds a significant overhead. This mixed code takes 0.43 hours to converge on our GPU cluster, 60% more than the pure GPU code. This ratio depends on the number of eigenvectors requested, [formula], and it will become worse as [formula] is increased. This is because the GPU time will increase linearly with [formula] since the GPUs are responsible for the dslash multiplications whereas the CPU time increases quadratically since the number of orthogonalizations required increases quadratically with [formula].
+
+We now turn our attention to the overlap operator D. As discussed in Section [\ref=sec:overlap], the sign function can be approximated using either a polynomial or a rational approximation. In the polynomial case, we expand the polynomials in terms of Chebyshev polynomials and use a Clenshaw recursion to evaluate P(Q2)ψ. For the rational approximation we expand the rational function:
+
+[formula]
+
+and compute (Q2 + ci)- 1ψ for all i's at once using a multi-shifted CG method. The advantage of the polynomial approximation is that the memory requirements are small. Clenshaw recursion needs only 5 vectors whereas the multi-shifted CG needs 2n + 3 vectors. While the rational approximation converges very fast we still need [formula]. The double pass [\cite=Neuberger:1998jk] variant of the rational approximation alleviates this problem at the cost of doubling the number of dslash matrix multiplications. In spite of this, the double-pass algorithm is faster than the single pass version [\cite=Chiu:2003ub] due to the reduced number of vector operations required. Moreover, it was found that the double-pass algorithm takes the same time irrespective of the order of the rational approximation.
+
+To decide on the optimal strategy, we compared the polynomial approximation with the double-pass algorithm and we run the codes on 8, 16, 24 and 32 GPUs. For this comparison we use [formula] to fit in the memory available in 8 GPU case. The double-pass algorithm used n = 18 and the exit criterion for CG was set to δ = 10- 10. The polynomial approximation was tuned to the same precision. The results of the test are presented in Fig. [\ref=fig:overlap-comp]. It is clear that the polynomial approximation is the better choice and our codes are based on it. When we use all 200 eigenvectors the overlap multiplication routine requires 1.1 seconds on 32 GPUs whereas our Cray machine need 3.3 seconds. Thus, one GPU is equivalent to 24 CPU cores for this routine.
+
+We now turn our attention to the problem of computing the quark propagators. To use deflation, we have to compute the overlap eigensystem using the Arnoldi method. We first compute the eigenvectors of γ5D in one chiral sector. Our γ-matrix basis is chiral and we can store the vectors that have definite chirality using only half the storage required for a regular vector. We can then store all [formula] Hw eigenvectors required for computing the overlap operator in device memory together with the [formula] half-vectors used by the Arnoldi algorithm. On our GPU cluster computing [formula] eigenvectors to a precision of δ = 10- 10 takes 2.7 hours. On the Cray machine this takes 10.6 hours. Thus, one GPU is equivalent to 26 CPU cores for this code.
+
+On systems with reduced memory we can move the Arnoldi half-vectors on the CPU since they are accessed less frequently. In this case our GPU cluster requires 4.0 hours to converge which is 50% more than in the pure GPU case.
+
+We use an adaptive CG method [\cite=Cundy:2004pza] to compute D(m)- 1ψ with a precision of 10- 8. For a quark mass corresponding to [formula] the adaptive method is 60% faster than the regular CG. To compute a full propagator for this mass the GPU cluster needs 0.52 hours and the Cray machine needs 2.3 hours. One GPU is then equivalent to 35 CPU cores for this code.
+
+Overall, a quark propagator calculation takes 3.5 hours on our 32 GPU cluster compared to 13.5 hours on the 256 cores Cray machine. This is consistent with the ratio of 22 CPU cores per one GPU that was computed for the dslash routine.
+
+Conclusions
+
+In this paper, we showed how to effectively employ GPUs for lattice QCD calculations using the overlap operator. The most challenging aspect of this calculation is the large amount of memory that needs to be accessed frequently. To deal with this issue, we had to implement our codes to run in parallel on multiple GPUs.
+
+Our optimization efforts focused on implementing the dslash routine efficiently. For 243  ×  64 lattices our implementation scales reasonably well up to 32 GPUs where we still run at 50% efficiency. CPU clusters of comparable performance have worse scaling efficiency and the GPU/CPU core ratio for similar performance is even larger than 22, the ratio measured in the single-GPU case.
+
+To compute the overlap quark propagators we need to implement eigensolvers for both Hw and D. We used the implicitly restarted Arnoldi algorithm, and we found that the performance is very similar to the dslash routine when all vectors reside in device memory. On systems where the device memory is not sufficient to hold all vectors, we found that storing the Arnoldi vectors in CPU memory is a reasonable alternative. The performance penalty is only 50-60%.
+
+We compared two different approximation strategies for the sign function used to define the overlap operator. We find that the polynomial approximation is better than the double-pass algorithm. Using this approximation the overlap operator runs at a rate equivalent to 24 CPU cores. In the future, we plan to investigate the single pass algorithm.
+
+The quark propagator is computed using an adaptive precision CG method which runs at a rate equivalent to 35 CPU cores. Overall, the GPU/CPU performance ratio for our codes is compatible with the ratio measured for the dslash routine. This result is not surprising since the most time consuming part of these codes is the dslash routine, but it takes careful planning to work around all possible bottlenecks.
+
+Acknowledgments
+
+This work is partially supported by DOE grant DE-FG02-95ER-40907. We wish to thank Mike Clark, Ron Babich and Balint Joo for useful discussions. The computational resources for this project were provided in part by the George Washington University IMPACT initiative.

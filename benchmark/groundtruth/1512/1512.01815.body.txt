@@ -1,0 +1,181 @@
+PatchBatch: a Batch Augmented Loss for Optical Flow
+
+Introduction
+
+Optical flow estimation is a classical problem in Computer Vision. For wide baseline scenarios, patch representation and comparison methods are often used. In recent works, there has been a shift from engineered descriptors to Convolution Neural Networks (CNNs) [\cite=cnn] that are trained on pairs of patches that either match or do not match.
+
+In order to support rapid computation when comparing pairs of patches, it is extremely beneficial to work in a feed-forward pipeline that encodes each patch separately and then uses conventional vector norms for comparing patches. This poses a restriction on the design of our system that is not shared with the most recent CNN approaches, which are optimized for accuracy. In order to achieve state of the art results despite this restriction, a half dozen novelties are brought to the field of deep patch representation. Some novelties arise from borrowing design choices from CNNs used for object recognition and stereo matching. The architecture of our network resembles the modern design of CNNs in those fields.
+
+A second group of novelties are general and are introduced here for the first time in the literature. We design new metric learning losses by augmenting the DrLIM [\cite=drlim] method. Two orthogonal augmentations are studied. The first replaces the loss of DrLIM, which is based on the potential of a spring, with a loss that is based on the potential of a centrifuge. This leads to a marked improvement in the very competitive KITTI benchmarks and in some of our synthetic experiments.
+
+The other type of augmentation is obtained by adding, to both spring and centrifuge variants of the DrLIM loss, a term that minimizes the Standard Deviation (SD) of the two distributions: L2 distances between matching patches, and L2 distances between non-matching patches.
+
+The two SDs are computed on the samples from each batch and a new type of loss for training CNNs emerges. While in conventional loss functions, per-sample losses are just aggregated per batch, in the new type of losses, the samples of the entire batch contribute jointly to the loss.
+
+In another contribution that is centered around per-batch computations, we propose a new variant of batch normalization [\cite=batchnormalization], which is much more fine-grained than previous solutions. The new method improves performance but comes at a cost: the addition of these layers is not compatible with a fully convolutional deployment of the network.
+
+Method overview
+
+The optical flow solution in this work is comprised of a series of well established building blocks, where at the heart of the pipeline we propose a novel way to compare patches.
+
+First, a pair of gray-level input images is normalized by subtracting from each image its mean and dividing by its SD. We then compute, independently and in parallel, 512d descriptors per each pixel of each image. These descriptors are learned from examples, see Sec. [\ref=sec:networkarchitecture].
+
+The PatchMatch [\cite=patchmatch] (PM) method is then used as an Approximate Nearest Neighbor (ANN) algorithm on top of the learned descriptors. The conventional L2 metric is used, thus simplifying the ANN computation. PM is employed for only 2 iterations, which improves both speed and accuracy, as described in Sec. [\ref=sec:pm]. We then employ a bidirectional consistency check and eliminate all non-consistent matches. In addition, we remove small independent clusters of flow predictions using a connected component analysis.
+
+The surviving matches provide sparse optical flow. The flow maps are downsampled, for computational reasons, by a factor of 2 and 4 for the KITTI datasets and MPI-Sintel respectively. The decimated maps are then given to the EpicFlow [\cite=epicflow] algorithm, which interpolates the correspondence fields and creates a dense optical flow, see Sec. [\ref=sec:interp].
+
+Previous work
+
+Dense optical flow methods have been researched for the past 35 years, starting with the work of Horn and Schunk [\cite=hornschunk]. At the beginning, optical flow research was limited to only small displacements. A significant advancement occurred with the work of Brox and Malik [\cite=broxmalik], who provided reasonable performance for large-displacement motions.
+
+The three major modern datasets in the field are KITTI2012 [\cite=kitti2012], which is a real world database consisting of images taken from a moving vehicle; MPI-Sintel [\cite=mpisintel], which is a synthetic database consisting of computer-created movies; and the latest KITTI2015 [\cite=kitti2015], which is a new real world database in which both the camera and the scene are non-stationary. These new datasets have promoted tremendous advancements in the field of optical flow, allowing many new algorithms to be properly evaluated.
+
+It is common to distinguish between pure optical flow methods and methods that require more complex inputs. While the former relies only on an input of two sequential images only, the latter may employ stereo images, more than two input images, etc. Out of the pure optical flow algorithms, the FlowFields method [\cite=flowfields] provides an elaborate pipeline, somewhat similar to ours, and presents near state-of-the-art performance on the KITTI2012 database. There are several significant differences between our work and [\cite=flowfields]. The most important one is that the latter uses engineered features while we use CNNs in order to compute initial correspondences. Another prominent algorithm is PH-Flow [\cite=phflow], which brings state-of-the-art performance to the KITTI2012 database, at the cost of extensive computation time.
+
+An additional reference work is EpicFlow [\cite=epicflow]. In the original paper the authors have used a matching technique called DeepMatching [\cite=deepmatching] in order to compute a sparse correspondence field that is then being interpolated in order to create a dense flow field. The interpolation is based on edge-aware averaging of the sparse correspondence field. In our work we employ EpicFlow's interpolation technique on a sparse correspondence field which is calculated using our descriptors and PatchMatch [\cite=patchmatch]. An alternative method for interpolating a dense optical flow, which has also been applied to DeepMatching-based inputs is DeepFlow [\cite=deepflow].
+
+As mentioned, our pipeline employs the PM algorithm [\cite=patchmatch] in order to compute the initial correspondence field. PM uses the inherent smoothness and coherency of natural images in order to propagate accurate "guesses" between neighboring pixels, in addition to a random-search stage that helps avoid local minima. Image-based ANN alternatives include variants such as TreeCANN [\cite=treecann] and CSH [\cite=csh]. However, we chose PM as our ANN algorithm due to its simplicity, efficiency and modularity. These properties allow us to modify PM for our pipeline. When using PM, instead of utilizing image-based patches as inputs, we use our own features, which were computed using a CNN architecture as mentioned before. Recent advancements in Deep Learning did not skip the fields of Optical Flow and Stereo Matching. In the FlowNet pipeline [\cite=flownet], a CNN was presented that conducts almost the entire optical-flow computation inside the neural network. Though not achieving state-of-the-art results on any of the major datasets, their network runs in real-time and opens a gate to other (almost) completely end-to-end solutions being computed with a single neural network.
+
+In a recent work on stereo matching [\cite=stereomatching], a CNN architecture compares two candidate stereo patches, followed by extensive post-processing. Each of the patch pairs goes through several identical computations, and the resulting activations are then combined and processed through similarity computing layers. However, computational efficiency would be much higher, if an L2 distance of the separate activations would be used instead [\cite=newlecun]. This makes our architecture fully-convolutional, allowing an improved running time. Another difference is that while [\cite=stereomatching] uses relatively small [formula] patches, we found that larger patches are beneficial, and our main architecture uses [formula] patches.
+
+Computing patch similarity using deep networks was also thoroughly investigated. In [\cite=patchsimilarity] the authors inspected several CNN architectures which are able to produce a patch-similarity score. Although their conclusion was that there is a sizable advantage for computing the final similarity score using a complex function that involves, as in [\cite=stereomatching], several dense layers, we chose a different path and insist on using per-patch representations that support L2 distance comparisons. This is done in order to reduce the method's computational complexity in the ANN computation stage. Having to pass every two patches through a comparison network leads to a sharp increase in running time.
+
+In order to learn patch representations that can be effectively compared using the L2 norm, we employ several variants of the DrLIM method [\cite=drlim], which is widely used to learn similar from non-similar. However, there are only a few variants of it in the literature.
+
+A major contribution of our work is the incorporation of per-batch statistics, collected during training, in order to improve the loss used during training. We are not aware of any other work that does this. Somewhat related is the Batch Normalization method [\cite=batchnormalization], which takes advantage of batch-based statistics in order to normalize the activations and accelerate the network's training, and avoid some of the local minima. This is different from our usage of batch statistics for augmenting the loss itself.
+
+In addition to using batch statistics in order to incorporate distribution information to the loss, we also expand the idea of batch normalization to allow fine-grained control of the network's convergence. This is done by performing the normalization at each activation and not at the level of the entire layer as is done in [\cite=batchnormalization].
+
+Network architecture
+
+We study patches of typical sizes of 51  ×  51 or 71  ×  71. This is similar to the 64  ×  64 patches used in [\cite=patchsimilarity]. In addition, unlike previous work [\cite=patchsimilarity], we do not employ patches at multiple scales in our network. While color information might be be useful, e.g., on MPI-Sintel, we discard color since the KITTI2012 benchmark is grayscale.
+
+We train a fully-convolutional neural network, which creates descriptors we later use in the matching process. Inspired by modern object recognition networks [\cite=vgg], we use small 3  ×  3 filters in each convolution layer. The network is built out of a repeating pattern of three layers, such that each layer triplet is a combination of a convolutional layer, a batch-normalization layer, and a max-pooling layer. In the last layer triplet we omit the max-pooling layer and use 2  ×  2 filters. Leaky ReLU [\cite=relu], with a parameter of 0.1 is used as the non-linearity following each convolutional layer, including the last one. Overall we use 5 such structures, see Tab. [\ref=tab:network] within a Siamese architecture [\cite=siam]. While the common wisdom is that max-pooling layers hinder matching accuracy by causing the network to become translation-invariant, when using our architecture one can observe no such phenomena.
+
+We employ a variant of the batch normalization layer, which differs from the conventional batch normalization method [\cite=batchnormalization]. While the latter employs a single value of mean, SD, γ, and β parameters for each feature map, our batch normalization computes these parameters for each single pixel. For example, for the output of the first convolutional layer, there are 32  ×  49  ×  49  ×  2 learned parameters (γ and β) and the same number of computed batch statistics (mean and SD, for each activation in the volume). Once computed, each activation is normalized by subtracting the mean, dividing by the SD and it then undergoes a scale and shift transformation: yi  =  γx̂i  +  β, where x̂i is the normalized activation and yi is the post-transformation value.
+
+As shown by our experiments, this modification creates a significant gap in performance, see Sec. [\ref=sec:exp]. However, it comes at a cost: the need to normalize each pixel separately does not allow for an efficient fully convolutional computation of the descriptors. Instead, it requires a much slower sliding window architecture. We therefore also study an alternative architecture called FAST in which the batch normalization process is done in a conventional way.
+
+The network is strictly-Siamese, which allows us to later compute the descriptors of each image independently. The matching cost is computed using a simple L2 metric. The patch representation size is typically of length 512. Experiments reveal that using a larger descriptor leads to a small increase in accuracy, and using a descriptor size as small as 32 leads to only a moderate loss of accuracy.
+
+Loss
+
+Architectures similar to the one described above were explored by previous work [\cite=patchsimilarity] [\cite=newlecun]. In each previous work, such per-patch architectures were found to be significantly inferior to the architectures that take two patches as inputs. Much of the improved performance we display in this work can be attributed to the novel variants of the DrLIM's loss employed, which are explored next.
+
+The conventional DrLIM loss, which is motivated by the spring model is given by (1-Y) D + (Y){max (0,m-D) } , where, Y = 0 for matching pairs, Y = 1 otherwise, m is the margin parameter, and Dw is the L2 distance between the pair of samples.
+
+We suggest two orthogonal modifications. The first modification is to insert the square into the hinge and obtain the following formula: (1-Y) D + (Y){max (0,m-D) } .
+
+Whereas the original DrLIM was motivated by the spring model analogy [\cite=drlim], the new loss can be said to model a sticky centrifuge. Let M be a mass of a particle located at rest at a distance r in a frame rotating at an angular velocity ω around the origin. The particle feels the centrifugal force [formula] in direction r̂. This force is derived from the potential [formula] as [formula]. Assuming that the centrifuge has a sticky boundary at a radius m, particles at a radius larger than m would just rotate with the centrifuge. The potential then becomes [formula].
+
+Based on the underlying physical models, the terms SPRING and CENTRIFUGE will be used below to refer to the conventional DrLIM of Eq. [\ref=eq:spring] and the variant of Eq. [\ref=eq:cent]. Fig. [\ref=fig:losses](a) depicts the shape of the loss functions on the negative (Y=1) pairs.
+
+The second modification we add to the DrLIM loss is based on per-batch statistics. The augmented loss then incorporates these statistics, unlike any loss in the literature we are aware of. The effect of this modification can be dramatic, as can be observed in Fig. [\ref=fig:losses](b),(c).
+
+The batch statistics we consider are the SD of the distances of the two classes - matching and non-matching. The basic motivation for this strategy is the need to increase the separation between the two distributions. While the DrLIM loss pulls the samples to be close to either 0 or m, we found the two distributions to overlap considerably. Adding the requirement of a small SD directly pulls the two distributions closer to their respective means and improves separability.
+
+Let σY, Y = 0,1 be the SD value, in a training batch, of the pairwise distance Dw for samples that match or do not match, respectively. The SPRING+SD variant is defined as:
+
+[formula]
+
+The CENTRIFUGE+SD variant is given by:
+
+[formula]
+
+In both variants, a parameter λ is added which controls the tradeoff between the core DrLIM variants and the augmentation by the standard deviation. In all experiments in this paper, λ was set to a value of 0.8.
+
+Training
+
+We normalize each image of the chosen database by subtracting its own mean and dividing by its own SD. We sample two populations, matching and non-matching, by collecting [formula] patches and using the given ground-truth flow computation. For the non-matching population we employ a random shift from the ground truth in both the X and Y axes of 1-8 pixels. Requiring even small translations to become non-matching is in contrast, for example, with [\cite=stereomatching], which used 4-8 pixels for the non-matching class.
+
+In order to augment the data, flips and 90 degrees rotations are applied on-the-fly during train time. We use AdaDelta [\cite=adadelta] as an efficient, adaptive, learning rule and Lasagne [\cite=lasagne], which is a Theano [\cite=theano] based Deep Neural Network framework. We trained the final network for 4000 epochs, in each epoch we used 50,000 random samples from our created database with a batch-size of 256.
+
+Matching and Interpolation
+
+Since our architecture is strictly Siamese, we can compute the features of each image independently and in parallel. Calculating descriptors using the FAST architecture takes approximately 2 seconds per image. Using the ACCURATE architecture is more time consuming, due to the fact that the image is being split to patches and each patch is then represented independently. This takes approximately 27 seconds per image using an NVIDIA Titan X GPU.
+
+Matching
+
+When using PM as an ANN algorithm, we use as input our created descriptors and not the gray-scale image patches, similar to the Generalized PM [\cite=gpm] methodology. The squared L2 distance is used as the matching metric.
+
+We only run PM for two iterations in order to reduce the computation time and also, more importantly, since it was found that adding iterations causes additional matching outliers to appear. The same phenomenon was described in [\cite=flowfields]: the additional iterations of the ANN used there were said to create "resistant outliers", whose matching distances are below those of the true matches.
+
+PM is used twice, in parallel, from image A to image B and vice-versa, in order to check for the consistency of the two flow fields. All matches which do not exactly point to one another in this bidirectional consistency check are being eliminated (PM's output is an integer assignment).
+
+Empirically it was found that allowing a large random-search radius during the PM process helped improve performance on the KITTI datasets while we saw no such effect on the MPI-Sintel dataset. This observation is consistent with the average highest disparity for each image-pair in the different datasets. Following these observations the random search parameter of PM was set to 500 on the KITTI datasets, and to only 10 on the MPI-Sintel dataset.
+
+Following the bidirectional consistency check, the binary mask indicating reliable flows is considered, and its connected components are identified. Small connected components are then considered unreliable. Specifically, we use a threshold area of 10,000 for the KITTI datasets and 400 for MPI-Sintel. For the MPI-Sintel dataset we also eliminate all the matches around the borders of the image (30 pixels) since we have found that there are more outliers there than in the rest of the image, probably due to the relatively large patch size that we are using.
+
+Interpolation
+
+Given a sparse correspondence field, describing the matches which met the bidirectional consistency criterion and the connected component filtering, we employ EpicFlow [\cite=epicflow] in order to obtain a dense correspondence field. The EpicFlow algorithm interpolates each missing prediction using its neighboring predictions from the sparse correspondence field, i.e. its support. From this support, a number of affine transformations are calculated using multiple subsets of correspondences. An edge map is computed using the SED method [\cite=sed]. The affine transformations are then averaged based on the geodesic distance computed from the image's edge map.
+
+Experiments
+
+In order to demonstrate the effectiveness of the new DrLIM variants beyond the scope of optical flow computations, we have conducted a series of synthetic experiments in addition to testing the impact of the new variants on real datasets. These experiments are simple and straightforward, which attests to the generality of our findings.
+
+In the first experiment, nc multivariate Gaussian centers are uniformly sampled from a 256D hypercube of edge length 1. Pairs of samples are then drawn from Gaussians i and j with a fixed diagonal covariance matrix τI. When sampling matching pairs i = j; for non-matching pairs i  ≠  j. 10,000 training samples and 10,000 test samples are used, half of which are matching and half non-matching.
+
+The representation networks had three hidden layers of size 256 and ReLU activations. Four Siamese networks were trained, based on the four DrLIM variants: SPRING, CENTRIFUGE, SPRING+SD, and CENTRIFUGE+SD.
+
+Two sets of experiments are conducted. In the first set, τ = 3 and nc varies between 4 and 20. In the second set nc = 10 and τ varies between 2 and 5. Each setting is repeated 10 times, and the plots in Fig. [\ref=fig:syn](a),(b) depict the mean Area Under Curve (AUC) obtained when training the network on the training data and evaluating on the test data for the first and the second set respectively. As can be seen, in almost all experiments, SPRING outperforms CENTRIFUGE and SPRING+SD outperforms CENTRIFUGE+SD. It is also clear that the SD versions of each physical model greatly outperform the vanilla versions.
+
+The entire experiment was then repeated, with a slight variant. In this second variant, the sampling process is identical except that the two samples in each pair are both normalized to have a norm of one. The exact same experiments were repeated. In Fig. [\ref=fig:syn](c), nc varies while τ = 3 is fixed. In Fig. [\ref=fig:syn](d), τ varies while nc = 10. In these experiments, the SD version also outperforms the plain SPRING and CENTRIFUGRE versions by a large margin. However, among the physical models the leading performance for the normalized inputs is obtained using the CENTRIFUGE method. This is true for both the SD and the vanilla variants.
+
+In all experiments performed, we have added a baseline method, which is the norm of the difference between the pairs of points. This method does moderately better than chance (AUC of about 0.6) and is, in general, much inferior to the network representations. However, when the number of classes dramatically increases, or when the variance is very high, this simple method has an advantage over the learned models.
+
+Comparison of loss variants on the flow datasets
+
+In our optical flow experiment, we make use of the three largest and most competitive datasets: KITTI2012 and KITTI2015, which contain real image datasets taken from a moving vehicle in a city environment, and MPI-Sintel, which is an extensive computer graphics dataset.
+
+Due to resource prioritization, it was not possible to run all variants on all benchmarks by the submission deadline. Instead, we ran the four variants up to 1500 epochs. The margin parameter m was determined, for each variant, using initial runs of 500 epochs. The performance was evaluated on a set of images set aside for this purpose: 20% of the images of the KITTI2012 and KITTI2015 training sets, which come last in the file order, and a random sample of 50 images of the FINAL training subset of MPI-Sintel.
+
+The results are reported in Tab. [\ref=tab:1500_12] and  [\ref=tab:1500_ms] for KITTI2012, KITTI2015, and MPI-Sintel respectively. Each table compares the four variants: SPRING, CENTRIFUGE, SPRING+SD, and CENTRIFUGE+SD. The nature of the error rate used depends on the dataset conventions: in KITTI2012 and KITTI2015, the percent of pixels that displaced more than 3 pixels (euclidean error) than the ground truth is used; in MPI-Sintel, the mean end point error is reported for all and matching-only pixels. In the KITTI2012 and KITTI2015 lines two error rates are reported in each cell: one obtained after the matching process, and the comparable error after applying the interpolation process.
+
+One can observe a consistent drop in the error rate when shifting from the SPRING model to the CENTRIFUGE model, especially prior to the interpolation. There is an additional consistent drop in error when adding an SD term to either loss. Based on these partial experiments, we decided to focus on the CENTRIFUGE+SD method and train using this variant for 4,000 epochs on each of the datasets.
+
+Benchmark results
+
+We trained our main architecture ([formula] patch-size, CENTRIFUGE+SD loss) on all three datasets. The network architecture is identical in all three cases. As a training set for KITTI2012 and KITTI2015, we took the first 80% of the image pairs and as a validation set, the remaining 20%. For MPI-Sintel we chose 80% of the image pairs for training and the rest for validation. We chose 2M random samples out of those 20% images to act as the validation samples during training. Training was performed for 4000 epochs, and the configuration with the best validation loss was recorded and deployed.
+
+The learned networks were embedded within the full pipeline and the results were submitted to the official benchmarks. While we performed 3-4 submissions in each benchmark throughout the last month or two of the development process, our results were relatively stable throughout the process and did not change dramatically.
+
+The benchmark results, as reported on the respective webpages, were collected on the paper's submission day. Note that, especially on the KITTIs, there is a separation between algorithms by the type of the inputs used. However, all categories are specified on the same webpage. Naturally, we do not compare ourselves to algorithms that enjoy stereo views or long image sequences as input.
+
+As can be seen in Tab. [\ref=tab:k2012], [\ref=tab:k2015], [\ref=tab:ms], we were able to achieve state-of-the-art results on the official KITTI2012 and KITTI2015 benchmarks, and rank in the 6th place on the MPI-Sintel benchmark. The gap in ranking between the KITTI datasets and MPI-Sintel might arise from the fact that we are the only top reported system that does not use color on MPI-Sintel.
+
+Since CENTRIFUGE+SD was not clearly preferable on MPI-Sintel to other methods by epoch 1500 (Tab. [\ref=tab:1500_ms]), we submitted results for all 4 DrLIM variants on this benchmark. The obtained order of results (Tab. [\ref=tab:ms]) is CENTRIFUGE+SD, SPRING, SPRING+SD, and CENTRIFUGE. A significant gap of 0.4 EPE exists between CENTRIFUGE+SD and SPRING.
+
+On KITTI2012, we have also submitted the predictions of the FAST network, in which our fine-grained batch normalization (Sec. [\ref=sec:networkarchitecture]) is replaced with the conventional batch normalization. There are only four methods that are ranked between the ACCURATE and the FAST method. The FAST network was not trained yet on KITTI2015 and MPI-Sintel.
+
+Network variants
+
+The time that it takes to train a single network, in comparison to our limited ability to run experiments in parallel, meant that we were able to explore only a small portion of the parameter space. We believe, for example, that improved performance can be obtained with larger patches.
+
+We explored several of these variants on the KITTI2012 validation benchmark. The reason that we did not make official submissions for these variants is that one can only upload results to the KITTI servers once every three days.
+
+The results of these experiments are displayed in Tab. [\ref=tab:variants]. The table shows the percentage of pixels with displacement error larger than 3 pixels after the ANN matching process and after the interpolation process. The full ("ACCURATE") method is compared with the FAST network. We also compared to an ACCURATE network in which the input patch size is 71  ×  71 pixels. Two other variants in which the final descriptor size varies are shown. The descriptor size was altered by replacing Conv5's filter-size to 1  ×  1 to obtain a 1024D descriptor, or by adding an additional convolutional (and batch-normalization) layer with 32 feature maps to obtain a 32D descriptor. The 1024D descriptor makes PM run much slower. The converse is true for 32D.
+
+Based on these results, further improvements for our method's accuracy are expected with larger patch and representation sizes. In another experiment, we tested the ACCURATE network trained on KITTI2015 on the KITTI2012 validation images. The performance seems comparable to that of the KITTI2012 ACCURATE network, attesting to the generality of the learned patch matching function.
+
+Our method was designed with the requirement of obtaining a generic pipeline that employs L2 distances of patches. In this way, the ANN and interpolation methods can be replaced with other, perhaps more efficient, methods and the gain in performance can be preserved. Running time optimizations were not done yet, and while the method is among the most rapid of the top ranked methods, see Tab. [\ref=tab:k2012]- [\ref=tab:ms], there is room for improvement. The running time of each step of the computation for the baseline and the FAST methods are detailed in Tab. [\ref=tab:runtime]. The patch encoding process is the only process currently done on the GPU. Its running time dominates the ACCURATE network's execution time, but is less than 10% of that of the FAST network.
+
+Discussion and future work
+
+Using CNNs for encoding each patch separately leads to a solution that is entirely flexible. On one hand the CNN can be modified, pruned, or compressed [\cite=fitnet] in order to control the accuracy to running time trade-off. On the other hand, the other steps can be replaced, implemented on the GPU, or bypassed as needed. A fast alternative, for example, for the ANN solution employed is the kd-tree solution of [\cite=kdtree]. Our reliance on simple vector representations means that this integration does not require any modification.
+
+The problem of metric learning is a central Machine Learning task that is used in Computer Vision domains ranging from low-level vision to almost all high level vision tasks. Mahalanobis distances, and other distances that translate to L2 matching of learned representations dominate the relevant literature.
+
+The DrLIM loss is a prominent solution for learning L2 distances using deep networks. We believe that the two orthogonal types of improvements that we presented here can lead not only to state of the art optical flow, but also to improved results in many other domains. The success on what might be the simplest imaginable (and therefore the most general) synthetic data is highly suggestive of that.
+
+In addition to this very general contribution, the very idea of using batch losses is entirely novel, as far as we know. Losses are always constructed per sample and then aggregated. This locality is compatible with the stochastic gradient descent. However, when using mini batches, per batch losses are also compatible.
+
+Batch losses can tie together the samples in a batch and support the design of networks that take into account interrelations between the samples in the batch. We have demonstrated the effectiveness in the domain of metric learning. Future work might take advantage of this in order to whiten the representation layer, whiten the error of regressors along the output dimensions, or balance the error between the classes in a multiclass scenario.
+
+Summary
+
+Within the domain of deep optical flow, we restrict ourselves to per-patch CNN based representation. We present a new CNN architecture that incorporates a fine-grained batch normalization procedure. For learning the network parameters, we propose new variants of the DrLIM method of metric learning. The first type of variant is a specific modification of the loss function. The second one is generic and considers the novel notion of batch-based losses, which are computed based on the statistics of all the samples in the mini-batch. The suggested contributions lead to rank one results on two out of the three most competitive optical flow benchmarks.
+
+Acknowledgments
+
+This research is supported by the Intel Collaborative Research Institute for Computational Intelligence (ICRI-CI). The authors would like to thank Michael Rotman for valuable insights.

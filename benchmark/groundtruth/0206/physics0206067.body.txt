@@ -1,0 +1,217 @@
+SLAC-PUB-9253 BABAR-PUB-02/005 June 2002
+
+K ANGA(R OO): Handling the micro-DST of the B Experiment with ROOT
+
+T. J. Adye1, A. Dorigo2, R. Dubitzky3, A. Forti4, S. J. Gowdy5,10, G. Hamel de Monchenault5,8, R. G. Jacobsen5, D. Kirkby6,11, S. Kluth5,9, E. Leonardi7, A. Salnikov5,10, L. Wilden3 for the B Computing Group
+
+1 Rutherford Appleton Lab, Didcot, Oxon., OX11 0QX, United Kingdom 2 Universita di Padova, Dipartimento di Fisica and INFN, Sezione di Padova Via F. Marzolo 8, I-35131 Padova, Italy 3 TU Dresden, Institut für Kern- und Teilchenphysik, D-01062 Dresden, Germany 4 Department of Physics and Astronomy, University of Manchester, Oxford Road, Manchester, M13 9PL, United Kingdom 5 Lawrence Berkeley National Lab, Berkeley, CA 94720, USA 6 Stanford Linear Accelerator Center, Stanford University, Stanford, CA 94309, USA 7 INFN Sezione di Roma, Dipartimento di Fisica G. Marconi, Piazzale Aldo Moro 2, I-00185 Rome, Italy 8 now at CEN, Saclay, DAPNIA/SPP, F-91191 Gif-sur-Yvette Cedex, France 9 now at Max-Planck-Institut für Physik, Föhringer Ring 6, D-80805 Munich, Germany 10 now at Stanford Linear Accelerator Center, Stanford University, Stanford, CA 94309, USA 11 now at UC Irvine, Department of Physics and Astronomy, Irvine, CA 92697-4575 USA
+
+Submitted to Computer Physics Communications
+
+Introduction
+
+The B-0.1em A-0.1em B-0.1em A-0.2em R experiment at the PEP II  collider located at the Stanford Linear Accelerator Center (SLAC) studies predominantly CP violation effects in the neutral B meson system [\cite=bbr-01-18]. The relative production rate of events with CP violating effects is small because decay channels of the neutral B mesons with branching ratios O(10- 3) or smaller are involved. The physical effects of CP violation in the neutral B meson system are subtle and require careful and precise measurements of properties like particle lifetime and particle 4-momentum. For these reasons the collider and the B-0.1em A-0.1em B-0.1em A-0.2em R experiment have been designed and constructed to produce large quantities of well measured events [\cite=bbrtdr].
+
+The B-0.1em A-0.1em B-0.1em A-0.2em R detector has approximately 200k channels of digital information which are read out with a nominal trigger rate of 100 Hz and a typical event size of 25 kB (RAW data). The output of reconstruction of physical properties of the events (REC data), two levels of data reduction (Event Summary Data ESD and Analysis Object Data AOD), a set of flags and other quantities for fast preselection of events (TAG data) and simulated events also contribute to the amount of data. The combination of AOD, TAG and a subset of the information from the physics generator in simulated events (micro-truth) are referred to as micro-DST. The experiment stored about 300 TB of data in total in the year 2001. The majority of the data is written on magnetic tapes while O(10) TB of mostly micro-DST are kept on disk for analysis using SLAC based computer systems.
+
+The large number of collaborators (almost 600) and participating institutions (74 in 9 countries) in the B-0.1em A-0.1em B-0.1em A-0.2em R collaboration together with the large data volumes lead to the need to export data from SLAC to outside institutes. These exports are mostly done with micro-DST and are intended to spread the load of physics analysis over several locations.
+
+The B-0.1em A-0.1em B-0.1em A-0.2em R collaboration has chosen to implement its necessary software for data handling, reconstruction and data reduction using the object oriented method with the programming language C++ [\cite=bbrtdr] [\cite=stroustrup]. The primary data store uses the commercial object oriented database system Objectivity/DB [\cite=objy] [\cite=rd45_99]. The design of the reconstruction software has the explicit aim of isolating the data storage mechanism from the central part, referred to as the framework, and from the actual reconstruction and data reduction code.
+
+The first operational experience gained with the B-0.1em A-0.1em B-0.1em A-0.2em R data store from tests and with the first data in 1999 indicated several problems caused by technical limitations of Objectivity/DB [\cite=bbrdb01] [\cite=bbrdcm01] at that time. A federation, i.e. the data store as it appears to applications, could not consist of more than 64k individual database files. Since only one federation could be accessed by an application the size of the individual database files had to be made large; database files of 10 GB for bulk data and 2 GB for analysis data were used. This in turn caused data exportation, in particular of collections of sparsely distributed events, to be an inefficient and cumbersome process. For these reasons data exportation of micro-DST to outside institutes did not take enough load off the computing resources at SLAC. The turn-around time of data analysis at SLAC were considered to be too long within the collaboration.
+
+To alleviate the situation it was decided to build an alternative system independent of Objectivity/DB for the storage of the micro-DST used in most analyses as a short to medium term solution. The aim was to simplify data exportation to remote institutes and thus to improve access to the data by the collaboration as a whole in order to get physics results quickly. The system was named K ANGA(R OO), an acronym for Kind ANd Gentle Analysis (without Relying On Objectivity). This paper describes the design and implementation of the K ANGA system in section [\ref=sec_design], reports experience gained in production in section [\ref=sec_practice] and presents a discussion in section [\ref=sec_diss]. The last section [\ref=sec_conc] gives a summary and some conclusions.
+
+Design and Implementation
+
+The B-0.1em A-0.1em B-0.1em A-0.2em R Framework
+
+In the following we give a brief description of the design of B-0.1em A-0.1em B-0.1em A-0.2em R framework as relevant for data handling. More detail can be found in [\cite=rd45_99] [\cite=bbrfmk97] [\cite=jacobsen97]. The object oriented design of the framework is based on the traditional HEP data processing model. Event data and the output of reconstruction or data reduction algorithms are handled via a central object referred to as event. The event is accessed using a so called interface dictionary through which pointers to data items are stored and retrieved with the help of keys to identify data items. Algorithms are mapped on modules which are managed by the framework. Modules get access to the event, retrieve and process data, create new data from the results of processing and put these new data back into the event. The framework executes the modules in a configurable sequence for each event.
+
+Modules are constructed as subclasses of a generic module class which enforces the existence of member functions for job initialisation, event processing and job finalisation. The framework also defines more specialised generic classes (as subclasses of the generic module) for specific tasks like input and output of data from/to permanent storage (IO modules) and concrete implementations exist for interaction with Objectivity/DB. So-called filter modules can cause the framework to stop the execution of the module sequence for the current event and start to process the next event.
+
+Data items are represented by both transient and persistent classes [\cite=bbrschema00] [\cite=rd45_99]. Instances of transient classes (transient objects) only exist in the computers memory and modules get only access to transient objects via the event. Instances of persistent classes (persistent objects) may exist in memory as well as in permanent storage, e.g. in Objectivity/DB. Persistent objects can be constructed from transient objects and persistent objects can create a corresponding transient object via a member function. This behaviour is controlled by base classes, templated by the corresponding transient class in the case of the persistent classes. This design completely decouples the data representation in memory as visible by the modules from the data store. Replacing the actual data store only involves the creation of new persistent classes and new IO modules with associated helper classes. The new persistent classes must work with the same transient classes.
+
+Requirements and Guidelines
+
+The most important requirements for the K ANGA system were:
+
+access to the same micro-DST as with the B-0.1em A-0.1em B-0.1em A-0.2em R data store,
+
+compatible with framework and existing user analysis code,
+
+fast event filtering using TAG data,
+
+simple distribution of data to remote institutes.
+
+These requirements could be met by implementing an alternative for the Objectivity/DB based B-0.1em A-0.1em B-0.1em A-0.2em R data store as outlined above using the ROOT system [\cite=root1] [\cite=root2] as a file based data store for the micro-DST only. In this way user analysis code only had to be relinked using the new input and output modules. The actual user-written modules for data analysis remained unchanged.
+
+The ROOT System
+
+The ROOT system has been chosen, because it directly supports an object persistence model using C++. The ROOT object persistence model is file oriented and thus does not have some of the conveniences nor the associated overheads of a complete object-oriented database like Objectivity/DB. The ROOT object persistence model does not consider transactions and thus does not have to administer a locking system. Access control is implemented using file access modes provided by the operating system instead.
+
+The ROOT system contains structures to organise the storage of many persistent objects in files. The structure is laid out as a tree (ROOT class TTree) with branches (ROOT class TBranch) to which objects are associated. Persistent objects are serialised into branches using a simple index. For efficient permanent storage access each branch has a buffer in RAM, which is only written to disk when it is full, possibly after compression. The size of the buffer can be set at run time. In the so-called split-mode ROOT writes each individual data member of a persistent class via its own buffer to allow for efficient access when the file is opened using the interactive root application. Event data are given by the set of persistent objects with the same index in the various branches. A ROOT file can contain several trees or a tree may be spread by branches over several files.
+
+Event Data
+
+In the K ANGA system persistent objects are stored in several branches of a single tree per file. There is one branch per persistent class or collection of persistent classes. Separate files may be used for TAG data on one side and AOD and micro-truth data on the other side.
+
+We provide here an overview of the K ANGA data handling. Details of the implementation are given in appendix [\ref=app_data]. The handling of event data in the K ANGA system follows the implementation of the B-0.1em A-0.1em B-0.1em A-0.2em R data store [\cite=rd45_99]. Figure [\ref=fig_scenario] provides an overview of the structure. The B-0.1em A-0.1em B-0.1em A-0.2em R framework controls output and input modules which in turn control possibly several output and input streams. The streams handle the actual ROOT files. The event data are moved between the event object and the streams (and thus ROOT files) by the conversion manager with the help of scribes. Different implementations of the scribes handle single objects or collections of objects in one-to-one, many-to-one or many-to-many mappings between transient and persistent objects. Dedicated so-called load modules for each data type, e.g. TAG or AOD, are responsible for creating the correct scribes and connecting them with output or input streams.
+
+The scribes use helper classes to perform retrieval of transient objects from the event, retrieval of persistent objects from the ROOT files and conversion between transient and persistent objects as shown in Fig. [\ref=fig_scribes_scen]. The transient pushpull object can move transient objects between the event and the scribe, the supplier converts between transient and persistent objects and the persistent pushpull object moves persistent objects between the scribe and the K ANGA data store.
+
+For collections of static persistent objects a feature of the ROOT persistency system is used which allows the creation of the collection using already allocated memory when data are read. This can increase significantly the efficiency of analysis jobs. Details of the implementation may be found in appendix [\ref=app_data].
+
+Sequences of Operations for Data Output or Input
+
+There are three phases in a run of a physics analysis program based on the B-0.1em A-0.1em B-0.1em A-0.2em R framework. In the first phase (initialisation) variables are set and run-time configuration of the job is performed. In the second phase (event loop) event data are read in and processed. The third phase (finalisation) deals with final calculations of the analysis, closing of files and printing of results.
+
+Data Output
+
+In this description we assume that transient objects of the micro-DST are created by either running the reconstruction and data reduction modules or by reading the micro-DST from the B-0.1em A-0.1em B-0.1em A-0.2em R data store.
+
+In the initialisation phase for data output the output module is configured with named output streams. This results in the creation of output stream objects controlling trees in ROOT files. Subsequent load modules are configured with a stream name and names of the branches to which data will be written. The load modules create scribe objects matching a given subset of the data, e.g. single objects or collections of objects, and passed the stream and branch names. The creation of the scribe objects causes the creation of the appropriate transient and persistent pushpull and supplier objects.
+
+In the event loop a special module creates a conversion manager object and stores it in the event. The load modules obtain the conversion manager from the event and pass it a list of scribes for output. The output module instructs all its output stream objects to execute their data output method. On the first event a ROOT file is attached and a new tree is created. After that the conversion manager is obtained from the event and the conversion manager's method to convert transient to persistent objects and store them in the ROOT data store is run. In this method all scribes connected to the active output stream are triggered to run their sequence of operations for storage of persistent objects. In this sequence the scribe's transient pushpull object is used to get the appropriate transient object from the event. The object is given to the supplier to create a persistent object. The persistent pushpull object stores the persistent object in the proper branch of the tree in the ROOT file. At the end of the module processing sequence the conversion manager is deleted causing all scribes to be reset.
+
+The finalisation phase involves essentially only the closing of the ROOT files.
+
+Data Input
+
+In this description we assume that ROOT files containing micro-DST already exist. The ROOT files are accessed in an analysis job directly using their complete directory path and name. Other tools are used to obtain lists of file names corresponding to selection criteria like run numbers, event types or special analysis working group selections, see section [\ref=sec_dataman] below.
+
+In the initialisation phase the input module is configured with named input streams and a list of ROOT file names. This results in the creation of input stream objects controlling trees in ROOT files in a read-only mode. Subsequent load modules are configured with a stream name and names of the branches from which data will be read. The load modules create scribe objects in exactly the same way as for data output.
+
+In the event loop a dedicated module creates a new conversion manager object and stores it in the event. Then the input module stores a list of its input stream objects in the event. The load modules get the conversion manager from the event and pass it lists of their scribes for data input. After that another module gets the conversion manager and the list of input stream objects from the event and runs the conversion manager's method to convert persistent to transient objects for all input streams. The conversion manager causes the scribes in its list to perform the sequence of operations for data input. In this sequence the scribe's persistent pushpull object reads the persistent object from the K ANGA data store, the persistent object is passed to the scribe's supplier to create a new transient object and the transient object is stored in the event by the scribe's transient pushpull object. At the end of the module processing sequence the conversion manager is deleted causing all scribes to be reset.
+
+The finalisation phase involves essentially only the closing of the ROOT files.
+
+TAG Data
+
+The TAG data are handled in a somewhat different way compared to the other types of data in the micro-DST in order to accommodate the special requirements of fast event selection using only a few of many items in the TAG data. TAG data consist exclusively of boolean, integer and float types of data items. The transient class representing the TAG data is constructed as a so-called adapter [\cite=gamma] to the persistent TAG data. This leads to a dependency of the transient TAG data class on the persistent TAG data class. However, the framework provides an interface for access to the transient TAG data such that the dependency of the transient TAG data class on the persistent TAG data class is shielded from the user modules. The following classes implement the TAG data in K ANGA. Figure [\ref=fig_tag] shows a UML class diagram of the transient and persistent classes described briefly below.
+
+Writing and reading TAG data uses the same mechanism of scribes, streams and the conversion manager as for other data. The following gives a brief description of the sequence of operations concentrating on points where TAG data are handled differently.
+
+When TAG data are written a dedicated load module creates a RooTagScribe and passes it to the conversion manager. The RooTagScribe may be connected to a separate output stream and thus to a separate tree possibly on a separate ROOT file. A persistent BtaDynTagR object is created by the RooTagScribe using the transient AbsEventTag object from the event. The persistent object keeps a reference to the transient object and uses the transients methods to get all TAG data. A branch is created and filled in the tree for each TAG data item.
+
+When TAG data are read a RooTagScribe created by the load module and connected to an input stream is used by the conversion manager. The scribes RooTagPersPushPull object creates a BtaDynTagR object. A transient RooTransientTag object is created by the RooDefSupplier using a method of BtaDynTagR and the transient object is stored in the event. The transient object keeps a reference to the persistent object from which it was created. User analysis modules access the RooTransientTag object in the event through its interface AbsEventTag and the RooTransientTag object relays the queries for TAG data items directly to its BtaDynTagR object. The BtaDynTagR object in turn accesses the branch in the tree containing the requested TAG data item.
+
+References between Objects
+
+Transient objects may reference each other, i.e. transient objects may keep pointers to other transient objects. When transient objects are converted to persistent objects and stored it is not sufficient to simply store the values of the pointers, because in the reading job the memory locations for the new transient objects will be different. It is thus necessary to have a mechanism to record transient object relations in the data store and to recreate these relations when reading data.
+
+There are two classes to implement the mechanism together with the classes Roo-PersObj and RooEvtObj from which all persistent classes are derived (see section [\ref=sec_pers]). Figure [\ref=fig_persistent] shows a UML class diagram.
+
+In a job which writes data the map of transient-to-persistent object relations in RooEvtObjLocReg is filled when persistent objects are constructed from transient objects. After all persistent objects are created the conversion manager calls the scribe's method to fill any persistent references (fillRefs). The task is delegated to the scribe's supplier which calls the persistent object's method (fillRefs) to obtain from the transient object any pointers to other transient objects, map them to the corresponding persistent references and update the data members of the persistent object using the resulting RooRef objects.
+
+When data are read from the K ANGA data store the map of persistent-to-transient relations is filled in the methods of the persistent objects which create new transient objects. Once all transient objects are created the conversion manager uses the method of the scribes to set up references between the transient objects (fillPointers). The task is delegated by the scribe to its supplier which in turn uses a method of the persistent object (fillPointers). In this method any references to other persistent objects are mapped to the corresponding transient objects and the resulting pointers to other transient objects are passed to the transient object created by the persistent object.
+
+This scheme handles references between transient objects valid during the execution of a job, because the object identification is only unique within one session. The scheme is not able to provide unique object relations within the whole K ANGA data store since it consists of many files written by many separate jobs. The current implementation of the K ANGA system does not use this facility, because there are no relations between transient objects that need recording in the micro-DST.
+
+Schema Evolution
+
+The structure of a persistent class may be subject to change, e.g. because a more space-efficient representation of the data is introduced or because new data members are added or obsolete ones are removed. The layout of a class in terms of its data members is referred to as schema and changes in the schema are known as schema evolution.
+
+The mechanism for schema evolution is similar to the one used in the B-0.1em A-0.1em B-0.1em A-0.2em R data store [\cite=bbrschema00] [\cite=rd45_99]. In this scheme explicit new versions of persistent classes are created when a change in schema is necessary; already existing persistent classes are not changed. New versions of a persistent class are required to inherit from the same interface (Roo-EvtObj). After a change in schema, i.e. when a new version of a persistent class supersedes an old one, jobs write only the new versions to the data store. This is accomplished by changing the creation of the scribes in the load module classes. When data are read, ROOT creates automatically the correct version of the persistent class using its build-in RTTI system. The scribes and the pushpull and supplier classes handle persistent objects only through their interface when they have been read from the K ANGA data store. Thus instances of all versions of a persistent class are converted to transient objects T through the same interface, usually RooEvtObj.
+
+In this way new programs can read old data in a transparent way as long as all versions of the persistent class are linked into the program. Existing programs, e.g. user analysis jobs, must be relinked to allow them to read data which has been written with a new schema.
+
+Conditions Data
+
+Conditions data contain monitored values like high voltages, gas flows, temperatures, electrical currents etc. describing the state of the experiment as a function of time. These data are needed to make calibrations and corrections which in turn allow the computation of physics quantities from the RAW data. When micro-DST is produced most condition information has already been used such that an user analysis job needs only access to a limited set of conditions data.
+
+In the B-0.1em A-0.1em B-0.1em A-0.2em R framework events are uniquely identified by a time stamp with a resolution of about 1 ns. Lookup of conditions data works in a similar way to the retrieval of event data in the framework [\cite=bbrcdb00]. A central object called environment stores transient objects containing conditions data and is accessed through an interface dictionary using time stamps as keys. A so called proxy object actually handles the transient objects and records the validity time interval for a given transient object. When a transient object is requested with a time stamp key outside the validity time interval the proxy tries to find the persistent object with the correct validity interval in the conditions database, converts it to the corresponding transient object and returns it.
+
+In the K ANGA system read-only access to a single revision of the few conditions data items needed by a user analysis job using micro-DST is supported. The ROOT based conditions database is created by a special application which reads the latest revision of data from the conditions database in Objectivity/DB and writes them to a ROOT conditions database file. In the case that other than the latest revisions of the conditions data are needed one has to create a new ROOT conditions database containing the desired revisions of the conditions data. The following classes implement the ROOT conditions database, see Fig. [\ref=fig_roocond] for a UML class diagram.
+
+In the initialisation phase of a job the RooConditions object is created by the RooBuild-Env module. The RooConditions object will try to attach a ROOT file with the conditions data. Then RooBuildEnv will create a RooCondProxy for each conditions data class T and corresponding persistent class P and install the proxies in the environment.
+
+In the event loop e.g. a user analysis module may query for a transient conditions data object with a time stamp as a key. Such a query happens when the user module tries to access a transient conditions data object in the environment. The key is tested by the corresponding RooCondProxy against the validity interval of possibly existing transient objects. When a valid transient object exists it is returned, otherwise the proxy uses its RooCondReader to obtain the corresponding persistent object from the ROOT conditions database. The RooCondReader creates a new transient object which is returned by the proxy to the user.
+
+In the finalisation phase the ROOT conditions database file is closed.
+
+Early versions of K ANGA involved manual procedures for ensuring consistency of the conditions and event information. Physicists found this sufficiently complicated such that a new way of accessing the conditions data has been developed. In this new system the correct revision of the conditions data is selected automatically based on information from the collection database (see section [\ref=sec_dataman] below).
+
+Event Collections
+
+The K ANGA system supports the concept of event collections, i.e. random access to events in root files driven by lists of event identifiers with pointers to the actual event locations in the ROOT files. Event collections are usually created with loose event selection criteria based on the TAG data with the aim to make repeated analysis of the preselected events more efficient. ROOT files with data organised in trees are well suited for fast random access as long as the index of the event data in the tree is known. The mapping of events uniquely identified by their time stamps to indices into the trees of the ROOT data files is the essential content of an event collection. Collections of event collections (meta collections) are transparently implemented by mapping events in a meta collection on indices in the underlying event collections. In this context trees in ROOT files containing the event data are also viewed as event collections.
+
+The following classes are used to implement the writing and reading of event collections, Fig. [\ref=fig_collection] shows the UML class diagram.
+
+When a collection is written the RooSkimOutputModule is placed downstream of filter modules in the framework module processing sequence. The RooSkimOutputModule creates a RooSkimOutput object on the first event which comes through. The RooSkimOutputModule opens a ROOT file and creates a new RooIndexCollectionR to be stored in that file. After that it obtains the event time stamp, the name of the input collection and the index of the event in that collection and stores this information via a RooEventIndexR object in the event collection.
+
+When an event collection is read, a RooInputEventSelector object is created by the RooEventInput module in the initialisation phase. This object is used by RooEventInput in the event loop to locate events using the information from the event collection. The RooInputEventSelector descends through any hierarchies of event collections until the original location of an event as an index into a tree is found. The event location is passed to all RooInputStreams controlled by the RooEventInput module, which take care of any necessary closing and opening of files in the K ANGA data store.
+
+The current version of K ANGA does not yet use event collections as described above in data production. Event collections are realised more simply as separate ROOT files containing events satisfying certain selection criteria.
+
+Data Management and Exportation
+
+The mechanism for exportation of data is a central part of the K ANGA system. The aim of data exportation is to transfer only the data files needed at remote sites for processing a given set of event collections and to replicate the directory structure existing at SLAC in the K ANGA data store only for the selected files.
+
+A central part of the data exportation system is a relational database, the collection database, which is maintained at SLAC to keep track of data production for the B-0.1em A-0.1em B-0.1em A-0.2em R data store [\cite=bbrdb00]. This database is used in the K ANGA system to store additional information about ROOT event data files produced at SLAC, for example run number, event collection, complete directory path and file name in the K ANGA data store, software versions etc.
+
+Tools exist which allow users to query the collection database for lists of ROOT files corresponding to selection criteria like run numbers and event collections. A data analysis thus usually involves two steps: i) a list of ROOT files present in the K ANGA data store is produced by querying the collection database, and ii) this list of ROOT files is passed as input to the actual framework analysis program.
+
+Tools for distributing files across a wide area network (WAN) have been developed, which exploit the information stored in the collection database at production time [\cite=bbrdex01]. In the first step of data exportation the relevant information is extracted from the SLAC based collection database and transferred to a relational database at the remote location. The updated remote collection database is used to find references to ROOT files which are missing and a list of files for importation is constructed. With additional selection criteria the selection of files for import can be refined. The files in the resulting list are transferred over the WAN using a variety of file transfer tools. These tools [\cite=bbrdex01] allow to transfer data using multiple streams and the optimisation of parameters of the WAN protocol, e.g. the TCP window size. After a successful update of a local K ANGA data store the same tools as at SLAC can be used to generate lists of input files for analysis jobs using the local K ANGA data store.
+
+In early versions of K ANGA another method based on the rsync tool [\cite=rsync] was used for data exportation. The rsync tool essentially compares two directory trees A and B, determines the differences between A and B and transfers these differences to synchronise A with B. A remote site would synchronise its local directory tree containing ROOT files with the one at SLAC at regular intervals. However, it turned out that with large directory trees containing O(1000) or more files the process of determining the differences could take several hours. The method described above using the collection database scales well to large directory trees.
+
+The data are organised into skims and streams. A skim represents a specific event selection while a stream is a physical output stream corresponding to a ROOT data file. Several related skims with many common events are usually grouped into a stream. In the year 2001 B-0.1em A-0.1em B-0.1em A-0.2em R had more than 65 skims grouped into 20 separate streams while in 2002 more than 100 skims were used. The availability of preselected data in streams allows remote sites to import only the data needed locally for analysis. There is a significant number of duplicated events in the several streams leading to inefficient usage of storage capacity at the SLAC computing centre and other computing centres keeping a copy of most or all streams in their K ANGA data store.
+
+Practical Experience
+
+The K ANGA system has been in operation in the years 2000, 2001 and 2002. During the years 2000 and 2001 the B-0.1em A-0.1em B-0.1em A-0.2em R experiment took a large amount of data corresponding to 31 million B-meson pairs. During data taking the micro-DST produced by the online prompt reconstruction (OPR) in the B-0.1em A-0.1em B-0.1em A-0.2em R data store was processed offline to generate ROOT files with a short delay of not more than a few days. Processing was done on a per-run basis with multiple output streams for different analysis channels and resulted in ROOT files with a size of a few 100 MB. From the data of the years 1999, 2000 and 2001 the number of processed runs was 378, 3333 and 3782, respectively, resulting in about [formula] ROOT files occupying about 4.2 TB of space. The files are organised in a hierarchical directory structure distributed over several NFS servers at SLAC. To balance the load on these servers when many analysis jobs access the data tools were developed to distribute the files uniformly on the various disks. The ROOT conditions database occupies about 20 MB and is kept in a single file. The copies of the collection database at remote sites needed about 400 MB.
+
+It was verified that user analysis jobs obtain the same results when processing the same micro-DST from the B-0.1em A-0.1em B-0.1em A-0.2em R data store or the K ANGA data store. In the initial commissioning of the K ANGA system problems were identified in this way. In particular data are packed in the B-0.1em A-0.1em B-0.1em A-0.2em R data store with some tolerable loss in numerical precision. In initial versions of K ANGA the data were not packed and only the lossless compression of ROOT was applied, leading to small differences in results. K ANGA now uses the same data packing as in the Objectivity/DB data store to ensure compatibility of the data sets and to profit from the additional space savings.
+
+The average size of the micro-DST per event was initially about 2.3 kB. The event size varied from about 0.8 kB for a muon-pair event to about 4 kB for a hadronic event. The generator information from the simulation added about 4 kB per hadronic event. After the introduction of data packing the average event size was 1.7 kB corresponding to [formula] of recorded data. A representative mix of simulated events occupied 4.7 kB per event. Production jobs for micro-DST ROOT files ran at SLAC with an event rate of about 5 - 20 Hz depending on the platform and the stream.
+
+The sizes of the internal ROOT buffers connected with each branch were set to 1024 bytes for TAG branches and to 32768 bytes for other branches. These values worked well with serial access to the data, since data for many events could be read with a single disk access operation. Some persistent classes composed mainly of basic types were written in split-mode to allow for efficient access in an interactive application. Using the split-mode was not observed to cause significant slow-down of analysis jobs.
+
+It was possible to build user analysis jobs without any presence of Objectivity software or libraries. This allowed remote institutes to run micro-DST based analysis without the need for an Objectivity installation.
+
+Fast event filtering based on the TAG data was implemented using dedicated event samples based on skims and streams. A job was run which read the micro-DST and wrote out the data for events passing TAG based selection criteria (skims) into streams. The actual analysis job was run with the stream containing the skim representing the desired TAG selection as input.
+
+In total at least 19 institutions operated a local K ANGA data store. Out of these 5 had the majority of data available while the other 14 kept only smaller subsamples. On average 5 skims where imported by a remote site. The storage overhead at sites keeping all streams was about 200 %, i.e. twice the the size of the sample of all events considered for physics analysis was needed to make all streams available due to multiply stored events. This disadvantage of inefficient storage was partially offset by the more simple distribution of special event samples in self-contained files.
+
+In comparison with the standard analysis jobs using B-0.1em A-0.1em B-0.1em A-0.2em R data store based micro-DST analysis jobs based on K ANGA were able to run at remote institutes on relatively small computer systems compared to the SLAC computer system. At SLAC the use of K ANGA in addition to the Objectivity/DB based B-0.1em A-0.1em B-0.1em A-0.2em R data store improved the balancing of resource loads and therefore made larger overall throughput for analyses possible.
+
+Discussion
+
+A possible disadvantage of the K ANGA system is that there is no direct connection with the ESD or RAW data as is the case with Objectivity/DB based analyses. However, this restriction can be circumvented by writing out the event time stamp and reading these events from the Objectivity/DB B-0.1em A-0.1em B-0.1em A-0.2em R data store in a separate application. Operation of K ANGA and the B-0.1em A-0.1em B-0.1em A-0.2em R data store in parallel required the management of two independent database schemata and the support of two data storage systems leading to some duplication of effort.
+
+The system has worked well with the 4.2 TB of micro-DST produced in the years 1999 to 2001. In the coming years the B-0.1em A-0.1em B-0.1em A-0.2em R collaboration expects a dramatic increase in data volume due to major improvements in the PEP II collider leading to a much higher luminosity. The data sample is expected to grow by about a factor of ten. With current technology it seems difficult to keep all micro-DST available on disk servers as is currently assumed in K ANGA. The K ANGA system has no provision for an automatic staging of data from offline storage, e.g. magnetic tapes. This limitation could conceivably be lifted by the deployment of an automatic staging system, e.g. CASTOR [\cite=castor]. Files would be registered in CASTOR, which automatically transfers them to offline storage when necessary. When a reference is made to a file registered in CASTOR the system retrieves the file from the offline storage when it is not present on disk. This mechanism would give K ANGA based analysis jobs transparent access to ROOT files stored offline and thus allow K ANGA to operate with much larger data volumes.
+
+Currently a system to use event collections for skims and streams is under development. Only one copy of all events used for analysis would be kept while the skims and streams would realised as event collections pointing to events in the master copy. This would reduce the necessary disk capacity by about a factor of 2/3. The system will still allow to export copies of individual skims or streams containing the actual event data to remote sites.
+
+Summary and Conclusions
+
+The B-0.1em A-0.1em B-0.1em A-0.2em R experiment has implemented a data handling system for micro-DST which is an alternative to the standard system based on Objectivity/DB. The system was designed to use existing B-0.1em A-0.1em B-0.1em A-0.2em R software as much as possible, in particular it was constructed to work within the B-0.1em A-0.1em B-0.1em A-0.2em R framework for data reconstruction and analysis programs. The K ANGA system uses ROOT as the underlying data storage system, because ROOT has a simple and efficient object persistency model based on files. The K ANGA system has met its major requirements and was used successfully in production in the years 2000, 2001 and 2002.
+
+One major aim of the K ANGA system was the simplification of exportation of data to remote institutes of the B-0.1em A-0.1em B-0.1em A-0.2em R collaboration. This aim was reached, because the file oriented data storage combined with a simple event collection database was easily adapted to data distribution.
+
+Acknowledgments
+
+The success of the K ANGA project would not have been possible without the previous work of the B-0.1em A-0.1em B-0.1em A-0.2em R data store development team.
+
+Appendix
+
+Event Data Handling
+
+Module Classes
+
+Several module classes and other classes are used to implement the ROOT based event data store in the framework. Figure [\ref=fig_modules] shows a UML [\cite=uml] class diagram.
+
+Scribe Classes
+
+A set of classes called scribes deals with the actual output and input operations together with the RooConversionManager class. There are scribes for one-to-one, many-to-many and many-to-one mappings of transient-to-persistent objects. Figures [\ref=fig_scribes] and [\ref=fig_absscribe] present UML class diagrams.
+
+Classes to handle Transient and Persistent Objects
+
+The tasks delegated by RooAbsScribe are implemented by the so-called pushpull and supplier classes. Figures [\ref=fig_scribes], [\ref=fig_transpushpull], [\ref=fig_supplier] and [\ref=fig_perspushpull] show UML class diagrams.
+
+Persistent Classes
+
+Persistent classes are defined using the following base class hierarchy. All classes in this list are dressed with special ROOT macros for full integration into the ROOT system. Figure [\ref=fig_persistent] presents a UML class diagram.
+
+Figures
