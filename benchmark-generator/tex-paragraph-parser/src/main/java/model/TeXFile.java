@@ -7,11 +7,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.freiburg.iif.model.Rectangle;
-import identifier.PdfPageIdentifier;
-
 /**
- * A class represneting a TeX file.
+ * A class representing a TeX file.
  * 
  * @author Claudius Korzen
  */
@@ -45,12 +42,7 @@ public class TeXFile {
    * The number of lines.
    */
   protected int numTeXLines;
-  
-  /**
-   * The page identifier.
-   */
-  protected PdfPageIdentifier pageIdentifier;
-  
+    
   /**
    * The list of paragraphs of this tex file.
    */
@@ -135,7 +127,6 @@ public class TeXFile {
    */
   public void setPdfPath(Path pdfPath) {
     this.pdfFile = pdfPath;
-    this.pageIdentifier = new PdfPageIdentifier(this);
   }
   
   // ---------------------------------------------------------------------------
@@ -207,19 +198,5 @@ public class TeXFile {
    */
   public List<Element> getTeXElements() {
     return this.document != null ? document.getElements() : null;
-  }
-  
-  // ---------------------------------------------------------------------------
-  
-  /**
-   * Returns the bounding box of given page. 
-   */
-  public Rectangle getPageBoundingBox(int pageNum) {
-    if (this.pageIdentifier == null) {
-      // The page identifier is only set on setting the pdf path (see above).
-      throw new IllegalStateException("You have to set the pdf path before you "
-          + "can use getPageBoundingBox");
-    }
-    return this.pageIdentifier.getBoundingBox(pageNum);
   }
 }

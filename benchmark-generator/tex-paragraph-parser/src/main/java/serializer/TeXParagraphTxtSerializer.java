@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import de.freiburg.iif.collection.CollectionUtils;
-import model.PdfParagraph;
 import model.TeXFile;
 import model.TeXParagraph;
 
@@ -82,8 +81,7 @@ public class TeXParagraphTxtSerializer {
     for (TeXParagraph para : paragraphs) {
       // Don't serialize any paragraphs that don't have any pdf paragraphs.
 
-      List<PdfParagraph> pdfParas = para.getPdfParagraphs();
-      if (para != null && pdfParas != null) {
+      if (para != null) {
         // Don't consider the paragraph if there is a list of roles given and
         // it doesn't contain the role of the paragraph.
 

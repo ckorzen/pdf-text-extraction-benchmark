@@ -6,12 +6,8 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 
-import de.freiburg.iif.collection.CollectionUtils;
-import de.freiburg.iif.model.Rectangle;
-import model.PdfParagraph;
 import model.TeXFile;
 import model.TeXParagraph;
 
@@ -88,39 +84,11 @@ public class TeXParagraphTsvSerializer {
       int startLine = para.getTexStartLine();
       int endLine = para.getTexEndLine();
       
-      List<String> boxesList = new ArrayList<>();
-      if (para.getPdfParagraphs() != null) {
-        for (PdfParagraph pdfPara : para.getPdfParagraphs()) {
-          String serialized = serializePdfParagraph(pdfPara);
-          if (serialized != null && !serialized.isEmpty()) {
-            boxesList.add(serialized);
-          }
-        }
-      }
-      String boxes = CollectionUtils.join(boxesList, ",");
       String text = para.getText().trim();
       
-      writer.write(String.format("%s\t%d\t%d\t%s\t%s", 
-          feature, startLine, endLine, boxes, text));
+      writer.write(String.format("%s\t%d\t%d\t%s", feature, startLine, endLine,
+          text));
       writer.newLine();
     }
-  }
-  
-  /**
-   * Serializes the given pdf paragraph.
-   */
-  protected String serializePdfParagraph(PdfParagraph paragraph) {
-    if (paragraph == null) {
-      return null;
-    }
-    
-    Rectangle box = paragraph.getRectangle();
- 
-    if (box == null) {
-      return null;
-    }
-    
-    return String.format("(%d;[%f;%f;%f;%f])", paragraph.getPdfPageNumber(),
-        box.getMinX(), box.getMinY(), box.getMaxX(), box.getMaxY());
   }
 }

@@ -56,11 +56,6 @@ public class TeXParagraph {
   protected boolean needTexLineNumbersUpdate;
 
   /**
-   * The associated pdf paragraphs.
-   */
-  protected List<PdfParagraph> pdfParagraphs;
-
-  /**
    * The first element in this paragraph which is not a whitespace.
    */
   protected Element firstNonWhitespaceElement;
@@ -85,7 +80,6 @@ public class TeXParagraph {
     this.textBuilder = new StringBuilder();
     this.texLineNumsSet = new HashSet<>();
     this.texLineNums = new ArrayList<>();
-    this.pdfParagraphs = new ArrayList<>();
     this.texElements = new ArrayList<>();
     this.texWords = new ArrayList<>();
   }
@@ -104,29 +98,6 @@ public class TeXParagraph {
    */
   public String getRole() {
     return this.role;
-  }
-
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Adds the given pdf paragraph to this tex paragraph.
-   */
-  public void addPdfParagraph(PdfParagraph paragraph) {
-    this.pdfParagraphs.add(paragraph);
-  }
-
-  /**
-   * Sets the pdf paragraphs of this tex paragraph.
-   */
-  public void setPdfParagraphs(List<PdfParagraph> paragraphs) {
-    this.pdfParagraphs = paragraphs;
-  }
-
-  /**
-   * Returns the pdf paragraphs of this tex paragraph.
-   */
-  public List<PdfParagraph> getPdfParagraphs() {
-    return this.pdfParagraphs;
   }
 
   // ---------------------------------------------------------------------------

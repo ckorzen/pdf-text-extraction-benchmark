@@ -28,15 +28,12 @@ import org.apache.commons.cli.Option.Builder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import de.freiburg.iif.path.PathUtils;
 import de.freiburg.iif.text.StringUtils;
-import identifier.PdfParagraphsIdentifier;
 import identifier.TeXParagraphsIdentifier;
 import model.TeXFile;
 import serializer.TeXParagraphExtendedTxtSerializer;
 import serializer.TeXParagraphTsvSerializer;
 import serializer.TeXParagraphTxtSerializer;
-import visualizer.TeXParagraphVisualizer;
 
 /**
  * Class to identify paragraphs in tex files. It identifies the textual content
@@ -78,30 +75,6 @@ public class TeXParagraphParserMain {
   protected String serialization;
 
   /**
-   * The path to visualization file as defined by the user, as string. It
-   * denotes the path to a pdf file where the paragraphs are visualized by their
-   * bounding boxes. Is only used when the computation of positions of the
-   * paragraphs is enabled. May be a path to a directory or a pdf file.
-   */
-  protected String visualization;
-
-  /**
-   * The path to the texmf dir. On computing positions of paragraphs, we need to
-   * compile the tex files to pdf files. But the tex files may depend on some
-   * system-unknown documentstyles (e.g. "revtex"). To be able to compile such
-   * tex files, one can define this path to a directory where the related sty
-   * files, cls files etc. can be found.
-   */
-  protected List<String> texmfPaths = Arrays.asList(
-      PathUtils.getWorkingDirectory(getClass()) + "/classes/texmf");
-
-  /**
-   * Flag that indicates if we have to identify the positions of paragraphs from
-   * pdf.
-   */
-  protected boolean identifyPdfParagraphs;
-
-  /**
    * The input directory, resolved from users input. If the input is a file,
    * this path denotes the parent directory. If the input is a directory, this
    * path denotes exactly this directory.
@@ -127,19 +100,6 @@ public class TeXParagraphParserMain {
    * exactly this directory.
    */
   protected Path serializationDirectory;
-
-  /**
-   * The visualization file. Is only set, if the input is a file.
-   */
-  protected Path visualizationFile;
-
-  /**
-   * The visualization directory, resolved from users visualization path. If the
-   * path is a file, 'visualization' denotes its parent directory. If the
-   * visualization path is a directory, 'visualizationDirectory' denotes exactly
-   * this directory.
-   */
-  protected Path visualizationDirectory;
 
   /**
    * The format of output files. One of: txt, txt2, tsv,
@@ -191,13 +151,10 @@ public class TeXParagraphParserMain {
 
     input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
-    visualization = getOptionValue(cmd, TeXParserOptions.VISUALIZE, null);
     inputFilePrefixFilters =
         getOptionValues(cmd, TeXParserOptions.PREFIX, null);
     inputDirectoryPrefixFilters =
         getOptionValues(cmd, TeXParserOptions.DIRS, null);
-    identifyPdfParagraphs = hasOption(cmd, TeXParserOptions.BOUNDING_BOXES);
-    texmfPaths = getOptionValues(cmd, TeXParserOptions.TEXMF_PATHS, texmfPaths);
     outputFormat = getOptionValue(cmd, TeXParserOptions.OUTPUT_FORMAT, "txt");
     roles = resolveRoles(getOptionValues(cmd, TeXParserOptions.ROLE, null));
     serialFileSuffix = getOptionValue(cmd, TeXParserOptions.SUFFIX, ".txt");
@@ -232,8 +189,6 @@ public class TeXParagraphParserMain {
     Path inPath = Paths.get(input).toAbsolutePath();
     Path serPath = serialization != null
         ? Paths.get(serialization).toAbsolutePath() : null;
-    Path visPath = visualization != null
-        ? Paths.get(visualization).toAbsolutePath() : null;
 
     // Check, if the input path exists.
     affirm(Files.exists(inPath), "The given input doesn't exist.");
@@ -260,20 +215,6 @@ public class TeXParagraphParserMain {
           this.serializationDirectory = serPath.getParent();
         }
       }
-
-      // Check, if there is an visualization path given.
-      if (visPath != null) {
-        if (Files.isDirectory(visPath)) {
-          // The output is an existing directory.
-          this.visualizationDirectory = visPath;
-        } else {
-          // The output is an existing file OR the output doesn't exist.
-          // If the output doesn't exist, interpret the output as a file
-          // (because the input is a file).
-          this.visualizationFile = visPath;
-          this.visualizationDirectory = visPath.getParent();
-        }
-      }
     } else if (Files.isDirectory(inPath)) {
       // The input is an existing directory.
       this.inputDirectory = inPath;
@@ -290,16 +231,6 @@ public class TeXParagraphParserMain {
         // If the output doesn't exist, interpret the output as a directory,
         // (because the input is a directory).
         this.serializationDirectory = serPath;
-      }
-
-      // Check, if there is an visualization path given.
-      if (visPath != null) {
-        affirm(!Files.isRegularFile(visPath),
-            "An input directory can't be visualized to a file.");
-        // The output is an existing directory OR doesn't exist.
-        // If the output doesn't exist, interpret the output as a directory,
-        // (because the input is a directory).
-        this.visualizationDirectory = visPath;
       }
     }
   }
@@ -730,7 +661,6 @@ public class TeXParagraphParserMain {
       texFile.setBaseDirectory(inputDirectory);
 
       Path serializationTargetFile = defineSerializationTargetFile(texFile);
-      Path visualizationTargetFile = defineVisualizationTargetFile(texFile);
       
       Path in = TeXParagraphParserMain.this.inputDirectory.relativize(file);
       Path out = TeXParagraphParserMain.this.serializationDirectory
@@ -745,19 +675,9 @@ public class TeXParagraphParserMain {
       // Identify the paragraphs in the given tex file.
       identifyTexParagraphs(texFile);
 
-      // Identify the postions of tex paragraphs in tex file.
-      if (identifyPdfParagraphs) {
-        identifyPdfParagraphs(texFile, texmfPaths);
-      }
-
       // Serialize.
       if (serializationTargetFile != null) {
         serialize(texFile, roles, serializationTargetFile);
-      }
-
-      // Visualize.
-      if (visualizationTargetFile != null) {
-        visualize(texFile, roles, visualizationTargetFile);
       }
     }
 
@@ -768,16 +688,6 @@ public class TeXParagraphParserMain {
      */
     protected void identifyTexParagraphs(TeXFile texFile) throws IOException {
       new TeXParagraphsIdentifier(texFile).identify();
-    }
-
-    /**
-     * Identifies the positions of paragraphs from given tex file in related pdf
-     * file.
-     */
-    protected void identifyPdfParagraphs(TeXFile texFile,
-        List<String> texmfPaths)
-      throws IOException {
-      new PdfParagraphsIdentifier(texFile, texmfPaths).identify();
     }
 
     /**
@@ -796,18 +706,6 @@ public class TeXParagraphParserMain {
         default:
           new TeXParagraphTxtSerializer(file).serialize(target, roles);
           break;
-      }
-    }
-
-    /**
-     * Visualizes the selected features to file.
-     */
-    protected void visualize(TeXFile texFile, List<String> roles, Path target)
-      throws IOException {
-      try {
-        new TeXParagraphVisualizer(texFile).visualize(target, roles);
-      } catch (Exception e) {
-        System.out.println("WARN: Couldn't create visualization.");
       }
     }
 
@@ -850,47 +748,6 @@ public class TeXParagraphParserMain {
         Path relativePath = inputDirectory.relativize(parentParentDirectory);
 
         return serializationDirectory.resolve(relativePath);
-      }
-
-      return null;
-    }
-
-    /**
-     * Defines the path to the visualization file.
-     */
-    protected Path defineVisualizationTargetFile(TeXFile texFile) {
-      if (texFile == null) {
-        return null;
-      }
-
-      if (visualizationFile != null) {
-        // If there is a output file defined explicitly, return it.
-        return visualizationFile;
-      }
-
-      // Obtain the basename of the parent directory.
-      String basename = PathUtils.getBasename(texFile.getPath().getParent());
-
-      Path targetDir = defineVisualizationTargetDir(texFile);
-      if (targetDir != null) {
-        return targetDir.resolve(basename + ".vis.pdf");
-      }
-      return null;
-    }
-
-    /**
-     * Defines the path to the visualization directory.
-     */
-    protected Path defineVisualizationTargetDir(TeXFile texFile) {
-      if (visualizationDirectory != null) {
-        // Obtain the parent directory of the tex file.
-        Path parentDirectory = texFile.getPath().getParent();
-        // Obtain the parent directory of the parent directory.
-        Path parentParentDirectory = parentDirectory.getParent();
-        // Obtain the path of the texFile relative to the global input path.
-        Path relativePath = inputDirectory.relativize(parentParentDirectory);
-
-        return visualizationDirectory.resolve(relativePath);
       }
 
       return null;
