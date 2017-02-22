@@ -10,9 +10,9 @@ PDF_DIR_LOCAL_PATH = /nfs/raid1/arxiv/benchmark-data/benchmark/pdf/
 SRC_DIR_DOWNLOAD_URL = http://arxiv-benchmark.informatik.uni-freiburg.de/data/benchmark/src/
 SRC_DIR_LOCAL_PATH = /nfs/raid1/arxiv/benchmark-data/benchmark/src/
 
-GROUNDTRUTH_DIR = ./groundtruth
-PDF_DIR = ./pdf
-SRC_DIR = ./src
+GROUNDTRUTH_DIR = ./groundtruth/data
+PDF_DIR = ./pdf/data
+SRC_DIR = ./src/data
 
 download-data: download-data-groundtruth download-data-pdf download-data-src
 

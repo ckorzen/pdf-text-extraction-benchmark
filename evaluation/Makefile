@@ -7,10 +7,10 @@ TEST_BINARIES = $(wildcard *_test.py)
 
 TOOLS = pdftotext pdftohtml pdftoxml pdfbox pdf2xml parscit lapdftext pdfminer pdfXtk pdfextract PDFExtract grobid icecite
 
-GROUND_TRUTH_DIR = ../benchmark/groundtruth
-PDF_DIR = ../benchmark/pdf
-TOOLS_DIR = ./tools
-OUTPUT_DIR = ./output
+GROUND_TRUTH_DIR = ../benchmark/groundtruth/data
+PDF_DIR = ../benchmark/pdf/data
+TOOLS_DIR = ./tools/data
+OUTPUT_DIR = ./output/data
 
 EVALUATOR_SRC = ./bin/evaluator.py
 EXTRACTOR_SRC = ./bin/extractor.py

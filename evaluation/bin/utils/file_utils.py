@@ -7,7 +7,7 @@ CWD = os.path.dirname(os.path.realpath(__file__))
 ROOT_DIR = os.path.abspath(os.path.join(CWD, "../../.."))
 
 # Define some default values.
-TOOLS_DIR = os.path.abspath(os.path.join(ROOT_DIR, "evaluation/tools"))
+TOOLS_DIR = os.path.abspath(os.path.join(ROOT_DIR, "evaluation/tools/data"))
 TOOL_OUTPUT_DIR_NAME = "output"
 TOOL_CONFIG_FILE_NAME = "config.ini"
 TOOL_RAW_OUTPUT_FILE_EXT = ".raw.txt"
@@ -15,12 +15,12 @@ TOOL_PLAIN_OUTPUT_FILE_EXT = ".final.txt"
 TOOL_SERIALIZATION_FILE_EXT = ".serial.txt"
 TOOL_VISUALIZATION_FILE_EXT = ".visualization.txt"
 
-OUTPUT_DIR = os.path.abspath(os.path.join(ROOT_DIR, "evaluation/output"))
+OUTPUT_DIR = os.path.abspath(os.path.join(ROOT_DIR, "evaluation/output/data"))
 
-PDFS_DIR = os.path.abspath(os.path.join(ROOT_DIR, "benchmark/pdf"))
+PDFS_DIR = os.path.abspath(os.path.join(ROOT_DIR, "benchmark/pdf/data"))
 PDF_FILE_EXT = ".pdf"
 
-GTS_DIR = os.path.abspath(os.path.join(ROOT_DIR, "benchmark/groundtruth"))
+GTS_DIR = os.path.abspath(os.path.join(ROOT_DIR, "benchmark/groundtruth/data"))
 GT_FILE_EXT = ".body.txt"
 
 # =============================================================================

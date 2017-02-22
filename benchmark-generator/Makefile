@@ -1,8 +1,8 @@
 BENCHMARK_GENERATOR_SRC = ./tex-paragraph-parser
 BENCHMARK_GENERATOR_JAR = ./bin/benchmark-generator.jar
 
-INPUT = ../benchmark/src/
-OUTPUT = ../benchmark/groundtruth/
+INPUT = ../benchmark/src/data
+OUTPUT = ../benchmark/groundtruth/data
 
 SUFFIX = ".body.txt"
 ROLE = "body"
