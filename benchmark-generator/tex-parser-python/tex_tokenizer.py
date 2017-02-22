@@ -253,12 +253,14 @@ class TeXTokenSemantics(object):
         return ast
 
     def CMD(self, ast):
+
         return ast
 
     def BREAK_CMD(self, ast):
         return ast
 
     def CONTROL_CMD(self, ast):
+        print(ast)
         return ast
 
     def SYMBOL_CMD(self, ast):

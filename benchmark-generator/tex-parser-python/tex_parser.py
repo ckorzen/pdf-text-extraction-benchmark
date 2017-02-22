@@ -1,76 +1,118 @@
 from tex_tokenizer import TeXTokenParser
 from argparse import ArgumentParser
 
+# =============================================================================
+# Models.
+
+
+class TeXDocument:
+    """
+    A class representing a whole TeX document.
+    """
+    def __init__(self, elements=[]):
+        self.elements = elements
+
+
+class TeXElement:
+    """
+    The base class for any TeX element.
+    """
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        return ""
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class TeXGroup(TeXElement):
+    """
+    A class representing a group (elements enclosed in {...}).
+    """
+    def __init__(self, elements):
+        self.elements = elements
+
+    def __str__(self):
+        return "{%s}" % "".join([str(x) for x in self.elements])
+
+
+class TeXCommand(TeXElement):
+    """
+    A class representing a command.
+    """
+    def __init__(self, command_name, opts_and_args=[]):
+        self.command_name = command_name
+        self.opts_and_args = opts_and_args
+
+    def __str__(self):
+        opts_and_args_str = "".join([str(x) for x in self.opts_and_args])
+        return "%s%s" % (self.command_name, opts_and_args_str)
+
+
+class TeXCommandArgument(TeXGroup):
+    """
+    A class representing an argument of a group (elements enclosed in {...}).
+    """
+    pass
+
+
+class TeXCommandOption(TeXGroup):
+    """
+    A class representing an option of a group (elements enclosed in [...]).
+    """
+    def __str__(self):
+        return "[%s]" % "".join([str(x) for x in self.elements])
+
+
+class TeXText(TeXElement):
+    """
+    A class representing some textual content.
+    """
+    def __init__(self, text):
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+    def __repr__(self):
+        return self.__str__()
+
+# =============================================================================
+# Semantics.
+
 
 class TeXSemantics(object):
-        def __init__(self):
-            self.doc = 1
+    """
+    A class that defines some semantics for the production rule in grammar.
+    """
 
-        def start(self, ast):
-            print("XXX")
-            return ast
+    def start(self, ast):
+        self.document = ast
 
-        def DOC(self, ast):
-            return ast
+    def DOC(self, ast):
+        return TeXDocument(ast)
 
-        def ELEMENT(self, ast):
-            print("ELEMENT", ast)
-            return ast
+    def GROUP(self, ast):
+        return TeXGroup(ast[1])
 
-        def GROUP(self, ast):
-            print("GROUP", type(ast[0]))
-            return ast
+    def CONTROL_CMD(self, ast):
+        command_name = "".join([ast[0]] + ast[1])
+        opts_and_args = ast[2]
+        return TeXCommand(command_name, opts_and_args)
 
-        def CMD(self, ast):
-            print(self.doc)
-            return ast
+    def ARG(self, ast):
+        return TeXCommandArgument(ast[1])
 
-        def BREAK_CMD(self, ast):
-            print("BREAK_CMD", ast)
-            return ast
+    def OPT(self, ast):
+        return TeXCommandOption(ast[1])
 
-        def CONTROL_CMD(self, ast):
-            print("CONTROL_CMD", ast)
-            return ast
+    def TEXT(self, ast):
+        return TeXText("".join(ast))
 
-        def SYMBOL_CMD(self, ast):
-            print("SYMBOL_CMD", ast)
-            return ast
-
-        def ARG(self, ast):
-            print("ARG", ast)
-            return ast
-
-        def OPT(self, ast):
-            print("OPT", ast)
-            return ast
-
-        def MARKER(self, ast):
-            print("MARKER", ast)
-            return ast
-
-        def COMMENT(self, ast):
-            print("COMMENT", ast)
-            return ast
-
-        def TEXT(self, ast):
-            return "".join(ast)
-
-        def CHAR(self, ast):
-            return ast
-
-        def WHITESPACE(self, ast):
-            return ast
-
-        def LETTER(self, ast):
-            return ast
-
-        def DIGIT(self, ast):
-            return ast
-
-        def NON_LETTER(self, ast):
-            return ast
-
+# =============================================================================
+# Parser.
 
 class TeXParser():
     """
@@ -87,7 +129,10 @@ class TeXParser():
         f.close()
 
         tex_tokenizer = TeXTokenParser(parseinfo=False)
-        tex_tokenizer.parse(text, semantics=TeXSemantics())
+        tex_semantics = TeXSemantics()
+        tex_tokenizer.parse(text, semantics=tex_semantics)
+
+        print(tex_semantics.document.elements)
 
 
 def get_argument_parser():
