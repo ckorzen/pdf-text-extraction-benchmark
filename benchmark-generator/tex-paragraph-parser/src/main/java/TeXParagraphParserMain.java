@@ -472,12 +472,6 @@ public class TeXParagraphParserMain {
     OUTPUT("o", "output", "The output file/directory.", true, true),
 
     /**
-     * Create option to define the path to visualization file / directory.
-     */
-    VISUALIZE("v", "visualize", "The visualization file/directory.", false,
-        true, 1),
-
-    /**
      * Create option to define the prefix(es) to consider on parsing the input
      * directory.
      */
@@ -501,13 +495,6 @@ public class TeXParagraphParserMain {
         false, true, 1),
 
     /**
-     * Create option to enable the identification of paragraphs bounding boxes.
-     */
-    BOUNDING_BOXES("b", "boundingboxes",
-        "Enable the identification of paragraphs bounding boxes.",
-        false),
-
-    /**
      * Create option to define roles to serialize.
      */
     ROLE("r", "role",
@@ -518,13 +505,6 @@ public class TeXParagraphParserMain {
      * Create option to serialize only the text of paragraphs into txt file.
      */
     OUTPUT_FORMAT("f", "format", "The format of output files.", false, true, 1),
-
-    /**
-     * Create option to define path to the texmf dir.
-     */
-    TEXMF_PATHS("t", "texmf",
-        "The path to the texmf directory",
-        false, true, Option.UNLIMITED_VALUES),
 
     /**
      * Create option to enable the identification of paragraphs bounding boxes.
