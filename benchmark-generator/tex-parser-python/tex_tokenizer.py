@@ -133,8 +133,9 @@ class TeXTokenParser(Parser):
     def _LATEX_MACRO_DEF_CMD_(self):
         self._token('\\newcommand')
         self._ARG_()
-        with self._optional():
-            self._OPT_()
+        with self._group():
+            with self._optional():
+                self._OPT_()
         self._ARG_()
 
     @graken()

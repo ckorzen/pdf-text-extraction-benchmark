@@ -1,12 +1,16 @@
+import ast
 import models
+import iterators
 import debugger
+import copy
 
 from tex_tokenizer import TeXTokenParser
 from argparse import ArgumentParser
 
 # TODO: Create the macro dictionary.
-# TODO: Extend and refine the grammar.
 # TODO: Resolve macros.
+# TODO: Extend and refine the grammar.
+
 
 # =============================================================================
 # Semantics.
@@ -39,7 +43,7 @@ class TeXSemantics(object):
         return models.TeXMacroDefinition(macro_name, replacement)
 
     def LATEX_MACRO_DEF_CMD(self, ast):
-        macro_name = ast[1].elements[0]
+        macro_name = ast[1].elements[0].command_name
         replacement = ast[-1]
         return models.TeXMacroDefinition(macro_name, replacement)
 
@@ -57,6 +61,7 @@ class TeXSemantics(object):
         return models.TeXCommand(command_name, opts_and_args)
 
     def ARG(self, ast):
+        print(ast)
         return models.TeXCommandArgument(ast[1])
 
     def OPT(self, ast):
@@ -84,8 +89,12 @@ class TeXParser():
         """
         Parses a given TeX document.
         """
+        # Parse the given TeX file.
         tex_document = self.parse_tex_document()
-        self.expand_macros(tex_document)
+
+        # Expand the macros.
+        if self.args.expand_macros:
+            self.expand_macros(tex_document, tex_document.macro_definitions)
 
         return tex_document
 
@@ -97,16 +106,35 @@ class TeXParser():
         with open(self.args.input) as f:
             text = f.read()
         f.close()
-        tex_tokenizer = TeXTokenParser(parseinfo=False)
+        tex_tokenizer = TeXTokenParser(parseinfo=False, whitespace='')
         tex_semantics = TeXSemantics()
         tex_tokenizer.parse(text, semantics=tex_semantics)
         return tex_semantics.document
 
-    def expand_macros(self, tex_document):
-        """
-        Expands macros.
-        """
-        return tex_document
+    def expand_macros(self, group, macro_definitions):
+        dfs_iter = iterators.DFSIterator(group)
+
+        for element in dfs_iter:
+            if not isinstance(element, models.TeXCommand):
+                continue
+
+            if element.command_name in macro_definitions:
+                macro = macro_definitions[element.command_name]
+                replacement = copy.deepcopy(macro.replacement)
+                self.expand_macro(element, replacement, macro_definitions)
+
+    def expand_macro(self, macro_call, replacement, macro_definitions):
+        dfs_iter = iterators.DFSIterator(replacement)
+
+        for element in dfs_iter:
+            if not isinstance(element, models.TeXMarker):
+                continue
+            element.is_expanded = True
+            element.expanded = macro_call.args[element.i - 1].elements
+
+        macro_call.is_expanded = True
+        macro_call.expanded = replacement.elements
+        self.expand_macros(replacement, macro_definitions)
 
 
 def get_argument_parser():
@@ -117,6 +145,13 @@ def get_argument_parser():
     arg_parser.add_argument(
         "input",
         help="The input.",
+    )
+    arg_parser.add_argument(
+        "--expand_macros",
+        metavar='<bool>',
+        help="Flag to toogle the expansion of macros.",
+        type=ast.literal_eval,
+        default=True
     )
     return arg_parser
 

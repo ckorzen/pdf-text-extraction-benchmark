@@ -119,14 +119,17 @@ def stringify_group(group, color):
 
 def stringify_command(command, color):
     parts = []
-    parts.append(color(command.command_name.strip()))
-    parts.append(stringify_elements(command.opts_and_args))
+    if getattr(command, "is_expanded", False):
+        parts.append(stringify_elements(getattr(command, "expanded", [])))
+    else:
+        parts.append(color(command.command_name.strip()))
+        parts.append(stringify_elements(command.opts_and_args))
     return "".join(parts)
 
 
 def stringify_macro_definition(macro_def, color):
     parts = []
-    parts.append(stringify_element(macro_def.command_name))
+    parts.append(macro_def.command_name)
     parts.append(" -> ")
     if macro_def.replacement is not None:
         parts.append(stringify_element(macro_def.replacement))
@@ -150,7 +153,10 @@ def stringify_opt(opt, color):
 
 
 def stringify_marker(marker, color):
-    return color("#%s" % marker.i)
+    if getattr(marker, "is_expanded", False):
+        return stringify_elements(getattr(marker, "expanded", []))
+    else:
+        return color("#%s" % marker.i)
 
 
 def stringify_text(text, color):
@@ -183,10 +189,10 @@ model_spec = {
 }
 
 
-def create_debug_string(document):
+def create_debug_string(doc):
     color_legend = create_color_legend()
-    macro_defs_str = stringify_elements(document.macro_definitions.values())
-    elements_str = stringify_elements(document.elements)
+    macro_defs_str = stringify_elements(doc.macro_definitions.values(), "\n")
+    elements_str = stringify_elements(doc.elements)
 
     return "\n\n".join([
         "Legend: %s" % color_legend,
@@ -205,11 +211,11 @@ def create_color_legend_entry(model):
     return color(type_name)
 
 
-def stringify_elements(elements):
+def stringify_elements(elements, delim=""):
     parts = []
     for element in elements:
         parts.append(stringify_element(element))
-    return "".join(parts)
+    return delim.join(parts)
 
 
 def stringify_element(element):

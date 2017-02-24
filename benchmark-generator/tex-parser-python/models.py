@@ -31,10 +31,12 @@ class TeXCommand(TeXElement):
     """
     A class representing a command.
     """
-    def __init__(self, command_name, opts_and_args=[]):
+    def __init__(self, command_name, opts_args=[]):
         super(TeXCommand, self).__init__()
         self.command_name = command_name
-        self.opts_and_args = opts_and_args
+        self.opts_and_args = opts_args
+        self.opts = [x for x in opts_args if isinstance(x, TeXCommandOption)]
+        self.args = [x for x in opts_args if isinstance(x, TeXCommandArgument)]
 
     def __str__(self):
         opts_and_args_str = "".join([str(x) for x in self.opts_and_args])
