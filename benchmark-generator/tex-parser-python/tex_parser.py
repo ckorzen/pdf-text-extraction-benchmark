@@ -1,83 +1,12 @@
+import models
+import debugger
+
 from tex_tokenizer import TeXTokenParser
 from argparse import ArgumentParser
 
-# =============================================================================
-# Models.
-
-
-class TeXDocument:
-    """
-    A class representing a whole TeX document.
-    """
-    def __init__(self, elements=[]):
-        self.elements = elements
-
-
-class TeXElement:
-    """
-    The base class for any TeX element.
-    """
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        return ""
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class TeXGroup(TeXElement):
-    """
-    A class representing a group (elements enclosed in {...}).
-    """
-    def __init__(self, elements):
-        self.elements = elements
-
-    def __str__(self):
-        return "{%s}" % "".join([str(x) for x in self.elements])
-
-
-class TeXCommand(TeXElement):
-    """
-    A class representing a command.
-    """
-    def __init__(self, command_name, opts_and_args=[]):
-        self.command_name = command_name
-        self.opts_and_args = opts_and_args
-
-    def __str__(self):
-        opts_and_args_str = "".join([str(x) for x in self.opts_and_args])
-        return "%s%s" % (self.command_name, opts_and_args_str)
-
-
-class TeXCommandArgument(TeXGroup):
-    """
-    A class representing an argument of a group (elements enclosed in {...}).
-    """
-    pass
-
-
-class TeXCommandOption(TeXGroup):
-    """
-    A class representing an option of a group (elements enclosed in [...]).
-    """
-    def __str__(self):
-        return "[%s]" % "".join([str(x) for x in self.elements])
-
-
-class TeXText(TeXElement):
-    """
-    A class representing some textual content.
-    """
-    def __init__(self, text):
-        self.text = text
-
-    def __str__(self):
-        return self.text
-
-    def __repr__(self):
-        return self.__str__()
+# TODO: Create the macro dictionary.
+# TODO: Extend and refine the grammar.
+# TODO: Resolve macros.
 
 # =============================================================================
 # Semantics.
@@ -87,32 +16,61 @@ class TeXSemantics(object):
     """
     A class that defines some semantics for the production rule in grammar.
     """
-
     def start(self, ast):
         self.document = ast
 
-    def DOC(self, ast):
-        return TeXDocument(ast)
+    def DOC(self, elements):
+        # Filter out macro definitions.
+        tex_elements = []
+        macro_definitions = {}
+        for element in elements:
+            if isinstance(element, models.TeXMacroDefinition):
+                macro_definitions[element.command_name] = element
+            else:
+                tex_elements.append(element)
+        return models.TeXDocument(tex_elements, macro_definitions)
 
     def GROUP(self, ast):
-        return TeXGroup(ast[1])
+        return models.TeXGroup(ast[1])
+
+    def TEX_MACRO_DEF_CMD(self, ast):
+        macro_name = "".join([ast[1]] + ast[2])
+        replacement = ast[4]
+        return models.TeXMacroDefinition(macro_name, replacement)
+
+    def LATEX_MACRO_DEF_CMD(self, ast):
+        macro_name = ast[1].elements[0]
+        replacement = ast[-1]
+        return models.TeXMacroDefinition(macro_name, replacement)
+
+    def BREAK_CMD(self, ast):
+        return models.TeXCommand(ast[0])
 
     def CONTROL_CMD(self, ast):
         command_name = "".join([ast[0]] + ast[1])
         opts_and_args = ast[2]
-        return TeXCommand(command_name, opts_and_args)
+        return models.TeXCommand(command_name, opts_and_args)
+
+    def SYMBOL_CMD(self, ast):
+        command_name = "".join([ast[0]] + ast[1])
+        opts_and_args = [ast[2]]
+        return models.TeXCommand(command_name, opts_and_args)
 
     def ARG(self, ast):
-        return TeXCommandArgument(ast[1])
+        return models.TeXCommandArgument(ast[1])
 
     def OPT(self, ast):
-        return TeXCommandOption(ast[1])
+        return models.TeXCommandOption(ast[1])
+
+    def MARKER(self, ast):
+        return models.TeXMarker(int(ast[1]))
 
     def TEXT(self, ast):
-        return TeXText("".join(ast))
+        return models.TeXText("".join(ast))
 
 # =============================================================================
 # Parser.
+
 
 class TeXParser():
     """
@@ -123,16 +81,32 @@ class TeXParser():
         self.args = args
 
     def parse(self):
+        """
+        Parses a given TeX document.
+        """
+        tex_document = self.parse_tex_document()
+        self.expand_macros(tex_document)
+
+        return tex_document
+
+    def parse_tex_document(self):
+        """
+        Tokenizes a given TeX document.
+        """
         # TODO:
         with open(self.args.input) as f:
             text = f.read()
         f.close()
-
         tex_tokenizer = TeXTokenParser(parseinfo=False)
         tex_semantics = TeXSemantics()
         tex_tokenizer.parse(text, semantics=tex_semantics)
+        return tex_semantics.document
 
-        print(tex_semantics.document.elements)
+    def expand_macros(self, tex_document):
+        """
+        Expands macros.
+        """
+        return tex_document
 
 
 def get_argument_parser():
@@ -148,4 +122,5 @@ def get_argument_parser():
 
 if __name__ == '__main__':
     args = get_argument_parser().parse_args()
-    TeXParser(args).parse()
+    tex_document = TeXParser(args).parse()
+    print(debugger.create_debug_string(tex_document))

@@ -120,15 +120,36 @@ class TeXTokenParser(Parser):
     def _CMD_(self):
         with self._choice():
             with self._option():
+                self._MACRO_DEF_CMD_()
+            with self._option():
                 self._BREAK_CMD_()
-                self.name_last_node('@')
             with self._option():
                 self._CONTROL_CMD_()
-                self.name_last_node('@')
             with self._option():
                 self._SYMBOL_CMD_()
-                self.name_last_node('@')
             self._error('no available options')
+
+    @graken()
+    def _LATEX_MACRO_DEF_CMD_(self):
+        self._token('\\newcommand')
+        self._ARG_()
+        with self._optional():
+            self._OPT_()
+        self._ARG_()
+
+    @graken()
+    def _TEX_MACRO_DEF_CMD_(self):
+        self._token('\\def')
+        self._token('\\')
+
+        def block0():
+            self._pattern(r'[a-zA-Z]')
+        self._positive_closure(block0)
+
+        def block1():
+            self._MARKER_()
+        self._closure(block1)
+        self._ARG_()
 
     @graken()
     def _BREAK_CMD_(self):
@@ -136,10 +157,10 @@ class TeXTokenParser(Parser):
         def block0():
             with self._choice():
                 with self._option():
-                    self._token('\n')
+                    self._pattern(r'\n')
                 with self._option():
-                    self._token('\r\n')
-                self._error('expecting one of: \n \r\n')
+                    self._pattern(r'\r\n')
+                self._error('expecting one of: \\n \\r\\n')
         self._positive_closure(block0)
 
     @graken()
@@ -147,7 +168,7 @@ class TeXTokenParser(Parser):
         self._token('\\')
 
         def block0():
-            self._LETTER_()
+            self._pattern(r'[a-zA-Z]')
         self._positive_closure(block0)
 
         def block1():
@@ -164,17 +185,26 @@ class TeXTokenParser(Parser):
         self._token('\\')
 
         def block0():
-            self._LETTER_()
+            self._pattern(r'[^a-zA-Z0-9]')
         self._positive_closure(block0)
-
-        def block1():
+        with self._group():
             with self._choice():
                 with self._option():
                     self._ARG_()
                 with self._option():
                     self._OPT_()
-                self._error('no available options')
-        self._closure(block1)
+                with self._option():
+                    self._pattern(r'[a-zA-Z]')
+                self._error('expecting one of: [a-zA-Z]')
+
+    @graken()
+    def _MACRO_DEF_CMD_(self):
+        with self._choice():
+            with self._option():
+                self._LATEX_MACRO_DEF_CMD_()
+            with self._option():
+                self._TEX_MACRO_DEF_CMD_()
+            self._error('no available options')
 
     @graken()
     def _ARG_(self):
@@ -197,46 +227,14 @@ class TeXTokenParser(Parser):
     @graken()
     def _MARKER_(self):
         self._token('#')
-        self._DIGIT_()
+        self._pattern(r'[0-9]')
 
     @graken()
     def _TEXT_(self):
 
         def block0():
-            with self._group():
-                with self._choice():
-                    with self._option():
-                        self._CHAR_()
-                    with self._option():
-                        self._WHITESPACE_()
-                    self._error('no available options')
+            self._pattern(r'[^\\\#\{\}\[\]]')
         self._positive_closure(block0)
-
-    @graken()
-    def _CHAR_(self):
-        with self._group():
-            with self._choice():
-                with self._option():
-                    self._LETTER_()
-                with self._option():
-                    self._DIGIT_()
-                self._error('no available options')
-
-    @graken()
-    def _WHITESPACE_(self):
-        self._pattern(r'\s')
-
-    @graken()
-    def _LETTER_(self):
-        self._pattern(r'[a-zA-Z]')
-
-    @graken()
-    def _DIGIT_(self):
-        self._pattern(r'[0-9]')
-
-    @graken()
-    def _NON_LETTER_(self):
-        self._pattern(r'[^a-zA-Z0-9\\\{\}\[\]]')
 
 
 class TeXTokenSemantics(object):
@@ -253,17 +251,24 @@ class TeXTokenSemantics(object):
         return ast
 
     def CMD(self, ast):
+        return ast
 
+    def LATEX_MACRO_DEF_CMD(self, ast):
+        return ast
+
+    def TEX_MACRO_DEF_CMD(self, ast):
         return ast
 
     def BREAK_CMD(self, ast):
         return ast
 
     def CONTROL_CMD(self, ast):
-        print(ast)
         return ast
 
     def SYMBOL_CMD(self, ast):
+        return ast
+
+    def MACRO_DEF_CMD(self, ast):
         return ast
 
     def ARG(self, ast):
@@ -276,21 +281,6 @@ class TeXTokenSemantics(object):
         return ast
 
     def TEXT(self, ast):
-        return ast
-
-    def CHAR(self, ast):
-        return ast
-
-    def WHITESPACE(self, ast):
-        return ast
-
-    def LETTER(self, ast):
-        return ast
-
-    def DIGIT(self, ast):
-        return ast
-
-    def NON_LETTER(self, ast):
         return ast
 
 
