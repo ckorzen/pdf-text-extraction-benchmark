@@ -1,16 +1,9 @@
-import ast
+import sys
 import models
-import iterators
-import debugger
-import copy
+import tex_parser_expand_macros
+import file_utils
 
 from tex_tokenizer import TeXTokenParser
-from argparse import ArgumentParser
-
-# TODO: Create the macro dictionary.
-# TODO: Resolve macros.
-# TODO: Extend and refine the grammar.
-
 
 # =============================================================================
 # Semantics.
@@ -48,7 +41,7 @@ class TeXSemantics(object):
         return models.TeXMacroDefinition(macro_name, replacement)
 
     def BREAK_CMD(self, ast):
-        return models.TeXCommand(ast[0])
+        return models.TeXBreakCommand(ast[0])
 
     def CONTROL_CMD(self, ast):
         command_name = "".join([ast[0]] + ast[1])
@@ -61,7 +54,6 @@ class TeXSemantics(object):
         return models.TeXCommand(command_name, opts_and_args)
 
     def ARG(self, ast):
-        print(ast)
         return models.TeXCommandArgument(ast[1])
 
     def OPT(self, ast):
@@ -82,80 +74,34 @@ class TeXParser():
     A simple TeX parser.
     """
 
-    def __init__(self, args):
-        self.args = args
-
-    def parse(self):
+    def parse(self, path=None, string=None, expand_macros=True):
         """
         Parses a given TeX document.
         """
+        if path is not None:
+            if file_utils.is_missing_or_empty_file(path):
+                print("Error: The given input path does not exist / is empty.")
+                sys.exit(1)
+            else:
+                # Read the input path.
+                string = file_utils.read_file(path)
+
         # Parse the given TeX file.
-        tex_document = self.parse_tex_document()
+        doc = self.parse_tex_document(string)
 
         # Expand the macros.
-        if self.args.expand_macros:
-            self.expand_macros(tex_document, tex_document.macro_definitions)
+        if expand_macros:
+            tex_parser_expand_macros.expand_macros(doc, doc.macro_definitions)
+        return doc
 
-        return tex_document
-
-    def parse_tex_document(self):
+    def parse_tex_document(self, text):
         """
         Tokenizes a given TeX document.
         """
-        # TODO:
-        with open(self.args.input) as f:
-            text = f.read()
-        f.close()
+        if text is None:
+            raise ValueError("Nothing to parse.")
+
         tex_tokenizer = TeXTokenParser(parseinfo=False, whitespace='')
         tex_semantics = TeXSemantics()
         tex_tokenizer.parse(text, semantics=tex_semantics)
         return tex_semantics.document
-
-    def expand_macros(self, group, macro_definitions):
-        dfs_iter = iterators.DFSIterator(group)
-
-        for element in dfs_iter:
-            if not isinstance(element, models.TeXCommand):
-                continue
-
-            if element.command_name in macro_definitions:
-                macro = macro_definitions[element.command_name]
-                replacement = copy.deepcopy(macro.replacement)
-                self.expand_macro(element, replacement, macro_definitions)
-
-    def expand_macro(self, macro_call, replacement, macro_definitions):
-        dfs_iter = iterators.DFSIterator(replacement)
-
-        for element in dfs_iter:
-            if not isinstance(element, models.TeXMarker):
-                continue
-            element.is_expanded = True
-            element.expanded = macro_call.args[element.i - 1].elements
-
-        macro_call.is_expanded = True
-        macro_call.expanded = replacement.elements
-        self.expand_macros(replacement, macro_definitions)
-
-
-def get_argument_parser():
-    """
-    Creates an command line arguments parser.
-    """
-    arg_parser = ArgumentParser()
-    arg_parser.add_argument(
-        "input",
-        help="The input.",
-    )
-    arg_parser.add_argument(
-        "--expand_macros",
-        metavar='<bool>',
-        help="Flag to toogle the expansion of macros.",
-        type=ast.literal_eval,
-        default=True
-    )
-    return arg_parser
-
-if __name__ == '__main__':
-    args = get_argument_parser().parse_args()
-    tex_document = TeXParser(args).parse()
-    print(debugger.create_debug_string(tex_document))

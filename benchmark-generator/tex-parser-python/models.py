@@ -43,6 +43,14 @@ class TeXCommand(TeXElement):
         return "%s%s" % (self.command_name, opts_and_args_str)
 
 
+class TeXBreakCommand(TeXCommand):
+    """
+    A class representing a command.
+    """
+    def __str__(self):
+        return "//"
+
+
 class TeXMacroDefinition(TeXCommand):
     """
     A class representing a macro definition.
@@ -103,3 +111,22 @@ class TeXDocument:
     def __init__(self, elements=[], macro_definitions={}):
         self.elements = elements
         self.macro_definitions = macro_definitions
+
+# =============================================================================
+
+
+class LTB:
+    """
+    A logical text block.
+    """
+
+    def __init__(self, level=0, semantic_role="body"):
+        self.level = level
+        self.semantic_role = semantic_role
+        self.text = ""
+
+    def __str__(self):
+        return "LTB(%s, %s, %s)" % (self.level, self.semantic_role, self.text)
+
+    def __repr__(self):
+        return self.__str__()

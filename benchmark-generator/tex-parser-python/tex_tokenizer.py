@@ -234,7 +234,7 @@ class TeXTokenParser(Parser):
     def _TEXT_(self):
 
         def block0():
-            self._pattern(r'[^\\\#\{\}\[\]]')
+            self._pattern(r'[^\\\#\{\}\[\]\r\n]')
         self._positive_closure(block0)
 
 

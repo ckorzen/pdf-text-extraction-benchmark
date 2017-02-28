@@ -1,11 +1,11 @@
 import models
 
 from collections import Iterator
-
+from collections import deque
 
 class DFSIterator(Iterator):
     def __init__(self, document):
-        self.stack = list(document.elements)
+        self.stack = deque(document.elements)
 
     def __iter__(self):
         return self
@@ -13,16 +13,20 @@ class DFSIterator(Iterator):
     def __next__(self):
         if not self.stack:
             raise StopIteration
-        element = self.stack.pop()
-        if isinstance(element, models.TeXGroup):
-            self.stack += element.elements
-        elif isinstance(element, models.TeXCommand):
+        element = self.stack.popleft()
+        if isinstance(element, models.TeXCommand):
             if getattr(element, "is_expanded", False):
-                self.stack += getattr(element, "expanded", [])
-            else:
-                for opt_or_arg in element.opts_and_args:
-                    self.stack += opt_or_arg.elements
+                expanded_elements = getattr(element, "expanded", [])
+                if len(expanded_elements) > 0:
+                    self.stack += expanded_elements
+                    element = self.stack.pop()
         elif isinstance(element, models.TeXMarker):
             if getattr(element, "is_expanded", False):
-                self.stack += getattr(element, "expanded", [])
+                expanded_elements = getattr(element, "expanded", [])
+                if len(expanded_elements) > 0:
+                    self.stack += expanded_elements
+                    element = self.stack.pop()
         return element
+
+    def extend(self, elements):
+        self.stack.extendleft(reversed(elements))
