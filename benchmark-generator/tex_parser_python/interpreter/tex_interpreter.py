@@ -1,75 +1,110 @@
 from utils import iterators
+
 from models import tex_models
 from models.ltb import LTB
 from models.rules import Rules
 
 
-class TeXInterpreter():
+def identify_blocks(tex_document, rules_path):
+    """
+    Iterates through the elements in the given document to identify logical
+    text blocks using the given rules.
+    """
+    rules = Rules.read_from_file(rules_path)
+    interpreter = TeXInterpreter(tex_document, rules)
+    interpreter.identify_blocks()
 
-    def interpret(self, tex_document, rules_path):
+    return interpreter.blocks
+
+
+class TeXInterpreter():
+    def __init__(self, tex_document, rules):
+        self.tex_document = tex_document
+        self.rules = rules
+        self.level = 0
+        self.stack = [LTB(level=self.level)]
+        self.blocks = []
+
+    def identify_blocks(self):
         """
         Iterates through the elements in the given TeX document to identify
         logical text blocks using the given rules.
         """
-        # Read the rules.
-        rules = Rules.read_from_file(rules_path)
-        # The stack of active blocks.
-        stack = [LTB(level=0)]
-        # The list of finished blocks.
-        result = []
+        # Interpret the elements in given document.
+        self._identify_blocks(self.tex_document)
 
-        # Interpret.
-        self._interpret(tex_document, rules, 0, stack, result)
+        # Add the remaining blocks in the stack to the result list.
+        while len(self.stack) > 0:
+            block = self.stack.pop()
+            if len(block.text) > 0:
+                self.blocks.append(block)
 
-        # Empty the stack.
-        while len(stack) > 0:
-            result.append(stack.pop())
+    def _identify_blocks(self, group):
+        """
+        Iterates through the elements in the given group to identify
+        logical text blocks using the given rules.
+        """
+        # Iterate the elements in DFS order.
+        for element in iterators.ShallowIterator(group.elements):
+            if isinstance(element, tex_models.TeXText):
+                # Append text to the active block.
+                self.append_text(element.text)
 
-        return result
+            if isinstance(element, tex_models.TeXGroup):
+                # Interpret all elements of the group.
+                self._identify_blocks(element.elements)
 
-    def _interpret(self, group, rules, level, stack, result):
-        # Iterate the document tree in DFS order.
-        dfs_iter = iterators.DFSIterator(group)
-
-        for elem in dfs_iter:
-            if isinstance(elem, tex_models.TeXGroup):
-                dfs_iter.extend(elem.elements)
-
-            if isinstance(elem, tex_models.TeXText):
-                stack[-1].text += elem.text
-
-            if isinstance(elem, tex_models.TeXCommand):
-                rule = rules.get_rule(elem)
+            if isinstance(element, tex_models.TeXCommand):
+                # Interpret the command correspondingly to referring rule.
+                rule = self.rules.get_rule(element)
 
                 if rule is None:
+                    # There is no such rule. Ignore the command.
+                    # TODO: Skip to end command.
                     continue
 
-                if rule.get_hierarchy_level(default=-1) > -1:
-                    # Set the hierarchy level for all following blocks.
-                    level = rule.get_hierarchy_level()
-                if rule.get_starts_ltb_type(default=-1) > 1:
-                    # Finish the active block in stack.
-                    result.append(stack.pop())
-                if rule.get_starts_ltb_type(default=-1) > 0:
-                    # Append a new block to stack.
-                    stack.append(LTB(level=level))
-                if rule.get_semantic_role(default=None) is not None:
-                    # Set the semantic role of active block.
-                    stack[-1].semantic_role = rule.get_semantic_role()
-                if rule.get_text_phrase(default=None) is not None:
-                    # Append a text phrase to active block.
-                    stack[-1].text += rule.get_text_phrase()
-                    # TODO
-                    if rule.get_end_command(default=None) is not None:
-                        dfs_iter.skip_to(rule.get_end_command())
-                for i in rule.get_args_to_visit(default=[]):
-                    # Process the elements in arg to visit.
-                    self._interpret(elem.args[i], rules, level, stack, result)
-                if rule.get_ends_ltb_type(default=-1) > 0:
-                    # Finish the active block.
-                    result.append(stack.pop())
-                if rule.get_ends_ltb_type(default=-1) > 1:
-                    # Append a new block.
-                    stack.append(LTB(level=level))
+                # Process each single instruction given by the rule.
+                for instruction in rule.get_instructions():
+                    instruction.apply(self, element)
 
-        return result
+    # =========================================================================
+
+    def introduce_block(self):
+        """
+        Introduces a new block.
+        """
+        block = LTB(level=self.level)
+        self.stack.append(block)
+
+    def finish_block(self):
+        """
+        Finishes the active block.
+        """
+        if len(self.stack) == 0:
+            return
+        block = self.stack.pop()
+        if len(block.text) == 0:
+            return
+        self.blocks.append(block)
+
+    def append_text(self, text):
+        """
+        Appends the given text to the active block.
+        """
+        if len(self.stack) == 0:
+            return
+        self.stack[-1].text += text
+
+    def set_hierarchy_level(self, level):
+        """
+        Sets the hierarchy level for all subsequent blocks.
+        """
+        self.level = level
+
+    def set_semantic_role(self, role):
+        """
+        Sets the semantic role for the active block.
+        """
+        if len(self.stack) == 0:
+            return
+        self.stack[-1].semantic_role = role

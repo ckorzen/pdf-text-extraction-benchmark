@@ -1,4 +1,4 @@
-import models
+import models import tex_models
 
 # =============================================================================
 # Colorize Methods.
@@ -165,25 +165,25 @@ def stringify_text(text, color):
 # =============================================================================
 
 model_spec = {
-    models.TeXGroup: (
+    tex_models.TeXGroup: (
         "Group", stringify_group, red
     ),
-    models.TeXCommand: (
+    tex_models.TeXCommand: (
         "Command", stringify_command, blue
     ),
-    models.TeXMacroDefinition: (
+    tex_models.TeXMacroDefinition: (
         "Macro Definition", stringify_macro_definition, gray_bg
     ),
-    models.TeXCommandArgument: (
+    tex_models.TeXCommandArgument: (
         "Arg", stringify_arg, red
     ),
-    models.TeXCommandOption: (
+    tex_models.TeXCommandOption: (
         "Opt", stringify_opt, green
     ),
-    models.TeXMarker: (
+    tex_models.TeXMarker: (
         "Marker", stringify_marker, green_bg
     ),
-    models.TeXText: (
+    tex_models.TeXText: (
         "Text", stringify_text, black
     )
 }

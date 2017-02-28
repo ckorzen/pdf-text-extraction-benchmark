@@ -3,7 +3,7 @@ class TeXElement:
     The base class for any TeX element.
     """
     def __init__(self):
-        pass
+        self.expanded = []
 
     def __str__(self):
         return ""
@@ -13,6 +13,20 @@ class TeXElement:
 
     def debug_str(self):
         return self.__str__()
+
+    def get_expanded(self):
+        """
+        Returns the elements that results from expanding a macro call
+        """
+        def expand(element):
+            expanded = []
+            if len(element.expanded) > 0:
+                for el in element.expanded:
+                    expanded.extend(expand(el))
+            else:
+                expanded.append(element)
+            return expanded
+        return expand(self)
 
 
 class TeXGroup(TeXElement):

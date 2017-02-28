@@ -1,10 +1,17 @@
+import sys
 import json
 
 
 class TeXBlocksSerializer:
     def serialize(self, blocks, output_path):
-        with open(output_path, "w") as f:
-            f.write(self.format_blocks(blocks))
+        """
+        Serilaizes the given blocks to given output path or to stdout if there
+        is no output_path given.
+        """
+        handle = open(output_path, 'w') if output_path else sys.stdout
+        handle.write(self.format_blocks(blocks))
+        if handle is not sys.stdout:
+            handle.close()
 
     def format_blocks(self, blocks):
         return ""
@@ -40,12 +47,20 @@ class TeXBlocksJSONSerializer(TeXBlocksSerializer):
             sort_keys=True,
             indent=4)
 
+# =============================================================================
 
 serializers = {
     "txt": TeXBlocksTxtSerializer,
     "xml": TeXBlocksXMLSerializer,
     "json": TeXBlocksJSONSerializer,
 }
+
+
+def get_choices():
+    """
+    Returns the supported serialization formats.
+    """
+    return sorted(list(serializers.keys()))
 
 
 def serialize(blocks, output_path, output_format="txt"):

@@ -1,3 +1,6 @@
+import models.instructions
+
+
 class Rules:
     """
     A collection of rules that define how to interpret TeX elements.
@@ -31,9 +34,8 @@ class Rules:
         """
 
         # Obtain the most specific matching rule.
-
         # TODO
-        key = "%s_%s_%s" % (el.command_name, None, None)
+        key = "%s_%s_%s" % (el.command_name, "", "")
         if key in self.rules:
             return self.rules[key]
 
@@ -56,7 +58,7 @@ class Rules:
         return None
 
     @staticmethod
-    def read_from_file(path, delimiter=","):
+    def read_from_file(path):
         """
         Reads the collection of rules from given file path.
         """
@@ -69,8 +71,7 @@ class Rules:
                 if line.strip().startswith('#'):
                     # Skip comment lines.
                     continue
-                values = line.split(delimiter)
-                rules.add_rule(Rule(values))
+                rules.add_rule(Rule.from_string(line))
         return rules
 
     def __str__(self):
@@ -81,63 +82,27 @@ class Rule:
     """
     A single rule.
     """
-    def __init__(self, values):
-        self.values = values
+    def __init__(self, identifier, doc_class_filter, env_filter, instructions):
+        self.identifier = identifier
+        self.doc_class_filter = doc_class_filter
+        self.env_filter = env_filter
+        self.instructions = instructions
 
-    def get_identifier(self, default=None):
-        return self.get_string(0, default)
+    def get_identifier(self):
+        return self.identifier
 
-    def get_end_command(self, default=None):
-        return self.get_string(1, default)
+    def get_document_class_filter(self):
+        return self.doc_class_filter
 
-    def get_document_class_filter(self, default=None):
-        return self.get_string(2, default)
+    def get_environment_filter(self):
+        return self.env_filter
 
-    def get_environment_filter(self, default=None):
-        return self.get_string(3, default)
+    def get_instructions(self):
+        return self.instructions
 
-    def get_text_phrase(self, default=None):
-        return self.get_string(4, default)
-
-    def get_starts_ltb_type(self, default=None):
-        return self.get_int(5, default)
-
-    def get_ends_ltb_type(self, default=None):
-        return self.get_int(6, default)
-
-    def get_semantic_role(self, default=None):
-        return self.get_string(7, default)
-
-    def get_hierarchy_level(self, default=None):
-        return self.get_int(8, default)
-
-    def get_args_to_visit(self, default=None):
-        return self.get_int_list(9, delim=" ", default=default)
-
-    # =========================================================================
-
-    def get_string(self, index, default=None):
-        if index < 0 or index >= len(self.values):
-            return default
-        return self.values[index] if len(self.values[index]) > 0 else default
-
-    def get_int(self, index, default=None):
-        if index < 0 or index >= len(self.values):
-            return default
-        try:
-            return int(self.values[index])
-        except ValueError:
-            return default
-
-    def get_int_list(self, index, delim=" ", default=None):
-        if index < 0 or index >= len(self.values):
-            return default
-        try:
-            return [int(x) for x in self.values[index].split(delim)]
-        except ValueError:
-            return default
-
-    # =========================================================================
-
-    def __str__(self):
-        return ", ".join(self.values)
+    @staticmethod
+    def from_string(string):
+        cmd_description, instructions_str = string.split(":")
+        identifier, doc_class_filter, env_filter = cmd_description.split(",")
+        instructions = models.instructions.from_string(instructions_str)
+        return Rule(identifier, doc_class_filter, env_filter, instructions)

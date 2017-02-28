@@ -1,5 +1,3 @@
-import sys
-
 from models import tex_models
 from utils import file_utils
 from tex_tokenizer import TeXTokenParser
@@ -69,19 +67,24 @@ class TeXSemantics(object):
 # Parser.
 
 
+def parse(path=None, string=None, expand_macro_calls=True):
+    """
+    Parses the given TeX input.
+    """
+    return TeXParser().parse(path, string, expand_macro_calls)
+
+
 class TeXParser():
     """
     A simple TeX parser.
     """
-
     def parse(self, path=None, string=None, expand_macro_calls=True):
         """
         Parses a given TeX document.
         """
         if path is not None:
             if file_utils.is_missing_or_empty_file(path):
-                print("Error: The given input path does not exist / is empty.")
-                sys.exit(1)
+                raise ValueError("The input path does not exist / is empty.")
             else:
                 # Read the input path.
                 string = file_utils.read_file(path)

@@ -1,15 +1,6 @@
-PYTHON = @python3
-CHECKSTYLE = @flake8
-
-EBNF = tex.ebnf
-OUT = tex_tokenizer.py
-
-tokenizer: $(EBNF)
-	$(PYTHON) -m grako -o $(OUT) $(EBNF)
-
 checkstyle:
-	$(CHECKSTYLE) $(shell find . -type f -name '*.py' -not -name $(OUT))
+	@flake8 $(shell find . -type f -name '*.py' -not -wholename "./parser/tex_tokenizer.py")
 
 clean:
-	@rm -f $(OUT)
+	@rm -rf $(shell find . -type d -name "__pycache__")
 
