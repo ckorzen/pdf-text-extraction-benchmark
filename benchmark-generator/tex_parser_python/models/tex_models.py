@@ -3,30 +3,38 @@ class TeXElement:
     The base class for any TeX element.
     """
     def __init__(self):
-        self.expanded = []
+        self.elements_from_macro_expansion = []
 
-    def __str__(self):
-        return ""
-
-    def __repr__(self):
-        return self.__str__()
-
-    def debug_str(self):
-        return self.__str__()
-
-    def get_expanded(self):
+    def register_elements_from_macro_expansion(self, elements):
         """
-        Returns the elements that results from expanding a macro call
+        Registers the given elements that resulted from macro expansion.
         """
-        def expand(element):
-            expanded = []
-            if len(element.expanded) > 0:
-                for el in element.expanded:
-                    expanded.extend(expand(el))
+        self.elements_from_macro_expansion.extend(elements)
+
+    def has_elements_from_macro_expansion(self):
+        """
+        Returns True if this element has elements from macro expansion.
+        """
+        return len(self.elements_from_macro_expansion) > 0
+
+    def get_elements_from_macro_expansion(self):
+        """
+        Returns the elements that results from expanding a macro call.
+        """
+        if not self.has_elements_from_macro_expansion():
+            return []
+
+        def _get_elements_from_macro_expansion(element):
+            # Search for nested calls.
+            result = []
+            if not element.has_elements_from_macro_expansion():
+                result.append(element)
             else:
-                expanded.append(element)
-            return expanded
-        return expand(self)
+                for el in element.elements_from_macro_expansion:
+                    result.extend(_get_elements_from_macro_expansion(el))
+            return result
+
+        return _get_elements_from_macro_expansion(self)
 
 
 class TeXGroup(TeXElement):
@@ -61,6 +69,9 @@ class TeXBreakCommand(TeXCommand):
     """
     A class representing a command.
     """
+    def __init__(self, command_name):
+        super(TeXBreakCommand, self).__init__(command_name)
+
     def __str__(self):
         return "//"
 
@@ -81,6 +92,9 @@ class TeXCommandArgument(TeXGroup):
     """
     A class representing an argument of a group (elements enclosed in {...}).
     """
+    def __init__(self, elements):
+        super(TeXCommandArgument, self).__init__(elements)
+
     def __str__(self):
         return "{%s}" % "".join([str(x) for x in self.elements])
 
@@ -89,6 +103,8 @@ class TeXCommandOption(TeXGroup):
     """
     A class representing an option of a group (elements enclosed in [...]).
     """
+    def __init__(self, elements):
+        super(TeXCommandOption, self).__init__(elements)
 
     def __str__(self):
         return "[%s]" % "".join([str(x) for x in self.elements])

@@ -1,4 +1,5 @@
-import models import tex_models
+from models import tex_models
+from utils import iterators
 
 # =============================================================================
 # Colorize Methods.
@@ -119,11 +120,8 @@ def stringify_group(group, color):
 
 def stringify_command(command, color):
     parts = []
-    if getattr(command, "is_expanded", False):
-        parts.append(stringify_elements(getattr(command, "expanded", [])))
-    else:
-        parts.append(color(command.command_name.strip()))
-        parts.append(stringify_elements(command.opts_and_args))
+    parts.append(color(command.command_name))
+    parts.append(stringify_elements(command.opts_and_args))
     return "".join(parts)
 
 
@@ -153,10 +151,7 @@ def stringify_opt(opt, color):
 
 
 def stringify_marker(marker, color):
-    if getattr(marker, "is_expanded", False):
-        return stringify_elements(getattr(marker, "expanded", []))
-    else:
-        return color("#%s" % marker.i)
+    return color("#%s" % marker.i)
 
 
 def stringify_text(text, color):
@@ -170,6 +165,9 @@ model_spec = {
     ),
     tex_models.TeXCommand: (
         "Command", stringify_command, blue
+    ),
+    tex_models.TeXBreakCommand: (
+        "Break Command", stringify_command, blue
     ),
     tex_models.TeXMacroDefinition: (
         "Macro Definition", stringify_macro_definition, gray_bg
@@ -195,9 +193,9 @@ def create_debug_string(doc):
     elements_str = stringify_elements(doc.elements)
 
     return "\n\n".join([
-        "Legend: %s" % color_legend,
-        "Macro Definitions:\n\n%s" % macro_defs_str,
-        "Elements:\n\n%s" % elements_str
+        "Legend: %s" % color_legend.strip(),
+        "Macro Definitions:\n\n%s" % macro_defs_str.strip(),
+        "Elements:\n\n%s" % elements_str.strip()
     ])
 
 
@@ -213,7 +211,8 @@ def create_color_legend_entry(model):
 
 def stringify_elements(elements, delim=""):
     parts = []
-    for element in elements:
+    itr = iterators.ShallowIterator(elements)
+    for element in itr:
         parts.append(stringify_element(element))
     return delim.join(parts)
 

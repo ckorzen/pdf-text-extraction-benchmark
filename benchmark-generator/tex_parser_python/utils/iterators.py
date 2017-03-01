@@ -3,6 +3,7 @@ from models import tex_models
 from collections import Iterator
 from collections import deque
 
+
 class BaseIterator(Iterator):
     """
     A base iterator.
@@ -33,7 +34,7 @@ class ShallowIterator(BaseIterator):
     An iterator that iterates the elements of a tree-like datastructure in a
     shallow manner.
     """
-    
+
     def __init__(self, elements):
         """
         Creates a new iterator for the given elements.
@@ -42,9 +43,9 @@ class ShallowIterator(BaseIterator):
 
     def __next__(self):
         element = self.pop()
-        expanded = element.get_expanded()
-        self.extend(expanded)
-        element = self.pop() if len(expanded) > 0 else element
+        if element.has_elements_from_macro_expansion():
+            self.extend(element.get_elements_from_macro_expansion())
+            element = self.pop()
         return element
 
 
@@ -61,9 +62,9 @@ class DFSIterator(BaseIterator):
 
     def __next__(self):
         element = self.pop()
-        expanded = element.get_expanded()
-        self.extend(expanded)
-        element = self.pop() if len(expanded) > 0 else element
+        if element.has_elements_from_macro_expansion():
+            self.extend(element.get_elements_from_macro_expansion())
+            element = self.pop()
 
         if isinstance(element, tex_models.TeXGroup):
             self.extend(element.elements)

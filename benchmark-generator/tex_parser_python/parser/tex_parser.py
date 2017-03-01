@@ -2,6 +2,7 @@ from models import tex_models
 from utils import file_utils
 from tex_tokenizer import TeXTokenParser
 from tex_parser_expand_macros import expand_macros
+from tex_parser_debug import create_debug_string
 
 # =============================================================================
 # Semantics.
@@ -95,6 +96,10 @@ class TeXParser():
         # Expand the macros.
         if expand_macro_calls:
             expand_macros(doc, doc.macro_definitions)
+
+        # Create a debug string.
+        doc.debug_string = create_debug_string(doc)
+
         return doc
 
     def parse_tex_document(self, text):
