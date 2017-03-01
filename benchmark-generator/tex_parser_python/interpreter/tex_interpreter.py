@@ -1,11 +1,11 @@
 from utils import iterators
 
 from models import tex_models
-from models.ltb import LTB
+from models.ltb import LTB, Outline
 from models.rules import Rules
 
 
-def identify_blocks(tex_document, rules_path):
+def identify_outline(tex_document, rules_path):
     """
     Iterates through the elements in the given document to identify logical
     text blocks using the given rules.
@@ -14,7 +14,7 @@ def identify_blocks(tex_document, rules_path):
     interpreter = TeXInterpreter(tex_document, rules)
     interpreter.identify_blocks()
 
-    return interpreter.blocks
+    return interpreter.outline
 
 
 class TeXInterpreter():
@@ -23,7 +23,7 @@ class TeXInterpreter():
         self.rules = rules
         self.level = 0
         self.stack = [LTB(level=self.level)]
-        self.blocks = []
+        self.outline = Outline()
 
     def identify_blocks(self):
         """
@@ -37,7 +37,7 @@ class TeXInterpreter():
         while len(self.stack) > 0:
             block = self.stack.pop()
             if len(block.text) > 0:
-                self.blocks.append(block)
+                self.outline.append(block)
 
     def _identify_blocks(self, group):
         """
@@ -85,7 +85,7 @@ class TeXInterpreter():
         block = self.stack.pop()
         if len(block.text) == 0:
             return
-        self.blocks.append(block)
+        self.outline.append(block)
 
     def append_text(self, text):
         """
