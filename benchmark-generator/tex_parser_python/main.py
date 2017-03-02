@@ -4,12 +4,13 @@ from argparse import ArgumentParser
 
 from parser import tex_parser
 from interpreter import tex_interpreter
-from serializer import tex_serializer
+from serializer import serializer
 
 DEFAULT_OUTPUT_FORMAT = "txt"
 DEFAULT_RULES_FILE = "rules/new_rules.csv"
 DEFAULT_EXPAND_MACROS = True
 DEFAULT_ROLES_FILTER = []
+
 
 def main(args):
     """
@@ -65,7 +66,7 @@ def serialize(doc, output_file, output_format, roles_filter=[]):
     """
     Serializes the given blocks to given output file in given format.
     """
-    tex_serializer.serialize(doc, output_file, output_format, roles_filter)
+    serializer.serialize(doc, output_file, output_format, roles_filter)
 
 # =============================================================================
 
@@ -83,7 +84,7 @@ if __name__ == '__main__':
     arg_parser.add_argument(
         "-f", "--output_format",
         help="The output format. Default: %(default)s.",
-        choices=tex_serializer.get_choices(),
+        choices=serializer.get_serialization_choices(),
         default=DEFAULT_OUTPUT_FORMAT,
         metavar="<path>"
     )
