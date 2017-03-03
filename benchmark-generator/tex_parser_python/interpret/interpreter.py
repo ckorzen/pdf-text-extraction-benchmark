@@ -46,29 +46,28 @@ class TeXInterpreter():
         """
         # Iterate the elements in DFS order.
         itr = iterators.ShallowIterator(group.elements)
-        for element in itr:
-            print(element, type(element))
-            if isinstance(element, tex_models.TeXText):
+        for elem in itr:
+            if isinstance(elem, tex_models.TeXText):
                 # Append text to the active block.
-                self.append_text(element.text)
+                self.append_text(elem.text)
 
-            if isinstance(element, tex_models.TeXGroup):
+            if isinstance(elem, tex_models.TeXGroup):
                 # Interpret all elements of the group.
-                self._identify_blocks(element.elements)
+                self._identify_blocks(elem.elements)
 
-            if isinstance(element, tex_models.TeXCommand):
+            if isinstance(elem, tex_models.TeXCommand):
                 # Interpret the command correspondingly to referring rule.
-                rule = self.rules.get_rule(element)
+                rule = self.rules.get_rule(elem)
 
                 if rule is None:
                     # There is no such rule. Ignore the command.
-                    if isinstance(element, tex_models.TeXBeginEnvironmentCommand):
-                        itr.skip_to_element(element.end_command)
+                    if isinstance(elem, tex_models.TeXBeginEnvironmentCommand):
+                        itr.skip_to_element(elem.end_command)
                     continue
 
                 # Process each single instruction given by the rule.
                 for instruction in rule.get_instructions():
-                    instruction.apply(self, itr, element)
+                    instruction.apply(self, itr, elem)
 
     # =========================================================================
 
