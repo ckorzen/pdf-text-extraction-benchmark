@@ -18,7 +18,7 @@ def expand_macros(group, macro_dict):
             continue
 
         # Check if the command is a macro call.
-        cmd_name = element.command_name
+        cmd_name = element.cmd_name
         if cmd_name in macro_dict:
             replacement = deepcopy(macro_dict[cmd_name].replacement)
             # Expand the macro call.

@@ -45,7 +45,9 @@ class TeXInterpreter():
         logical text blocks using the given rules.
         """
         # Iterate the elements in DFS order.
-        for element in iterators.ShallowIterator(group.elements):
+        itr = iterators.ShallowIterator(group.elements)
+        for element in itr:
+            print(element, type(element))
             if isinstance(element, tex_models.TeXText):
                 # Append text to the active block.
                 self.append_text(element.text)
@@ -60,12 +62,13 @@ class TeXInterpreter():
 
                 if rule is None:
                     # There is no such rule. Ignore the command.
-                    # TODO: Skip to end command.
+                    if isinstance(element, tex_models.TeXBeginEnvironmentCommand):
+                        itr.skip_to_element(element.end_command)
                     continue
 
                 # Process each single instruction given by the rule.
                 for instruction in rule.get_instructions():
-                    instruction.apply(self, element)
+                    instruction.apply(self, itr, element)
 
     # =========================================================================
 

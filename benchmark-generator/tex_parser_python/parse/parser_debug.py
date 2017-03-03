@@ -1,6 +1,8 @@
 from models import tex_models
 from utils import iterators
 
+# TODO: There are a couple of new commands: TeXBeginEnvironmentCommand, etc.
+
 # =============================================================================
 # Colorize Methods.
 
@@ -120,14 +122,14 @@ def stringify_group(group, color):
 
 def stringify_command(command, color):
     parts = []
-    parts.append(color(command.command_name))
-    parts.append(stringify_elements(command.opts_and_args))
+    parts.append(color(command.cmd_name))
+    parts.append(stringify_elements(command.opts_args))
     return "".join(parts)
 
 
 def stringify_macro_definition(macro_def, color):
     parts = []
-    parts.append(macro_def.command_name)
+    parts.append(macro_def.macro_name)
     parts.append(" -> ")
     if macro_def.replacement is not None:
         parts.append(stringify_element(macro_def.replacement))

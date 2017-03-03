@@ -20,6 +20,10 @@ class BaseIterator(Iterator):
     def __next__(self):
         raise StopIteration
 
+    def peek(self):
+        if len(self.stack) > 0:
+            return self.stack[0]
+
     def pop(self):
         if not self.stack:
             raise StopIteration
@@ -27,6 +31,29 @@ class BaseIterator(Iterator):
 
     def extend(self, elements):
         self.stack.extendleft(reversed(elements))
+
+    def skip_to_string(self, string):
+        if string is None:
+            return
+        element = None
+        while str(element) != string:
+            element = self.pop()
+        return element
+
+    def skip_to_element(self, element):
+        if element is None:
+            return
+        el = None
+        while el != element:
+            el = self.pop()
+        return el
+
+#    def skip_to_element(self, element):
+#        if element is None:
+#            return
+#        while self.peek() != element:
+#            self.pop()
+#        return self.peek()
 
 
 class ShallowIterator(BaseIterator):
@@ -69,5 +96,5 @@ class DFSIterator(BaseIterator):
         if isinstance(element, tex_models.TeXGroup):
             self.extend(element.elements)
         if isinstance(element, tex_models.TeXCommand):
-            self.extend(element.opts_and_args)
+            self.extend(element.opts_args)
         return element

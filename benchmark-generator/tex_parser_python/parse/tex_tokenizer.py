@@ -130,6 +130,15 @@ class TeXTokenParser(Parser):
             self._error('no available options')
 
     @graken()
+    def _MACRO_DEF_CMD_(self):
+        with self._choice():
+            with self._option():
+                self._LATEX_MACRO_DEF_CMD_()
+            with self._option():
+                self._TEX_MACRO_DEF_CMD_()
+            self._error('no available options')
+
+    @graken()
     def _LATEX_MACRO_DEF_CMD_(self):
         self._token('\\newcommand')
         self._ARG_()
@@ -199,15 +208,6 @@ class TeXTokenParser(Parser):
                 self._error('expecting one of: [a-zA-Z]')
 
     @graken()
-    def _MACRO_DEF_CMD_(self):
-        with self._choice():
-            with self._option():
-                self._LATEX_MACRO_DEF_CMD_()
-            with self._option():
-                self._TEX_MACRO_DEF_CMD_()
-            self._error('no available options')
-
-    @graken()
     def _ARG_(self):
         self._token('{')
 
@@ -254,6 +254,9 @@ class TeXTokenSemantics(object):
     def CMD(self, ast):
         return ast
 
+    def MACRO_DEF_CMD(self, ast):
+        return ast
+
     def LATEX_MACRO_DEF_CMD(self, ast):
         return ast
 
@@ -267,9 +270,6 @@ class TeXTokenSemantics(object):
         return ast
 
     def SYMBOL_CMD(self, ast):
-        return ast
-
-    def MACRO_DEF_CMD(self, ast):
         return ast
 
     def ARG(self, ast):

@@ -2,12 +2,13 @@ import ast
 
 from argparse import ArgumentParser
 
-from parser import tex_parser
-from interpreter import tex_interpreter
-from serializer import serializer
+from parse import parser
+from interpret import interpreter
+from serialize import serializer
 
+DEFAULT_OUTPUT_FILE = None
 DEFAULT_OUTPUT_FORMAT = "txt"
-DEFAULT_RULES_FILE = "rules/new_rules.csv"
+DEFAULT_RULES_FILE = "rules/default_rules.csv"
 DEFAULT_EXPAND_MACROS = True
 DEFAULT_ROLES_FILTER = []
 
@@ -16,96 +17,151 @@ def main(args):
     """
     The main method.
     """
-    process_tex_file(
-        tex_file=args.tex_file,
-        output_file=args.output_file,
-        output_format=args.output_format,
-        rules_file=args.rules_file,
-        expand_macro_calls=args.expand_macros,
-        roles_filter=args.roles
-    )
+    process_tex_file(**vars(args))
 
 
-def process_tex_file(
-        tex_file=None,
-        output_file=None,
-        output_format=DEFAULT_OUTPUT_FORMAT,
-        rules_file=DEFAULT_RULES_FILE,
-        expand_macro_calls=DEFAULT_EXPAND_MACROS,
-        roles_filter=DEFAULT_ROLES_FILTER):
+def process_tex_file(tex_file, **kwargs):
     """
-    Identifies blocks in given TeX file and writes them to given output path.
+    Processes the given TeX file:
+    (1) Parses the TeX file syntactically in order to model the hierarchy of
+        the TeX elements.
+    (2) Identifies the logical text blocks (LTBs) using rules.
+    (3) Serializes the LTBs to given target in given output format.
+
+    Args:
+        tex_file (str): The path to the TeX file to process.
+        **output_file (str): The path to the output file for serialization. If
+            not set, the serialized LTBs will be printed to stdout.
+        **output_format (str): The serialization format [txt, xml, json].
+        **rules_file (str): The path to the file with rules to use on
+            identifying the LTBs.
+        **expand_macros (bool): Flag to toggle the expansion of macro calls on
+            parsing the TeX file.
+        **roles_filter (list of str): A list of semantic roles. If not empty,
+            only LTBs with included roles will be serialized. If empty or not
+            set, all LTBs will be serialized.
+
+    Returns:
+        The parsed TeX document.
     """
+
+    # Obtain the options.
+    output_file = kwargs.get("output_file", DEFAULT_OUTPUT_FILE)
+    output_format = kwargs.get("output_format", DEFAULT_OUTPUT_FORMAT)
+    rules_file = kwargs.get("rules_file", DEFAULT_RULES_FILE)
+    expand_macros = kwargs.get("expand_macros", DEFAULT_EXPAND_MACROS)
+    roles_filter = kwargs.get("roles_filter", DEFAULT_ROLES_FILTER)
 
     # Parse the TeX file.
-    doc = parse_tex_file(tex_file, expand_macro_calls)
-    # Identify the blocks.
-    identify_blocks(doc, rules_file)
-    # Serialize the blocks to file.
-    serialize(doc, output_file, output_format, roles_filter)
+    doc = parse_tex_file(tex_file, expand_macros)
+    # Identify the LTBs.
+    doc.outline = identify_blocks(doc, rules_file)
+    # Serialize the LTBs.
+    doc.serialized = serialize(doc, output_file, output_format, roles_filter)
+    return doc
 
 
-def parse_tex_file(tex_file, expand_macro_calls=True):
+def parse_tex_file(tex_file, expand_macros=True):
     """
-    Parses the given TeX file.
+    Parses the TeX file syntactically in order to model the hierarchy of the
+    TeX elements.
+
+    Args:
+        tex_file (str): The path to the TeX file to process.
+        expand_macros (bool, optional): Flag to toggle the expansion of macros.
     """
-    return tex_parser.parse(
+    return parser.parse(
         path=tex_file,
-        expand_macro_calls=expand_macro_calls
+        expand_macro_calls=expand_macros
     )
 
 
-def identify_blocks(doc, rules_file):
+def identify_blocks(doc, rules_file=DEFAULT_RULES_FILE):
     """
-    Identifies the blocks in given TeX document.
+    Identifies the logical text blocks (LTBs) using rules.
+
+    Args:
+        doc (TeXDocument): The parsed TeX document.
+        rules_file (str, optional): The path to the file with rules to use.
+
+    Returns:
+        The (hierarchical) outline of identified LTBs.
     """
-    doc.outline = tex_interpreter.identify_outline(doc, rules_file)
+    return interpreter.identify_outline(doc, rules_file)
 
 
-def serialize(doc, output_file, output_format, roles_filter=[]):
+def serialize(doc, output_file=DEFAULT_OUTPUT_FILE,
+              output_format=DEFAULT_OUTPUT_FORMAT, roles_filter=[]):
     """
-    Serializes the given blocks to given output file in given format.
+    Serializes the LTBs to given file in given output format.
+
+    Args:
+        doc (TeXDocument): The parsed TeX document.
+        output_file (str, optional): The path to the output file. If
+            not set, the serialized LTBs will be printed to stdout.
+        output_format (str, optional): The serialization format
+            [txt, xml, json]. Default: txt.
+        roles_filter (list of str, otional): A list of semantic roles. If not
+            empty, only LTBs with included roles will be serialized. If empty
+            or not set, all LTBs will be serialized.
     """
     serializer.serialize(doc, output_file, output_format, roles_filter)
 
 # =============================================================================
 
-if __name__ == '__main__':
-    arg_parser = ArgumentParser()
+
+def create_argument_parser():
+    """
+    Creates a related command line argument parser.
+    """
+    arg_parser = ArgumentParser(
+        description="Identifies and serializes logical text blocks (LTBs) in "
+                    "TeX files."
+    )
     arg_parser.add_argument(
         "tex_file",
         help="The TeX file to process.",
     )
     arg_parser.add_argument(
         "-o", "--output_file",
-        help="The path to the output file.",
-        metavar="<path>"
+        help="The path to the output file for serialization.",
+        default=DEFAULT_OUTPUT_FILE,
+        metavar="<path>",
     )
     arg_parser.add_argument(
         "-f", "--output_format",
-        help="The output format. Default: %(default)s.",
+        help="The serialization format. Default: %(default)s.",
         choices=serializer.get_serialization_choices(),
         default=DEFAULT_OUTPUT_FORMAT,
         metavar="<path>"
     )
     arg_parser.add_argument(
         "-r", "--roles",
-        help="The roles of logical text blocks to extract.",
+        help="A list of semantic roles. If not empty, only LTBs with included "
+             "roles will be serialized. If empty or not set, all LTBs will be "
+             "serialized.",
         nargs="*",
-        metavar="<role>",
-        default=[]
+        default=DEFAULT_ROLES_FILTER,
+        metavar="<role>"
     )
     arg_parser.add_argument(
         "--rules_file",
-        help="The path to the rules file. Default: %(default)s",
+        help="The path to the file with rules to use on identifying the LTBs. "
+             "Default: %(default)s.",
         default=DEFAULT_RULES_FILE,
         metavar="<path>"
     )
     arg_parser.add_argument(
         "--expand_macros",
-        help="Toggles the expansion of macros. Default: %(default)s",
-        default=True,
+        help="Flag to toggle the expansion of macro calls on parsing the TeX "
+             "file. Default: %(default)s",
         type=ast.literal_eval,
+        default=DEFAULT_EXPAND_MACROS,
         metavar="<bool>"
     )
-    main(arg_parser.parse_args())
+    return arg_parser
+
+# =============================================================================
+
+if __name__ == '__main__':
+    main(create_argument_parser().parse_args())

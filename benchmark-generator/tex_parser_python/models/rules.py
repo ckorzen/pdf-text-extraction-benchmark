@@ -33,28 +33,20 @@ class Rules:
         Returns the rule refering the the given TeX element.
         """
 
-        # Obtain the most specific matching rule.
-        # TODO
-        key = "%s_%s_%s" % (el.command_name, "", "")
-        if key in self.rules:
-            return self.rules[key]
+        doc_class_filters = []
+        if el.document.document_class is not None:
+            doc_class_filters.append(el.document.document_class)
+        doc_class_filters.append("")
 
-#        key = "%s_%s_%s" % (el.command_name, None, None)
-#        if key in self.rules:
-#            return self.rules[key]
+        env_filters = list(reversed(el.environments))
+        env_filters.append("")
 
-#        key = "%s_%s_%s" % (el.command_name, None, el.environment)
-#        if key in self.rules:
-#            return self.rules[key]
-
-#        key = "%s_%s_%s" % (el.command_name, el.document_class, None)
-#        if key in self.rules:
-#            return self.rules[key]
-
-#        key = "%s_%s_%s" % (el.command_name, None, None)
-#        if key in self.rules:
-#            return self.rules[key]
-
+        # Find the most specific matching rule.
+        for doc_class_filter in doc_class_filters:
+            for env_filter in env_filters:
+                key = "%s_%s_%s" % (el.cmd_name, doc_class_filter, env_filter)
+                if key in self.rules:
+                    return self.rules[key]
         return None
 
     @staticmethod

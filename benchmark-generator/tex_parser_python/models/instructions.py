@@ -27,9 +27,8 @@ class SkipTo(Instruction):
     def get_name():
         return "skip_to"
 
-    def apply(self, interpreter, element):
-        # TODO
-        pass
+    def apply(self, interpreter, itr, element):
+        itr.skip_to(self.target)
 
 
 class SetHierarchyLevel(Instruction):
@@ -44,7 +43,7 @@ class SetHierarchyLevel(Instruction):
     def get_name():
         return "set_level"
 
-    def apply(self, interpreter, element):
+    def apply(self, interpreter, itr, element):
         interpreter.set_hierarchy_level(self.level)
 
 
@@ -60,7 +59,7 @@ class SetSemanticRole(Instruction):
     def get_name():
         return "set_role"
 
-    def apply(self, interpreter, element):
+    def apply(self, interpreter, itr, element):
         interpreter.set_semantic_role(self.role)
 
 
@@ -78,7 +77,7 @@ class AppendTextPhrase(Instruction):
     def get_name():
         return "append_text"
 
-    def apply(self, interpreter, element):
+    def apply(self, interpreter, itr, element):
         interpreter.append_text(self.text)
 
 
@@ -94,7 +93,7 @@ class VisitArg(Instruction):
     def get_name():
         return "visit_arg"
 
-    def apply(self, interpreter, element):
+    def apply(self, interpreter, itr, element):
         if len(element.args) > self.index:
             interpreter._identify_blocks(element.args[self.index])
 
@@ -108,7 +107,7 @@ class StartBlock(Instruction):
     def get_name():
         return "start_block"
 
-    def apply(self, interpreter, element):
+    def apply(self, interpreter, itr, element):
         interpreter.introduce_block()
 
 
@@ -121,5 +120,5 @@ class FinishBlock(Instruction):
     def get_name():
         return "finish_block"
 
-    def apply(self, interpreter, element):
+    def apply(self, interpreter, itr, element):
         interpreter.finish_block()
