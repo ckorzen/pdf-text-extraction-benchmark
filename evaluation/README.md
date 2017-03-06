@@ -68,10 +68,10 @@ The following evaluation criteria are measured:
 + **NL–**: the number of missing newlines in the output file.
 + **P+**: the number of spurious paragraphs in the output file.
 + **P-**: the number of missing paragraphs in the output file.
-+ **P<>**: the number of rearranged paragraphs in the output file.
++ **P&#8597;**: the number of rearranged paragraphs in the output file.
 + **W+**: the number of spurious words in the output file.
 + **W–**: the number of missing words in the output file.
-+ **W~-**: the number of misspelled words in the output file.
++ **W~**: the number of misspelled words in the output file.
 
 ## Evaluation Results
 
@@ -84,7 +84,7 @@ The column ERR gives the number of PDF files which could not be processed by a t
 The column T∅ gives the average time needed to process a single PDF file, in seconds.
 The best values in each column are printed in bold. 
 
-| Tool                | NL+  | NL–  | P+   | P-   | P<>  | W+   | W-   | W~   | ERR  | T∅   |
+| Tool                | NL+  | NL–  | P+   | P-   | P&#8597;  | W+   | W-   | W~   | ERR  | T∅   |
 | ------------------- |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
 | pdftotext | 14 <br> <sup>(16%)</sup> | 44 <br> <sup>(53%)</sup> | 60 <br> <sup>(29%)</sup> | 2.3 <br> <sup>(0.6%)</sup> | 1.4 <br> <sup>(1.9%)</sup> | 24 <br> <sup>(0.7%)</sup> | 2.4 <br> <sup>(0.1%)</sup> | 41 <br> <sup>(1.2%)</sup> | 2 | **0.3** |
 | pdftohtml | 3.6 <br> <sup>(4.3%)</sup> | 70 <br> <sup>(84%)</sup> | 9.2 <br> <sup>(31%)</sup> | 4.2 <br> <sup>(3.2%)</sup> | 0.1 <br> <sup>(0.1%)</sup> | 16 <br> <sup>(0.5%)</sup> | 1.6 <br> <sup>(0.0%)</sup> | 95 <br> <sup>(2.9%)</sup> | **0** | 2.2 |
