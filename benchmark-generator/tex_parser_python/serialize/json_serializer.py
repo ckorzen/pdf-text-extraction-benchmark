@@ -9,9 +9,10 @@ from base_serializer import Settings
 
 class JsonSerializer(BaseSerializer):
     """
-    A class that serializes TeX documents to JSON format.
+    A JSON serializer.
     """
 
+    # Override
     def format_metadata(self, doc):
         return OrderedDict([
             (TagNames.metadata, OrderedDict([
@@ -19,6 +20,7 @@ class JsonSerializer(BaseSerializer):
             ]))
         ])
 
+    # Override
     def format_outline(self, doc):
         outline = super().format_outline(doc)
         if outline is not None:
@@ -26,6 +28,7 @@ class JsonSerializer(BaseSerializer):
                 (TagNames.outline, outline)
             ])
 
+    # Override
     def format_outline_level(self, level):
         outline_elements = []
         for element in level.elements:
@@ -40,6 +43,7 @@ class JsonSerializer(BaseSerializer):
                 (TagNames.elements, outline_elements)
             ])
 
+    # Override
     def format_block(self, block):
         return OrderedDict([
             (TagNames.typ, TagNames.block),
@@ -47,6 +51,7 @@ class JsonSerializer(BaseSerializer):
             (TagNames.text, block.text),
         ])
 
+    # Override
     def format_doc(self, metadata, outline):
         data = OrderedDict()
         if metadata is not None:
@@ -55,5 +60,6 @@ class JsonSerializer(BaseSerializer):
             data.update(outline)
         return data
 
+    # Override
     def _serialize(self, data):
         return json.dumps(data, indent=Settings.indent) + "\n"

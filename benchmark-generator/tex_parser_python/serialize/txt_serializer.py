@@ -3,12 +3,14 @@ from base_serializer import BaseSerializer
 
 class TxtSerializer(BaseSerializer):
     """
-    A class that serializes TeX documents to plain text format.
+    A TXT serializer.
     """
 
+    # Override
     def format_doc(self, metadata, outline):
         return outline
 
+    # Override
     def format_outline_level(self, level):
         parts = []
         for element in level.elements:
@@ -17,11 +19,13 @@ class TxtSerializer(BaseSerializer):
                 parts.extend(outline_element)
         return parts if len(parts) > 0 else None
 
+    # Override
     def format_block(self, block):
         # Return list here such that we can simply use extend() in
         # format_outline_level() above.
         return [block.text]
 
+    # Override
     def _serialize(self, data):
         """
         Serializes the given data (representing the TeX document).

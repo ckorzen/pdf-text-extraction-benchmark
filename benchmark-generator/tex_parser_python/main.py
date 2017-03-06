@@ -16,6 +16,9 @@ DEFAULT_ROLES_FILTER = []
 def main(args):
     """
     The main method.
+
+    Args:
+        args (Namespace): The command line arguments.
     """
     process_tex_file(**vars(args))
 
@@ -69,6 +72,8 @@ def parse_tex_file(tex_file, expand_macros=True):
     Args:
         tex_file (str): The path to the TeX file to process.
         expand_macros (bool, optional): Flag to toggle the expansion of macros.
+    Returns:
+        The parse Tex document.
     """
     return parser.parse(
         path=tex_file,
@@ -113,6 +118,9 @@ def serialize(doc, output_file=DEFAULT_OUTPUT_FILE,
 def create_argument_parser():
     """
     Creates a related command line argument parser.
+
+    Returns:
+        The created argument parser.
     """
     arg_parser = ArgumentParser(
         description="Identifies and serializes logical text blocks (LTBs) in "

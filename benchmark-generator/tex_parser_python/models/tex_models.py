@@ -3,31 +3,50 @@ class TeXElement:
     The base class for any TeX element.
     """
     def __init__(self, document=None, environments=[]):
+        """
+        Creates a new TeX element.
+
+        Args:
+            document (TeXDocument, optional): The parent document of element.
+            environment (stack of str): The stack of parent environments.
+        """
         self.document = document
         self.environments = environments
+        # The replacing elements that resulted from a macro expansion
         self.elements_from_macro_expansion = []
 
     def register_elements_from_macro_expansion(self, elements):
         """
-        Registers the given elements that resulted from macro expansion.
+        Registers the given elements that resulted from a macro expansion.
+
+        Args:
+            elements (list of TeXElement): The elements that resulted from
+                macro expansion.
         """
         self.elements_from_macro_expansion.extend(elements)
 
     def has_elements_from_macro_expansion(self):
         """
-        Returns True if this element has elements from macro expansion.
+        Returns True if this element contains elements resulted from macro
+        expansion.
         """
         return len(self.elements_from_macro_expansion) > 0
 
     def get_elements_from_macro_expansion(self):
         """
-        Returns the elements that results from expanding a macro call.
+        Returns the elements that resulted from macro expansion.
         """
         if not self.has_elements_from_macro_expansion():
             return []
 
         def _get_elements_from_macro_expansion(element):
-            # Search for nested calls.
+            """
+            Obtains the elements that resulted from macro expansion for the
+            given element recursively.
+
+            Args:
+                element (TeXElement): The element to analyze.
+            """
             result = []
             if not element.has_elements_from_macro_expansion():
                 result.append(element)
@@ -43,9 +62,18 @@ class TeXElement:
 
 class TeXGroup(TeXElement):
     """
-    A class representing a group (elements enclosed in {...}).
+    A class representing a TeX group (elements enclosed in {...}).
     """
     def __init__(self, elements=[], document=None, environments=[]):
+        """
+        Creates a new group containing the given elements.
+
+        Args:
+            elements (list of TeXElement, optional): The elements of the group.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             document=document,
             environments=environments
@@ -53,12 +81,32 @@ class TeXGroup(TeXElement):
         self.elements = elements
 
     def get_first_element(self):
+        """
+        Returns the first element of this group.
+
+        Returns:
+            The first element of this group.
+        """
         return self.get_element(1)
 
     def get_last_element(self):
+        """
+        Returns the last element of this group.
+
+        Returns:
+            The last element of this group.
+        """
         return self.get_element(len(self.elements))
 
     def get_element(self, num):
+        """
+        Returns the num-th element of this group.
+
+        Args:
+            num (int): The 1-based index of element to get.
+        Returns:
+            The num-th element in this group.
+        """
         if len(self.elements) <= num:
             return self.elements[num - 1]
 
@@ -71,31 +119,63 @@ class TeXGroup(TeXElement):
 
 class TeXCommand(TeXElement):
     """
-    A class representing a command.
+    A class representing a TeXCommand.
     """
     def __init__(self, cmd_name=None, opts_args=[], document=None,
                  environments=[]):
+        """
+        Creates a new command.
+
+        Args:
+            cmd_name (str): The name of the command.
+            opts_args (list of TeXCommandArgument|TeXCommandOption):
+                The list of options and argument of this command.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super(TeXCommand, self).__init__(
             document=document,
             environments=environments
         )
         self.cmd_name = cmd_name
         self.opts_args = opts_args
+        # Create a list with only the options.
         self.opts = [x for x in opts_args if isinstance(x, TeXCommandOption)]
+        # Create a list with only the arguments.
         self.args = [x for x in opts_args if isinstance(x, TeXCommandArgument)]
 
     def get_arg(self, num):
+        """
+        Returns the num-th argument of this command.
+
+        Args:
+            num (int): The 1-based index of argument to get.
+        Returns:
+            The num-th argument in this command.
+        """
         if len(self.args) <= num:
             return self.args[num - 1]
 
     def get_opt(self, num):
+        """
+        Returns the num-th option of this command.
+
+        Args:
+            num (int): The 1-based index of option to get.
+        Returns:
+            The num-th option in this command.
+        """
         if len(self.opts) <= num:
             return self.opts[num - 1]
 
     def get_first_arg_text(self):
         """
         Returns the text of first argument of this command.
-        For example, returns table for "\\begin{table}".
+        For example, for command "\\begin{table}", this method returns "table".
+
+        Returns:
+            The text of first argument of this command.
         """
         first_arg = self.get_arg(1)
         if first_arg is None:
@@ -114,8 +194,29 @@ class TeXCommand(TeXElement):
 
 
 class TeXControlCommand(TeXCommand):
+    """
+    A class representing a TeX control command, that is a command of form
+    \\foobar[opt]{arg}.
+    """
+
     @staticmethod
     def factory(cmd_name=None, opts_args=[], document=None, environments=[]):
+        """
+        A factory that chooses the correct control command constructor for the
+        given input.
+
+        Args:
+            cmd_name (str): The name of the command.
+            opts_args (list of TeXCommandArgument|TeXCommandOption):
+                The list of options and argument of this command.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        Returns:
+            An instance of a (specific) control command.
+        """
+
+        # Map some specific command names to their specific subclasses.
         mappings = {
             "\\documentclass": TeXDocumentClassCommand,
             "\\documentstyle": TeXDocumentClassCommand,
@@ -124,6 +225,7 @@ class TeXControlCommand(TeXCommand):
             "\\end": TeXEndEnvironmentCommand
         }
 
+        # Choose the correct subclass.
         constructor = mappings.get(cmd_name, TeXControlCommand)
         return constructor(
             cmd_name=cmd_name,
@@ -135,25 +237,43 @@ class TeXControlCommand(TeXCommand):
 
 class TeXDocumentClassCommand(TeXControlCommand):
     """
-    A class representing a \\documentclass command.
+    A class representing a \\documentclass{...} command.
     """
     def get_document_class(self):
+        """
+        Returns the document class defined by this command.
+
+        Returns:
+            The document class defined by this command.
+        """
         return self.get_first_arg_text()
 
 
 class TeXUsePackageCommand(TeXControlCommand):
     """
-    A class representing a \\usepackage command.
+    A class representing a \\usepackage{...} command.
     """
     pass
 
 
 class TeXMacroDefinition(TeXControlCommand):
     """
-    A class representing a macro definition.
+    A class representing a macro definition, like \\def\\foobar... or
+    \\newcommand{\\foobar}...
     """
     def __init__(self, cmd_name=None, macro_name=None, replacement=None,
                  document=None, environments=[]):
+        """
+        Creates a new macro definition.
+
+        Args:
+            cmd_name (str): The name of the command.
+            macro_name (str): The name of the macro.
+            replacement (TeXGroup): The replacement of the macro.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             cmd_name=cmd_name,
             document=document,
@@ -168,10 +288,21 @@ class TeXMacroDefinition(TeXControlCommand):
 
 class TeXBeginEnvironmentCommand(TeXControlCommand):
     """
-    A class representing a \\begin command.
+    A class representing a \\begin{...} command.
     """
     def __init__(self, cmd_name=None, opts_args=[], document=None,
                  environments=[]):
+        """
+        Creates a new TeXBeginEnvironmentCommand.
+
+         Args:
+            cmd_name (str): The name of the command.
+            opts_args (list of TeXCommandArgument|TeXCommandOption):
+                The list of options and argument of this command.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             cmd_name=cmd_name,
             opts_args=opts_args,
@@ -180,15 +311,32 @@ class TeXBeginEnvironmentCommand(TeXControlCommand):
         self.end_command = None
 
     def get_environment(self):
+        """
+        Returns the name of the environment introduced by this command.
+
+        Returns:
+            The name of the environment introduced by this command.
+        """
         return self.get_first_arg_text()
 
 
 class TeXEndEnvironmentCommand(TeXControlCommand):
     """
-    A class representing an \\end command.
+    A class representing an \\end{...} command.
     """
     def __init__(self, cmd_name=None, opts_args=[], document=None,
                  environments=[]):
+        """
+        Creates a new TeXEndEnvironmentCommand.
+
+        Args:
+            cmd_name (str): The name of the command.
+            opts_args (list of TeXCommandArgument|TeXCommandOption):
+                The list of options and argument of this command.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             cmd_name=cmd_name,
             opts_args=opts_args,
@@ -198,6 +346,12 @@ class TeXEndEnvironmentCommand(TeXControlCommand):
         self.begin_command = None
 
     def get_environment(self):
+        """
+        Returns the name of the environment finished by this command.
+
+        Returns:
+            The name of the environment finished by this command.
+        """
         return self.get_first_arg_text()
 
 # -----------------------------------------------------------------------------
@@ -206,9 +360,18 @@ class TeXEndEnvironmentCommand(TeXControlCommand):
 
 class TeXBreakCommand(TeXCommand):
     """
-    A class representing a command.
+    A class representing a break command, that are one or more line breaks.
     """
     def __init__(self, cmd_name, document=None, environments=[]):
+        """
+        Creates a new TeXBreakCommand.
+
+        Args:
+            cmd_name (str): The name of the command.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             cmd_name=cmd_name,
             document=document,
@@ -224,9 +387,18 @@ class TeXBreakCommand(TeXCommand):
 
 class TeXCommandArgument(TeXGroup):
     """
-    A class representing an argument of a group (elements enclosed in {...}).
+    A class representing an argument of a command (elements enclosed in {...}).
     """
     def __init__(self, elements=[], document=None, environments=[]):
+        """
+        Creates a new TeXBreakCommand.
+
+        Args:
+            elements (list of TeXElement): The elements of this argument.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             elements=elements,
             document=document,
@@ -239,9 +411,18 @@ class TeXCommandArgument(TeXGroup):
 
 class TeXCommandOption(TeXGroup):
     """
-    A class representing an option of a group (elements enclosed in [...]).
+    A class representing an option of a command (elements enclosed in [...]).
     """
     def __init__(self, elements=[], document=None, environments=[]):
+        """
+        Creates a new TeXCommandOption.
+
+        Args:
+            elements (list of TeXElement): The elements of this argument.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             elements=elements,
             document=document,
@@ -256,9 +437,19 @@ class TeXCommandOption(TeXGroup):
 
 class TeXMarker(TeXElement):
     """
-    A class representing a marker in a macro definition.
+    A class representing a marker, that is a placeholder for an argument in a
+    macro definition.
     """
     def __init__(self, i, document=None, environments=[]):
+        """
+        Creates a new TeXMarker.
+
+        Args:
+            i (int): An index pointing to the i-th argument of the macro call.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             document=document,
             environments=environments
@@ -273,9 +464,18 @@ class TeXMarker(TeXElement):
 
 class TeXText(TeXElement):
     """
-    A class representing some textual content.
+    A class representing textual content in a TeX document.
     """
     def __init__(self, text, document=None, environments=[]):
+        """
+        Creates a new TeXText.
+
+        Args:
+            text (str): The textual content.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
         super().__init__(
             document=document,
             environments=environments
@@ -290,9 +490,20 @@ class TeXText(TeXElement):
 
 class TeXDocument:
     """
-    A class representing a whole TeX document.
+    A class representing a TeX document.
     """
     def __init__(self, document_class=None, elements=[], macro_definitions={}):
+        """
+        Creates a new TeX document.
+
+        Args:
+            document_class (str): The document class of this TeX document.
+            elements (list of TeXElement, optional): The elements of this
+                document. document.
+            macro_definitions (dict of str:TeXGroup, optional): The dictionary
+                of macro definitions, mapping the name of macros to their
+                replacements.
+        """
         self.document_class = document_class
         self.elements = elements
         self.macro_definitions = macro_definitions

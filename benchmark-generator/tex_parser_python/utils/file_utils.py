@@ -3,8 +3,14 @@ import os.path
 
 def is_missing_or_empty_file(path):
     """
-    Returns true, if the given file_path does not exist or if the content of
+    Checks if the given file_path does not exist or if the content of
     the file is empty.
+
+    Args:
+        path (str): The path to the file to check.
+    Returns:
+        True if the given file_path does not exist or if the content of the
+        file is empty; False otherwise.
     """
     if path is None or len(path) == 0:
         return True
@@ -14,6 +20,12 @@ def is_missing_or_empty_file(path):
 def read_file(path):
     """
     Reads the given file.
+
+    Args:
+        path (str): The path to the file to read.
+    Returns:
+        The content of the file or None if the path does not exist or the file
+        is empty.
     """
     if is_missing_or_empty_file(path):
         return None

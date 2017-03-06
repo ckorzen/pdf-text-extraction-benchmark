@@ -1,3 +1,5 @@
+import env  # NOQA
+
 from models import tex_models
 from utils import file_utils
 from tex_tokenizer import TeXTokenParser
@@ -86,7 +88,7 @@ class TeXParser():
 
 class TeXSemantics(object):
     """
-    A class that gives semantic meanings to the production rule in EBNF
+    A class that gives semantic meanings to the production rule of the EBNF
     grammar.
     """
 
@@ -113,6 +115,9 @@ class TeXSemantics(object):
         \\end{document}
 
         the environment stack for this element is [document, table].
+
+        Returns:
+            The current environment stack.
         """
         # Obtain the environment stack from stack of \\begin{...} commands.
         return [x.get_environment() for x in self.begin_environment_cmds[::-1]]
@@ -120,6 +125,9 @@ class TeXSemantics(object):
     def DOC(self, elements):
         """
         Handles a DOC.
+
+        Args:
+            elements (list of TeXElement): The elements of the document.
         """
         # Separate macro definitions from all other elements.
         tex_elements = []
@@ -132,23 +140,33 @@ class TeXSemantics(object):
         self.document.elements = tex_elements
         self.document.macro_definitions = macro_definitions
 
-    def GROUP(self, ast):
+    def GROUP(self, data):
         """
-        Handles a GROUP.
+        Handles GROUP (elements within {...}).
+
+        Args:
+            data (list): The components of the group.
+        Returns:
+            An instance of TeXGroup.
         """
         return tex_models.TeXGroup(
-            elements=ast[1],
+            elements=data[1],
             document=self.document,
             environments=self.get_environments_stack()
         )
 
-    def TEX_MACRO_DEF_CMD(self, ast):
+    def TEX_MACRO_DEF_CMD(self, data):
         """
-        Handles a TEX_MACRO_DEF_CMD (a \\def\\foobar... command).
+        Handles TEX_MACRO_DEF_CMD (a \\def\\foobar... command).
+
+        Args:
+            data (list): The components of the macro definition.
+        Returns:
+            An instance of TeXMacroDefinition.
         """
-        cmd_name = ast[0]
-        macro_name = "".join([ast[1]] + ast[2])
-        replacement = ast[4]
+        cmd_name = data[0]
+        macro_name = "".join([data[1]] + data[2])
+        replacement = data[4]
         return tex_models.TeXMacroDefinition(
             cmd_name=cmd_name,
             macro_name=macro_name,
@@ -157,13 +175,18 @@ class TeXSemantics(object):
             environments=self.get_environments_stack()
         )
 
-    def LATEX_MACRO_DEF_CMD(self, ast):
+    def LATEX_MACRO_DEF_CMD(self, data):
         """
-        Handles a LATEX_MACRO_DEF_CMD (a \\newcommand{\\foobar}... command).
+        Handles LATEX_MACRO_DEF_CMD (a \\newcommand{\\foobar}... command).
+
+        Args:
+            data (list): The components of the macro definition.
+        Returns:
+            An instance of TeXMacroDefinition.
         """
-        cmd_name = ast[0]
-        macro_name = ast[1].elements[0].cmd_name
-        replacement = ast[-1]
+        cmd_name = data[0]
+        macro_name = data[1].elements[0].cmd_name
+        replacement = data[-1]
         return tex_models.TeXMacroDefinition(
             cmd_name=cmd_name,
             macro_name=macro_name,
@@ -172,22 +195,32 @@ class TeXSemantics(object):
             environments=self.get_environments_stack()
         )
 
-    def BREAK_CMD(self, ast):
+    def BREAK_CMD(self, data):
         """
-        Handles a BREAK_CMD (a command that represents one or more linebreaks).
+        Handles BREAK_CMD (a command that represents one or more line breaks).
+
+        Args:
+            data (list): The components of the break command.
+        Returns:
+            An instance of TeXBreakCommand.
         """
         return tex_models.TeXBreakCommand(
-            cmd_name=ast[0],
+            cmd_name=data[0],
             document=self.document,
             environments=self.get_environments_stack()
         )
 
-    def CONTROL_CMD(self, ast):
+    def CONTROL_CMD(self, data):
         """
         Handles a CONTROL_CMD (a "general" command).
+
+        Args:
+            data (list): The components of the control command.
+        Returns:
+            An instance of TeXControlCommand.
         """
-        cmd_name = "".join([ast[0]] + ast[1])
-        opts_args = ast[2]
+        cmd_name = "".join([data[0]] + data[1])
+        opts_args = data[2]
         cmd = tex_models.TeXControlCommand.factory(
             cmd_name=cmd_name,
             opts_args=opts_args,
@@ -209,12 +242,17 @@ class TeXSemantics(object):
             cmd.begin_command = begin_environment_cmd
         return cmd
 
-    def SYMBOL_CMD(self, ast):
+    def SYMBOL_CMD(self, data):
         """
-        Handles a SYMBOL_CMD (a command that represents a symbol).
+        Handles SYMBOL_CMD (a command that encodes a symbol).
+
+        Args:
+            data (list): The components of the symbol command.
+        Returns:
+            An instance of TeXCommand.
         """
-        cmd_name = "".join([ast[0]] + ast[1])
-        opts_args = [ast[2]]
+        cmd_name = "".join([data[0]] + data[1])
+        opts_args = [data[2]]
         return tex_models.TeXCommand(
             cmd_name=cmd_name,
             opts_args=opts_args,
@@ -222,42 +260,62 @@ class TeXSemantics(object):
             environments=self.get_environments_stack()
         )
 
-    def ARG(self, ast):
+    def ARG(self, data):
         """
-        Handles an ARG (an argument of a command).
+        Handles ARG (an argument of a command).
+
+        Args:
+            data (list): The components of the argument.
+        Returns:
+            An instance of TeXText.
         """
         return tex_models.TeXCommandArgument(
-            elements=ast[1],
+            elements=data[1],
             document=self.document,
             environments=self.get_environments_stack()
         )
 
-    def OPT(self, ast):
+    def OPT(self, data):
         """
-        Handles an OPT (an option of a command).
+        Handles OPT (an option of a command).
+
+        Args:
+            data (list): The components of the option.
+        Returns:
+            An instance of TeXCommandOption.
         """
         return tex_models.TeXCommandOption(
-            elements=ast[1],
+            elements=data[1],
             document=self.document,
             environments=self.get_environments_stack()
         )
 
-    def MARKER(self, ast):
+    def MARKER(self, data):
         """
-        Handles an MARKER (a placeholder for argument in a macro definition).
+        Handles MARKER (a placeholder for argument in a macro definition).
+
+        Args:
+            data (list): The components of the marker.
+        Returns:
+            An instance of TeXMarker.
         """
         return tex_models.TeXMarker(
-            int(ast[1]),
+            int(data[1]),
             document=self.document,
             environments=self.get_environments_stack()
         )
 
-    def TEXT(self, ast):
+    def TEXT(self, data):
         """
-        Handles a TEXT.
+        Handles TEXT ("normal" text phrases).
+
+        Args:
+            data (list): The components of the text.
+        Returns:
+            An instance of TeXText.
         """
         return tex_models.TeXText(
-            "".join(ast),
+            "".join(data),
             document=self.document,
             environments=self.get_environments_stack()
         )
