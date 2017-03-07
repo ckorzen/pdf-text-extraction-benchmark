@@ -122,8 +122,6 @@ class TeXTokenParser(Parser):
             with self._option():
                 self._MACRO_DEF_CMD_()
             with self._option():
-                self._BREAK_CMD_()
-            with self._option():
                 self._CONTROL_CMD_()
             with self._option():
                 self._SYMBOL_CMD_()
@@ -160,18 +158,6 @@ class TeXTokenParser(Parser):
             self._MARKER_()
         self._closure(block1)
         self._ARG_()
-
-    @graken()
-    def _BREAK_CMD_(self):
-
-        def block0():
-            with self._choice():
-                with self._option():
-                    self._pattern(r'\n')
-                with self._option():
-                    self._pattern(r'\r\n')
-                self._error('expecting one of: \\n \\r\\n')
-        self._positive_closure(block0)
 
     @graken()
     def _CONTROL_CMD_(self):
@@ -232,9 +218,64 @@ class TeXTokenParser(Parser):
 
     @graken()
     def _TEXT_(self):
+        with self._choice():
+            with self._option():
+                self._WHITESPACE_()
+            with self._option():
+                self._WORD_()
+            self._error('no available options')
+
+    @graken()
+    def _WHITESPACE_(self):
+        with self._choice():
+            with self._option():
+                self._NEW_PARAGRAPH_()
+            with self._option():
+                self._NEW_LINE_()
+            with self._option():
+                self._SPACE_()
+            self._error('no available options')
+
+    @graken()
+    def _NEW_PARAGRAPH_(self):
+        with self._group():
+            with self._choice():
+                with self._option():
+                    self._pattern(r'\n')
+                with self._option():
+                    self._pattern(r'\r\n')
+                self._error('expecting one of: \\n \\r\\n')
+
+        def block1():
+            with self._choice():
+                with self._option():
+                    self._pattern(r'\n')
+                with self._option():
+                    self._pattern(r'\r\n')
+                self._error('expecting one of: \\n \\r\\n')
+        self._positive_closure(block1)
+
+    @graken()
+    def _NEW_LINE_(self):
+        with self._choice():
+            with self._option():
+                self._pattern(r'\n')
+            with self._option():
+                self._pattern(r'\r\n')
+            self._error('expecting one of: \\n \\r\\n')
+
+    @graken()
+    def _SPACE_(self):
 
         def block0():
-            self._pattern(r'[^\\\#\{\}\[\]\r\n]')
+            self._token(' ')
+        self._positive_closure(block0)
+
+    @graken()
+    def _WORD_(self):
+
+        def block0():
+            self._pattern(r'[^\\\#\{\}\[\]\r\n\s]')
         self._positive_closure(block0)
 
 
@@ -263,9 +304,6 @@ class TeXTokenSemantics(object):
     def TEX_MACRO_DEF_CMD(self, ast):
         return ast
 
-    def BREAK_CMD(self, ast):
-        return ast
-
     def CONTROL_CMD(self, ast):
         return ast
 
@@ -282,6 +320,21 @@ class TeXTokenSemantics(object):
         return ast
 
     def TEXT(self, ast):
+        return ast
+
+    def WHITESPACE(self, ast):
+        return ast
+
+    def NEW_PARAGRAPH(self, ast):
+        return ast
+
+    def NEW_LINE(self, ast):
+        return ast
+
+    def SPACE(self, ast):
+        return ast
+
+    def WORD(self, ast):
         return ast
 
 

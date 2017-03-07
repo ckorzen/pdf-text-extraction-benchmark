@@ -40,7 +40,7 @@ class XmlSerializer(BaseSerializer):
     def format_block(self, block):
         return XmlElement(
             TagNames.block,
-            text=block.text,
+            text=block.get_text(),
             attributes={TagNames.semantic_role: block.semantic_role}
         )
 

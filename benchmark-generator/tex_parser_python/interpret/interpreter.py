@@ -61,7 +61,7 @@ class TeXInterpreter():
         # Add the remaining blocks in the stack to the outline.
         while len(self.stack) > 0:
             block = self.stack.pop()
-            if len(block.text) > 0:
+            if block.has_text():
                 self.outline.append(block)
 
     def _identify_blocks(self, group):
@@ -73,7 +73,7 @@ class TeXInterpreter():
         # defined by individual rules).
         itr = iterators.ShallowIterator(group.elements)
         for elem in itr:
-            if isinstance(elem, tex_models.TeXText):
+            if isinstance(elem, tex_models.TeXWord):
                 # Append text to the active block.
                 self.append_text(elem.text)
 
@@ -116,7 +116,7 @@ class TeXInterpreter():
         if len(self.stack) == 0:
             return
         block = self.stack.pop()
-        if len(block.text) == 0:
+        if not block.has_text():
             return
         self.outline.append(block)
 
@@ -130,7 +130,7 @@ class TeXInterpreter():
         """
         if len(self.stack) == 0:
             return
-        self.stack[-1].text += text
+        self.stack[-1].append_text(text)
 
     def set_hierarchy_level(self, level):
         """

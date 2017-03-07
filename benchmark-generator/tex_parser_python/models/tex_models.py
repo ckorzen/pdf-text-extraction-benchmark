@@ -181,9 +181,25 @@ class TeXCommand(TeXElement):
         if first_arg is None:
             return
         first_element = first_arg.get_element(1)
-        if not isinstance(first_element, TeXText):
+        if not isinstance(first_element, TeXWord):
             return
         return first_element.text
+
+    def get_identifier(self):
+        """
+        Returns a general, but unique identifier for this command that can be
+        used in rules to refer to this commands.
+
+        For example, for command \\footnote{...}, this method should return
+        "\\footnote" (because its argument(s) are variable).
+        For command \\begin{Introduction}, the method should return 
+        "\\begin{Introduction}" (because "\\begin" is not unique, as it exist
+        other \\begin{...} commands."
+
+        Returns:
+            A unique identifier for this command.
+        """
+        return self.cmd_name
 
     def __str__(self):
         opts_args_str = "".join([str(x) for x in self.opts_args])
@@ -319,6 +335,10 @@ class TeXBeginEnvironmentCommand(TeXControlCommand):
         """
         return self.get_first_arg_text()
 
+    # Override
+    def get_identifier(self):
+        return self.cmd_name + str(self.get_arg(1))
+
 
 class TeXEndEnvironmentCommand(TeXControlCommand):
     """
@@ -354,32 +374,9 @@ class TeXEndEnvironmentCommand(TeXControlCommand):
         """
         return self.get_first_arg_text()
 
-# -----------------------------------------------------------------------------
-# Break commands.
-
-
-class TeXBreakCommand(TeXCommand):
-    """
-    A class representing a break command, that are one or more line breaks.
-    """
-    def __init__(self, cmd_name, document=None, environments=[]):
-        """
-        Creates a new TeXBreakCommand.
-
-        Args:
-            cmd_name (str): The name of the command.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
-        """
-        super().__init__(
-            cmd_name=cmd_name,
-            document=document,
-            environments=environments
-        )
-
-    def __str__(self):
-        return "//"
+    # Override
+    def get_identifier(self):
+        return self.cmd_name + str(self.get_arg(1))
 
 # -----------------------------------------------------------------------------
 # Args and Opts.
@@ -461,17 +458,106 @@ class TeXMarker(TeXElement):
 
 # =============================================================================
 
-
-class TeXText(TeXElement):
+class TeXNewParagraph(TeXCommand):
     """
-    A class representing textual content in a TeX document.
+    A class representing a paragraph break, that are two or more line breaks.
     """
     def __init__(self, text, document=None, environments=[]):
         """
-        Creates a new TeXText.
+        Creates a new TeXNewParagraph.
 
         Args:
-            text (str): The textual content.
+            text (str): The text that caused this paragraph break.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
+        super().__init__(
+            document=document,
+            environments=environments
+        )
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+    # Override
+    def get_identifier(self):
+        # As a paragraph break isn't a TeX command in the proper sense, return
+        # a generic identifier.
+        return "(paragraph_break)"
+
+
+class TeXNewLine(TeXCommand):
+    """
+    A class representing a line break, that is exactly one line break.
+    """
+    def __init__(self, text, document=None, environments=[]):
+        """
+        Creates a new TeXNewLine.
+
+        Args:
+            text (str): The text that caused this line break.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
+        super().__init__(
+            document=document,
+            environments=environments
+        )
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+    # Override
+    def get_identifier(self):
+        # As a line break isn't a TeX command in the proper sense, return
+        # a generic identifier.
+        return "(line_break)"
+
+
+class TeXWhitespace(TeXCommand):
+    """
+    A class representing a whitespace, that are one or more spaces.
+    """
+    def __init__(self, text, document=None, environments=[]):
+        """
+        Creates a new TeXWhitespace.
+
+        Args:
+            text (str): The text that caused this whitespace.
+            document (TeXDocument, optional): The parent document.
+            environments (stack of str, optional): The stack of parent
+                environments.
+        """
+        super().__init__(
+            document=document,
+            environments=environments
+        )
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+    # Override
+    def get_identifier(self):
+        # As a whitespace isn't a TeX command in the proper sense, return
+        # a generic identifier.
+        return "(space)"
+
+
+class TeXWord(TeXElement):
+    """
+    A class representing a text word in a TeX document.
+    """
+    def __init__(self, text, document=None, environments=[]):
+        """
+        Creates a new TeXWord.
+
+        Args:
+            text (str): The textual content of the word (without whitespaces).
             document (TeXDocument, optional): The parent document.
             environments (stack of str, optional): The stack of parent
                 environments.

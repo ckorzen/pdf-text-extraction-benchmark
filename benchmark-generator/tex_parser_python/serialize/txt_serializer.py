@@ -23,7 +23,7 @@ class TxtSerializer(BaseSerializer):
     def format_block(self, block):
         # Return list here such that we can simply use extend() in
         # format_outline_level() above.
-        return [block.text]
+        return [block.get_text()]
 
     # Override
     def _serialize(self, data):

@@ -55,6 +55,7 @@ def process_tex_file(tex_file, **kwargs):
     expand_macros = kwargs.get("expand_macros", DEFAULT_EXPAND_MACROS)
     roles_filter = kwargs.get("roles_filter", DEFAULT_ROLES_FILTER)
 
+
     # Parse the TeX file.
     doc = parse_tex_file(tex_file, expand_macros)
     # Identify the LTBs.
@@ -144,7 +145,7 @@ def create_argument_parser():
         metavar="<path>"
     )
     arg_parser.add_argument(
-        "-r", "--roles",
+        "-r", "--roles_filter",
         help="A list of semantic roles. If not empty, only LTBs with included "
              "roles will be serialized. If empty or not set, all LTBs will be "
              "serialized.",

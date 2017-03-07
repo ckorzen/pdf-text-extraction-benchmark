@@ -195,21 +195,6 @@ class TeXSemantics(object):
             environments=self.get_environments_stack()
         )
 
-    def BREAK_CMD(self, data):
-        """
-        Handles BREAK_CMD (a command that represents one or more line breaks).
-
-        Args:
-            data (list): The components of the break command.
-        Returns:
-            An instance of TeXBreakCommand.
-        """
-        return tex_models.TeXBreakCommand(
-            cmd_name=data[0],
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
-
     def CONTROL_CMD(self, data):
         """
         Handles a CONTROL_CMD (a "general" command).
@@ -305,17 +290,63 @@ class TeXSemantics(object):
             environments=self.get_environments_stack()
         )
 
-    def TEXT(self, data):
+    def NEW_PARAGRAPH(self, data):
         """
-        Handles TEXT ("normal" text phrases).
+        Handles NEW_PARAGRAPH (two or more consecutive line breaks).
 
         Args:
-            data (list): The components of the text.
+            data (list): The components of the paragraph break.
         Returns:
-            An instance of TeXText.
+            An instance of TeXNewParagraph.
         """
-        return tex_models.TeXText(
+        return tex_models.TeXNewParagraph(
+            text="".join([data[0]] + data[1]),
+            document=self.document,
+            environments=self.get_environments_stack()
+        )
+
+    def NEW_LINE(self, data):
+        """
+        Handles NEW_LINE (exactly one line break).
+
+        Args:
+            data (list): The components of the line break.
+        Returns:
+            An instance of TeXNewLine.
+        """
+        return tex_models.TeXNewLine(
+            text="".join(data),
+            document=self.document,
+            environments=self.get_environments_stack()
+        )
+
+    def SPACE(self, data):
+        """
+        Handles SPACE (one or more whitespaces).
+
+        Args:
+            data (list): The components of the whitespace.
+        Returns:
+            An instance of TeXWhitespace.
+        """
+        return tex_models.TeXWhitespace(
+            text="".join(data),
+            document=self.document,
+            environments=self.get_environments_stack()
+        )
+
+    def WORD(self, data):
+        """
+        Handles WORD (a "normal" word without whitespaces).
+
+        Args:
+            data (list): The components of the word.
+        Returns:
+            An instance of TeXWord.
+        """
+        return tex_models.TeXWord(
             "".join(data),
             document=self.document,
             environments=self.get_environments_stack()
         )
+

@@ -48,7 +48,7 @@ class JsonSerializer(BaseSerializer):
         return OrderedDict([
             (TagNames.typ, TagNames.block),
             (TagNames.semantic_role, block.semantic_role),
-            (TagNames.text, block.text),
+            (TagNames.text, block.get_text()),
         ])
 
     # Override

@@ -256,12 +256,12 @@ def stringify_marker(marker, color):
     return color("#%s" % marker.i)
 
 
-def stringify_text(text, color):
+def stringify_word(text, color):
     """
     Creates a enriched with ANSI color codes for the given text.
 
     Args:
-        text (TeXText): The text to process.
+        text (TeXWord): The word to process.
         color (function): The function to use to color the given text.
     Returns:
         The string representation of text, enriched with ANSI color codes.
@@ -293,9 +293,6 @@ model_spec = {
     tex_models.TeXEndEnvironmentCommand: (
         "EndEnvironmentCommand", stringify_command, blue
     ),
-    tex_models.TeXBreakCommand: (
-        "BreakCommand", stringify_command, blue
-    ),
     tex_models.TeXMacroDefinition: (
         "MacroDefinition", stringify_macro_definition, gray_bg
     ),
@@ -308,8 +305,11 @@ model_spec = {
     tex_models.TeXMarker: (
         "Marker", stringify_marker, green_bg
     ),
-    tex_models.TeXText: (
-        "Text", stringify_text, black
+    tex_models.TeXWhitespace: (
+        "", stringify_word, black
+    ),
+    tex_models.TeXWord: (
+        "Text", stringify_word, black
     )
 }
 

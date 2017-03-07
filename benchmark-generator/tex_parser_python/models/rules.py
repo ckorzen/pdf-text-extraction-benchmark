@@ -1,5 +1,9 @@
+from configparser import ConfigParser, ExtendedInterpolation
+
 import models.instructions
 
+from utils import file_utils
+from utils.string_utils import split
 
 class Rules:
     """
@@ -48,10 +52,10 @@ class Rules:
         # Add the rule to dictionary.
         self.rules[key] = rule
 
-    def get_rule(self, el):
+    def get_rule(self, cmd):
         """
         Checks if this dictionary of rules contains a rule for the given
-        element.
+        command.
 
         On searching for a referring rule in this dictionary, the rule with the
         "most specific matching" filters is selected.
@@ -62,37 +66,40 @@ class Rules:
         \\footnote_revtex_None
         \\footnote_None_None
 
-        For an element with identifier "\\footnote" that lives within a
+        For an command with identifier "\\footnote" that lives within a
         document with document class "revtex" and within an environment
         "table", the rule with key \\footnote_revtex_table would be selected,
         because its filters are the most specific matching ones.
-        Apart, for an element with identifier "\\footnote" and document class
+        Apart, for an command with identifier "\\footnote" and document class
         "sigalternate", the rule with key \\footnote_None_None would be
         selected.
 
         Args:
-            el (TeXElement): The TeX element for which a rule has to be found.
+            cmd (TeXCommand): The command for which a rule has to be found.
         Returns:
             A rule, defining the instructions to execute on seeing the given
             element; or None if this dictionary does not contain such rule for
             the given element.
         """
 
+        # Obtain the identifier of the command.
+        identifier = cmd.get_identifier()
+
         # Compose the list of document class filters to check.
         doc_class_filters = []
-        if el.document.document_class is not None:
-            doc_class_filters.append(el.document.document_class)
+        if cmd.document.document_class is not None:
+            doc_class_filters.append(cmd.document.document_class)
         doc_class_filters.append("")
 
         # Compose the list of environment filters to check.
-        env_filters = list(reversed(el.environments))
+        env_filters = list(reversed(cmd.environments))
         env_filters.append("")
 
         # Check each doc_class / env combination and select the rule with most
         # specific matching key.
         for doc_class_filter in doc_class_filters:
             for env_filter in env_filters:
-                key = "%s_%s_%s" % (el.cmd_name, doc_class_filter, env_filter)
+                key = "%s_%s_%s" % (identifier, doc_class_filter, env_filter)
                 if key in self.rules:
                     return self.rules[key]
         return None
@@ -100,25 +107,87 @@ class Rules:
     @staticmethod
     def read_from_file(path):
         """
-        Reads the file given by path containing rules and constructs a related
-        Rules object.
+        Reads a config file with sections of form
+
+        [instructions:set_level {0},set_role {1},finish_block,start_block]
+        \section,doc_class,env: 1,${roles:heading}
+        \subsection: 2,${roles:heading}
+
+        where each section header (strings in [...]) starting with 
+        "instructions:" define a instructions profile (a series of instructions
+        which are valid for all subsequent options.
+        An option is given by 
+        (1) a key <identifier>[,<doc_class_filter>,[<env_filter>]] giving the
+        identifier, the document class filter, and the environment of the 
+        referred command.
+        (2) a value consting of arguments to pass to the instruction profile in
+        the section header, which may contain placeholders {0}, {1}, etc.
 
         Args:
             path (str): The string to the rules file.
         Returns:
             The created Rules object.
         """
+        """
+        Reads a config file with sections of form
+
+        [instructions:set_level {0},set_role {1},finish_block,start_block]
+        \section,doc_class,env: 1,${roles:heading}
+        \subsection: 2,${roles:heading}
+
+        where each section header (strings in [...]) starting with 
+        "instructions:" define a instructions profile (a series of instructions
+        which are valid for all subsequent options.
+        An option is given by 
+        (1) a key <identifier>[,<doc_class_filter>,[<env_filter>]] giving the
+        identifier, the document class filter, and the environment of the 
+        referred command.
+        (2) a value consting of arguments to pass to the instruction profile in
+        the section header, which may contain placeholders {0}, {1}, etc.
+
+        Args:
+            path (str): The string to the rules file.
+        Returns:
+            The created Rules object.
+        """
+        if file_utils.is_missing_or_empty_file(path):
+            # Abort, because the rule file does not exist.
+            raise ValueError("Config file '%s' does not exist." % path)
+
+        rule_parser = ConfigParser(interpolation=ExtendedInterpolation())
+        try:
+            rule_parser.read(path)
+        except:
+            raise ValueError("Could not read config file '%s'." % path)
+
         rules = Rules()
-        with open(path) as f:
-            for line in f.read().splitlines():
-                if len(line.strip()) == 0:
-                    # Skip empty lines.
-                    continue
-                if line.strip().startswith('#'):
-                    # Skip comment lines.
-                    continue
-                # Construct a rule from line and append it to Rules object.
-                rules.add_rule(Rule.from_string(line))
+
+        # Obtain some configs from rule files.
+        rule_profiles_prefix = \
+            rule_parser.get("configs", "rule_profiles_prefix")
+        rule_profiles_header_delim = \
+            rule_parser.get("configs", "rule_profiles_header_delim")
+        delim = rule_parser.get("configs", "rule_profiles_field_delim")
+
+        # Identify all rule profiles.
+        for section in rule_parser.sections():
+            # Ignore sections which do not represent a rule profile.
+            if not section.startswith(rule_profiles_prefix):
+                continue
+            # Split the profile header into prefix and instructions pattern.
+            _, instructions_pattern = section.split(rule_profiles_header_delim)
+
+            # Iterate through the rules of the profile.
+            for rule in rule_parser.options(section):
+                # Obtain the identifier, doc_class and environment.
+                identifier, doc_class, env = split(rule, delim, 3, "")
+                # Obtain the arguments need to be passed to the pattern.
+                args = rule_parser.get(section, rule).split(delim)
+                # Pass the arguments to the pattern.
+                instructions_str = instructions_pattern.format(*args)
+                # Build a model for the instructions.
+                instructs = models.instructions.from_string(instructions_str)
+                rules.add_rule(Rule(identifier, doc_class, env, instructs))
         return rules
 
     def __str__(self):
@@ -146,20 +215,6 @@ class Rule:
         self.doc_class_filter = doc_class_filter
         self.env_filter = env_filter
         self.instructions = instructions
-
-    @staticmethod
-    def from_string(string):
-        """
-        Creates a new rule from given string of form:
-        <identifier>,<doc_class_filter>,<env_filter>:<instruction>*
-
-        Args:
-            string (str): The string representing a single rule.
-        """
-        cmd_description, instructions_str = string.split(":")
-        identifier, doc_class_filter, env_filter = cmd_description.split(",")
-        instructions = models.instructions.from_string(instructions_str)
-        return Rule(identifier, doc_class_filter, env_filter, instructions)
 
     def get_identifier(self):
         """
@@ -196,3 +251,7 @@ class Rule:
             The instructions.
         """
         return self.instructions
+
+    def __str__(self):
+        return "Rule(id: %s; filters: %s,%s; %s" % (self.identifier,
+            self.doc_class_filter, self.env_filter, self.instructions)

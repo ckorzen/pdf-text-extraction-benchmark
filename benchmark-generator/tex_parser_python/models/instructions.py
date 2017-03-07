@@ -283,3 +283,26 @@ class FinishBlock(Instruction):
 
     def apply(self, interpreter, itr, element):
         interpreter.finish_block()
+
+
+class RegisterWhitespace(Instruction):
+    """
+    The instruction to register a whitespace to the current Logical Text Block.
+    """
+
+    @staticmethod
+    def from_string(args):
+        """
+        Creates a new RegisterWhitespace instruction.
+
+        Args:
+            args (str): Ignored in this instruction.
+        """
+        return RegisterWhitespace()
+
+    @staticmethod
+    def get_name():
+        return "register_whitespace"
+
+    def apply(self, interpreter, itr, element):
+        interpreter.stack[-1].register_whitespace()

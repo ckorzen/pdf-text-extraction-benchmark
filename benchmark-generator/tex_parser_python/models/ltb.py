@@ -14,7 +14,51 @@ class LTB:
         """
         self.level = level
         self.semantic_role = semantic_role
-        self.text = ""
+        self.is_whitespace_registered = False
+        self.text_fragments = []
+
+    def register_whitespace(self):
+        """
+        Registers a whitespace to this LTB. This ensures that exactly one
+        whitespace is added to the text of this LTB before other text is
+        appended to this LTB.
+        """
+        self.is_whitespace_registered = True
+
+    def append_text(self, text):
+        """
+        Appends the given text to this LTB. Appends a whitespace before
+        appending the text if a whitespace is registered to this LTB.
+        Unregisters whitespaces from this LTB after the text was appended.
+
+        Args:
+            text (str): The text to append.
+        """
+        # Append a whitespace if a whitespace is registered and there is
+        # already some text (don't append the whitespace if it would be the
+        # first character in LTB).
+        if self.is_whitespace_registered and self.has_text():
+            self.text_fragments.append(" ")
+        self.text_fragments.append(text)
+        self.is_whitespace_registered = False
+
+    def get_text(self):
+        """
+        Returns the text of this LTB.
+
+        Returns:
+            The text of this LTB.
+        """
+        return "".join(self.text_fragments)
+
+    def has_text(self):
+        """
+        Checks if this LTB contains text.
+
+        Returns:
+            True, if this LTB contains text; False otherwise.
+        """
+        return len(self.text_fragments) > 0
 
     def __str__(self):
         return str(self.__dict__)
