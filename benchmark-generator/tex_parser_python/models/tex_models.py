@@ -192,7 +192,7 @@ class TeXCommand(TeXElement):
 
         For example, for command \\footnote{...}, this method should return
         "\\footnote" (because its argument(s) are variable).
-        For command \\begin{Introduction}, the method should return 
+        For command \\begin{Introduction}, the method should return
         "\\begin{Introduction}" (because "\\begin" is not unique, as it exist
         other \\begin{...} commands."
 
@@ -457,6 +457,7 @@ class TeXMarker(TeXElement):
         return "#%s" % self.i
 
 # =============================================================================
+
 
 class TeXNewParagraph(TeXCommand):
     """

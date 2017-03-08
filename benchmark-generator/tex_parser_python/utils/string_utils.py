@@ -7,7 +7,7 @@ def split(string, delim, num, default=None):
     If str.split() returns less than num-many substrings, the result list will
     be padded with the given default value, such that its length is equal to
     num.
-    
+
     Args:
         string (str): The string to split.
         delim (str): The delimiter.

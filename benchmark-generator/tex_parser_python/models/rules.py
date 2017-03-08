@@ -1,20 +1,17 @@
+import re
+
 from configparser import ConfigParser, ExtendedInterpolation
 
-import models.instructions
-
 from utils import file_utils
-from utils.string_utils import split
+from utils import string_utils
+from models.instructions import Instruction
 
-class Rules:
+
+class Rules(dict):
     """
-    A class representing a dictionary of rules, defining instructions to
-    execute on seeing a specific command.
+    A class representing a dictionary of rules, where a rule defines
+    instructions to execute on for a specific command.
     """
-    def __init__(self):
-        """
-        Constructs a new dictionary of rules.
-        """
-        self.rules = {}
 
     def add_rule(self, rule):
         """
@@ -50,7 +47,7 @@ class Rules:
             rule.get_environment_filter()
         )
         # Add the rule to dictionary.
-        self.rules[key] = rule
+        self[key] = rule
 
     def get_rule(self, cmd):
         """
@@ -100,95 +97,13 @@ class Rules:
         for doc_class_filter in doc_class_filters:
             for env_filter in env_filters:
                 key = "%s_%s_%s" % (identifier, doc_class_filter, env_filter)
-                if key in self.rules:
-                    return self.rules[key]
+                if key in self:
+                    return self[key]
         return None
 
     @staticmethod
     def read_from_file(path):
-        """
-        Reads a config file with sections of form
-
-        [instructions:set_level {0},set_role {1},finish_block,start_block]
-        \section,doc_class,env: 1,${roles:heading}
-        \subsection: 2,${roles:heading}
-
-        where each section header (strings in [...]) starting with 
-        "instructions:" define a instructions profile (a series of instructions
-        which are valid for all subsequent options.
-        An option is given by 
-        (1) a key <identifier>[,<doc_class_filter>,[<env_filter>]] giving the
-        identifier, the document class filter, and the environment of the 
-        referred command.
-        (2) a value consting of arguments to pass to the instruction profile in
-        the section header, which may contain placeholders {0}, {1}, etc.
-
-        Args:
-            path (str): The string to the rules file.
-        Returns:
-            The created Rules object.
-        """
-        """
-        Reads a config file with sections of form
-
-        [instructions:set_level {0},set_role {1},finish_block,start_block]
-        \section,doc_class,env: 1,${roles:heading}
-        \subsection: 2,${roles:heading}
-
-        where each section header (strings in [...]) starting with 
-        "instructions:" define a instructions profile (a series of instructions
-        which are valid for all subsequent options.
-        An option is given by 
-        (1) a key <identifier>[,<doc_class_filter>,[<env_filter>]] giving the
-        identifier, the document class filter, and the environment of the 
-        referred command.
-        (2) a value consting of arguments to pass to the instruction profile in
-        the section header, which may contain placeholders {0}, {1}, etc.
-
-        Args:
-            path (str): The string to the rules file.
-        Returns:
-            The created Rules object.
-        """
-        if file_utils.is_missing_or_empty_file(path):
-            # Abort, because the rule file does not exist.
-            raise ValueError("Config file '%s' does not exist." % path)
-
-        rule_parser = ConfigParser(interpolation=ExtendedInterpolation())
-        try:
-            rule_parser.read(path)
-        except:
-            raise ValueError("Could not read config file '%s'." % path)
-
-        rules = Rules()
-
-        # Obtain some configs from rule files.
-        rule_profiles_prefix = \
-            rule_parser.get("configs", "rule_profiles_prefix")
-        rule_profiles_header_delim = \
-            rule_parser.get("configs", "rule_profiles_header_delim")
-        delim = rule_parser.get("configs", "rule_profiles_field_delim")
-
-        # Identify all rule profiles.
-        for section in rule_parser.sections():
-            # Ignore sections which do not represent a rule profile.
-            if not section.startswith(rule_profiles_prefix):
-                continue
-            # Split the profile header into prefix and instructions pattern.
-            _, instructions_pattern = section.split(rule_profiles_header_delim)
-
-            # Iterate through the rules of the profile.
-            for rule in rule_parser.options(section):
-                # Obtain the identifier, doc_class and environment.
-                identifier, doc_class, env = split(rule, delim, 3, "")
-                # Obtain the arguments need to be passed to the pattern.
-                args = rule_parser.get(section, rule).split(delim)
-                # Pass the arguments to the pattern.
-                instructions_str = instructions_pattern.format(*args)
-                # Build a model for the instructions.
-                instructs = models.instructions.from_string(instructions_str)
-                rules.add_rule(Rule(identifier, doc_class, env, instructs))
-        return rules
+        return RuleFileParser().parse_rules(path)
 
     def __str__(self):
         return "\n".join(["%s: %s" % (x, self.rules[x]) for x in self.rules])
@@ -253,5 +168,156 @@ class Rule:
         return self.instructions
 
     def __str__(self):
-        return "Rule(id: %s; filters: %s,%s; %s" % (self.identifier,
-            self.doc_class_filter, self.env_filter, self.instructions)
+        return "Rule(id: %s; filters: %s,%s; %s" \
+            % (self.identifier, self.doc_class_filter, self.env_filter,
+               self.instructions)
+
+
+class RuleFileParser(ConfigParser):
+    """
+    A parser to read a rules file.
+    """
+
+    rules_section = "rules"
+
+    def __init__(self):
+        """
+        Creates a new rule parser.
+        """
+        super().__init__(interpolation=ExtendedInterpolation())
+        # Dirty hack to allow escaped delimiters in keys. For example, we
+        # would like to be able to write "\=" in a key, which should not
+        # considered as an delimiter (because it is preceded by an "\").
+        # The hack is to manipulate the regex that is used by ConfigParser to
+        # check for delimiters.
+        template = self._OPT_TMPL.format(delim="(?<!\\\\)=")
+        self._optcre = re.compile(template, re.VERBOSE)
+
+    def parse_rules(self, path):
+        """
+        Parses a rules file given by path and returns a related Rules object.
+
+        Args:
+            path (str): The path to the rules file to parse.
+        Returns:
+            The created Rules object.
+        """
+        if file_utils.is_missing_or_empty_file(path):
+            # Raise an error because the rule file does not exist.
+            raise ValueError("Rule file '%s' does not exist." % path)
+
+        # Read the file.
+        self.read(path)
+
+        rules = Rules()
+        for key, value in self.rule_items():
+            # Split the key into identifier, doc_class_filter and env_filter.
+            identifier, doc_class, env = string_utils.split(key, ",", 3)
+
+            # Split the value into instructions pattern and arguments.
+            instructions_str, args_str = string_utils.split(value, ";", 2, "")
+
+            # Split the arguments into list of individual arguments.
+            args_str_list = args_str.split(",")
+
+            # Pass the arguments to the instructions pattern.
+            resolved_instructions_str = instructions_str.format(*args_str_list)
+
+            # Split the instructions into list of individual instructions.
+            instructions_str_list = resolved_instructions_str.split(",")
+
+            # Compose the list of Instruction objects.
+            instructions = []
+            for instruct_str in instructions_str_list:
+                print(key, value)
+                instructions.append(Instruction.from_string(instruct_str))
+
+            # Compose the Rule object and add it to Rules object.
+            rule = Rule(identifier, doc_class, env, instructions)
+            rules.add_rule(rule)
+        return rules
+
+    def options(self, section):
+        """
+        Overrides the options() method in order to support leading and
+        trailing whitespaces in option names.
+        """
+        options = ConfigParser.options(self, section)
+        return [self.unwrap_quotes(x) for x in options]
+
+    def has_option(self, section, option):
+        """
+        Overrides the has_option() method in order to support leading and
+        trailing whitespaces in option names.
+        """
+        value = ConfigParser.has_option(self, section, option)
+        if value:
+            return True
+        option = self.wrap_in_quotes(option)
+        return ConfigParser.has_option(self, section, option)
+
+    def optionxform(self, optionstr):
+        """
+        Overrides the optionxform() method in order to avoid the lowercasing
+        of option names.
+        """
+        return optionstr
+
+    def rule_items(self):
+        """
+        Returns a list of tuples with (name, value) for each option in the
+        rules section.
+
+        Returns:
+            A list of tuples with (name, value) for each option in the rules
+            section.
+        """
+        rule_items = []
+        if self.has_section(self.rules_section):
+            for key in self.options(self.rules_section):
+                value = self.get(self.rules_section, key)
+                if value is not None:
+                    rule_items.append((key, value))
+        return rule_items
+
+    def get(self, section, option, raw=False, vars=None, fallback=""):
+        """
+        Overrides the get() method in order to support leading and
+        trailing whitespaces in option and section names.
+        """
+        value = ConfigParser.get(
+            self, section, option, raw=raw, vars=vars, fallback=None)
+        if value is not None:
+            return self.unwrap_quotes(value)
+
+        option = self.wrap_in_quotes(option)
+        value = ConfigParser.get(
+            self, section, option, raw=raw, vars=vars, fallback=None)
+        if value is not None:
+            return self.unwrap_quotes(value)
+
+    def unwrap_quotes(self, string):
+        """
+        Removes trailing and leading quotes if the string starts and ends with
+        quotes.
+        """
+        if string is None:
+            return None
+
+        for quote in ['"', "'"]:
+            if string.startswith(quote) and string.endswith(quote):
+                return string.strip(quote)
+        return string
+
+    def wrap_in_quotes(self, string):
+        """
+        Removes trailing and leading quotes if the string starts and ends with
+        quotes.
+        """
+        if string is None:
+            return None
+
+        for quote in ['"', "'"]:
+            if string.startswith(quote) and string.endswith(quote):
+                return string
+        return '"%s"' % string

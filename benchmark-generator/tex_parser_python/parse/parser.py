@@ -349,4 +349,3 @@ class TeXSemantics(object):
             document=self.document,
             environments=self.get_environments_stack()
         )
-

@@ -1,41 +1,3 @@
-def from_string(instructions_str):
-    """
-    Parses the given string, representing a series of (serialized) instructions
-    and returns a list of related Instruction objects.
-
-    The string contains comma-separated substrings, where each substring
-    represents a single instruction. A substring is of form <name> <args>*,
-    where <name> is an unique name referring to the instruction and <args> is a
-    list of arguments to be passed to the instruction, for example:
-    set_level 1
-    set_role heading
-    append_text [formula]
-    start_block
-    etc.
-
-    Args:
-        instruction_str (str): The string to parse.
-    Returns:
-        The list of related Instruction objects.
-    """
-    # Create an index that maps the available names of instructions to the
-    # related constructors:
-    # { "append_text": AppendTextPhrase, "skip_to": SkipTo, ... }
-    index = {x.get_name(): x for x in Instruction.__subclasses__()}
-    instructions = []
-    # Split the string into its substrings.
-    instructions_str_list = instructions_str.split(",")
-    for instruction_str in instructions_str_list:
-        # Split the substring into <name> and <args>
-        values = instruction_str.split(" ")
-        name = values[0]
-        args = values[1:]
-        if name in index:
-            # Create the related Instruction object and append it to list.
-            instructions.append(index[name].from_string(args))
-    return instructions
-
-
 class Instruction:
     """
     The super class of an instruction. An instruction defines a specific action
@@ -43,20 +5,53 @@ class Instruction:
     """
 
     @staticmethod
-    def get_name():
+    def from_string(string):
         """
-        Returns the name of this instruction to use in rules file in order to
-        refer to this instruction.
+        Parses the given string, representing a series of (serialized)
+        instructions and returns a list of related Instruction objects.
+
+        The string contains comma-separated substrings, where each substring
+        represents a single instruction. A substring is of form <name> <args>*,
+        where <name> is an unique name referring to the instruction and <args>
+        is a list of arguments to be passed to the instruction, for example:
+        set_level 1
+        set_role heading
+        append_text [formula]
+        start_block
+        etc.
+
+        Args:
+            instruction_str (str): The string to parse.
+        Returns:
+            The list of related Instruction objects.
         """
-        pass
+        # Create an index that maps the available names of instructions to the
+        # related constructors:
+        # { "append_text": AppendTextPhrase, "skip_to": SkipTo, ... }
+        index = {x.get_name(): x for x in Instruction.__subclasses__()}
+        # Split the substring into <name> and <args>
+        values = string.split(" ")
+        name = values[0]
+        args = values[1:]
+        if name not in index:
+            raise ValueError("'%s' is not a valid instruction." % string)
+        return index[name].from_args_string(args)
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new instruction from the given args (given as str).
 
         Args:
             args (str): The arguments for this instruction.
+        """
+        pass
+
+    @staticmethod
+    def get_name():
+        """
+        Returns the name of this instruction to use in rules file in order to
+        refer to this instruction.
         """
         pass
 
@@ -90,7 +85,7 @@ class SkipTo(Instruction):
         self.target = target
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new SkipTo instruction from the given args (given as str).
 
@@ -122,7 +117,7 @@ class SetHierarchyLevel(Instruction):
         self.level = level
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new SetHierarchyLevel instruction from the given args
         (given as str).
@@ -155,7 +150,7 @@ class SetSemanticRole(Instruction):
         self.role = role
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new SetSemanticRole instruction from the given args
         (given as str).
@@ -188,7 +183,7 @@ class AppendTextPhrase(Instruction):
         self.text = text
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new AppendTextPhrase instruction from the given args
         (given as str).
@@ -221,7 +216,7 @@ class VisitArg(Instruction):
         self.index = index
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new VisitArg instruction from the given args (given as str).
 
@@ -245,7 +240,7 @@ class StartBlock(Instruction):
     """
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new StartBlock instruction.
 
@@ -268,7 +263,7 @@ class FinishBlock(Instruction):
     """
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new FinishBlock instruction.
 
@@ -291,7 +286,7 @@ class RegisterWhitespace(Instruction):
     """
 
     @staticmethod
-    def from_string(args):
+    def from_args_string(args):
         """
         Creates a new RegisterWhitespace instruction.
 
