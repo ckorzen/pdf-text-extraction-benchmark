@@ -26,11 +26,14 @@ class BaseSerializer:
             document (TeXDocument): The document to serialize.
             target (str, optional): The path to target file of serialization.
                 If None, the serialization will be printed to stdout.
+        Returns:
+            The serilaization string.
         """
         metadata = self.format_metadata(document)
         outline = self.format_outline(document)
         doc = self.format_doc(metadata, outline)
-        self.write(self._serialize(doc), target)
+        string = self._serialize(doc)
+        self.write(string, target)
 
     def format_metadata(self, doc):
         """

@@ -61,10 +61,10 @@ class LTB:
         return len(self.text_fragments) > 0
 
     def __str__(self):
-        return str(self.__dict__)
+        return str(self.get_text())
 
     def __repr__(self):
-        return self.__str__()
+        return str(self.__dict__)
 
 
 class Outline:
@@ -100,6 +100,14 @@ class Outline:
         # Append the LTB to the elements of current hierarchy level.
         self.stack[-1].elements.append(ltb)
 
+    def __str__(self):
+        return str(self.root)
+
+    # Override
+    def format_block(self, block):
+        # Return list here such that we can simply use extend() in
+        # format_outline_level() above.
+        return [block.get_text()]
 
 class OutlineLevel:
     """
@@ -116,3 +124,9 @@ class OutlineLevel:
         self.level = level
         # The elements of this level, either of type LTB or OutlineLevel.
         self.elements = []
+
+    def __str__(self):
+        parts = []
+        for element in self.elements:
+            parts.append(str(element))
+        return " ".join(parts)

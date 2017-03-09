@@ -234,9 +234,6 @@ class TeXControlCommand(TeXCommand):
 
         # Map some specific command names to their specific subclasses.
         mappings = {
-            "\\documentclass": TeXDocumentClassCommand,
-            "\\documentstyle": TeXDocumentClassCommand,
-            "\\usepackage": TeXUsePackageCommand,
             "\\begin": TeXBeginEnvironmentCommand,
             "\\end": TeXEndEnvironmentCommand
         }
@@ -249,27 +246,6 @@ class TeXControlCommand(TeXCommand):
             document=document,
             environments=environments
         )
-
-
-class TeXDocumentClassCommand(TeXControlCommand):
-    """
-    A class representing a \\documentclass{...} command.
-    """
-    def get_document_class(self):
-        """
-        Returns the document class defined by this command.
-
-        Returns:
-            The document class defined by this command.
-        """
-        return self.get_first_arg_text()
-
-
-class TeXUsePackageCommand(TeXControlCommand):
-    """
-    A class representing a \\usepackage{...} command.
-    """
-    pass
 
 
 class TeXMacroDefinition(TeXControlCommand):
@@ -591,6 +567,7 @@ class TeXDocument:
                 of macro definitions, mapping the name of macros to their
                 replacements.
         """
+        self.metadata = {}
         self.document_class = document_class
         self.elements = elements
         self.macro_definitions = macro_definitions

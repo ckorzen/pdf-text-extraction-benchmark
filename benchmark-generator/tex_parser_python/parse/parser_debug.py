@@ -281,12 +281,6 @@ model_spec = {
     tex_models.TeXControlCommand: (
         "ControlCommand", stringify_command, blue
     ),
-    tex_models.TeXDocumentClassCommand: (
-        "DocumentClassCommand", stringify_command, blue
-    ),
-    tex_models.TeXUsePackageCommand: (
-        "UsePackageCommand", stringify_command, blue
-    ),
     tex_models.TeXBeginEnvironmentCommand: (
         "BeginEnvironmentCommand", stringify_command, blue
     ),

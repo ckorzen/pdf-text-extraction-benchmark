@@ -5,81 +5,89 @@ from models.ltb import LTB, Outline
 from models.rules import Rules
 
 
-def identify_outline(doc, rules_path):
+def identify_blocks(doc, rules_path):
     """
     Iterates through the elements of the given TeX document and identifies the
-    logical text blocks bases on the given rules.
+    logical text blocks (LTBs) based on the given rules.
 
     Args:
         doc (TeXDocument): The parsed TeX document.
-        rules_file (str): The path to the file with rules to use.
+        rules_path (str): The path to the rules file to use.
 
     Returns:
         The (hierarchical) outline of identified LTBs.
     """
-
     # Read the rules from file.
     rules = Rules.read_from_file(rules_path)
     # Identify the logical text blocks.
-    interpreter = TeXInterpreter(doc, rules)
-    interpreter.identify_blocks()
-
-    return interpreter.outline
+    return LTBIdentifier(doc, rules).identify()
 
 
-class TeXInterpreter():
+class LTBIdentifier():
     """
-    A class to identify the logical text blocks of TeX documents based on
-    rules.
+    A class to identify the LTBs of TeX documents based on rules.
     """
 
     def __init__(self, doc, rules):
         """
-        Creates a new interpreter.
+        Creates a new LTB identifier.
 
         Args:
             doc (TeXDocument): The parsed TeX document.
             rules (Rules): The rules to use on identifying the LTBs.
         """
-        self.tex_document = doc
+        self.doc = doc
         self.rules = rules
-        # The current hierarchy level.
-        self.level = 0
-        # The stack of unfinished blocks.
-        self.stack = [LTB(level=self.level)]
-        # The outline of finished blocks.
-        self.outline = Outline()
 
-    def identify_blocks(self):
+    def identify(self):
         """
-        Iterates through the elements of TeX document to identify logical text
-        blocks using the given rules.
+        Identifies the LTBs in the given TeX document.
+
+        Returns:
+            The (hierarchical) outline of the identified LTBs.
         """
+        return self.identify_blocks(self.doc.elements)
+
+    def identify_blocks(self, elements):
+        """
+        Iterates through the given elements in order to identify LTBs using the
+        rules of this identifier.
+
+        Args:
+            elements (list of TeXElement): The elements to process.
+        Returns:
+            The (hierarchical) outline of the LTBs in the given elements.
+        """
+
+        # Create the context, containing the current hierarchical level,
+        # the stack of unfinished LTBs and the outline of finished LTBs.
+        context = Context(level=0, stack=[LTB(level=0)], outline=Outline())
+
         # Interpret the elements in given document.
-        self._identify_blocks(self.tex_document)
+        self._identify_blocks(elements, context)
 
-        # Add the remaining blocks in the stack to the outline.
-        while len(self.stack) > 0:
-            block = self.stack.pop()
-            if block.has_text():
-                self.outline.append(block)
+        return context.get_final_outline()
 
-    def _identify_blocks(self, group):
+    def _identify_blocks(self, elements, context):
         """
-        Iterates through the elements of the given group to identify logical
-        text blocks using the given rules.
+        Iterates through the given elements in order to identify LTBs using the
+        given context.
+
+        Args:
+            elements (list of TeXElement): The elements to process.
+            context (Context): The current context.
         """
         # Iterate the elements in a shallow way (deeper traversals may be
         # defined by individual rules).
-        itr = iterators.ShallowIterator(group.elements)
+        itr = iterators.ShallowIterator(elements)
         for elem in itr:
             if isinstance(elem, tex_models.TeXWord):
                 # Append text to the active block.
-                self.append_text(elem.text)
+                context.append_text(elem.text)
 
             if isinstance(elem, tex_models.TeXGroup):
                 # Interpret all elements of the group.
-                self._identify_blocks(elem.elements)
+                self._identify_blocks(elem.elements, context)
 
             if isinstance(elem, tex_models.TeXCommand):
                 # Interpret the command correspondingly to referring rule.
@@ -96,14 +104,32 @@ class TeXInterpreter():
 
                 # Process each single instruction given by the rule.
                 for instruction in rule.get_instructions():
-                    instruction.apply(self, itr, elem)
+                    instruction.apply(self, itr, elem, context)
 
     # =========================================================================
 
+
+class Context:
+    """
+    A class representing the context while identifying LTBs.
+    """
+    def __init__(self, level=0, stack=[], outline=None):
+        """
+        Creates a new context.
+        
+        Args:
+            level (int): The current hierarchical level.
+            stack (stack of LTB): The stack of unfinished LTBs.
+            outline (Outline): The outline of finished LTBs.
+        """
+        self.level = level
+        self.stack = stack
+        self.outline = outline
+
     def introduce_block(self):
         """
-        Appends a new block of current hierarchy level to stack of unfinished
-        blocks.
+        Appends a new block with the current hierarchy level to stack of
+        unfinished blocks.
         """
         block = LTB(level=self.level)
         self.stack.append(block)
@@ -119,18 +145,6 @@ class TeXInterpreter():
         if not block.has_text():
             return
         self.outline.append(block)
-
-    def append_text(self, text):
-        """
-        Appends the given text to the topmost block in the stack of unfinished
-        blocks.
-
-        Args:
-            text (str): The text to append.
-        """
-        if len(self.stack) == 0:
-            return
-        self.stack[-1].append_text(text)
 
     def set_hierarchy_level(self, level):
         """
@@ -152,3 +166,36 @@ class TeXInterpreter():
         if len(self.stack) == 0:
             return
         self.stack[-1].semantic_role = role
+
+    def register_whitespace(self):
+        """
+        Registers a whitespace to the topmost block in the stack of unfinished
+        blocks.
+        """
+        if len(self.stack) > 0:
+            self.stack[-1].register_whitespace()
+
+    def append_text(self, text):
+        """
+        Appends the given text to the topmost block in the stack of unfinished
+        blocks.
+
+        Args:
+            text (str): The text to append.
+        """
+        if len(self.stack) > 0:
+            self.stack[-1].append_text(text)
+
+    def get_final_outline(self):
+        """
+        Removes the remaining LTBs from the stack and appends them to the
+        outline.
+
+        Returns:
+            The outline after the remaining LTBs in the stack were added.
+        """
+        while len(self.stack) > 0:
+            block = self.stack.pop()
+            if block.has_text():
+                self.outline.append(block)
+        return self.outline

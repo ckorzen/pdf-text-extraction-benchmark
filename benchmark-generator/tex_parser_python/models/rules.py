@@ -86,11 +86,11 @@ class Rules(dict):
         doc_class_filters = []
         if cmd.document.document_class is not None:
             doc_class_filters.append(cmd.document.document_class)
-        doc_class_filters.append("")
+        doc_class_filters.append(None)
 
         # Compose the list of environment filters to check.
         env_filters = list(reversed(cmd.environments))
-        env_filters.append("")
+        env_filters.append(None)
 
         # Check each doc_class / env combination and select the rule with most
         # specific matching key.
@@ -104,9 +104,6 @@ class Rules(dict):
     @staticmethod
     def read_from_file(path):
         return RuleFileParser().parse_rules(path)
-
-    def __str__(self):
-        return "\n".join(["%s: %s" % (x, self.rules[x]) for x in self.rules])
 
 
 class Rule:
@@ -229,7 +226,6 @@ class RuleFileParser(ConfigParser):
             # Compose the list of Instruction objects.
             instructions = []
             for instruct_str in instructions_str_list:
-                print(key, value)
                 instructions.append(Instruction.from_string(instruct_str))
 
             # Compose the Rule object and add it to Rules object.

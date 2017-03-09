@@ -213,9 +213,6 @@ class TeXSemantics(object):
             environments=self.get_environments_stack()
         )
 
-        if isinstance(cmd, tex_models.TeXDocumentClassCommand):
-            # Obtain the document clas..
-            self.document.document_class = cmd.get_document_class()
         if isinstance(cmd, tex_models.TeXBeginEnvironmentCommand):
             # Append the environment to stack.
             self.begin_environment_cmds.append(cmd)

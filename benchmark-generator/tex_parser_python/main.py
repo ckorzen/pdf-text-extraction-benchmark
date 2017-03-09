@@ -92,7 +92,7 @@ def identify_blocks(doc, rules_file=DEFAULT_RULES_FILE):
     Returns:
         The (hierarchical) outline of identified LTBs.
     """
-    return interpreter.identify_outline(doc, rules_file)
+    return interpreter.identify_blocks(doc, rules_file)
 
 
 def serialize(doc, output_file=DEFAULT_OUTPUT_FILE,

@@ -1,3 +1,9 @@
+import re
+from models.ltb import LTB, Outline
+
+ARG_REGEX = re.compile("{ARG(?P<num>\\d)}")
+OPT_REGEX = re.compile("{OPT(?P<num>\\d)}")
+
 class Instruction:
     """
     The super class of an instruction. An instruction defines a specific action
@@ -7,13 +13,12 @@ class Instruction:
     @staticmethod
     def from_string(string):
         """
-        Parses the given string, representing a series of (serialized)
-        instructions and returns a list of related Instruction objects.
+        Parses the given string, representing a (serialized) instruction and
+        returns the related Instruction objects.
 
-        The string contains comma-separated substrings, where each substring
-        represents a single instruction. A substring is of form <name> <args>*,
-        where <name> is an unique name referring to the instruction and <args>
-        is a list of arguments to be passed to the instruction, for example:
+        The string is of form <name> <args>*, where <name> is an unique name
+        referring to the instruction and <args> is a list of arguments to be
+        passed to the instruction, for example:
         set_level 1
         set_role heading
         append_text [formula]
@@ -23,7 +28,7 @@ class Instruction:
         Args:
             instruction_str (str): The string to parse.
         Returns:
-            The list of related Instruction objects.
+            The created Instruction object.
         """
         # Create an index that maps the available names of instructions to the
         # related constructors:
@@ -35,17 +40,7 @@ class Instruction:
         args = values[1:]
         if name not in index:
             raise ValueError("'%s' is not a valid instruction." % string)
-        return index[name].from_args_string(args)
-
-    @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new instruction from the given args (given as str).
-
-        Args:
-            args (str): The arguments for this instruction.
-        """
-        pass
+        return index[name](*args)
 
     @staticmethod
     def get_name():
@@ -55,19 +50,43 @@ class Instruction:
         """
         pass
 
-    def apply(self, interpreter, itr, element):
+    def apply(self, interpreter, itr, element, context):
         """
         Defines the action to execute for this instruction.
 
         Args:
-            interpreter (TeXInterpreter): The interpreter instance that
-                identifies the LTBs.
+            doc (TeXDocument): The parent TeX document.
             itr (ShallowIterator): The iterator instance that is used to
                 iterate through the TeX elements on identifying the LTBs.
-            element (TeXElement): The current TeX element that caused this
-                instruction.
+            element (TeXElement): The current TeX element that caused the call
+                this of this instruction.
+            context (Context): The current context.
         """
         pass
+
+    def interpolate_arg(self, arg, cmd, interpreter):
+        """
+        Interpolates related values for {ARG<i>} and {OPT<i>} placeholders,
+        where <i> is a number 0-9.
+        
+        Args:
+            arg (str): The argument to process.
+            cmd (TeXCommand): The related command.
+            interpreter (TeXInterpreter): The interpreter.
+        """
+        # Interpolate ARG placeholders.
+        arg_matches = ARG_REGEX.finditer(arg)
+        for m in arg_matches:
+            num = int(m.group("num"))
+            text = str(interpreter.identify_blocks(cmd.get_arg(num).elements))
+            arg = arg[:m.start()] + text + arg[m.end():]
+        # Interpolate OPT placeholders.
+        opt_matches = OPT_REGEX.finditer(arg)
+        for m in opt_matches:
+            num = int(m.group("num"))
+            text = str(interpreter.identify_blocks(cmd.get_opt(num).elements))
+            arg = arg[:m.start()] + text + arg[m.end():]
+        return arg
 
 
 class SkipTo(Instruction):
@@ -85,20 +104,10 @@ class SkipTo(Instruction):
         self.target = target
 
     @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new SkipTo instruction from the given args (given as str).
-
-        Args:
-            args (str): The skip target.
-        """
-        return SkipTo(args[0])
-
-    @staticmethod
     def get_name():
         return "skip_to"
 
-    def apply(self, interpreter, itr, element):
+    def apply(self, interpreter, itr, element, context):
         itr.skip_to(self.target)
 
 
@@ -114,25 +123,14 @@ class SetHierarchyLevel(Instruction):
         Args:
             level (int): The hierarchy level to set.
         """
-        self.level = level
-
-    @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new SetHierarchyLevel instruction from the given args
-        (given as str).
-
-        Args:
-            args (str): The hierarchy level.
-        """
-        return SetHierarchyLevel(int(args[0]))
+        self.level = int(level)
 
     @staticmethod
     def get_name():
         return "set_level"
 
-    def apply(self, interpreter, itr, element):
-        interpreter.set_hierarchy_level(self.level)
+    def apply(self, interpreter, itr, element, context):
+        context.set_hierarchy_level(self.level)
 
 
 class SetSemanticRole(Instruction):
@@ -150,22 +148,11 @@ class SetSemanticRole(Instruction):
         self.role = role
 
     @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new SetSemanticRole instruction from the given args
-        (given as str).
-
-        Args:
-            args (str): The semantic role.
-        """
-        return SetSemanticRole(args[0])
-
-    @staticmethod
     def get_name():
         return "set_role"
 
-    def apply(self, interpreter, itr, element):
-        interpreter.set_semantic_role(self.role)
+    def apply(self, interpreter, itr, element, context):
+        context.set_semantic_role(self.role)
 
 
 class AppendTextPhrase(Instruction):
@@ -173,32 +160,21 @@ class AppendTextPhrase(Instruction):
     The instruction to append a text phrase to the current block.
     """
 
-    def __init__(self, text):
+    def __init__(self, *word):
         """
         Creates a new AppendTextPhrase instruction.
 
         Args:
-            text (str): The text phrase to append.
+            *word (str): A word to append.
         """
-        self.text = text
-
-    @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new AppendTextPhrase instruction from the given args
-        (given as str).
-
-        Args:
-            args (str): The text phrase to append.
-        """
-        return AppendTextPhrase(args[0])
+        self.text = " ".join(word)
 
     @staticmethod
     def get_name():
         return "append_text"
 
-    def apply(self, interpreter, itr, element):
-        interpreter.append_text(self.text)
+    def apply(self, interpreter, itr, element, context):
+        context.append_text(self.text)
 
 
 class VisitArg(Instruction):
@@ -213,25 +189,15 @@ class VisitArg(Instruction):
         Args:
             index (int): The index of argument to visit.
         """
-        self.index = index
-
-    @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new VisitArg instruction from the given args (given as str).
-
-        Args:
-            args (str): The index of argument to visit.
-        """
-        return VisitArg(int(args[0]))
+        self.index = int(index)
 
     @staticmethod
     def get_name():
         return "visit_arg"
 
-    def apply(self, interpreter, itr, element):
+    def apply(self, interpreter, itr, element, context):
         if len(element.args) > self.index:
-            interpreter._identify_blocks(element.args[self.index])
+            interpreter._identify_blocks(element.args[self.index].elements, context)
 
 
 class StartBlock(Instruction):
@@ -240,21 +206,11 @@ class StartBlock(Instruction):
     """
 
     @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new StartBlock instruction.
-
-        Args:
-            args (str): Ignored in this instruction.
-        """
-        return StartBlock()
-
-    @staticmethod
     def get_name():
         return "start_block"
 
-    def apply(self, interpreter, itr, element):
-        interpreter.introduce_block()
+    def apply(self, interpreter, itr, element, context):
+        context.introduce_block()
 
 
 class FinishBlock(Instruction):
@@ -263,21 +219,11 @@ class FinishBlock(Instruction):
     """
 
     @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new FinishBlock instruction.
-
-        Args:
-            args (str): Ignored in this instruction.
-        """
-        return FinishBlock()
-
-    @staticmethod
     def get_name():
         return "finish_block"
 
-    def apply(self, interpreter, itr, element):
-        interpreter.finish_block()
+    def apply(self, interpreter, itr, element, context):
+        context.finish_block()
 
 
 class RegisterWhitespace(Instruction):
@@ -286,18 +232,55 @@ class RegisterWhitespace(Instruction):
     """
 
     @staticmethod
-    def from_args_string(args):
-        """
-        Creates a new RegisterWhitespace instruction.
-
-        Args:
-            args (str): Ignored in this instruction.
-        """
-        return RegisterWhitespace()
-
-    @staticmethod
     def get_name():
         return "register_whitespace"
 
-    def apply(self, interpreter, itr, element):
-        interpreter.stack[-1].register_whitespace()
+    def apply(self, interpreter, itr, element, context):
+        context.register_whitespace()
+
+
+class SetDocumentClass(Instruction):
+    """
+    The instruction to set the documentclass of the TeX document.
+    """
+
+    def __init__(self, doc_class):
+        """
+        Creates a new SetDocumentClass instruction.
+
+        Args:
+            doc_class: The document class to set..
+        """
+        self.doc_class = doc_class
+
+    @staticmethod
+    def get_name():
+        return "set_document_class"
+
+    def apply(self, interpreter, itr, element, context):
+        doc_class = self.interpolate_arg(self.doc_class, element, interpreter)
+        interpreter.doc.document_class = doc_class
+
+
+class SetMetadata(Instruction):
+    """
+    The instruction to set a metadata to the TeX document.
+    """
+
+    def __init__(self, key, value):
+        """
+        Creates a new SetMetadata instruction.
+
+        Args:
+            key: The key of the metadata field to set.
+            value: The value of the metadata field to set.
+        """
+        self.key = key
+        self.value = value
+
+    @staticmethod
+    def get_name():
+        return "set_metadata"
+
+    def apply(self, interpreter, itr, element, context):
+        return
