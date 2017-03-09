@@ -2,16 +2,10 @@ class TeXElement:
     """
     The base class for any TeX element.
     """
-    def __init__(self, document=None, environments=[]):
+    def __init__(self):
         """
         Creates a new TeX element.
-
-        Args:
-            document (TeXDocument, optional): The parent document of element.
-            environment (stack of str): The stack of parent environments.
         """
-        self.document = document
-        self.environments = environments
         # The replacing elements that resulted from a macro expansion
         self.elements_from_macro_expansion = []
 
@@ -64,20 +58,14 @@ class TeXGroup(TeXElement):
     """
     A class representing a TeX group (elements enclosed in {...}).
     """
-    def __init__(self, elements=[], document=None, environments=[]):
+    def __init__(self, elements=[]):
         """
         Creates a new group containing the given elements.
 
         Args:
             elements (list of TeXElement, optional): The elements of the group.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            document=document,
-            environments=environments
-        )
+        super().__init__()
         self.elements = elements
 
     def get_first_element(self):
@@ -121,8 +109,7 @@ class TeXCommand(TeXElement):
     """
     A class representing a TeXCommand.
     """
-    def __init__(self, cmd_name=None, opts_args=[], document=None,
-                 environments=[]):
+    def __init__(self, cmd_name=None, opts_args=[]):
         """
         Creates a new command.
 
@@ -130,14 +117,8 @@ class TeXCommand(TeXElement):
             cmd_name (str): The name of the command.
             opts_args (list of TeXCommandArgument|TeXCommandOption):
                 The list of options and argument of this command.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super(TeXCommand, self).__init__(
-            document=document,
-            environments=environments
-        )
+        super().__init__()
         self.cmd_name = cmd_name
         self.opts_args = opts_args
         # Create a list with only the options.
@@ -216,7 +197,7 @@ class TeXControlCommand(TeXCommand):
     """
 
     @staticmethod
-    def factory(cmd_name=None, opts_args=[], document=None, environments=[]):
+    def factory(cmd_name=None, opts_args=[]):
         """
         A factory that chooses the correct control command constructor for the
         given input.
@@ -225,9 +206,6 @@ class TeXControlCommand(TeXCommand):
             cmd_name (str): The name of the command.
             opts_args (list of TeXCommandArgument|TeXCommandOption):
                 The list of options and argument of this command.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         Returns:
             An instance of a (specific) control command.
         """
@@ -242,9 +220,7 @@ class TeXControlCommand(TeXCommand):
         constructor = mappings.get(cmd_name, TeXControlCommand)
         return constructor(
             cmd_name=cmd_name,
-            opts_args=opts_args,
-            document=document,
-            environments=environments
+            opts_args=opts_args
         )
 
 
@@ -253,8 +229,7 @@ class TeXMacroDefinition(TeXControlCommand):
     A class representing a macro definition, like \\def\\foobar... or
     \\newcommand{\\foobar}...
     """
-    def __init__(self, cmd_name=None, macro_name=None, replacement=None,
-                 document=None, environments=[]):
+    def __init__(self, cmd_name=None, macro_name=None, replacement=None):
         """
         Creates a new macro definition.
 
@@ -262,15 +237,8 @@ class TeXMacroDefinition(TeXControlCommand):
             cmd_name (str): The name of the command.
             macro_name (str): The name of the macro.
             replacement (TeXGroup): The replacement of the macro.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            cmd_name=cmd_name,
-            document=document,
-            environments=environments
-        )
+        super().__init__(cmd_name)
         self.macro_name = macro_name
         self.replacement = replacement
 
@@ -282,8 +250,7 @@ class TeXBeginEnvironmentCommand(TeXControlCommand):
     """
     A class representing a \\begin{...} command.
     """
-    def __init__(self, cmd_name=None, opts_args=[], document=None,
-                 environments=[]):
+    def __init__(self, cmd_name=None, opts_args=[]):
         """
         Creates a new TeXBeginEnvironmentCommand.
 
@@ -291,15 +258,8 @@ class TeXBeginEnvironmentCommand(TeXControlCommand):
             cmd_name (str): The name of the command.
             opts_args (list of TeXCommandArgument|TeXCommandOption):
                 The list of options and argument of this command.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            cmd_name=cmd_name,
-            opts_args=opts_args,
-            document=document,
-            environments=environments)
+        super().__init__(cmd_name, opts_args)
         self.end_command = None
 
     def get_environment(self):
@@ -320,8 +280,7 @@ class TeXEndEnvironmentCommand(TeXControlCommand):
     """
     A class representing an \\end{...} command.
     """
-    def __init__(self, cmd_name=None, opts_args=[], document=None,
-                 environments=[]):
+    def __init__(self, cmd_name=None, opts_args=[]):
         """
         Creates a new TeXEndEnvironmentCommand.
 
@@ -329,16 +288,8 @@ class TeXEndEnvironmentCommand(TeXControlCommand):
             cmd_name (str): The name of the command.
             opts_args (list of TeXCommandArgument|TeXCommandOption):
                 The list of options and argument of this command.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            cmd_name=cmd_name,
-            opts_args=opts_args,
-            document=document,
-            environments=environments
-        )
+        super().__init__(cmd_name, opts_args)
         self.begin_command = None
 
     def get_environment(self):
@@ -362,22 +313,6 @@ class TeXCommandArgument(TeXGroup):
     """
     A class representing an argument of a command (elements enclosed in {...}).
     """
-    def __init__(self, elements=[], document=None, environments=[]):
-        """
-        Creates a new TeXBreakCommand.
-
-        Args:
-            elements (list of TeXElement): The elements of this argument.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
-        """
-        super().__init__(
-            elements=elements,
-            document=document,
-            environments=environments
-        )
-
     def __str__(self):
         return "{%s}" % "".join([str(x) for x in self.elements])
 
@@ -386,22 +321,6 @@ class TeXCommandOption(TeXGroup):
     """
     A class representing an option of a command (elements enclosed in [...]).
     """
-    def __init__(self, elements=[], document=None, environments=[]):
-        """
-        Creates a new TeXCommandOption.
-
-        Args:
-            elements (list of TeXElement): The elements of this argument.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
-        """
-        super().__init__(
-            elements=elements,
-            document=document,
-            environments=environments
-        )
-
     def __str__(self):
         return "[%s]" % "".join([str(x) for x in self.elements])
 
@@ -413,20 +332,14 @@ class TeXMarker(TeXElement):
     A class representing a marker, that is a placeholder for an argument in a
     macro definition.
     """
-    def __init__(self, i, document=None, environments=[]):
+    def __init__(self, i):
         """
         Creates a new TeXMarker.
 
         Args:
             i (int): An index pointing to the i-th argument of the macro call.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            document=document,
-            environments=environments
-        )
+        super().__init__()
         self.i = i
 
     def __str__(self):
@@ -439,20 +352,14 @@ class TeXNewParagraph(TeXCommand):
     """
     A class representing a paragraph break, that are two or more line breaks.
     """
-    def __init__(self, text, document=None, environments=[]):
+    def __init__(self, text):
         """
         Creates a new TeXNewParagraph.
 
         Args:
             text (str): The text that caused this paragraph break.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            document=document,
-            environments=environments
-        )
+        super().__init__()
         self.text = text
 
     def __str__(self):
@@ -469,20 +376,14 @@ class TeXNewLine(TeXCommand):
     """
     A class representing a line break, that is exactly one line break.
     """
-    def __init__(self, text, document=None, environments=[]):
+    def __init__(self, text):
         """
         Creates a new TeXNewLine.
 
         Args:
             text (str): The text that caused this line break.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            document=document,
-            environments=environments
-        )
+        super().__init__()
         self.text = text
 
     def __str__(self):
@@ -499,20 +400,14 @@ class TeXWhitespace(TeXCommand):
     """
     A class representing a whitespace, that are one or more spaces.
     """
-    def __init__(self, text, document=None, environments=[]):
+    def __init__(self, text):
         """
         Creates a new TeXWhitespace.
 
         Args:
             text (str): The text that caused this whitespace.
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            document=document,
-            environments=environments
-        )
+        super().__init__()
         self.text = text
 
     def __str__(self):
@@ -529,20 +424,14 @@ class TeXWord(TeXElement):
     """
     A class representing a text word in a TeX document.
     """
-    def __init__(self, text, document=None, environments=[]):
+    def __init__(self, text):
         """
         Creates a new TeXWord.
 
         Args:
             text (str): The textual content of the word (without whitespaces).
-            document (TeXDocument, optional): The parent document.
-            environments (stack of str, optional): The stack of parent
-                environments.
         """
-        super().__init__(
-            document=document,
-            environments=environments
-        )
+        super().__init__()
         self.text = text
 
     def __str__(self):

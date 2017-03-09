@@ -262,6 +262,52 @@ class SetDocumentClass(Instruction):
         interpreter.doc.document_class = doc_class
 
 
+class BeginEnvironment(Instruction):
+    """
+    The instruction to begin an environment.
+    """
+
+    def __init__(self, environment):
+        """
+        Creates a new BeginEnvironment instruction.
+
+        Args:
+            environment (str): The name of environment.
+        """
+        self.environment = environment
+
+    @staticmethod
+    def get_name():
+        return "begin_environment"
+
+    def apply(self, interpreter, itr, element, context):
+        environment = self.interpolate_arg(self.environment, element, interpreter)
+        context.begin_environment(environment)
+
+
+class EndEnvironment(Instruction):
+    """
+    The instruction to end an environment.
+    """
+
+    def __init__(self, environment):
+        """
+        Creates a new EndEnvironment instruction.
+
+        Args:
+            environment (str): The name of environment.
+        """
+        self.environment = environment
+
+    @staticmethod
+    def get_name():
+        return "end_environment"
+
+    def apply(self, interpreter, itr, element, context):
+        environment = self.interpolate_arg(self.environment, element, interpreter)
+        context.end_environment(environment)
+
+
 class SetMetadata(Instruction):
     """
     The instruction to set a metadata to the TeX document.

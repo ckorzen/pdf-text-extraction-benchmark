@@ -149,11 +149,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXGroup.
         """
-        return tex_models.TeXGroup(
-            elements=data[1],
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXGroup(data[1])
 
     def TEX_MACRO_DEF_CMD(self, data):
         """
@@ -170,9 +166,7 @@ class TeXSemantics(object):
         return tex_models.TeXMacroDefinition(
             cmd_name=cmd_name,
             macro_name=macro_name,
-            replacement=replacement,
-            document=self.document,
-            environments=self.get_environments_stack()
+            replacement=replacement
         )
 
     def LATEX_MACRO_DEF_CMD(self, data):
@@ -190,9 +184,7 @@ class TeXSemantics(object):
         return tex_models.TeXMacroDefinition(
             cmd_name=cmd_name,
             macro_name=macro_name,
-            replacement=replacement,
-            document=self.document,
-            environments=self.get_environments_stack()
+            replacement=replacement
         )
 
     def CONTROL_CMD(self, data):
@@ -206,22 +198,7 @@ class TeXSemantics(object):
         """
         cmd_name = "".join([data[0]] + data[1])
         opts_args = data[2]
-        cmd = tex_models.TeXControlCommand.factory(
-            cmd_name=cmd_name,
-            opts_args=opts_args,
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
-
-        if isinstance(cmd, tex_models.TeXBeginEnvironmentCommand):
-            # Append the environment to stack.
-            self.begin_environment_cmds.append(cmd)
-        if isinstance(cmd, tex_models.TeXEndEnvironmentCommand):
-            # Pop the environment from stack.
-            begin_environment_cmd = self.begin_environment_cmds.pop()
-            # Associate related \\begin{...} and \\end{...} commands.
-            begin_environment_cmd.end_command = cmd
-            cmd.begin_command = begin_environment_cmd
+        cmd = tex_models.TeXControlCommand.factory(cmd_name, opts_args)
         return cmd
 
     def SYMBOL_CMD(self, data):
@@ -235,12 +212,7 @@ class TeXSemantics(object):
         """
         cmd_name = "".join([data[0]] + data[1])
         opts_args = [data[2]]
-        return tex_models.TeXCommand(
-            cmd_name=cmd_name,
-            opts_args=opts_args,
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXCommand(cmd_name, opts_args)
 
     def ARG(self, data):
         """
@@ -251,11 +223,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXText.
         """
-        return tex_models.TeXCommandArgument(
-            elements=data[1],
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXCommandArgument(elements=data[1])
 
     def OPT(self, data):
         """
@@ -266,11 +234,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXCommandOption.
         """
-        return tex_models.TeXCommandOption(
-            elements=data[1],
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXCommandOption(elements=data[1])
 
     def MARKER(self, data):
         """
@@ -281,11 +245,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXMarker.
         """
-        return tex_models.TeXMarker(
-            int(data[1]),
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXMarker(int(data[1]))
 
     def NEW_PARAGRAPH(self, data):
         """
@@ -296,11 +256,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXNewParagraph.
         """
-        return tex_models.TeXNewParagraph(
-            text="".join([data[0]] + data[1]),
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXNewParagraph("".join([data[0]] + data[1]))
 
     def NEW_LINE(self, data):
         """
@@ -311,11 +267,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXNewLine.
         """
-        return tex_models.TeXNewLine(
-            text="".join(data),
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXNewLine("".join(data))
 
     def SPACE(self, data):
         """
@@ -326,11 +278,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXWhitespace.
         """
-        return tex_models.TeXWhitespace(
-            text="".join(data),
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXWhitespace("".join(data))
 
     def WORD(self, data):
         """
@@ -341,8 +289,4 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXWord.
         """
-        return tex_models.TeXWord(
-            "".join(data),
-            document=self.document,
-            environments=self.get_environments_stack()
-        )
+        return tex_models.TeXWord("".join(data))

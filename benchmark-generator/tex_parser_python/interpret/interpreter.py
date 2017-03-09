@@ -61,7 +61,13 @@ class LTBIdentifier():
 
         # Create the context, containing the current hierarchical level,
         # the stack of unfinished LTBs and the outline of finished LTBs.
-        context = Context(level=0, stack=[LTB(level=0)], outline=Outline())
+        context = Context(
+            document=self.doc,
+            level=0,
+            stack=[LTB(level=0)],
+            outline=Outline(),
+            environment_stack=[]
+        )
 
         # Interpret the elements in given document.
         self._identify_blocks(elements, context)
@@ -92,7 +98,7 @@ class LTBIdentifier():
             if isinstance(elem, tex_models.TeXCommand):
                 # Interpret the command correspondingly to referring rule.
                 # Obtain the referring rule.
-                rule = self.rules.get_rule(elem)
+                rule = self.rules.get_rule(elem, context)
 
                 if rule is None:
                     # There is no such rule. Ignore the command.
@@ -113,7 +119,9 @@ class Context:
     """
     A class representing the context while identifying LTBs.
     """
-    def __init__(self, level=0, stack=[], outline=None):
+    def __init__(
+            self, document=None, level=0, stack=[], outline=None,
+            environment_stack=[]):
         """
         Creates a new context.
         
@@ -122,9 +130,11 @@ class Context:
             stack (stack of LTB): The stack of unfinished LTBs.
             outline (Outline): The outline of finished LTBs.
         """
+        self.document = document
         self.level = level
         self.stack = stack
         self.outline = outline
+        self.environment_stack = environment_stack
 
     def introduce_block(self):
         """
@@ -185,6 +195,24 @@ class Context:
         """
         if len(self.stack) > 0:
             self.stack[-1].append_text(text)
+
+    def begin_environment(self, environment):
+        """
+        Begins an environment.
+
+        Args:
+            environment (str): The name of environment.
+        """
+        self.environment_stack.append(environment)
+
+    def end_environment(self, environment):
+        """
+        Ends an environment.
+
+        Args:
+            environment (str): The name of environment.
+        """
+        self.environment_stack.pop()
 
     def get_final_outline(self):
         """

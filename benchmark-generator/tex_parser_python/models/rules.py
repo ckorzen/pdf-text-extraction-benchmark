@@ -49,7 +49,7 @@ class Rules(dict):
         # Add the rule to dictionary.
         self[key] = rule
 
-    def get_rule(self, cmd):
+    def get_rule(self, cmd, context):
         """
         Checks if this dictionary of rules contains a rule for the given
         command.
@@ -73,6 +73,7 @@ class Rules(dict):
 
         Args:
             cmd (TeXCommand): The command for which a rule has to be found.
+            context (Context): The context of command.
         Returns:
             A rule, defining the instructions to execute on seeing the given
             element; or None if this dictionary does not contain such rule for
@@ -84,12 +85,12 @@ class Rules(dict):
 
         # Compose the list of document class filters to check.
         doc_class_filters = []
-        if cmd.document.document_class is not None:
-            doc_class_filters.append(cmd.document.document_class)
+        if context.document.document_class is not None:
+            doc_class_filters.append(context.document.document_class)
         doc_class_filters.append(None)
 
         # Compose the list of environment filters to check.
-        env_filters = list(reversed(cmd.environments))
+        env_filters = list(reversed(context.environment_stack))
         env_filters.append(None)
 
         # Check each doc_class / env combination and select the rule with most
@@ -211,22 +212,23 @@ class RuleFileParser(ConfigParser):
             # Split the key into identifier, doc_class_filter and env_filter.
             identifier, doc_class, env = string_utils.split(key, ",", 3)
 
-            # Split the value into instructions pattern and arguments.
-            instructions_str, args_str = string_utils.split(value, ";", 2, "")
-
-            # Split the arguments into list of individual arguments.
-            args_str_list = args_str.split(",")
-
-            # Pass the arguments to the instructions pattern.
-            resolved_instructions_str = instructions_str.format(*args_str_list)
-
-            # Split the instructions into list of individual instructions.
-            instructions_str_list = resolved_instructions_str.split(",")
-
             # Compose the list of Instruction objects.
             instructions = []
-            for instruct_str in instructions_str_list:
-                instructions.append(Instruction.from_string(instruct_str))
+            if len(value) > 0:
+                # Split the value into instructions pattern and arguments.
+                instructions_str, args_str = string_utils.split(value, ";", 2, "")
+
+                # Split the arguments into list of individual arguments.
+                args_str_list = args_str.split(",")
+
+                # Pass the arguments to the instructions pattern.
+                resolved_instructions_str = instructions_str.format(*args_str_list)
+
+                # Split the instructions into list of individual instructions.
+                instructions_str_list = resolved_instructions_str.split(",")
+
+                for instruct_str in instructions_str_list:
+                    instructions.append(Instruction.from_string(instruct_str))
 
             # Compose the Rule object and add it to Rules object.
             rule = Rule(identifier, doc_class, env, instructions)
