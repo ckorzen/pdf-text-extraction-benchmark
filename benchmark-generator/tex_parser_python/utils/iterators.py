@@ -6,7 +6,7 @@ from collections import deque
 
 class BaseIterator(Iterator):
     """
-    The super class for any iterators.
+    The base class for any iterators.
     """
     def __init__(self, elements):
         """
@@ -51,17 +51,17 @@ class BaseIterator(Iterator):
         Extends the inner stack by the given elements.
 
         Args:
-            elements (list of TeXElement): The elements to insert into the
-                stack.
+            elements (list of TeXElement): The elements to push to the stack.
         """
         self.stack.extendleft(reversed(elements))
 
     def skip_to_string(self, string):
         """
-        Advances to the element given by string.
+        Advances the iterator to the element given by string. Calling next() 
+        after it will return the element after the given element.
 
         Args:
-            string (str): The string of elements to advance to.
+            string (str): The string of the element to advance to.
         Returns:
             The last popped element on advancing to the given element.
         """
@@ -74,7 +74,8 @@ class BaseIterator(Iterator):
 
     def skip_to_element(self, element):
         """
-        Advances to the given element given.
+        Advances the iterator to the given element. Calling next() after it
+        will return the element after the given element.
 
         Args:
             element (TeXElement): The element to advance to.
@@ -98,8 +99,8 @@ class BaseIterator(Iterator):
 
 class ShallowIterator(BaseIterator):
     """
-    An iterator that iterates the elements of a tree-like datastructure in a
-    shallow manner.
+    An iterator that iterates TeX elements without stepping into hierarchy
+    levels.
     """
 
     def __init__(self, elements):
@@ -114,6 +115,7 @@ class ShallowIterator(BaseIterator):
     # Override
     def __next__(self):
         element = self.pop()
+        # Consider the elements resulted from macro expansion.
         if element.has_elements_from_macro_expansion():
             self.extend(element.get_elements_from_macro_expansion())
             element = self.pop()
@@ -122,8 +124,8 @@ class ShallowIterator(BaseIterator):
 
 class DFSIterator(BaseIterator):
     """
-    An iterator that iterates the elements of a tree-like datastructure in DFS
-    order.
+    An iterator that iterates TeX elements, with stepping into their hierarchy
+    levels in DFS order.
     """
     def __init__(self, elements):
         """
@@ -137,10 +139,12 @@ class DFSIterator(BaseIterator):
     # Override
     def __next__(self):
         element = self.pop()
+        # Consider the elements resulted from macro expansion.
         if element.has_elements_from_macro_expansion():
             self.extend(element.get_elements_from_macro_expansion())
             element = self.pop()
 
+        # Step into the hierarchy levels.
         if isinstance(element, tex_models.TeXGroup):
             self.extend(element.elements)
         if isinstance(element, tex_models.TeXCommand):
