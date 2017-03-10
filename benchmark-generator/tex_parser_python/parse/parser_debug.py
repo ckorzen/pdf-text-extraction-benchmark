@@ -1,4 +1,4 @@
-from models import tex_models
+from models import tex_elements
 from utils import iterators
 
 # =============================================================================
@@ -300,37 +300,37 @@ def stringify_word(text, color):
 # a function that defines the basic structure of the string to create for the
 # element and (3) the color function to use in order to colorize the element.
 model_spec = {
-    tex_models.TeXGroup: (
+    tex_elements.TeXGroup: (
         "Group", stringify_group, red
     ),
-    tex_models.TeXCommand: (
+    tex_elements.TeXCommand: (
         "Command", stringify_command, blue
     ),
-    tex_models.TeXControlCommand: (
+    tex_elements.TeXControlCommand: (
         "ControlCommand", stringify_command, blue
     ),
-    tex_models.TeXBeginEnvironmentCommand: (
+    tex_elements.TeXBeginEnvironmentCommand: (
         "BeginEnvironmentCommand", stringify_command, blue
     ),
-    tex_models.TeXEndEnvironmentCommand: (
+    tex_elements.TeXEndEnvironmentCommand: (
         "EndEnvironmentCommand", stringify_command, blue
     ),
-    tex_models.TeXMacroDefinition: (
+    tex_elements.TeXMacroDefinition: (
         "MacroDefinition", stringify_macro_definition, gray_bg
     ),
-    tex_models.TeXCommandArgument: (
+    tex_elements.TeXCommandArgument: (
         "Arg", stringify_arg, red
     ),
-    tex_models.TeXCommandOption: (
+    tex_elements.TeXCommandOption: (
         "Opt", stringify_opt, green
     ),
-    tex_models.TeXMarker: (
+    tex_elements.TeXMarker: (
         "Marker", stringify_marker, green_bg
     ),
-    tex_models.TeXWhitespace: (
+    tex_elements.TeXWhitespace: (
         "", stringify_word, black
     ),
-    tex_models.TeXWord: (
+    tex_elements.TeXWord: (
         "Text", stringify_word, black
     )
 }

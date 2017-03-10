@@ -81,7 +81,7 @@ class TeXGroup(TeXElement):
         Returns:
             The first element of this group.
         """
-        return self.get_element(1)
+        return self.get_element(0)
 
     def get_last_element(self):
         """
@@ -90,19 +90,19 @@ class TeXGroup(TeXElement):
         Returns:
             The last element of this group.
         """
-        return self.get_element(len(self.elements))
+        return self.get_element(len(self.elements) - 1)
 
     def get_element(self, num):
         """
         Returns the <num>-th element of this group.
 
         Args:
-            num (int): The 1-based index of element to get.
+            num (int): The 0-based index of element to get.
         Returns:
             The <num>-th element in this group.
         """
-        if len(self.elements) <= num:
-            return self.elements[num - 1]
+        if num < len(self.elements):
+            return self.elements[num]
 
     # Override
     def __str__(self):
@@ -139,24 +139,24 @@ class TeXCommand(TeXElement):
         Returns the <num>-th argument of this command.
 
         Args:
-            num (int): The 1-based index of argument to get.
+            num (int): The 0-based index of argument to get.
         Returns:
             The <num>-th argument of this command.
         """
-        if len(self.args) <= num:
-            return self.args[num - 1]
+        if num < len(self.args):
+            return self.args[num]
 
     def get_opt(self, num):
         """
         Returns the <num>-th option of this command.
 
         Args:
-            num (int): The 1-based index of option to get.
+            num (int): The 0-based index of option to get.
         Returns:
             The <num>-th option in this command.
         """
-        if len(self.opts) <= num:
-            return self.opts[num - 1]
+        if num < len(self.opts):
+            return self.opts[num]
 
     def get_first_arg_text(self):
         """
@@ -166,10 +166,10 @@ class TeXCommand(TeXElement):
         Returns:
             The text of first argument of this command.
         """
-        first_arg = self.get_arg(1)
+        first_arg = self.get_arg(0)
         if first_arg is None:
             return
-        first_element = first_arg.get_element(1)
+        first_element = first_arg.get_element(0)
         if not isinstance(first_element, TeXWord):
             return
         return first_element.text
@@ -262,7 +262,7 @@ class TeXBeginEnvironmentCommand(TeXControlCommand):
 
     # Override
     def get_identifier(self):
-        return self.cmd_name + str(self.get_arg(1))
+        return self.cmd_name + str(self.get_arg(0))
 
 
 class TeXEndEnvironmentCommand(TeXControlCommand):
@@ -292,7 +292,7 @@ class TeXEndEnvironmentCommand(TeXControlCommand):
 
     # Override
     def get_identifier(self):
-        return self.cmd_name + str(self.get_arg(1))
+        return self.cmd_name + str(self.get_arg(0))
 
 
 class TeXMacroDefinition(TeXControlCommand):
@@ -455,27 +455,3 @@ class TeXWord(TeXElement):
     # Override
     def __str__(self):
         return self.text
-
-# =============================================================================
-
-
-class TeXDocument:
-    """
-    A class representing a TeX document.
-    """
-    def __init__(self, document_class=None, elements=[], macro_definitions={}):
-        """
-        Creates a new TeX document.
-
-        Args:
-            document_class (str): The document class of this TeX document.
-            elements (list of TeXElement, optional): The elements of this
-                document.
-            macro_definitions (dict of str:TeXGroup, optional): The dictionary
-                of macro definitions, mapping the name of macros to their
-                replacements.
-        """
-        self.metadata = {}
-        self.document_class = document_class
-        self.elements = elements
-        self.macro_definitions = macro_definitions

@@ -14,7 +14,8 @@ class XmlSerializer(BaseSerializer):
     # Override
     def format_metadata(self, doc):
         root_element = XmlElement(TagNames.metadata)
-        root_element.sub(TagNames.file_path, text="foo/bar/baz.py")  # TODO
+        if doc.path is not None:
+            root_element.sub(TagNames.file_path, text=doc.path)
         return root_element
 
     # Override

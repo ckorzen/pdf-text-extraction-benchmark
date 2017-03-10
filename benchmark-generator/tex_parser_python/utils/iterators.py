@@ -1,4 +1,4 @@
-from models import tex_models
+from models import tex_elements
 
 from collections import Iterator
 from collections import deque
@@ -145,8 +145,8 @@ class DFSIterator(BaseIterator):
             element = self.pop()
 
         # Step into the hierarchy levels.
-        if isinstance(element, tex_models.TeXGroup):
+        if isinstance(element, tex_elements.TeXGroup):
             self.extend(element.elements)
-        if isinstance(element, tex_models.TeXCommand):
+        if isinstance(element, tex_elements.TeXCommand):
             self.extend(element.opts_args)
         return element

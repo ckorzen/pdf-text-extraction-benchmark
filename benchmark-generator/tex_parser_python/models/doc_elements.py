@@ -1,3 +1,27 @@
+class TeXDocument:
+    """
+    A class representing a TeX document.
+    """
+    def __init__(self, document_class=None, elements=[], macro_definitions={}):
+        """
+        Creates a new TeX document.
+
+        Args:
+            document_class (str): The document class of this TeX document.
+            elements (list of TeXElement, optional): The elements of this
+                document.
+            macro_definitions (dict of str:TeXGroup, optional): The dictionary
+                of macro definitions, mapping the name of macros to their
+                replacements.
+        """
+        self.metadata = {}
+        self.document_class = document_class
+        self.elements = elements
+        self.macro_definitions = macro_definitions
+
+# =============================================================================
+
+
 class LTB:
     """
     A class representing a logical text block (LTB).

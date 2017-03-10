@@ -1,4 +1,4 @@
-from models.ltb import LTB, LTBOutlineLevel
+from models import doc_elements
 
 
 class BaseSerializer:
@@ -65,9 +65,10 @@ class BaseSerializer:
         Returns:
             The outline element in a serializer-specific format.
         """
-        if isinstance(element, LTBOutlineLevel):
+        if isinstance(element, doc_elements.LTBOutlineLevel):
             return self.format_outline_level(element)
-        elif isinstance(element, LTB) and self.matches_roles_filter(element):
+        elif isinstance(element, doc_elements.LTB) \
+                        and self.matches_roles_filter(element):
             return self.format_block(element)
 
     def format_outline_level(self, outline_level):

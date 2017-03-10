@@ -1,6 +1,9 @@
+import os.path
+
 from copy import deepcopy
 
-from models import tex_models
+from models import tex_elements
+from models import doc_elements
 
 from utils import iterators
 from utils import file_utils
@@ -53,6 +56,7 @@ class TeXParser():
         """
         if path is not None:
             # A file path is given. Read its content.
+            path = os.path.abspath(path)
             if file_utils.is_missing_or_empty_file(path):
                 raise ValueError("The input path does not exist / is empty.")
             else:
@@ -67,6 +71,9 @@ class TeXParser():
 
         # Create a debug string.
         doc.debug_string = create_debug_string(doc)
+
+        # Add some metadata.
+        doc.path = path
 
         return doc
 
@@ -105,7 +112,7 @@ class TeXParser():
 
         for element in dfs_iter:
             # Ignore all non-commands (only a command can be a macro call).
-            if not isinstance(element, tex_models.TeXCommand):
+            if not isinstance(element, tex_elements.TeXCommand):
                 continue
 
             # Check if the command is a macro call.
@@ -131,7 +138,7 @@ class TeXParser():
 
         for element in dfs_iter:
             # Replace all markers by related arguments.
-            if not isinstance(element, tex_models.TeXMarker):
+            if not isinstance(element, tex_elements.TeXMarker):
                 continue
             macro_expansion = macro_call.args[element.i - 1].elements
             element.register_elements_from_macro_expansion(macro_expansion)
@@ -156,7 +163,7 @@ class TeXSemantics(object):
         Creates a new TeXSemantics object.
         """
         # The document to populate.
-        self.document = tex_models.TeXDocument()
+        self.document = doc_elements.TeXDocument()
 
     def DOC(self, elements):
         """
@@ -166,15 +173,15 @@ class TeXSemantics(object):
             elements (list of TeXElement): The elements of the document.
         """
         # Separate macro definitions from all other elements.
-        tex_elements = []
         macro_definitions = {}
+        other_elements = []
         for element in elements:
-            if isinstance(element, tex_models.TeXMacroDefinition):
+            if isinstance(element, tex_elements.TeXMacroDefinition):
                 macro_definitions[element.macro_name] = element
             else:
-                tex_elements.append(element)
-        self.document.elements = tex_elements
+                other_elements.append(element)
         self.document.macro_definitions = macro_definitions
+        self.document.elements = other_elements
 
     def GROUP(self, data):
         """
@@ -185,7 +192,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXGroup.
         """
-        return tex_models.TeXGroup(data[1])
+        return tex_elements.TeXGroup(data[1])
 
     def TEX_MACRO_DEF_CMD(self, data):
         """
@@ -199,7 +206,7 @@ class TeXSemantics(object):
         cmd_name = data[0]
         macro_name = "".join([data[1]] + data[2])
         replacement = data[4]
-        return tex_models.TeXMacroDefinition(
+        return tex_elements.TeXMacroDefinition(
             cmd_name=cmd_name,
             macro_name=macro_name,
             replacement=replacement
@@ -217,7 +224,7 @@ class TeXSemantics(object):
         cmd_name = data[0]
         macro_name = data[1].elements[0].cmd_name
         replacement = data[-1]
-        return tex_models.TeXMacroDefinition(
+        return tex_elements.TeXMacroDefinition(
             cmd_name=cmd_name,
             macro_name=macro_name,
             replacement=replacement
@@ -235,7 +242,7 @@ class TeXSemantics(object):
         """
         cmd_name = "".join([data[0]] + data[1])
         opts_args = data[2]
-        cmd = tex_models.TeXControlCommand.factory(cmd_name, opts_args)
+        cmd = tex_elements.TeXControlCommand.factory(cmd_name, opts_args)
         return cmd
 
     def SYMBOL_CMD(self, data):
@@ -249,7 +256,7 @@ class TeXSemantics(object):
         """
         cmd_name = "".join([data[0]] + data[1])
         opts_args = [data[2]]
-        return tex_models.TeXCommand(cmd_name, opts_args)
+        return tex_elements.TeXCommand(cmd_name, opts_args)
 
     def ARG(self, data):
         """
@@ -260,7 +267,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXCommandArgument.
         """
-        return tex_models.TeXCommandArgument(elements=data[1])
+        return tex_elements.TeXCommandArgument(elements=data[1])
 
     def OPT(self, data):
         """
@@ -271,7 +278,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXCommandOption.
         """
-        return tex_models.TeXCommandOption(elements=data[1])
+        return tex_elements.TeXCommandOption(elements=data[1])
 
     def MARKER(self, data):
         """
@@ -282,7 +289,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXMarker.
         """
-        return tex_models.TeXMarker(int(data[1]))
+        return tex_elements.TeXMarker(int(data[1]))
 
     def NEW_PARAGRAPH(self, data):
         """
@@ -293,7 +300,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXNewParagraph.
         """
-        return tex_models.TeXNewParagraph("".join([data[0]] + data[1]))
+        return tex_elements.TeXNewParagraph("".join([data[0]] + data[1]))
 
     def NEW_LINE(self, data):
         """
@@ -304,7 +311,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXNewLine.
         """
-        return tex_models.TeXNewLine("".join(data))
+        return tex_elements.TeXNewLine("".join(data))
 
     def SPACE(self, data):
         """
@@ -315,7 +322,7 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXWhitespace.
         """
-        return tex_models.TeXWhitespace("".join(data))
+        return tex_elements.TeXWhitespace("".join(data))
 
     def WORD(self, data):
         """
@@ -326,4 +333,4 @@ class TeXSemantics(object):
         Returns:
             An instance of TeXWord.
         """
-        return tex_models.TeXWord("".join(data))
+        return tex_elements.TeXWord("".join(data))

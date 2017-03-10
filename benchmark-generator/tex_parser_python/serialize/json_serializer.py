@@ -15,10 +15,12 @@ class JsonSerializer(BaseSerializer):
 
     # Override
     def format_metadata(self, doc):
+        metadata_dict = OrderedDict()
+        if doc.path is not None:
+            metadata_dict[TagNames.file_path] = doc.path
+
         return OrderedDict([
-            (TagNames.metadata, OrderedDict([
-                (TagNames.file_path, "/foo/bar/baz.tex")
-            ]))
+            (TagNames.metadata, metadata_dict)
         ])
 
     # Override
