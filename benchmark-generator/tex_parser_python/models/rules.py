@@ -156,6 +156,11 @@ class RuleFileParser(ConfigParser):
 
     # Define the default name of rules section in rules file.
     rules_section = "rules"
+    # Define the delimiter ("=" if it is not preceded or followed by "=")
+    delimiter = "(?<!=)=(?!=)"
+    # Define some replacements to execute after the key of an rule was obtained.
+    # (Replace  "\=" by "=").
+    option_replacements = {"=[=]+": "="}
 
     def __init__(self):
         """
@@ -172,7 +177,7 @@ class RuleFileParser(ConfigParser):
         # key as a delimiter, because it is preceded by an "\").
         # The hack is to manipulate the regex that is used by ConfigParser to
         # check for delimiters.
-        template = self._OPT_TMPL.format(delim="(?<!\\\\)=")
+        template = self._OPT_TMPL.format(delim=self.delimiter)
         self._optcre = re.compile(template, re.VERBOSE)
 
     def parse_rules(self, path):
@@ -253,8 +258,11 @@ class RuleFileParser(ConfigParser):
     def optionxform(self, optionstr):
         """
         Overrides the optionxform() method in order to avoid the default
-        lowercasing of option names.
+        lowercasing of option names and to do some replacements defined by
+        self.option_replacements.
         """
+        for key in self.option_replacements:
+            optionstr = re.sub(key, self.option_replacements[key], optionstr)
         return optionstr
 
     def rule_items(self):
