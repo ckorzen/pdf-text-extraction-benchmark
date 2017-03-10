@@ -1,8 +1,8 @@
 import re
-from models.ltb import LTB, Outline
 
 ARG_REGEX = re.compile("{ARG(?P<num>\\d)}")
 OPT_REGEX = re.compile("{OPT(?P<num>\\d)}")
+
 
 class Instruction:
     """
@@ -68,7 +68,7 @@ class Instruction:
         """
         Interpolates related values for {ARG<i>} and {OPT<i>} placeholders,
         where <i> is a number 0-9.
-        
+
         Args:
             arg (str): The argument to process.
             cmd (TeXCommand): The related command.

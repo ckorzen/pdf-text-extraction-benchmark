@@ -1,38 +1,43 @@
-import env  # NOQA
+from copy import deepcopy
 
 from models import tex_models
+
+from utils import iterators
 from utils import file_utils
+
 from tex_tokenizer import TeXTokenParser
-from parser_expand_macros import expand_macros
 from parser_debug import create_debug_string
 
+# Define some default values.
 DEFAULT_EXPAND_MACROS = True
 
 # =============================================================================
 # Parser.
 
 
-def parse(path=None, string=None, expand_macro_calls=DEFAULT_EXPAND_MACROS):
+def parse(path=None, string=None, expand_macros=DEFAULT_EXPAND_MACROS):
     """
     Parses a TeX file, given either by file path or by string, syntactically in
-    order to model the hierarchy of the TeX elements.
+    order to model the hierarchy of its TeX elements.
 
     Args:
         path (str, optional): The path to the TeX file to process.
         string (str, optional): The content of TeX file to process. Either path
             or string must be set.
         expand_macro_calls (bool, optional): Flag to toggle the expansion of
-            macro calls on parsing the TeX file.
+            macros on parsing the TeX file.
+    Returns:
+        The parsed TeX document.
     """
-    return TeXParser().parse(path, string, expand_macro_calls)
+    return TeXParser().parse(path, string, expand_macros)
 
 
 class TeXParser():
     """
-    A TeX parser based on a EBNF grammar.
+    A basic TeX parser based on a EBNF grammar.
     """
 
-    def parse(self, path=None, string=None, expand_macro_calls=True):
+    def parse(self, path=None, string=None, expand_macros=True):
         """
         Parses a TeX file, given either by file path or by string,
         syntactically in order to model the hierarchy of the TeX elements.
@@ -43,6 +48,8 @@ class TeXParser():
                 path or string must be set.
             expand_macro_calls (bool, optional): Flag to toggle the expansion
                 of macro calls on parsing the TeX file.
+        Returns:
+            The parsed TeX document.
         """
         if path is not None:
             # A file path is given. Read its content.
@@ -54,9 +61,9 @@ class TeXParser():
         # Parse the given string.
         doc = self.parse_string(string)
 
-        if expand_macro_calls:
+        if expand_macros:
             # Expand the macros.
-            expand_macros(doc, doc.macro_definitions)
+            self.expand_macros(doc, doc.macro_definitions)
 
         # Create a debug string.
         doc.debug_string = create_debug_string(doc)
@@ -65,10 +72,12 @@ class TeXParser():
 
     def parse_string(self, string):
         """
-        Parses the given TeX file, given as string.
+        Parses the content of a TeX file, given as string.
 
         Args:
             string (str): The string to parse.
+        Returns:
+            The parsed TeX document.
         """
         if string is None:
             # No string to parse given. Abort.
@@ -82,6 +91,56 @@ class TeXParser():
         tex_tokenizer.parse(string, semantics=tex_semantics)
         return tex_semantics.document
 
+    def expand_macros(self, group, macro_dict):
+        """
+        Expands all macro calls in the given group based on the given macro
+        dictionary.
+
+        Args:
+            group (TeXGroup): The group to process.
+            macro_dict (dict of str:TeXGroup): The macro dictionary.
+        """
+        # Iterate through the elements in DFS order.
+        dfs_iter = iterators.DFSIterator(group.elements)
+
+        for element in dfs_iter:
+            # Ignore all non-commands (only a command can be a macro call).
+            if not isinstance(element, tex_models.TeXCommand):
+                continue
+
+            # Check if the command is a macro call.
+            if element.cmd_name in macro_dict:
+                macro = macro_dict[element.cmd_name]
+                # Make a copy of the macro replacement.
+                replacement = deepcopy(macro.replacement)
+                # Expand the macro call.
+                self.expand_macro(element, replacement, macro_dict)
+
+    def expand_macro(self, macro_call, replacement, macro_dict):
+        """
+        Expands the given macro call by the given replacement recursively.
+
+        Args:
+            macro_call (TeXCommand): The macro call to expand.
+            replacement (TeXGroup): The replacement to insert on expanding the
+                macro call.
+            macro_dict (dict of str:TeXGroup): The macro dictionary.
+        """
+        # Iterate through the elements in replacmenet in DFS order.
+        dfs_iter = iterators.DFSIterator(replacement.elements)
+
+        for element in dfs_iter:
+            # Replace all markers by related arguments.
+            if not isinstance(element, tex_models.TeXMarker):
+                continue
+            macro_expansion = macro_call.args[element.i - 1].elements
+            element.register_elements_from_macro_expansion(macro_expansion)
+
+        # Register the expanded elements to the macro call.
+        macro_call.register_elements_from_macro_expansion(replacement.elements)
+        # Expand macro calls recursively.
+        self.expand_macros(replacement, macro_dict)
+
 # =============================================================================
 # Semantics.
 
@@ -94,33 +153,10 @@ class TeXSemantics(object):
 
     def __init__(self):
         """
-        Creates a new semantics object.
+        Creates a new TeXSemantics object.
         """
         # The document to populate.
         self.document = tex_models.TeXDocument()
-        # The current stack of \\begin{...} commands, needed to obtain the
-        # environment stack of each element and to identify the related
-        # \\end{...} commands.
-        self.begin_environment_cmds = []
-
-    def get_environments_stack(self):
-        """
-        Returns the current environment stack.
-        For example, if the current element lives within
-
-        \\begin{document}
-          \\begin{table}
-            ...
-          \\end{table}
-        \\end{document}
-
-        the environment stack for this element is [document, table].
-
-        Returns:
-            The current environment stack.
-        """
-        # Obtain the environment stack from stack of \\begin{...} commands.
-        return [x.get_environment() for x in self.begin_environment_cmds[::-1]]
 
     def DOC(self, elements):
         """
@@ -189,7 +225,8 @@ class TeXSemantics(object):
 
     def CONTROL_CMD(self, data):
         """
-        Handles a CONTROL_CMD (a "general" command).
+        Handles a CONTROL_CMD (a "general" command, for example of form
+        "\\name[option]{cmd}").
 
         Args:
             data (list): The components of the control command.
@@ -203,7 +240,7 @@ class TeXSemantics(object):
 
     def SYMBOL_CMD(self, data):
         """
-        Handles SYMBOL_CMD (a command that encodes a symbol).
+        Handles SYMBOL_CMD (a command that encodes a symbol), for example \\"a.
 
         Args:
             data (list): The components of the symbol command.
@@ -221,7 +258,7 @@ class TeXSemantics(object):
         Args:
             data (list): The components of the argument.
         Returns:
-            An instance of TeXText.
+            An instance of TeXCommandArgument.
         """
         return tex_models.TeXCommandArgument(elements=data[1])
 
@@ -282,7 +319,7 @@ class TeXSemantics(object):
 
     def WORD(self, data):
         """
-        Handles WORD (a "normal" word without whitespaces).
+        Handles WORD (a "general" text word without whitespaces).
 
         Args:
             data (list): The components of the word.

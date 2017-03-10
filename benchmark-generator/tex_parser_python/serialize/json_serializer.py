@@ -9,7 +9,8 @@ from base_serializer import Settings
 
 class JsonSerializer(BaseSerializer):
     """
-    A JSON serializer.
+    A serializer that serializes TeX documents to JSON. Populates an
+    OrderedDict and serializes them using json.dumps().
     """
 
     # Override

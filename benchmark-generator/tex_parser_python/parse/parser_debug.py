@@ -7,119 +7,133 @@ from utils import iterators
 
 def black(text):
     """
-    Changes the font color of given text to black.
+    Adds ANSI color codes to the given text in order to change its font color
+    to black.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return text
 
 
 def red(text):
     """
-    Changes the font color of given text to red.
+    Adds ANSI color codes to the given text in order to change its font color
+    to red.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[38;5;1m")
 
 
 def green(text):
     """
-    Changes the font color of given text to green.
+    Adds ANSI color codes to the given text in order to change its font color
+    to green.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[38;5;22m")
 
 
 def blue(text):
     """
-    Changes the font color of given text to blue.
+    Adds ANSI color codes to the given text in order to change its font color
+    to blue.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[38;5;20m")
 
 
 def gray(text):
     """
-    Changes the font color of given text to gray.
+    Adds ANSI color codes to the given text in order to change its font color
+    to gray.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[90m")
 
 
 def red_bg(text):
     """
-    Changes the background of given text to red.
+    Adds ANSI color codes to the given text in order to change its background
+    color to red.
+
+    Args:
+        text (str): The text to process.
+    Returns:
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[48;5;167m")
 
 
 def green_bg(text):
     """
-    Changes the background of given text to green.
+    Adds ANSI color codes to the given text in order to change its background
+    color to green.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[48;5;70m")
 
 
 def blue_bg(text):
     """
-    Changes the background of given text to blue.
+    Adds ANSI color codes to the given text in order to change its background
+    color to blue.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[48;5;110m")
 
 
 def gray_bg(text):
     """
-    Changes the background of given text to gray.
+    Adds ANSI color codes to the given text in order to change its background
+    color to gray.
 
     Args:
         text (str): The text to process.
     Returns:
-        The text enriched with ANSI escape codes that colors the text.
+        The text enriched with ANSI color code.
     """
     return colorize(text, "\033[47m")
 
 
 def colorize(text, color_code):
     """
-    Applies the given color code to the *trunk* of the given text, that
+    Adds the given ANSI color code to the *trunk* of the given text, that
     is the stripped version of the text. All leading and trailing whitespaces
     won't be colorized.
 
     Args:
         text (str): The text to process.
-        color_code (str): The ANSI ecapse code to use in order to change the
+        color_code (str): The ANSI color code to use in order to change the
             color of text.
     Returns:
-        The text enriched with given ANSI escape code.
+         The text enriched with the ANSI color code.
     """
 
     if len(text) == 0:
@@ -159,13 +173,14 @@ def colorize(text, color_code):
 
 def stringify_group(group, color):
     """
-    Creates enriched with ANSI color codes for the given group.
+    Creates a string representation for the given group, enriched with ANSI
+    color codes.
 
     Args:
         group (TeXGroup): The group to process.
-        color (function): The function to use to color the given group.
+        color (function): The function to use on creating the string.
     Returns:
-        The string representation of group, enriched with ANSI color codes.
+        The string representation of the group, enriched with ANSI color codes.
     """
     parts = []
     parts.append(color("{"))
@@ -176,13 +191,15 @@ def stringify_group(group, color):
 
 def stringify_command(command, color):
     """
-    Creates enriched with ANSI color codes for the given command.
+    Creates a string representation for the given command, enriched with ANSI
+    color codes.
 
     Args:
         command (TeXCommand): The command to process.
-        color (function): The function to use to color the given command.
+        color (function): The function to use on creating the string.
     Returns:
-        The string representation of command, enriched with ANSI color codes.
+        The string representation of the command, enriched with ANSI color
+        codes.
     """
     parts = []
     parts.append(color(command.cmd_name))
@@ -192,13 +209,14 @@ def stringify_command(command, color):
 
 def stringify_macro_definition(macro_def, color):
     """
-    Creates enriched with ANSI color codes for the given macro definition.
+    Creates a string representation for the given macro definition, enriched
+    with ANSI color codes.
 
     Args:
         macro_def (TeXMacroDefinition): The macro definition to process.
-        color (function): The function to use to color the given macro def.
+        color (function): The function to use on creating the string.
     Returns:
-        The string representation of macro definition, enriched with ANSI
+        The string representation of the macro definition, enriched with ANSI
         color codes.
     """
     parts = []
@@ -211,13 +229,15 @@ def stringify_macro_definition(macro_def, color):
 
 def stringify_arg(arg, color):
     """
-    Creates enriched with ANSI color codes for the given argument.
+    Creates a string representation for the given command argument, enriched
+    with ANSI color codes.
 
     Args:
         arg (TeXCommandArgument): The argument to process.
-        color (function): The function to use to color the given command.
+        color (function): The function to use on creating the string.
     Returns:
-        The string representation of argument, enriched with ANSI color codes.
+        The string representation of the command argument, enriched with ANSI
+        color codes.
     """
     parts = []
     parts.append(color("{"))
@@ -228,13 +248,15 @@ def stringify_arg(arg, color):
 
 def stringify_opt(opt, color):
     """
-    Creates enriched with ANSI color codes for the given option.
+    Creates a string representation for the given command option, enriched
+    with ANSI color codes.
 
     Args:
         opt (TeXCommandOption): The option to process.
-        color (function): The function to use to color the given option.
+        color (function): The function to use on creating the string.
     Returns:
-        The string representation of option, enriched with ANSI color codes.
+        The string representation of the command option, enriched with ANSI
+        color codes.
     """
     parts = []
     parts.append(color("["))
@@ -245,32 +267,38 @@ def stringify_opt(opt, color):
 
 def stringify_marker(marker, color):
     """
-    Creates a string enriched with ANSI color codes for the given marker.
+    Creates a string representation for the given marker, enriched with ANSI
+    color codes.
 
     Args:
         marker (TeXMarker): The marker to process.
-        color (function): The function to use to color the given marker.
+        color (function): The function to use on creating the string.
     Returns:
-        The string representation of marker, enriched with ANSI color codes.
+        The string representation of the marker, enriched with ANSI color
+        codes.
     """
     return color("#%s" % marker.i)
 
 
 def stringify_word(text, color):
     """
-    Creates a enriched with ANSI color codes for the given text.
+    Creates a string representation for the given word, enriched with ANSI
+    color codes.
 
     Args:
         text (TeXWord): The word to process.
-        color (function): The function to use to color the given text.
+        color (function): The function to use on creating the string.
     Returns:
-        The string representation of text, enriched with ANSI color codes.
+        The string representation of the text, enriched with ANSI color codes.
     """
     return color(text.text)
 
 # =============================================================================
 
-# Define how to represent each single TeX element.
+# Define specifications how to create a string representation for a given
+# TeXElement, with (1) a name for the element to use in color legend, (2)
+# a function that defines the basic structure of the string to create for the
+# element and (3) the color function to use in order to colorize the element.
 model_spec = {
     tex_models.TeXGroup: (
         "Group", stringify_group, red
@@ -311,21 +339,25 @@ model_spec = {
 def create_debug_string(doc):
     """
     Creates a (colored) debug string for the given document, to be able to
-    identify the detected TeX elements.
+    identify the detected TeX elements. The colors are implemented by using
+    ANSI color codes and can be displayed in terminal, e.g. by using less -R.
 
     Args:
-        doc (TeXDocument): The TeX document to process.
+        doc (TeXDocument): The TeX document to create a debug string for.
     Returns:
-        A debug string illustrating the elements of the given document.
+        A debug string highlighting the individual elements of the TeX document
+        by colors.
     """
 
-    # Create a color legend (which TeX element is represented by which color?)
+    # Create a color legend, that clarifies which TeX element is represented by
+    # which color.
     color_legend = create_color_legend()
     # Create a debug string for the macro definitions.
     macro_defs_str = stringify_elements(doc.macro_definitions.values(), "\n")
     # Create a debug string for all other elements.
     elements_str = stringify_elements(doc.elements)
 
+    # Join all three components.
     return "\n\n".join([
         "Legend: %s" % color_legend.strip(),
         "Macro Definitions:\n\n%s" % macro_defs_str.strip(),
@@ -335,8 +367,8 @@ def create_debug_string(doc):
 
 def create_color_legend():
     """
-    Creates a color legend to be able to identify which TeX element is
-    represented by which color.
+    Creates a color legend that clarifies which TeX element is represented by
+    which color.
 
     Returns:
         A string containing the color legend.
@@ -346,10 +378,10 @@ def create_color_legend():
 
 def create_color_legend_entry(model):
     """
-    Creates an entry in color legend for the given TeX model.
+    Creates an entry in color legend for the given model of a TeXElement.
 
     Args:
-        model (TeXElement): The model to process.
+        model (class): The model to process.
     Returns:
         The string representing the color legend entry for the given model.
     """
@@ -360,14 +392,14 @@ def create_color_legend_entry(model):
 
 def stringify_elements(elements, delim=""):
     """
-    Creates a debug string for each given given TeX element and joins them
-    separated by the given delimiter.
+    Creates a debug string for the given TeX elements and joins them using the
+    given delimiter.
 
     Args:
         elements (list of TeXElement): The elements to stringify.
-        delim (str, optional): The delimiter to use on joining the strings.
+        delim (str, optional): The delimiter to use on joining the substrings.
     Returns:
-        The string representation of given elements.
+        The debug string for the given elements.
     """
     parts = []
     itr = iterators.ShallowIterator(elements)
@@ -383,7 +415,7 @@ def stringify_element(element):
     Args:
         element (TeXElement): The element to stringify.
     Returns:
-        The string representation of given element.
+        The debug string for the given element.
     """
     model = type(element)
     if model not in model_spec:

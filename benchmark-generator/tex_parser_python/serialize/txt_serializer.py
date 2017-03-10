@@ -3,7 +3,7 @@ from base_serializer import BaseSerializer
 
 class TxtSerializer(BaseSerializer):
     """
-    A TXT serializer.
+    A serializer that serializes TeX documents to plain txt.
     """
 
     # Override
@@ -27,9 +27,6 @@ class TxtSerializer(BaseSerializer):
 
     # Override
     def _serialize(self, data):
-        """
-        Serializes the given data (representing the TeX document).
-        """
         if data is None:
             return ""
         return "\n\n".join(data) + "\n"

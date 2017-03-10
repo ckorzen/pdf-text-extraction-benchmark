@@ -1,70 +1,69 @@
-import sys
-
 from models.ltb import OutlineLevel, LTB
 
 
 class BaseSerializer:
     """
-    The super class for any serializers.
+    The base class for any serializers.
     """
 
     def __init__(self, roles_filter=[]):
         """
-        Creates a new serializer.
+        Creates a new serializer. If the given roles filter is non-empty, only
+        the LTBs with matching semantic roles will be serialized.
 
         Args:
             roles_filter (list of string): The roles of LTBs to serialize.
         """
         self.roles_filter = set(roles_filter)
 
-    def serialize(self, document, target=None):
+    def serialize(self, document):
         """
-        Serializes the given TeX document to given target. If target is None,
-        the serialization is printed to stdout.
+        Serializes the given TeX document. The concrete output format is
+        defined by the implementing serializer.
 
         Args:
             document (TeXDocument): The document to serialize.
-            target (str, optional): The path to target file of serialization.
-                If None, the serialization will be printed to stdout.
         Returns:
-            The serilaization string.
+            The serialization string.
         """
         metadata = self.format_metadata(document)
         outline = self.format_outline(document)
         doc = self.format_doc(metadata, outline)
-        string = self._serialize(doc)
-        self.write(string, target)
+        return self._serialize(doc)
 
     def format_metadata(self, doc):
         """
-        Formats the metadata of given TeX document.
+        Formats the metadata of given TeX document to a serializer-specific
+        format (e.g., an ElementTree in case of XML).
 
         Args:
             doc (TeXDocument): The TeX document to process.
         Returns:
-            The metadata in a serialized form.
+            The metadata in a serializer-specific format.
         """
         return None
 
     def format_outline(self, doc):
         """
-        Formats the outline of given TeX document.
+        Formats the outline of LTBs of given TeX document to a
+        serializer-specific format (e.g., an ElementTree in case of XML).
 
         Args:
             doc (TeXDocument): The TeX document to process.
         Returns:
-            The outline in a serialized form.
+            The outline of LTBs in a serializer-specific format.
         """
-        return self.format_outline_element(doc.outline.root)
+        return self.format_outline_element(doc.ltb_outline.root)
 
     def format_outline_element(self, element):
         """
-        Formats an element of the outline (of type OutlineLevel or LTB).
+        Formats an element of the outline (of type OutlineLevel or LTB) to a
+        serializer-specific format (e.g., an ElementTree in case of XML).
 
         Args:
             element (OutlineLevel|LTB): The element to format.
         Returns:
-            The outline element in a serialized form.
+            The outline element in a serializer-specific format.
         """
         if isinstance(element, OutlineLevel):
             return self.format_outline_level(element)
@@ -73,41 +72,45 @@ class BaseSerializer:
 
     def format_outline_level(self, outline_level):
         """
-        Formats an outline level.
+        Formats an outline level to a serializer-specific format (e.g., an
+        ElementTree in case of XML).
 
         Args:
             outline_level (OutlineLevel): The level to format.
         Returns:
-            The outline level in a serialized form.
+            The outline level in a serializer-specific format.
         """
         return None
 
     def format_block(self, block):
         """
-        Formats a logical text block.
+        Formats a LTB to a serializer-specific format (e.g., an ElementTree in
+        case of XML).
 
         Args:
             block (LTB): The logical text block to format.
         Returns:
-            The logical text block in a serialized form.
+            The LTB in a serializer-specific format.
         """
         return None
 
     def format_doc(self, metadata, outline):
         """
-        Joins the given metadata and outline.
+        Combines the given metadata and the given outline of LTBs to a
+        serializer-specific format (e.g., an ElementTree in case of XML).
 
         Args:
-            metadata: The metadata in a serialized form.
-            outline: The outline in a serialized form.
+            metadata: The metadata in a serializer-specific format.
+            outline: The outline in a serializer-specific format.
         Returns:
-            The metadata and the outline in a joined form.
+            The combined metadata and outline in a serializer-specific format.
         """
         return None
 
     def _serialize(self, data):
         """
-        Serializes the given data (representing the TeX document).
+        Serializes the given data (representing the TeX document in a
+        serializer-specific format) to string.
 
         Args:
             data: The data to serialize.
@@ -117,36 +120,18 @@ class BaseSerializer:
         return data
 
     # =========================================================================
-
-    def write(self, string, target=None):
-        """
-        Writes the given string to given target path. If target is None, the
-        string is written to stdout.
-
-        Args:
-            string (str): The string to write.
-            target (str, optional): The path to the target path. If None, the
-                serilaization will be printed to stdout.
-        """
-        if string is None:
-            return
-
-        # Write to stdout if there is no target path given.
-        out = open(target, 'w') if target is not None else sys.stdout
-        out.write(string)
-        if out is not sys.stdout:
-            out.close()
-
-    # =========================================================================
+    # Utils.
 
     def matches_roles_filter(self, block):
         """
-        Returns True if the given block matches the roles filter.
+        Returns True if the given LTB matches the roles filter of the
+        serializer.
 
         Args:
             block (LTB): The logical text block to process.
         Returns:
-            True if the given block matches the roles filter; False otherwise.
+            True if the given block matches the roles filter or if the
+            roles_filter is empty; False otherwise.
         """
         if len(self.roles_filter) == 0:
             return True
@@ -157,7 +142,7 @@ class BaseSerializer:
 
 class Settings:
     """
-    A class defining some settings of the serialization.
+    A class defining some default settings for the serialization.
     """
     # The encoding to use.
     encoding = "UTF-8"
@@ -167,7 +152,7 @@ class Settings:
 
 class TagNames:
     """
-    A class defining some tag names to use in XML and JSON.
+    A class defining some default tag names to use in XML and JSON.
     """
     root = "result"  # Only needed in xml.
     metadata = "metadata"

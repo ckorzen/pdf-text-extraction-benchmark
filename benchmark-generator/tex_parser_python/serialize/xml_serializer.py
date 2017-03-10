@@ -8,7 +8,7 @@ from base_serializer import Settings
 
 class XmlSerializer(BaseSerializer):
     """
-    An XML serializer.
+    A serializer that serializes TeX documents to xml.
     """
 
     # Override
@@ -47,12 +47,10 @@ class XmlSerializer(BaseSerializer):
     # Override
     def format_doc(self, metadata, outline):
         root_element = XmlElement(TagNames.root)
-
         if metadata is not None:
             root_element.sub_element(metadata)
         if outline is not None:
             root_element.sub_element(outline)
-
         return root_element
 
     # Override
@@ -71,8 +69,9 @@ class XmlElement:
 
         Args:
             tag_name (str): The tag name of the element.
-            attributes (dict of str:str): The attributes of the element.
-            text (str): The text of the element.
+            attributes (dict of str:str, optional): The attributes of the
+                element.
+            text (str, optional): The text of the element.
         """
         self.element = xml.Element(tag_name, attributes)
         self.element.text = text
@@ -83,10 +82,11 @@ class XmlElement:
 
         Args:
             tag_name (str): The tag name of the child element.
-            attributes (dict of str:str): The attributes of the child element.
-            text (str): The text of the child element.
+            attributes (dict of str:str, optional): The attributes of the child
+                element.
+            text (str, optional): The text of the child element.
         Returns:
-            The created child.
+            The created child element.
         """
         sub = xml.SubElement(self.element, tag_name, attributes)
         sub.text = text
@@ -94,7 +94,7 @@ class XmlElement:
 
     def sub_element(self, other):
         """
-        Appends the given element as child to this xml element.
+        Appends the given XmlElement as a child to this XmlElement.
 
         Args:
             other (XmlElement): The xml element to append.
@@ -103,7 +103,7 @@ class XmlElement:
 
     def num_children(self):
         """
-        Returns the number of children elements.
+        Returns the number of children elements of this XmlElement.
 
         Returns:
             The number of children elements.

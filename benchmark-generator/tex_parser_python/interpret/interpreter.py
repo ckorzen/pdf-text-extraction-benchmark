@@ -5,7 +5,7 @@ from models.ltb import LTB, Outline
 from models.rules import Rules
 
 
-def identify_blocks(doc, rules_path):
+def identify_ltb_outline(doc, rules_path):
     """
     Iterates through the elements of the given TeX document and identifies the
     logical text blocks (LTBs) based on the given rules.
@@ -124,7 +124,7 @@ class Context:
             environment_stack=[]):
         """
         Creates a new context.
-        
+
         Args:
             level (int): The current hierarchical level.
             stack (stack of LTB): The stack of unfinished LTBs.
