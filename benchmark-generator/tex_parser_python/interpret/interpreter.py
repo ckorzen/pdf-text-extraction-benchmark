@@ -1,7 +1,7 @@
 from utils import iterators
 
 from models import tex_models
-from models.ltb import LTB, Outline
+from models.ltb import LTB, LTBOutline
 from models.rules import Rules
 
 
@@ -65,7 +65,7 @@ class LTBIdentifier():
             document=self.doc,
             level=0,
             stack=[LTB(level=0)],
-            outline=Outline(),
+            outline=LTBOutline(),
             environment_stack=[]
         )
 
@@ -109,7 +109,7 @@ class LTBIdentifier():
                     continue
 
                 # Process each single instruction given by the rule.
-                for instruction in rule.get_instructions():
+                for instruction in rule.instructions:
                     instruction.apply(self, itr, elem, context)
 
     # =========================================================================
@@ -128,7 +128,7 @@ class Context:
         Args:
             level (int): The current hierarchical level.
             stack (stack of LTB): The stack of unfinished LTBs.
-            outline (Outline): The outline of finished LTBs.
+            outline (LTBOutline): The outline of finished LTBs.
         """
         self.document = document
         self.level = level

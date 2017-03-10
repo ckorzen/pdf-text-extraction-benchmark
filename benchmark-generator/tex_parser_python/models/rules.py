@@ -2,15 +2,16 @@ import re
 
 from configparser import ConfigParser, ExtendedInterpolation
 
+from models.instructions import Instruction
+
 from utils import file_utils
 from utils import string_utils
-from models.instructions import Instruction
 
 
 class Rules(dict):
     """
     A class representing a dictionary of rules, where a rule defines
-    instructions to execute on for a specific command.
+    instructions to execute on identifying LTBs for a specific command.
     """
 
     def add_rule(self, rule):
@@ -19,7 +20,8 @@ class Rules(dict):
         <identifier>_<doc_class>_<environment> in order to enable selective
         rules.
 
-        <identifier> is the identifier of the element, referred by the rule.
+        <identifier> is the identifier of the command, which is referred by the
+            rule.
         <doc_class> is the document class filter of the rule that can be used
             to restrict the rule to elements that only occur in documents with
             given document class.
@@ -31,20 +33,19 @@ class Rules(dict):
         "\\footnote_revtex_table".
 
         In case of there is no document class filter and/or environment filter
-        for the given rule, the related placeholder is replaces by None.
-        For example, a rule with identifier "\\footnote" and not document class
+        for the given rule, the related placeholder is replaced by None.
+        For example, a rule with identifier "\\footnote" and no document class
         filter and no environment filter is indexed with key
         "\\footnote_None_None".
 
         Args:
             rule (Rule): The rule to add.
         """
-
         # Compose the key.
         key = "%s_%s_%s" % (
-            rule.get_identifier(),
-            rule.get_document_class_filter(),
-            rule.get_environment_filter()
+            rule.identifier,
+            rule.document_class_filter,
+            rule.environment_filter
         )
         # Add the rule to dictionary.
         self[key] = rule
@@ -55,7 +56,8 @@ class Rules(dict):
         command.
 
         On searching for a referring rule in this dictionary, the rule with the
-        "most specific matching" filters is selected.
+        "most specific matching" filters (document class filter and environment
+        filter) is selected.
 
         For example, consider a dictionary of rules with keys
 
@@ -73,7 +75,8 @@ class Rules(dict):
 
         Args:
             cmd (TeXCommand): The command for which a rule has to be found.
-            context (Context): The context of command.
+            context (Context): The context of command, containing the parent
+                TeX document and the current environment stack.
         Returns:
             A rule, defining the instructions to execute on seeing the given
             element; or None if this dictionary does not contain such rule for
@@ -87,10 +90,12 @@ class Rules(dict):
         doc_class_filters = []
         if context.document.document_class is not None:
             doc_class_filters.append(context.document.document_class)
+        # Append None to find also rules with no document class filters.
         doc_class_filters.append(None)
 
         # Compose the list of environment filters to check.
         env_filters = list(reversed(context.environment_stack))
+        # Append None to find also rules with no environment filters.
         env_filters.append(None)
 
         # Check each doc_class / env combination and select the rule with most
@@ -104,13 +109,21 @@ class Rules(dict):
 
     @staticmethod
     def read_from_file(path):
+        """
+        Reads the given rule files and composes the related Rules object.
+
+        Args:
+            path (str): The path to the rules file to read.
+        Returns:
+            The created Rules object.
+        """
         return RuleFileParser().parse_rules(path)
 
 
 class Rule:
     """
     A class representing a single rule that defines a series of instructions
-    to execute on seeing a specific TeX command.
+    to execute on identifying LTBs for a specific TeX command.
     """
     def __init__(self, identifier, doc_class_filter=None, env_filter=None,
                  instructions=[]):
@@ -118,74 +131,45 @@ class Rule:
         Creates a new rule.
 
         Args:
-            identifier (str): The identifier of referred command.
+            identifier (str): The identifier of the referred command.
             doc_class_filter (str, otional): The document class filter.
             env_filter (str, optional): The environment filter.
             instructions (list of Instruction, optional): The instructions to
                 execute.
         """
         self.identifier = identifier
-        self.doc_class_filter = doc_class_filter
-        self.env_filter = env_filter
+        self.document_class_filter = doc_class_filter
+        self.environment_filter = env_filter
         self.instructions = instructions
-
-    def get_identifier(self):
-        """
-        Returns the identifier of referred command.
-
-        Returns:
-            The identifier of referred command.
-        """
-        return self.identifier
-
-    def get_document_class_filter(self):
-        """
-        Returns the document class filter.
-
-        Returns:
-            The document class filter.
-        """
-        return self.doc_class_filter
-
-    def get_environment_filter(self):
-        """
-        Returns the environment filter.
-
-        Returns:
-            The environment filter.
-        """
-        return self.env_filter
-
-    def get_instructions(self):
-        """
-        Returns the instructions to execute.
-
-        Returns:
-            The instructions.
-        """
-        return self.instructions
 
     def __str__(self):
         return "Rule(id: %s; filters: %s,%s; %s" \
-            % (self.identifier, self.doc_class_filter, self.env_filter,
+            % (self.identifier, self.doc_class_filter, self.environment_filter,
                self.instructions)
 
 
 class RuleFileParser(ConfigParser):
     """
-    A parser to read a rules file.
+    An extension of ConfigParser that is able to parse rules file and to create
+    a related Rules object.
     """
 
+    # Define the default name of rules section in rules file.
     rules_section = "rules"
 
     def __init__(self):
         """
         Creates a new rule parser.
         """
+        # Use extended interpolation to be able to use ${section:option} syntax
+        # in order to refer to other options (in other sections) in the rules
+        # file.
         super().__init__(interpolation=ExtendedInterpolation())
-        # Dirty hack to allow escaped delimiters in keys. For example, we
-        # would like to be able to write "\=" in a key, which should not
-        # considered as an delimiter (because it is preceded by an "\").
+
+        # Dirty hack in order to not consider escaped delimiters in keys as
+        # delimiters: For example, we would like to use "=" as the delimiter
+        # between keys and values, but would like to ignore "\=" in a
+        # key as a delimiter, because it is preceded by an "\").
         # The hack is to manipulate the regex that is used by ConfigParser to
         # check for delimiters.
         template = self._OPT_TMPL.format(delim="(?<!\\\\)=")
@@ -207,30 +191,41 @@ class RuleFileParser(ConfigParser):
         # Read the file.
         self.read(path)
 
+        # Compose the Rules object.
         rules = Rules()
         for key, value in self.rule_items():
             # Split the key into identifier, doc_class_filter and env_filter.
             identifier, doc_class, env = string_utils.split(key, ",", 3)
 
-            # Compose the list of Instruction objects.
+            # Compose the list of Instruction objects from the value.
+            # A value is of form:
+            # <instruction>*;<args>*
+            # where the part before the ";" contains a list of (serialized)
+            # instructions (which may contains placeholders {i}) and the part
+            # behind the ";" contains a list of arguments to insert instead of
+            # the placeholders.
+            # Example: "finish_block,start_block,begin_environment {0};table"
+            # "{0}" should be replaced by "table", resulting in the following
+            # list: "finish_block,start_block,begin_environment table"
             instructions = []
             if len(value) > 0:
-                # Split the value into instructions pattern and arguments.
-                instructions_str, args_str = string_utils.split(value, ";", 2, "")
+                # Split the value on ";" into instructions pattern and args.
+                pattern_str, args_str = string_utils.split(value, ";", 2, "")
 
-                # Split the arguments into list of individual arguments.
+                # Split the arguments on "," to get individual args.
                 args_str_list = args_str.split(",")
 
-                # Pass the arguments to the instructions pattern.
-                resolved_instructions_str = instructions_str.format(*args_str_list)
+                # Insert the args into the pattern
+                instructions_str = pattern_str.format(*args_str_list)
 
                 # Split the instructions into list of individual instructions.
-                instructions_str_list = resolved_instructions_str.split(",")
+                instructions_str_list = instructions_str.split(",")
 
+                # Compose the Instruction objects.
                 for instruct_str in instructions_str_list:
                     instructions.append(Instruction.from_string(instruct_str))
 
-            # Compose the Rule object and add it to Rules object.
+            # Compose the Rule object and add it to the Rules object.
             rule = Rule(identifier, doc_class, env, instructions)
             rules.add_rule(rule)
         return rules
@@ -238,7 +233,8 @@ class RuleFileParser(ConfigParser):
     def options(self, section):
         """
         Overrides the options() method in order to support leading and
-        trailing whitespaces in option names.
+        trailing whitespaces in option names. Removes leading and
+        trailing quotes which were added in order to keep the whitespaces.
         """
         options = ConfigParser.options(self, section)
         return [self.unwrap_quotes(x) for x in options]
@@ -256,18 +252,18 @@ class RuleFileParser(ConfigParser):
 
     def optionxform(self, optionstr):
         """
-        Overrides the optionxform() method in order to avoid the lowercasing
-        of option names.
+        Overrides the optionxform() method in order to avoid the default
+        lowercasing of option names.
         """
         return optionstr
 
     def rule_items(self):
         """
-        Returns a list of tuples with (name, value) for each option in the
+        Returns a list of tuples with (name, value) for each rule in the
         rules section.
 
         Returns:
-            A list of tuples with (name, value) for each option in the rules
+            A list of tuples with (name, value) for each rule in the rules
             section.
         """
         rule_items = []
@@ -283,11 +279,13 @@ class RuleFileParser(ConfigParser):
         Overrides the get() method in order to support leading and
         trailing whitespaces in option and section names.
         """
+        # Check if the file contains the option with quotes.
         value = ConfigParser.get(
             self, section, option, raw=raw, vars=vars, fallback=None)
         if value is not None:
             return self.unwrap_quotes(value)
 
+        # Check if the file contains the option with quotes.
         option = self.wrap_in_quotes(option)
         value = ConfigParser.get(
             self, section, option, raw=raw, vars=vars, fallback=None)
@@ -309,8 +307,8 @@ class RuleFileParser(ConfigParser):
 
     def wrap_in_quotes(self, string):
         """
-        Removes trailing and leading quotes if the string starts and ends with
-        quotes.
+        Adds trailing and leading quotes if the string doesn't start and
+        doesn't end with quotes.
         """
         if string is None:
             return None

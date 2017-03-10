@@ -6,12 +6,14 @@ class TeXElement:
         """
         Creates a new TeX element.
         """
-        # The replacing elements that resulted from a macro expansion
+        # The elements, that resulted from a macro expansion and replace this
+        # element.
         self.elements_from_macro_expansion = []
 
     def register_elements_from_macro_expansion(self, elements):
         """
-        Registers the given elements that resulted from a macro expansion.
+        Registers the given elements that resulted from a macro expansion and
+        replace this element.
 
         Args:
             elements (list of TeXElement): The elements that resulted from
@@ -28,7 +30,8 @@ class TeXElement:
 
     def get_elements_from_macro_expansion(self):
         """
-        Returns the elements that resulted from macro expansion.
+        Returns the elements that resulted from macro expansion and replace
+        this element.
         """
         if not self.has_elements_from_macro_expansion():
             return []
@@ -40,6 +43,9 @@ class TeXElement:
 
             Args:
                 element (TeXElement): The element to analyze.
+            Returns:
+                The elements that replace the given element "after expanding
+                macros".
             """
             result = []
             if not element.has_elements_from_macro_expansion():
@@ -88,16 +94,17 @@ class TeXGroup(TeXElement):
 
     def get_element(self, num):
         """
-        Returns the num-th element of this group.
+        Returns the <num>-th element of this group.
 
         Args:
             num (int): The 1-based index of element to get.
         Returns:
-            The num-th element in this group.
+            The <num>-th element in this group.
         """
         if len(self.elements) <= num:
             return self.elements[num - 1]
 
+    # Override
     def __str__(self):
         return "{%s}" % "".join([str(x) for x in self.elements])
 
@@ -107,16 +114,17 @@ class TeXGroup(TeXElement):
 
 class TeXCommand(TeXElement):
     """
-    A class representing a TeXCommand.
+    The base class for each TeX command.
     """
     def __init__(self, cmd_name=None, opts_args=[]):
         """
-        Creates a new command.
+        Creates a new TeX command.
 
         Args:
             cmd_name (str): The name of the command.
             opts_args (list of TeXCommandArgument|TeXCommandOption):
-                The list of options and argument of this command.
+                The list of options and argument of this command (in order as
+                they appeared in the TeX file).
         """
         super().__init__()
         self.cmd_name = cmd_name
@@ -128,31 +136,31 @@ class TeXCommand(TeXElement):
 
     def get_arg(self, num):
         """
-        Returns the num-th argument of this command.
+        Returns the <num>-th argument of this command.
 
         Args:
             num (int): The 1-based index of argument to get.
         Returns:
-            The num-th argument in this command.
+            The <num>-th argument of this command.
         """
         if len(self.args) <= num:
             return self.args[num - 1]
 
     def get_opt(self, num):
         """
-        Returns the num-th option of this command.
+        Returns the <num>-th option of this command.
 
         Args:
             num (int): The 1-based index of option to get.
         Returns:
-            The num-th option in this command.
+            The <num>-th option in this command.
         """
         if len(self.opts) <= num:
             return self.opts[num - 1]
 
     def get_first_arg_text(self):
         """
-        Returns the text of first argument of this command.
+        Returns the text of the first argument of this command.
         For example, for command "\\begin{table}", this method returns "table".
 
         Returns:
@@ -172,16 +180,19 @@ class TeXCommand(TeXElement):
         used in rules to refer to this commands.
 
         For example, for command \\footnote{...}, this method should return
-        "\\footnote" (because its argument(s) are variable).
+        "\\footnote" (because it is unique enough to distinguish it from other
+        command and adding the argument(s) would result in variable
+        identifiers).
         For command \\begin{Introduction}, the method should return
-        "\\begin{Introduction}" (because "\\begin" is not unique, as it exist
-        other \\begin{...} commands."
+        "\\begin{Introduction}" (because "\\begin" is not unique enough,
+        because there are other \\begin{...} commands with different meanings."
 
         Returns:
             A unique identifier for this command.
         """
         return self.cmd_name
 
+    # Override
     def __str__(self):
         opts_args_str = "".join([str(x) for x in self.opts_args])
         return "%s%s" % (self.cmd_name, opts_args_str)
@@ -192,7 +203,7 @@ class TeXCommand(TeXElement):
 
 class TeXControlCommand(TeXCommand):
     """
-    A class representing a TeX control command, that is a command of form
+    A class representing a TeX control command, that is a command of form e.g.
     \\foobar[opt]{arg}.
     """
 
@@ -222,28 +233,6 @@ class TeXControlCommand(TeXCommand):
             cmd_name=cmd_name,
             opts_args=opts_args
         )
-
-
-class TeXMacroDefinition(TeXControlCommand):
-    """
-    A class representing a macro definition, like \\def\\foobar... or
-    \\newcommand{\\foobar}...
-    """
-    def __init__(self, cmd_name=None, macro_name=None, replacement=None):
-        """
-        Creates a new macro definition.
-
-        Args:
-            cmd_name (str): The name of the command.
-            macro_name (str): The name of the macro.
-            replacement (TeXGroup): The replacement of the macro.
-        """
-        super().__init__(cmd_name)
-        self.macro_name = macro_name
-        self.replacement = replacement
-
-    def __str__(self):
-        return "%s%s" % (self.macro_name, self.replacement)
 
 
 class TeXBeginEnvironmentCommand(TeXControlCommand):
@@ -305,6 +294,29 @@ class TeXEndEnvironmentCommand(TeXControlCommand):
     def get_identifier(self):
         return self.cmd_name + str(self.get_arg(1))
 
+
+class TeXMacroDefinition(TeXControlCommand):
+    """
+    A class representing a macro definition, like \\def\\foobar... or
+    \\newcommand{\\foobar}...
+    """
+    def __init__(self, cmd_name=None, macro_name=None, replacement=None):
+        """
+        Creates a new macro definition.
+
+        Args:
+            cmd_name (str): The name of the command.
+            macro_name (str): The name of the macro.
+            replacement (TeXGroup): The replacement of the macro.
+        """
+        super().__init__(cmd_name)
+        self.macro_name = macro_name
+        self.replacement = replacement
+
+    # Override
+    def __str__(self):
+        return "%s%s" % (self.macro_name, self.replacement)
+
 # -----------------------------------------------------------------------------
 # Args and Opts.
 
@@ -313,6 +325,7 @@ class TeXCommandArgument(TeXGroup):
     """
     A class representing an argument of a command (elements enclosed in {...}).
     """
+    # Override
     def __str__(self):
         return "{%s}" % "".join([str(x) for x in self.elements])
 
@@ -321,6 +334,7 @@ class TeXCommandOption(TeXGroup):
     """
     A class representing an option of a command (elements enclosed in [...]).
     """
+    # Override
     def __str__(self):
         return "[%s]" % "".join([str(x) for x in self.elements])
 
@@ -342,6 +356,7 @@ class TeXMarker(TeXElement):
         super().__init__()
         self.i = i
 
+    # Override
     def __str__(self):
         return "#%s" % self.i
 
@@ -362,6 +377,7 @@ class TeXNewParagraph(TeXCommand):
         super().__init__()
         self.text = text
 
+    # Override
     def __str__(self):
         return self.text
 
@@ -386,6 +402,7 @@ class TeXNewLine(TeXCommand):
         super().__init__()
         self.text = text
 
+    # Override
     def __str__(self):
         return self.text
 
@@ -398,7 +415,7 @@ class TeXNewLine(TeXCommand):
 
 class TeXWhitespace(TeXCommand):
     """
-    A class representing a whitespace, that are one or more spaces.
+    A class representing a whitespace, that are one or more consecutive spaces.
     """
     def __init__(self, text):
         """
@@ -410,6 +427,7 @@ class TeXWhitespace(TeXCommand):
         super().__init__()
         self.text = text
 
+    # Override
     def __str__(self):
         return self.text
 
@@ -434,6 +452,7 @@ class TeXWord(TeXElement):
         super().__init__()
         self.text = text
 
+    # Override
     def __str__(self):
         return self.text
 
@@ -451,7 +470,7 @@ class TeXDocument:
         Args:
             document_class (str): The document class of this TeX document.
             elements (list of TeXElement, optional): The elements of this
-                document. document.
+                document.
             macro_definitions (dict of str:TeXGroup, optional): The dictionary
                 of macro definitions, mapping the name of macros to their
                 replacements.

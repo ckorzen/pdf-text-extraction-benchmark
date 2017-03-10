@@ -57,7 +57,7 @@ class BaseIterator(Iterator):
 
     def skip_to_string(self, string):
         """
-        Advances the iterator to the element given by string. Calling next() 
+        Advances the iterator to the element given by string. Calling next()
         after it will return the element after the given element.
 
         Args:

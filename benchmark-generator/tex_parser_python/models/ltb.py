@@ -19,24 +19,30 @@ class LTB:
 
     def register_whitespace(self):
         """
-        Registers a whitespace to this LTB. This ensures that exactly one
-        whitespace is added to the text of this LTB before other text is
+        Registers a whitespace to this LTB, which means: keep in mind that a
+        whitespace should be appended to this LTB before further text is
         appended to this LTB.
+        This method was introduced to avoid series of more than one whitespace
+        between words in case of multiple spaces, line breaks or paragraph
+        breaks in the TeX file.
+        Calling this method more than one time does not have any effect, as it
+        will be introduced exactly one whitespace before the next text.
         """
         self.is_whitespace_registered = True
 
     def append_text(self, text):
         """
-        Appends the given text to this LTB. Appends a whitespace before
-        appending the text if a whitespace is registered to this LTB.
-        Unregisters whitespaces from this LTB after the text was appended.
+        Appends the given text to this LTB. Use this method whenever you want
+        to append text to this LTB, as it respects the registered whitespaces.
+        Appends a single whitespace before appending the text if one (or more)
+        whitespaces are registered to this LTB and there is already some text
+        in this LTB (the whitespace is not added if it would be the first
+        character in LTB).
+        Unregisters the whitespaces from this LTB after the text was appended.
 
         Args:
             text (str): The text to append.
         """
-        # Append a whitespace if a whitespace is registered and there is
-        # already some text (don't append the whitespace if it would be the
-        # first character in LTB).
         if self.is_whitespace_registered and self.has_text():
             self.text_fragments.append(" ")
         self.text_fragments.append(text)
@@ -60,14 +66,16 @@ class LTB:
         """
         return len(self.text_fragments) > 0
 
+    # Override
     def __str__(self):
         return str(self.get_text())
 
+    # Override
     def __repr__(self):
         return str(self.__dict__)
 
 
-class Outline:
+class LTBOutline:
     """
     A class representing the (hierarchical) outline of LTBs.
     """
@@ -75,8 +83,8 @@ class Outline:
         """
         Creates a new outline.
         """
-        # The root level.
-        self.root = OutlineLevel(0)
+        # The root level (with level 0).
+        self.root = LTBOutlineLevel(0)
         # The stack of hierarchy levels.
         self.stack = [self.root]
 
@@ -87,44 +95,41 @@ class Outline:
         Args:
             ltb (LTB): The logical text block to append.
         """
+        # Append as many hierarchy levels as needed until the hierarchy
+        # level of the outline matches the hierarchy of the LTB.
         while self.stack[-1].level < ltb.level:
-            # Append as many hierarchy levels as needed until the hierarchy
-            # level of the outline matches the hierarchy of the LTB.
-            outline_level = OutlineLevel(self.stack[-1].level + 1)
+            outline_level = LTBOutlineLevel(self.stack[-1].level + 1)
             self.stack[-1].elements.append(outline_level)
             self.stack.append(outline_level)
+        # Pop as many hierarchy levels as needed until the hierarchy
+        # level of the outline matches the hierarchy of the LTB.
         while self.stack[-1].level > ltb.level:
-            # Pop as many hierarchy levels as needed until the hierarchy
-            # level of the outline matches the hierarchy of the LTB.
             self.stack.pop()
         # Append the LTB to the elements of current hierarchy level.
         self.stack[-1].elements.append(ltb)
 
+    # Override
     def __str__(self):
         return str(self.root)
 
-    # Override
-    def format_block(self, block):
-        # Return list here such that we can simply use extend() in
-        # format_outline_level() above.
-        return [block.get_text()]
 
-class OutlineLevel:
+class LTBOutlineLevel:
     """
     A class representing a hierarchy level in the outline of LTBs.
     """
     def __init__(self, level):
         """
-        Creates a new hierarchy level.
+        Creates a new outline level.
 
         Args:
-            level (int): The level.
+            level (int): The level of the hierarchy level.
         """
         # The level.
         self.level = level
-        # The elements of this level, either of type LTB or OutlineLevel.
+        # The elements of this level, either of type LTB or LTBOutlineLevel.
         self.elements = []
 
+    # Override
     def __str__(self):
         parts = []
         for element in self.elements:

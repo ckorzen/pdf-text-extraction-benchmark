@@ -1,4 +1,4 @@
-from models.ltb import OutlineLevel, LTB
+from models.ltb import LTB, LTBOutlineLevel
 
 
 class BaseSerializer:
@@ -57,15 +57,15 @@ class BaseSerializer:
 
     def format_outline_element(self, element):
         """
-        Formats an element of the outline (of type OutlineLevel or LTB) to a
+        Formats an element of the outline (of type LTBOutlineLevel or LTB) to a
         serializer-specific format (e.g., an ElementTree in case of XML).
 
         Args:
-            element (OutlineLevel|LTB): The element to format.
+            element (LTBOutlineLevel|LTB): The element to format.
         Returns:
             The outline element in a serializer-specific format.
         """
-        if isinstance(element, OutlineLevel):
+        if isinstance(element, LTBOutlineLevel):
             return self.format_outline_level(element)
         elif isinstance(element, LTB) and self.matches_roles_filter(element):
             return self.format_block(element)
@@ -76,7 +76,7 @@ class BaseSerializer:
         ElementTree in case of XML).
 
         Args:
-            outline_level (OutlineLevel): The level to format.
+            outline_level (LTBOutlineLevel): The level to format.
         Returns:
             The outline level in a serializer-specific format.
         """
