@@ -330,7 +330,13 @@ def read_pdf_pos_index_file(path):
     index = {}
     with open(path) as f:
         for line in f:
-            fields = line.strip().split("\t")
+            line = line.strip()
+            
+            # Ignore comment lines.
+            if line.startswith('#'):
+                continue
+
+            fields = line.split("\t")
             if len(fields) < 1:
                 continue
             word_id = fields[0]
