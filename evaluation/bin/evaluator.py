@@ -214,7 +214,7 @@ class ToolEvaluator:
         if file_utils.is_missing_or_empty_file(gt_file):
             file_result.status_code = 21
         else:
-            groundtruth, _ = file_utils.read_groundtruth_file(gt_file)
+            gt, _ = file_utils.read_groundtruth_file(gt_file)
             file_result.status_code = 0
 
         # Read the tool file.
@@ -227,12 +227,18 @@ class ToolEvaluator:
             tool_output, status_code = file_utils.read_tool_file(tool_file)
             file_result.status_code = status_code
 
+        # Read the PDF position index file (mapping words to positions in PDF).
+        pdf_pos_idx = None
+        pdf_pos_idx_path = self.path_manager.get_pdf_pos_index_path(gt_file)
+        if not file_utils.is_missing_or_empty_file(pdf_pos_idx_path):
+            pdf_pos_idx = file_utils.read_pdf_pos_index_file(pdf_pos_idx_path)
+
         # Check the status code and abort, if there is an error.
         if getattr(file_result, "status_code", -1) != 0:
             return file_result
 
         # Evaluate the strings.
-        evaluation_result = self.evaluate_strings(groundtruth, tool_output)
+        evaluation_result = self.evaluate_strings(gt, tool_output, pdf_pos_idx)
 
         # Write visualization to file.
         vis_path = self.path_manager.get_tool_visualization_file(tool, gt_file)
@@ -247,7 +253,7 @@ class ToolEvaluator:
 
         return file_result
 
-    def evaluate_strings(self, groundtruth, tool_output):
+    def evaluate_strings(self, groundtruth, tool_output, pdf_pos_idx):
         """
         Computes precision and recall of words extraction. For that, run diff
         on the set of words of groundtruth (gt) and the actual extraction
@@ -274,7 +280,8 @@ class ToolEvaluator:
             min_rearrange_length=10,
             refuse_common_threshold=1,
             excludes=self.args.junk,
-            junk=self.args.junk
+            junk=self.args.junk,
+            word_pdf_positions_index=pdf_pos_idx
         )
 
     def aggregate_file_results(self, file_results, tool_result):
@@ -309,8 +316,10 @@ class ToolEvaluator:
 
             sum_num_ops += num_ops
             sum_num_ops_abs += num_ops_abs
-            sum_num_paras_target += getattr(result, "num_paras_target", 0)
-            sum_num_words_target += getattr(result, "num_words_target", 0)
+            num_paras_target = getattr(result, "num_paras_target", 0) - 1
+            num_words_target = getattr(result, "num_words_target", 0) - 1
+            sum_num_paras_target += max(num_paras_target, 0)
+            sum_num_words_target += max(num_words_target, 0)
             num_ok += 1
 
         # Compute average num ops.

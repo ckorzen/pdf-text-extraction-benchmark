@@ -19,7 +19,8 @@ def doc_diff_from_strings(
         # specialchars_pattern: special chars that are not surrounded by digit.
         specialchars_pattern="(?<!\d)\W+|\W+(?!\d)",
         excludes=[],
-        junk=[]):
+        junk=[],
+        word_pdf_positions_index=None):
     """ Does a doc diff based on given strings.
     Splits the strings actual and target to paragraphs and words based on
     given para_delimiter and word_delimiter. Normalizes the words by
@@ -52,7 +53,8 @@ def doc_diff_from_strings(
         word_delimiter=word_delimiter,
         to_lower=to_lower,
         specialchars_pattern=specialchars_pattern,
-        excludes=excludes)
+        excludes=excludes,
+        word_pdf_positions_index=word_pdf_positions_index)
 
     return doc_diff(
         actual,

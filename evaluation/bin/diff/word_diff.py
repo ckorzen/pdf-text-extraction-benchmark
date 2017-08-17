@@ -263,6 +263,8 @@ class DiffPhrase:
             word.pos_target = pos_target + i
             word.phrase = self
             self.words_target.append(word)
+            
+        self.pdf_positions = self.compute_pdf_positions(words_target)
 
     def subphrase(self, start, end):
         """
@@ -319,6 +321,32 @@ class DiffPhrase:
     def get_str_pattern(self):
         """ Returns the pattern to use on creating string representation. """
         return "[? %s, %s]"
+
+    def compute_pdf_positions(self, words):
+        """ Merges the PDF positions that overlap vertically."""
+        pdf_positions = []
+        pdf_position = None
+        for word in words:
+            word_positions = word.pdf_positions
+            if word_positions is not None:
+                for word_pos in word_positions:
+                    if pdf_position is None:
+                        pdf_position = word_pos
+                        continue
+                    
+                    # Check if the current PDF position overlap vertically.
+                    if pdf_position.has_vertical_overlap(word_pos):
+                        pdf_position.extend(word_pos)
+                        continue
+                    
+                    pdf_positions.append(pdf_position)
+                    pdf_position = word_pos
+        
+        # Don't forget the last PDF position.
+        if pdf_position is not None:
+            pdf_positions.append(pdf_position)
+        
+        return pdf_positions
 
     def __str__(self):
         """ Returns this phrase in string representation. """
