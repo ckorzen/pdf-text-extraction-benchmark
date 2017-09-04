@@ -85,7 +85,7 @@ def doc_diff(
 
     # Compute the number of operations.
     handle_diff_result(diff_result, junk)
-
+    
     return diff_result
 
 
@@ -124,10 +124,12 @@ def handle_diff_result(diff_result, junk=[]):
             phrase.num_ops = num_split_merge + phrase.num_para_ops
             phrase.num_ops_abs = num_split_merge + phrase.num_para_ops_abs
             phrase.vis = phrase.vis_para_ops
+            phrase.op_type = "para"
         else:
             phrase.num_ops = phrase.num_word_ops
             phrase.num_ops_abs = phrase.num_word_ops_abs
             phrase.vis = phrase.vis_word_ops
+            phrase.op_type = "words"
 
         # Add splits and merges.
         if getattr(phrase, "split_before", False):
