@@ -237,8 +237,11 @@ class ToolEvaluator:
         if getattr(file_result, "status_code", -1) != 0:
             return file_result
 
+        pdf_file = self.path_manager.get_pdf_file(gt_file)
+
         # Evaluate the strings.
-        evaluation_result = self.evaluate_strings(gt, tool_output, pdf_pos_idx)
+        evaluation_result = self.evaluate_strings(
+            gt, tool_output, pdf_pos_idx, pdf_file)
 
         # Write visualization to file.
         vis_path = self.path_manager.get_tool_visualization_file(tool, gt_file)
@@ -253,7 +256,8 @@ class ToolEvaluator:
 
         return file_result
 
-    def evaluate_strings(self, groundtruth, tool_output, pdf_pos_idx):
+    def evaluate_strings(self, groundtruth, tool_output, pdf_pos_idx,
+                         pdf_path):
         """
         Computes precision and recall of words extraction. For that, run diff
         on the set of words of groundtruth (gt) and the actual extraction
@@ -281,7 +285,8 @@ class ToolEvaluator:
             refuse_common_threshold=1,
             excludes=self.args.junk,
             junk=self.args.junk,
-            word_pdf_positions_index=pdf_pos_idx
+            word_pdf_positions_index=pdf_pos_idx,
+            pdf_path=pdf_path
         )
 
     def aggregate_file_results(self, file_results, tool_result):

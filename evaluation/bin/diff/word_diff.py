@@ -263,7 +263,7 @@ class DiffPhrase:
             word.pos_target = pos_target + i
             word.phrase = self
             self.words_target.append(word)
-            
+
         self.pdf_positions = self.compute_pdf_positions(words_target)
 
     def subphrase(self, start, end):
@@ -333,19 +333,19 @@ class DiffPhrase:
                     if pdf_position is None:
                         pdf_position = word_pos
                         continue
-                    
+
                     # Check if the current PDF position overlap vertically.
                     if pdf_position.has_vertical_overlap(word_pos):
                         pdf_position.extend(word_pos)
                         continue
-                    
+
                     pdf_positions.append(pdf_position)
                     pdf_position = word_pos
-        
+
         # Don't forget the last PDF position.
         if pdf_position is not None:
             pdf_positions.append(pdf_position)
-        
+
         return pdf_positions
 
     def __str__(self):

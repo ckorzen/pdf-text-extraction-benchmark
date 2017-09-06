@@ -12,7 +12,7 @@ import pickle
 def string_to_diff_words(
         string, flatten=True, compose_characters=False,
         para_delimiter="\n\s*\n\s*", word_delimiter="\s+", to_lower=True,
-        specialchars_pattern="(?<!\d)\W+|\W+(?!\d)", excludes=[], 
+        specialchars_pattern="(?<!\d)\W+|\W+(?!\d)", excludes=[],
         word_pdf_positions_index=None):
     """
     Splits the given string into paras and normalizes the words of each
@@ -90,6 +90,7 @@ def compose_characters(string):
     #       I" above.
     return unicodedata.normalize("NFC", "".join([chr(i) for i in codepoints]))
 
+
 def split_into_paras_and_words(
         string,
         para_delimiter="\n\s*\n\s*",
@@ -132,7 +133,8 @@ def split_into_paras_and_words(
 
         diff_words_per_para = []
 
-        def create_diff_word(word, word_delim, exclude=False, pdf_positions=None):
+        def create_diff_word(word, word_delim, exclude=False,
+                             pdf_positions=None):
             """
             Creates a new diff word from given word and given word delimiter.
             Appends the word to the list of para words.
@@ -171,7 +173,7 @@ def split_into_paras_and_words(
         # Split the paragraph into words based on whitespaces:
         # "X Y/Z" -> ["X", "Y/Z"]
         words = split(para, word_delimiter)
-        
+
         for j in range(0, len(words), 2):
             word = words[j]
             word_delim = words[j+1]
@@ -179,7 +181,7 @@ def split_into_paras_and_words(
             # Split the word into non-excludes and excludes:
             # "A-B[formula]C" -> ["A-B", "[formula]", "C"]
             exclude_words = split(word, excludes_pattern)
-            
+
             # Process the non-excludes and excludes.
             for k in range(0, len(exclude_words), 2):
                 non_exclude = exclude_words[k]
@@ -203,11 +205,11 @@ def split_into_paras_and_words(
                     special_chars = special_words[l+1]
                     # Create diff word from non_special_word.
                     create_diff_word(non_special_word, special_chars,
-                        pdf_positions=pdf_positions)
+                                     pdf_positions=pdf_positions)
 
                 # Create diff word from word to exclude.
-                create_diff_word(exclude, "", exclude=True, 
-                    pdf_positions=pdf_positions)
+                create_diff_word(exclude, "", exclude=True,
+                                 pdf_positions=pdf_positions)
 
             if len(diff_words_per_para) > 0:
                 # Append the word delimiter to the last word.

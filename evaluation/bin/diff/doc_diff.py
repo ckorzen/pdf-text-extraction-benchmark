@@ -20,7 +20,8 @@ def doc_diff_from_strings(
         specialchars_pattern="(?<!\d)\W+|\W+(?!\d)",
         excludes=[],
         junk=[],
-        word_pdf_positions_index=None):
+        word_pdf_positions_index=None,
+        pdf_path=None):
     """ Does a doc diff based on given strings.
     Splits the strings actual and target to paragraphs and words based on
     given para_delimiter and word_delimiter. Normalizes the words by
@@ -62,7 +63,8 @@ def doc_diff_from_strings(
         rearrange_phrases=rearrange_phrases,
         min_rearrange_length=min_rearrange_length,
         refuse_common_threshold=refuse_common_threshold,
-        junk=junk)
+        junk=junk,
+        pdf_path=pdf_path)
 
 
 def doc_diff(
@@ -71,7 +73,8 @@ def doc_diff(
         rearrange_phrases=False,
         min_rearrange_length=3,
         refuse_common_threshold=0,
-        junk=[]):
+        junk=[],
+        pdf_path=None):
     """ Does doc_diff based on flat lists of DiffWord objects. """
 
     # Run para_diff on given input.
@@ -83,9 +86,12 @@ def doc_diff(
         refuse_common_threshold=refuse_common_threshold,
         junk=junk)
 
+    # Set the path to the related PDF file, needed to create the visualization.
+    diff_result.pdf_path = pdf_path
+
     # Compute the number of operations.
     handle_diff_result(diff_result, junk)
-    
+
     return diff_result
 
 

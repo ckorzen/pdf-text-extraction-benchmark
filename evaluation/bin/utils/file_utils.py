@@ -142,6 +142,20 @@ class PathManager:
         tool_file = os.path.join(self.get_tool_output_dir(tool), tool_file_rel)
         return os.path.abspath(tool_file)
 
+    def get_pdf_file(self, gt_file):
+        """
+        Returns the path to the PDF file to which the given gt file belongs to.
+        """
+        # Get the path of gt_file, relative to the self.gt_dir.
+        gt_file_rel = os.path.relpath(gt_file, self.gt_dir)
+        # Remove the suffix from the relative path.
+        gt_file_rel = gt_file_rel.replace(GT_FILE_EXT, "")
+        # Append the extension for the PDF position index file.
+        pdf_file_rel = gt_file_rel + PDF_FILE_EXT
+        # Compute the absolute path of the PDF position index file.
+        pdf_file = os.path.join(self.pdfs_dir, pdf_file_rel)
+        return os.path.abspath(pdf_file)
+
     def get_pdf_pos_index_path(self, gt_file):
         """
         Returns the path to the PDF positions index file, where word ids are
@@ -320,6 +334,7 @@ def write_tool_file(path, content, status_code=-1, status=""):
 
 # =============================================================================
 
+
 def read_pdf_pos_index_file(path):
     """
     Reads the given PDf position index file.
@@ -331,7 +346,7 @@ def read_pdf_pos_index_file(path):
     with open(path) as f:
         for line in f:
             line = line.strip()
-            
+
             # Ignore comment lines.
             if line.startswith('#'):
                 continue
@@ -356,6 +371,7 @@ def read_pdf_pos_index_file(path):
             index[word_id] = positions
     return index
 
+
 class PdfPosition:
     def __init__(self, page_number, min_x, min_y, max_x, max_y):
         self.page_number = page_number
@@ -366,12 +382,12 @@ class PdfPosition:
 
     def has_vertical_overlap(self, other):
         """
-        Checks if this PDF position overlaps the given other PDF position 
+        Checks if this PDF position overlaps the given other PDF position
         horizontally and/or vertically.
         """
         if other is None:
             return False
-            
+
         if self.page_number != other.page_number:
             return False
 
@@ -383,10 +399,10 @@ class PdfPosition:
         """
         if other is None:
             return
-            
+
         if self.page_number != other.page_number:
             return
-            
+
         self.min_x = min(self.min_x, other.min_x)
         self.min_y = min(self.min_y, other.min_y)
         self.max_x = max(self.max_x, other.max_x)
@@ -396,8 +412,9 @@ class PdfPosition:
 
     def __str__(self):
         return "PdfPosition(%s, %s, %s, %s, %s)" \
-            % (self.page_number, self.min_x, self.min_y, self.max_x, self.max_y)
-            
+            % (self.page_number, self.min_x, self.min_y, self.max_x,
+               self.max_y)
+
     def __repr__(self):
         return self.__str__()
 
