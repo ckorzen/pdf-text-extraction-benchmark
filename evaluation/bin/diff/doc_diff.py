@@ -84,7 +84,8 @@ def doc_diff(
         rearrange_phrases=rearrange_phrases,
         min_rearrange_length=min_rearrange_length,
         refuse_common_threshold=refuse_common_threshold,
-        junk=junk)
+        junk=junk,
+        pdf_path=pdf_path)
 
     # Set the path to the related PDF file, needed to create the visualization.
     diff_result.pdf_path = pdf_path

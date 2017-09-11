@@ -23,7 +23,8 @@ def para_diff_from_strings(
         to_lower=False,
         specialchars_pattern="\W+",
         excludes=[],
-        junk=[]):
+        junk=[],
+        pdf_path=None):
     """ Does a para diff based on given strings.
     Splits the strings actual and target to paragraphs and words based on
     given para_delimiter and word_delimiter. Normalizes the words by
@@ -64,7 +65,8 @@ def para_diff_from_strings(
         rearrange_phrases=rearrange_phrases,
         min_rearrange_length=min_rearrange_length,
         refuse_common_threshold=refuse_common_threshold,
-        junk=junk)
+        junk=junk,
+        pdf_path=pdf_path)
 
 
 def para_diff(
@@ -73,7 +75,8 @@ def para_diff(
         rearrange_phrases=False,
         min_rearrange_length=3,
         refuse_common_threshold=0,
-        junk=[]):
+        junk=[],
+        pdf_path=None):
     """ Does a para_diff based on flat lists of DiffWord objects. """
 
     actual = [] if actual is None else actual
@@ -94,7 +97,7 @@ def para_diff(
         rearrange(
             result, min_rearrange_length=min_rearrange_length,
             refuse_common_threshold=refuse_common_threshold,
-            junk=junk)
+            junk=junk, pdf_path=pdf_path)
 
     # Split and merge the phrases to meet paragraph boundaries.
     # split_and_merge(result)

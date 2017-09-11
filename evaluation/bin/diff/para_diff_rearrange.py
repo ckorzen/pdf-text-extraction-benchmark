@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 def rearrange(diff_result, min_rearrange_length=3, refuse_common_threshold=0,
-              junk=[]):
+              junk=[], pdf_path=None):
     """
     Tries to rearrange phrases.
     """
@@ -86,7 +86,7 @@ def rearrange(diff_result, min_rearrange_length=3, refuse_common_threshold=0,
         rearrange_phrase = DiffRearrangePhrase(
             pos_actual, actual, pos_target, target,
             refuse_common_threshold=refuse_common_threshold,
-            junk=junk)
+            junk=junk, pdf_path=pdf_path)
 
         rearrange_phrase.source_phrase = matched_delete_window.phrase
         rearrange_phrase.target_phrase = matched_insert_window.phrase
@@ -377,7 +377,7 @@ class DiffRearrangePhrase(DiffPhrase):
     """ A phrase of rearranged words. """
 
     def __init__(self, pos_actual, words_actual, pos_target, words_target,
-                 refuse_common_threshold=0, junk=[]):
+                 refuse_common_threshold=0, junk=[], pdf_path=None):
         super(DiffRearrangePhrase, self).__init__(
             pos_actual, words_actual, pos_target, words_target)
         self.refuse_common_threshold = refuse_common_threshold
@@ -385,7 +385,7 @@ class DiffRearrangePhrase(DiffPhrase):
         self.sub_diff_result = doc_diff.doc_diff(
             self.words_actual, self.words_target,
             refuse_common_threshold=refuse_common_threshold,
-            junk=junk)
+            junk=junk, pdf_path=pdf_path)
 
     def get_str_pattern(self):
         """ Returns the pattern to use on creating string representation. """
