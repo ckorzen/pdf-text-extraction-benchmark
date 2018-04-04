@@ -1,4 +1,4 @@
-# A Benchmark and Evaluation for Text Extraction from PDF #
+# A Benchmark & Evaluation for Text Extraction from PDF #
 
 This project is about benchmarking and evaluating existing PDF extraction tools on their semantic abilities to extract the *body texts* from PDF documents, especially from *scientific articles*.
 It provides (1) a benchmark generator, (2) a ready-to-use benchmark and (3) an extensive evaluation, with meaningful evaluation criteria.
