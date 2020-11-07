@@ -31,11 +31,18 @@ public class TeXParagraphsIdentifier {
    */
   protected TeXFile texFile;
 
-  /**
-   * Creates a new paragraphs identifier for the given tex file.
+  /** 
+   * The target directory for intermediate files.
    */
-  public TeXParagraphsIdentifier(TeXFile file) {    
+  protected Path tmpDir;
+
+  /**
+   * Creates a new paragraphs identifier for the given tex file. The tmp dir is used for storing 
+   * intermediate files.
+   */
+  public TeXParagraphsIdentifier(TeXFile file, Path tmpDir) {    
     this.texFile = file;
+    this.tmpDir = tmpDir;
   }
 
   /**
@@ -164,9 +171,7 @@ public class TeXParagraphsIdentifier {
   /**
    * Defines the path to the target directory for the preprocessing step.
    */
-  protected Path defineResolveMacrosTargetDirectory(Path texFile) {
-    affirm(texFile != null, "No tex file given.");
-    
-    return texFile.getParent();
+  protected Path defineResolveMacrosTargetDirectory(Path texFile) {    
+    return this.tmpDir;
   }
 }

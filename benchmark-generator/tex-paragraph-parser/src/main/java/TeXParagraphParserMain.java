@@ -1,3 +1,4 @@
+
 import static de.freiburg.iif.affirm.Affirm.affirm;
 import static model.TeXParagraphParserSettings.TEX_EXTENSIONS;
 import static model.TeXParagraphParserSettings.TMP_TEX_EXTENSIONS;
@@ -47,8 +48,8 @@ import serializer.TeXParagraphTxtSerializer;
  */
 public class TeXParagraphParserMain {
   /**
-   * The input as defined by the user, as string. May be a path to a tex file or
-   * a path to a directory containing tex files.
+   * The input as defined by the user, as string. May be a path to a tex file or a
+   * path to a directory containing tex files.
    */
   protected String input;
 
@@ -68,23 +69,23 @@ public class TeXParagraphParserMain {
   protected String serialFileSuffix;
 
   /**
-   * The path to serialization file as defined by the user, as string. It
-   * denotes the file where to store the paragraphs in a serialized form. May be
-   * a path to a directory or a file.
+   * The path to serialization file as defined by the user, as string. It denotes
+   * the file where to store the paragraphs in a serialized form. May be a path to
+   * a directory or a file.
    */
   protected String serialization;
 
   /**
-   * The input directory, resolved from users input. If the input is a file,
-   * this path denotes the parent directory. If the input is a directory, this
-   * path denotes exactly this directory.
+   * The input directory, resolved from users input. If the input is a file, this
+   * path denotes the parent directory. If the input is a directory, this path
+   * denotes exactly this directory.
    */
   protected Path inputDirectory;
 
   /**
-   * The list of resolved input files to process. If the input is a file, the
-   * list consists of this single file. If the input is a directory, the lists
-   * consists of all tex files found in the directory.
+   * The list of resolved input files to process. If the input is a file, the list
+   * consists of this single file. If the input is a directory, the lists consists
+   * of all tex files found in the directory.
    */
   protected List<Path> inputFiles;
 
@@ -95,11 +96,21 @@ public class TeXParagraphParserMain {
 
   /**
    * The serialization directory, resolved from users serialization path. If the
-   * path is a file, 'serializationDirectory' denotes its parent directory. If
-   * the serialization path is a directory, 'serializationDirectory' denotes
-   * exactly this directory.
+   * path is a file, 'serializationDirectory' denotes its parent directory. If the
+   * serialization path is a directory, 'serializationDirectory' denotes exactly
+   * this directory.
    */
   protected Path serializationDirectory;
+
+  /**
+   * The path to the target directory for temporary files.
+   */
+  protected String tmpDirPath;
+
+  /**
+   * The target directory for temporary files.
+   */
+  protected Path tmpDir;
 
   /**
    * The format of output files. One of: txt, txt2, tsv,
@@ -151,10 +162,9 @@ public class TeXParagraphParserMain {
 
     input = getOptionValue(cmd, TeXParserOptions.INPUT, null);
     serialization = getOptionValue(cmd, TeXParserOptions.OUTPUT, null);
-    inputFilePrefixFilters =
-        getOptionValues(cmd, TeXParserOptions.PREFIX, null);
-    inputDirectoryPrefixFilters =
-        getOptionValues(cmd, TeXParserOptions.DIRS, null);
+    tmpDirPath = getOptionValue(cmd, TeXParserOptions.TMP_DIR, null);
+    inputFilePrefixFilters = getOptionValues(cmd, TeXParserOptions.PREFIX, null);
+    inputDirectoryPrefixFilters = getOptionValues(cmd, TeXParserOptions.DIRS, null);
     outputFormat = getOptionValue(cmd, TeXParserOptions.OUTPUT_FORMAT, "txt");
     roles = resolveRoles(getOptionValues(cmd, TeXParserOptions.ROLE, null));
     serialFileSuffix = getOptionValue(cmd, TeXParserOptions.SUFFIX, ".txt");
@@ -187,8 +197,7 @@ public class TeXParagraphParserMain {
     affirm(!input.trim().isEmpty(), "No input given.");
 
     Path inPath = Paths.get(input).toAbsolutePath();
-    Path serPath = serialization != null
-        ? Paths.get(serialization).toAbsolutePath() : null;
+    Path serPath = serialization != null ? Paths.get(serialization).toAbsolutePath() : null;
 
     // Check, if the input path exists.
     affirm(Files.exists(inPath), "The given input doesn't exist.");
@@ -222,15 +231,23 @@ public class TeXParagraphParserMain {
       System.out.print("Collecting TeX files ...");
       readDirectory(inPath, this.inputFiles);
       System.out.println(this.inputFiles.size() + " found.");
-      
+
       // Check, if there is an output given.
       if (serPath != null) {
-        affirm(!Files.isRegularFile(serPath),
-            "An input directory can't be serialized to a file.");
+        affirm(!Files.isRegularFile(serPath), "An input directory can't be serialized to a file.");
         // The output is an existing directory OR doesn't exist.
         // If the output doesn't exist, interpret the output as a directory,
         // (because the input is a directory).
         this.serializationDirectory = serPath;
+      }
+    }
+
+    this.tmpDir = Paths.get(tmpDirPath);
+    if (!Files.isDirectory(tmpDir)) {
+      try {
+        Files.createDirectories(this.tmpDir);
+      } catch (IOException e) {
+        System.err.println("Cannot create tmp directory: " + e);
       }
     }
   }
@@ -238,8 +255,7 @@ public class TeXParagraphParserMain {
   /**
    * Processes the tex files found from users input.
    * 
-   * @throws Exception
-   *           if something went wrong.
+   * @throws Exception if something went wrong.
    */
   protected void processTexFiles() throws Exception {
     ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -272,8 +288,8 @@ public class TeXParagraphParserMain {
   // ---------------------------------------------------------------------------
 
   /**
-   * Reads the given directory recursively and fills the given list with found
-   * tex files.
+   * Reads the given directory recursively and fills the given list with found tex
+   * files.
    */
   protected void readDirectory(Path directory, List<Path> res) {
     try (DirectoryStream<Path> ds = Files.newDirectoryStream(directory)) {
@@ -310,8 +326,7 @@ public class TeXParagraphParserMain {
 
     if (Files.isDirectory(file)) {
       // Consider the path if no prefix(es) are given.
-      if (this.inputDirectoryPrefixFilters == null
-          || this.inputDirectoryPrefixFilters.isEmpty()) {
+      if (this.inputDirectoryPrefixFilters == null || this.inputDirectoryPrefixFilters.isEmpty()) {
         return true;
       }
 
@@ -340,14 +355,12 @@ public class TeXParagraphParserMain {
     // Process only those files, which end with one of the
     // predefined extension, but don't end with a file extension of a
     // preprocessing file.
-    if (!StringUtils.endsWith(fileName, TEX_EXTENSIONS)
-        || StringUtils.endsWith(fileName, TMP_TEX_EXTENSIONS)) {
+    if (!StringUtils.endsWith(fileName, TEX_EXTENSIONS) || StringUtils.endsWith(fileName, TMP_TEX_EXTENSIONS)) {
       return false;
     }
 
     // Consider the path if no prefix(es) are given.
-    if (this.inputFilePrefixFilters == null
-        || this.inputFilePrefixFilters.isEmpty()) {
+    if (this.inputFilePrefixFilters == null || this.inputFilePrefixFilters.isEmpty()) {
       return true;
     }
 
@@ -409,8 +422,7 @@ public class TeXParagraphParserMain {
   /**
    * Parses the command line options.
    */
-  protected static CommandLine parseCommandLine(String[] args, Options opts)
-    throws ParseException {
+  protected static CommandLine parseCommandLine(String[] args, Options opts) throws ParseException {
     return new DefaultParser().parse(opts, args);
   }
 
@@ -425,8 +437,7 @@ public class TeXParagraphParserMain {
   /**
    * Returns true, if the given command line contains the given option.
    */
-  protected static boolean hasOption(CommandLine cmd,
-      TeXParserOptions option) {
+  protected static boolean hasOption(CommandLine cmd, TeXParserOptions option) {
     return cmd != null && cmd.hasOption(option.shortOpt);
   }
 
@@ -434,8 +445,7 @@ public class TeXParagraphParserMain {
    * Returns the value associated with given option as string. Returns the given
    * default value if the given command line doesn't contain the option.
    */
-  protected static String getOptionValue(CommandLine cmd,
-      TeXParserOptions option, String defaultValue) {
+  protected static String getOptionValue(CommandLine cmd, TeXParserOptions option, String defaultValue) {
     if (cmd != null) {
       return cmd.getOptionValue(option.shortOpt, defaultValue);
     }
@@ -446,8 +456,7 @@ public class TeXParagraphParserMain {
    * Returns the value associated with given option as string. Returns the given
    * default value if the given command line doesn't contain the option.
    */
-  protected static List<String> getOptionValues(CommandLine cmd,
-      TeXParserOptions option, List<String> defaultValue) {
+  protected static List<String> getOptionValues(CommandLine cmd, TeXParserOptions option, List<String> defaultValue) {
     if (cmd != null) {
       String[] values = cmd.getOptionValues(option.shortOpt);
       if (values != null) {
@@ -472,34 +481,34 @@ public class TeXParagraphParserMain {
     OUTPUT("o", "output", "The output file/directory.", true, true),
 
     /**
-     * Create option to define the prefix(es) to consider on parsing the input
-     * directory.
+     * Create option to define the path to the target directory for temp files.
      */
-    PREFIX("p", "prefix",
-        "The prefix(es) to consider on parsing the input directory.",
-        false, true, Option.UNLIMITED_VALUES),
+    TMP_DIR("t", "tmpDir", "The target dir for intermediate files.", true, true),
 
     /**
      * Create option to define the prefix(es) to consider on parsing the input
      * directory.
      */
-    DIRS("d", "dirs",
-        "The prefix(es) to consider on parsing the input directory.",
-        false, true, Option.UNLIMITED_VALUES),
+    PREFIX("p", "prefix", "The prefix(es) to consider on parsing the input directory.", false, true,
+        Option.UNLIMITED_VALUES),
+
+    /**
+     * Create option to define the prefix(es) to consider on parsing the input
+     * directory.
+     */
+    DIRS("d", "dirs", "The prefix(es) to consider on parsing the input directory.", false, true,
+        Option.UNLIMITED_VALUES),
 
     /**
      * Create option to define the suffix for serialization files to create.
      */
-    SUFFIX("s", "suffix",
-        "The suffix to use on creating serialization file(s).",
-        false, true, 1),
+    SUFFIX("s", "suffix", "The suffix to use on creating serialization file(s).", false, true, 1),
 
     /**
      * Create option to define roles to serialize.
      */
-    ROLE("r", "role",
-        "Defines roles to consider on serialization of paragraphs.",
-        false, true, Option.UNLIMITED_VALUES),
+    ROLE("r", "role", "Defines roles to consider on serialization of paragraphs.", false, true,
+        Option.UNLIMITED_VALUES),
 
     /**
      * Create option to serialize only the text of paragraphs into txt file.
@@ -539,24 +548,21 @@ public class TeXParagraphParserMain {
     /**
      * Creates a new option with given arguments.
      */
-    TeXParserOptions(String opt, String longOpt, String description,
-        boolean required) {
+    TeXParserOptions(String opt, String longOpt, String description, boolean required) {
       this(opt, longOpt, description, required, false);
     }
 
     /**
      * Creates a new option with given arguments.
      */
-    TeXParserOptions(String opt, String longOpt, String description,
-        boolean required, boolean hasArg) {
+    TeXParserOptions(String opt, String longOpt, String description, boolean required, boolean hasArg) {
       this(opt, longOpt, description, required, hasArg, hasArg ? 1 : 0);
     }
 
     /**
      * Creates a new option with given arguments.
      */
-    TeXParserOptions(String opt, String longOpt, String description,
-        boolean required, boolean hasArg, int numArgs) {
+    TeXParserOptions(String opt, String longOpt, String description, boolean required, boolean hasArg, int numArgs) {
       this.shortOpt = opt;
       this.longOpt = longOpt;
       this.description = description;
@@ -614,10 +620,9 @@ public class TeXParagraphParserMain {
     }
 
     /**
-     * Processes the given tex file. Identifies the paragraphs from given tex
-     * file and their positions in pdf file if global flag
-     * 'identifyPdfParagraphs' is set to true. Serializes and visualizes the
-     * paragraphs if related paths are given.
+     * Processes the given tex file. Identifies the paragraphs from given tex file
+     * and their positions in pdf file if global flag 'identifyPdfParagraphs' is set
+     * to true. Serializes and visualizes the paragraphs if related paths are given.
      */
     public void run() {
       try {
@@ -641,12 +646,10 @@ public class TeXParagraphParserMain {
       texFile.setBaseDirectory(inputDirectory);
 
       Path serializationTargetFile = defineSerializationTargetFile(texFile);
-      
+
       Path in = TeXParagraphParserMain.this.inputDirectory.relativize(file);
-      Path out = TeXParagraphParserMain.this.serializationDirectory
-          .relativize(serializationTargetFile);
-      System.out.println(++numProcessedFiles + "/" + inputFiles.size() + " "
-          + in + " -> " + out);
+      Path out = TeXParagraphParserMain.this.serializationDirectory.relativize(serializationTargetFile);
+      System.out.println(++numProcessedFiles + "/" + inputFiles.size() + " " + in + " -> " + out);
 
       if (serializationTargetFile == null) {
         return;
@@ -667,14 +670,13 @@ public class TeXParagraphParserMain {
      * Identifies the paragraphs from given tex file.
      */
     protected void identifyTexParagraphs(TeXFile texFile) throws IOException {
-      new TeXParagraphsIdentifier(texFile).identify();
+      new TeXParagraphsIdentifier(texFile, TeXParagraphParserMain.this.tmpDir).identify();
     }
 
     /**
      * Serializes the selected features to file.
      */
-    protected void serialize(TeXFile file, List<String> roles, Path target)
-      throws IOException {
+    protected void serialize(TeXFile file, List<String> roles, Path target) throws IOException {
 
       switch (outputFormat) {
         case "txt2":

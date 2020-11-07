@@ -1,21 +1,40 @@
-BENCHMARK_GENERATOR_SRC = ./tex-paragraph-parser
-BENCHMARK_GENERATOR_JAR = ./bin/benchmark-generator.jar
+INPUT = /input
+OUTPUT = /output
+TMP_DIR = /tmp
 
-INPUT = ../benchmark/src/data
-OUTPUT = ../benchmark/groundtruth/data
+SUFFIX = .body.txt
+ROLE = body
+FORMAT = txt
 
-SUFFIX = ".body.txt"
-ROLE = "body"
-FORMAT = "txt"
+BENCHMARK_GENERATOR_SRC = /tex-paragraph-parser
 
-compile-benchmark-generator:
-	mvn -f $(BENCHMARK_GENERATOR_SRC)/pom.xml -DskipTests install
-	@cp $(BENCHMARK_GENERATOR_SRC)/target/*-with-dependencies.jar $(BENCHMARK_GENERATOR_JAR)
+help:
+	@echo "Help"
+	@echo "====="
+	@echo "\"make groundtruth\": parse the TeX files in \"/input\" dir and write the produced ground truth file to \"/output\" dir."
+	@echo "  Type \"make help-groundtruth\" for more information."
+	@echo ""
 
-benchmark: 
-	@java -jar $(BENCHMARK_GENERATOR_JAR) \
-		--input $(INPUT) \
-		--output $(OUTPUT) \
-		--suffix $(SUFFIX) \
-		--role $(ROLE) \
-		--format $(FORMAT) 
+groundtruth: 
+	java -jar $(BENCHMARK_GENERATOR_SRC)/target/*-with-dependencies.jar \
+			--input "$(INPUT)" \
+			--output "$(OUTPUT)" \
+			--tmpDir "$(TMP_DIR)" \
+			--prefix "$(PREFIX)" \
+			--suffix "$(SUFFIX)" \
+			--role "$(ROLE)" \
+			--format "$(FORMAT)"
+
+help-groundtruth:
+	@echo "make groundtruth"
+	@echo "====="
+	@echo
+	@echo "Parses the input directory recursively for TeX files and writes the body text (in the format one paragraph per line, each separated by a blank line) of each TeX file to a separate ground truth file in the output directory."
+	@echo ""
+	@echo "Usage: make groundtruth [PREFIX=<str>] [SUFFIX=<str>] [ROLE=<role>]"
+	@echo ""
+	@echo "The meanings of the options are:"
+	@echo " * PREFIX:  Only consider the TeX files in the input directory which starts with that prefix."
+	@echo " * SUFFIX:  Use this suffix for the names of the ground truth files to be created. Default: \"$(SUFFIX)\""
+	@echo " * ROLE:    Only extract the logical text blocks with the given semantic role. Choose from: [abstract, affiliation, authors, acknowledgements, body, caption, figure, footnote, formula, heading, listing-item, table, title, reference]"
+	@echo ""
