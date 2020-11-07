@@ -2,5 +2,5 @@ The pdf data are available at http://arxiv-benchmark.informatik.uni-freiburg.de/
 
 To include the data into the project structure, type
 
-    cd arxiv-benchmark/benchmark/
+    cd ..
     make download-data-pdf
